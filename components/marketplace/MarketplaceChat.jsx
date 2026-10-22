@@ -8,6 +8,7 @@ import Card from "@/components/ui/Card";
 import { inputClasses } from "@/components/ui/Field";
 import MessengerBadge from "@/components/marketplace/MessengerBadge";
 import { useChatAppMode } from "@/components/useChatAppMode";
+import { useChatRowCascade } from "@/components/useChatRowCascade";
 import { readViewerData, saveViewerData } from "@/components/chat-view-cache";
 import { MARKETPLACE_LIST_CACHE_PREFIX, MARKETPLACE_THREADS_CACHE_NAME } from "@/components/panel-cache-names";
 import { ManageShortcuts } from "@/components/WhatsappChatShortcuts";
@@ -168,7 +169,7 @@ export default function MarketplaceChat({ canEditSettings = false, canAssign = f
   // Mensagem interna (MKT-2i, dono, 2026-10-22): só a equipe vê; o servidor decide quem pode (`canInternal`).
   const [internalMode, setInternalMode] = useState(false);
   const [noteText, setNoteText] = useState("");
-  const endRef = useRef(null);
+  const messagesRef = useRef(null);
   const textRef = useRef(null);
   const internal = internalMode && Boolean(thread?.conversation?.canInternal);
   const slashQuery = !internal && text.startsWith("/") && !text.includes("\n") ? text.slice(1) : null;
@@ -178,6 +179,14 @@ export default function MarketplaceChat({ canEditSettings = false, canAssign = f
   // deve rolar apenas as conversas"): sem rodapé, altura da janela e só a lista / as mensagens rolam.
   useChatAppMode(true, sectionRef);
   selectedRef.current = selectedId;
+  // Mesmas cenas do Chat do WhatsApp (dono, 2026-10-22: "deve ter a mesma cena do chat do WhatsApp"), tudo em
+  // app/globals.css: pulinho em cascata das linhas ao entrar (components/useChatRowCascade.js — só na entrada, o polling
+  // não repete), conversa entrando da direita (admin-motion-detail), lista voltando da esquerda no celular
+  // (admin-motion-back), fade das mensagens ao abrir e bolha nova crescendo do canto ([data-chat-wallpaper]).
+  const sceneRef = useRef(null);
+  const [rowsEnter, setRowsEnter] = useState(true);
+  const [listBack, setListBack] = useState(false);
+  useChatRowCascade({ sceneRef, rowsEnter, setRowsEnter, hasRows: list.conversations.length > 0, rowTag: "LI" });
 
   const loadList = useCallback(() => {
     const query = listQuery(view, brokerId);
@@ -248,9 +257,9 @@ export default function MarketplaceChat({ canEditSettings = false, canAssign = f
 
   useEffect(() => {
     // Rola só a caixa das mensagens (scrollIntoView mexeria também na moldura fixa da tela cheia).
-    const box = endRef.current?.parentElement;
+    const box = messagesRef.current;
     if (box) box.scrollTop = box.scrollHeight;
-  }, [thread?.messages?.length]);
+  }, [selectedId, thread?.messages?.length]);
 
   async function send(event) {
     event.preventDefault();
@@ -330,8 +339,8 @@ export default function MarketplaceChat({ canEditSettings = false, canAssign = f
       {!list.ready ? <Card className="shrink-0 bg-warning-soft text-sm text-warning">O Chat do Marketplace ainda não foi criado no banco (migration 20261020180000).</Card> : null}
       {error ? <p role="alert" className="shrink-0 rounded-control bg-danger-soft px-3 py-2 text-sm text-danger">{error}</p> : null}
 
-      <div className="grid min-h-0 flex-1 grid-rows-[minmax(0,1fr)] gap-3 md:mb-4 md:grid-cols-[320px,1fr]">
-        <Card padding="none" className={`min-h-0 flex-col overflow-hidden max-md:rounded-none max-md:border-x-0 ${selectedId ? "hidden md:flex" : "flex"}`}>
+      <div ref={sceneRef} data-chat-enter={rowsEnter ? "" : undefined} className="grid min-h-0 flex-1 grid-rows-[minmax(0,1fr)] gap-3 md:mb-4 md:grid-cols-[320px,1fr]">
+        <Card padding="none" className={`min-h-0 flex-col overflow-hidden max-md:rounded-none max-md:border-x-0 ${selectedId ? "hidden md:flex" : listBack ? "admin-motion-back flex" : "flex"}`}>
           {list.filters?.length ? (
             <div className="shrink-0 border-b border-line p-2">
               <select className="w-full rounded-control border border-line px-2 py-1.5 text-sm" aria-label="Mostrar conversas de"
@@ -353,10 +362,10 @@ export default function MarketplaceChat({ canEditSettings = false, canAssign = f
             return <p className={`shrink-0 border-b border-line px-3 py-1.5 text-xs ${read.stale ? "bg-warning-soft text-warning" : "text-muted"}`}>{read.text}</p>;
           })() : null}
           {!list.conversations.length ? <p className="shrink-0 p-4 text-sm text-muted">Nenhuma conversa do Marketplace ainda.</p> : null}
-          <ul className="min-h-0 flex-1 divide-y divide-line overflow-y-auto overscroll-contain">
+          <ul data-chat-rows className="min-h-0 flex-1 divide-y divide-line overflow-y-auto overscroll-contain">
             {list.conversations.map((item) => (
               <li key={item.id}>
-                <button type="button" onClick={() => setSelectedId(item.id)} className={`flex w-full items-center gap-3 px-3 py-3 text-left hover:bg-info-soft ${item.id === selectedId ? "bg-info-soft" : ""}`}>
+                <button type="button" onClick={() => { setListBack(false); setSelectedId(item.id); }} className={`flex w-full items-center gap-3 px-3 py-3 text-left hover:bg-info-soft ${item.id === selectedId ? "bg-info-soft" : ""}`}>
                   <Avatar name={item.contactName} photo={item.contactPhotoUrl} />
                   <span className="min-w-0 flex-1">
                     <span className="flex items-center gap-2">
@@ -374,13 +383,16 @@ export default function MarketplaceChat({ canEditSettings = false, canAssign = f
           </ul>
         </Card>
 
+        {/* Moldura fixa da conversa (como no Chat do WhatsApp): entra da direita ao abrir; trocar de conversa no computador
+            não repete a cena. Enquanto a 1ª carga chega, "Carregando conversa…" (antes a tela do celular ficava vazia). */}
+        <div className={`${selectedId ? "admin-motion-detail flex" : "hidden md:flex"} min-h-0 min-w-0 flex-col`}>
         {selectedId && conversation ? (
-          <Card padding="none" className="flex min-h-0 flex-col overflow-hidden max-md:rounded-none max-md:border-x-0">
+          <Card padding="none" className="flex min-h-0 flex-1 flex-col overflow-hidden max-md:rounded-none max-md:border-x-0">
             {/* Cabeçalho em duas linhas (dono, 2026-10-22: "organize" — o seletor cobria o selo no celular): 1) voltar, foto,
                 nome + corretor (ou "Roleta") e anúncio; 2) atribuir + cliente, ocupando a largura toda. */}
             <div className="shrink-0 space-y-2 border-b border-line p-3">
               <div className="flex items-center gap-3">
-                <Button size="icon" variant="ghost" className="shrink-0 md:hidden" aria-label="Voltar" onClick={() => { setSelectedId(""); setThread(null); }}><ArrowLeft className="h-5 w-5" /></Button>
+                <Button size="icon" variant="ghost" className="shrink-0 md:hidden" aria-label="Voltar" onClick={() => { setListBack(true); setSelectedId(""); setThread(null); }}><ArrowLeft className="h-5 w-5" /></Button>
                 <Avatar name={conversation.contactName} photo={conversation.contactPhotoUrl} />
                 <div className="min-w-0 flex-1">
                   <p className="flex min-w-0 items-center gap-2 font-semibold text-navy">
@@ -406,7 +418,7 @@ export default function MarketplaceChat({ canEditSettings = false, canAssign = f
                 )}
               </div>
             </div>
-            <div className="min-h-0 flex-1 space-y-2 overflow-y-auto overscroll-contain bg-mist p-3">
+            <div ref={messagesRef} key={selectedId} data-chat-wallpaper className="min-h-0 flex-1 space-y-2 overflow-y-auto overscroll-contain bg-mist p-3">
               {(thread.messages || []).map((message) => message.internal ? (
                 // Nota interna (MKT-2i): o mesmo visual da do Chat do WhatsApp — centralizada, azul tracejada e com cadeado.
                 <div key={message.id} className="flex justify-center">
@@ -418,7 +430,7 @@ export default function MarketplaceChat({ canEditSettings = false, canAssign = f
                 </div>
               ) : (
                 <div key={message.id} className={`flex ${message.direction === "outbound" ? "justify-end" : "justify-start"}`}>
-                  <div className={`max-w-[80%] rounded-card px-3 py-2 text-sm ${message.direction === "outbound" ? "bg-info-soft text-ink" : "bg-white text-ink"}`}>
+                  <div data-message-id={message.id} className={`max-w-[80%] rounded-card px-3 py-2 text-sm ${message.direction === "outbound" ? "bg-info-soft text-ink" : "bg-white text-ink"}`}>
                     {message.direction === "outbound" ? <p className="text-2xs font-medium text-muted">{message.senderName}</p> : null}
                     {message.body ? <p className="whitespace-pre-wrap break-words">{message.body}</p> : null}
                     {(message.attachments || []).map((attachment) => (
@@ -437,7 +449,6 @@ export default function MarketplaceChat({ canEditSettings = false, canAssign = f
                   </div>
                 </div>
               ))}
-              <div ref={endRef} />
             </div>
             {internal ? (
               // Modo interno (MKT-2i): mesmo visual do Chat do WhatsApp. Nada daqui vai ao Facebook.
@@ -465,8 +476,9 @@ export default function MarketplaceChat({ canEditSettings = false, canAssign = f
             )}
           </Card>
         ) : (
-          <Card className="hidden items-center justify-center text-sm text-muted md:flex">Escolha uma conversa.</Card>
+          <Card className="flex flex-1 items-center justify-center text-sm text-muted max-md:rounded-none max-md:border-x-0">{selectedId ? "Carregando conversa…" : "Escolha uma conversa."}</Card>
         )}
+        </div>
       </div>
       {managingShortcuts ? <ManageShortcuts onClose={() => { setManagingShortcuts(false); setShortcuts(null); }} /> : null}
     </section>

@@ -11,6 +11,8 @@ import DailyGoalCompensationNotice from "@/components/DailyGoalCompensationNotic
 import PerformanceOverviewDashboard from "@/components/PerformanceOverviewDashboard";
 import TeamDailyPerformance from "@/components/TeamDailyPerformance";
 import WhatsappChat from "@/components/WhatsappChat";
+import MarketplaceChat from "@/components/marketplace/MarketplaceChat";
+import * as chatMarketplace from "../_fixtures/chat-marketplace";
 import SupervisionMessageGate from "@/components/supervision/SupervisionMessageGate";
 import { installMockFetch } from "../_lib/mock-fetch";
 import { FONTES } from "../_lib/fonts";
@@ -255,6 +257,17 @@ const TELAS = {
     render: (perfil) => (
       <main className="bg-mist pt-3 md:pt-6">
         <WhatsappChat appMode {...chat.propsFor(perfil)} />
+      </main>
+    )
+  },
+  "chat-marketplace": {
+    path: "/admin/chat/marketplace",
+    titulo: "Chat Marketplace",
+    active: "marketplace-chat",
+    rotas: chatMarketplace.routes,
+    render: (perfil) => (
+      <main className="bg-mist pt-3 md:pt-6">
+        <MarketplaceChat {...chatMarketplace.propsFor(perfil)} />
       </main>
     )
   },

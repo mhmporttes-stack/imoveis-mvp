@@ -1,10 +1,11 @@
 "use client";
 
-import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import dynamic from "next/dynamic";
 import { createPortal } from "react-dom";
 import { useChatAppMode } from "@/components/useChatAppMode";
+import { useChatRowCascade } from "@/components/useChatRowCascade";
 import {
   AlertCircle,
   Archive,
@@ -220,13 +221,6 @@ function formatPhone(phone) {
 }
 
 // Modo aplicativo (pedido do dono, 2026-10-09): components/useChatAppMode.js (compartilhado com o Chat do Marketplace).
-// "3000ms" no código vira "3s" no CSS publicado (minificador): converte os dois formatos para milissegundos.
-function cssTimeMs(value, fallback) {
-  const text = String(value || "").trim();
-  const number = parseFloat(text);
-  if (!Number.isFinite(number)) return fallback;
-  return text.endsWith("ms") ? number : text.endsWith("s") ? number * 1000 : number;
-}
 
 export default function WhatsappChat({ canManage = false, canEditRules = false, currentUserId = "", currentUserName = "", initialClientId = "", initialText = "", initialSlot = "", canSeeArchived = false, appMode = false, viewerKey = "" }) {
   // Volta ao Chat sem "Carregando…" (2026-10-12, components/chat-view-cache.js): começa com o que esta mesma conta já
@@ -300,31 +294,7 @@ export default function WhatsappChat({ canManage = false, canEditRules = false, 
   // As que ainda não pularam ficam transparentes, mas tocar e rolar funcionam (só opacity/transform).
   const sceneRef = useRef(null);
   const hasRows = conversations.length > 0;
-  useLayoutEffect(() => {
-    if (!rowsEnter || !hasRows) return undefined;
-    const box = sceneRef.current;
-    const list = box?.querySelector("[data-chat-rows]");
-    const reduce = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
-    if (!box || !list || reduce) { setRowsEnter(false); return undefined; }
-    const style = getComputedStyle(box);
-    const total = cssTimeMs(style.getPropertyValue("--mm-motion-cascade-total"), 1000);
-    const hop = cssTimeMs(style.getPropertyValue("--mm-motion-row"), 400);
-    const bottom = list.getBoundingClientRect().bottom;
-    const rows = Array.from(list.children).filter((node) => node.tagName === "BUTTON");
-    const visible = [];
-    for (const row of rows) {
-      if (row.getBoundingClientRect().top >= bottom || visible.length >= 20) break;
-      visible.push(row);
-    }
-    const stagger = visible.length > 1 ? Math.min(600, Math.max(60, (total - hop) / (visible.length - 1))) : 0;
-    box.style.setProperty("--mm-motion-row-stagger", `${Math.round(stagger)}ms`);
-    visible.forEach((row, index) => { row.dataset.hop = ""; row.style.setProperty("--hop", String(index)); });
-    const timer = window.setTimeout(() => setRowsEnter(false), stagger * Math.max(0, visible.length - 1) + hop + 200);
-    return () => {
-      window.clearTimeout(timer);
-      visible.forEach((row) => { delete row.dataset.hop; row.style.removeProperty("--hop"); });
-    };
-  }, [rowsEnter, hasRows]);
+  useChatRowCascade({ sceneRef, rowsEnter, setRowsEnter, hasRows }); // components/useChatRowCascade.js (compartilhado com o Marketplace)
   const filterRef = useRef(filter);
   const searchRef = useRef(search);
   const selectedRef = useRef(selectedId);

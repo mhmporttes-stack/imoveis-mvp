@@ -44,6 +44,15 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 
 
+### 2026-10-22 — Chat Marketplace com as mesmas cenas do Chat do WhatsApp
+- **Data:** 2026-10-22
+- **Área:** Chat Marketplace (apresentação)
+- **Alteração:** o Chat do Marketplace usa as mesmas cenas do Chat do WhatsApp, com as mesmas classes/atributos/keyframes de `app/globals.css` (nenhum keyframe novo, tempos `--mm-motion-*` intactos): pulinho em cascata das linhas visíveis ao entrar (`data-chat-enter`/`data-chat-rows`/`data-hop`; o polling não repete), conversa entrando da direita (`admin-motion-detail`; trocar de conversa no computador não repete), lista voltando da esquerda no celular (`admin-motion-back`), fade das mensagens ao abrir e bolha nova crescendo do canto (`data-chat-wallpaper` + `data-message-id`; no escuro o fundo das mensagens passa a ser o mesmo do Chat). A lógica do stagger saiu do `WhatsappChat` para o hook compartilhado `components/useChatRowCascade.js` (mesmo cálculo; WhatsApp conferido na vitrine: 150 ms/5 linhas no computador, 100 ms/7 no celular). Enquanto a 1ª carga da conversa chega aparece "Carregando conversa…" (antes a tela do celular ficava vazia). Vitrine ganhou a tela `chat-marketplace` (dados fictícios).
+- **Motivo:** pedido do dono ("O chat do Marketplace deve ter a mesma cena do chat do WhatsApp").
+- **Arquivos afetados:** `components/useChatRowCascade.js`, `components/WhatsappChat.jsx`, `components/marketplace/MarketplaceChat.jsx`, `app/dev/vitrine/_components/VitrineClient.jsx`, `app/dev/vitrine/_fixtures/chat-marketplace.js`
+- **Risco/observação:** só apresentação — sem mudança em lib/API/polling/envio/regras MKT-2. O Marketplace não tem menu de ações da mensagem, então `chat-menu-in` não se aplica. Validado na vitrine (1280/390, claro/escuro, reduced-motion, quadros da cascata, abrir/voltar/enviar), testes da área e build.
+- **Autor:** Claude Code (designer-crm)
+
 ### 2026-10-22 — Meta Diária da equipe com a mesma cena do anel do corretor
 - **Data:** 2026-10-22
 - **Área:** Meta Diária (apresentação)
