@@ -25,7 +25,8 @@ export function MarketplaceChatIcon({ className = "", strokeWidth = 2 }) {
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden="true" focusable="false">
       {/* Mesmo contorno do balão do Chat (lucide MessageCircle) para ter exatamente o mesmo tamanho (dono, 2026-10-21:
           "o tamanho está menor, ficou feio"); só o raio dentro diferencia. */}
-      <path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z" />
+      {/* Contorno idêntico ao MessageCircle do lucide-react instalado (1.23): o desenho antigo (raio 9) saía menor. */}
+      <path d="M2.992 16.342a2 2 0 0 1 .094 1.167l-1.065 3.29a1 1 0 0 0 1.236 1.168l3.413-.998a2 2 0 0 1 1.099.092 10 10 0 1 0-4.777-4.719" />
       <path d="m7.5 13.5 3-3.5 2.5 2.5 3.5-3.5" />
     </svg>
   );
