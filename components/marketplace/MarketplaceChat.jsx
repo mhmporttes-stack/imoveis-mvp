@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ArrowLeft, MessageSquareText, Phone, Send, Settings2 } from "lucide-react";
+import { ArrowLeft, Lock, MessageSquareText, Phone, Send, Settings2 } from "lucide-react";
 import Button from "@/components/ui/Button";
 import Badge from "@/components/ui/Badge";
 import Card from "@/components/ui/Card";
@@ -11,7 +11,7 @@ import { useChatAppMode } from "@/components/useChatAppMode";
 import { readViewerData, saveViewerData } from "@/components/chat-view-cache";
 import { MARKETPLACE_LIST_CACHE_PREFIX, MARKETPLACE_THREADS_CACHE_NAME } from "@/components/panel-cache-names";
 import { ManageShortcuts } from "@/components/WhatsappChatShortcuts";
-import { MAX_OUTBOUND_LENGTH, fillMarketplaceShortcut, marketplaceOfficialWhatsappText } from "@/lib/marketplace-chat-core.mjs";
+import { MAX_INTERNAL_LENGTH, MAX_OUTBOUND_LENGTH, fillMarketplaceShortcut, marketplaceOfficialWhatsappText } from "@/lib/marketplace-chat-core.mjs";
 
 // Chat do Marketplace (MKT-2). A tela só mostra e chama /api/admin/marketplace-chat/**; regra, escopo e roleta ficam
 // no servidor (lib/marketplace-chat.js). As mensagens chegam e saem pela extensão no PC do escritório (~1–2 min).
@@ -111,6 +111,23 @@ function extensionReadText(lastSyncAt, nowMs) {
   return { text: `Extensão: última leitura ${ago}`, stale: minutes > 30 };
 }
 
+// Botão "Interno" (MKT-2i): o mesmo do Chat do WhatsApp (cadeado + "Interno").
+function InternalToggle({ active, onClick }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={active}
+      aria-label={active ? "Desativar modo interno" : "Ativar modo interno (mensagem só para a equipe)"}
+      title={active ? "Modo interno ativo — clique para voltar à resposta ao cliente" : "Mensagem interna (o cliente não verá)"}
+      className={`inline-flex h-11 shrink-0 items-center gap-1 rounded-full px-2.5 text-xs font-extrabold transition-colors duration-200 ${active ? "bg-blue-100 text-brand" : "text-brand hover:bg-blue-50"}`}
+    >
+      <Lock className="h-4 w-4" />
+      <span>Interno</span>
+    </button>
+  );
+}
+
 // Atalhos de texto (MKT-2f, dono, 2026-10-22): digitar "/" na caixa lista só os atalhos de TEXTO do canal Marketplace (ou
 // "os dois"); escolher COLA o texto na caixa, já preenchido, para editar — nunca envia sozinho.
 const normalizeSearch = (value) => String(value || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
@@ -148,9 +165,13 @@ export default function MarketplaceChat({ canEditSettings = false, canAssign = f
   const [busy, setBusy] = useState(false);
   const [shortcuts, setShortcuts] = useState(null);
   const [managingShortcuts, setManagingShortcuts] = useState(false);
+  // Mensagem interna (MKT-2i, dono, 2026-10-22): só a equipe vê; o servidor decide quem pode (`canInternal`).
+  const [internalMode, setInternalMode] = useState(false);
+  const [noteText, setNoteText] = useState("");
   const endRef = useRef(null);
   const textRef = useRef(null);
-  const slashQuery = text.startsWith("/") && !text.includes("\n") ? text.slice(1) : null;
+  const internal = internalMode && Boolean(thread?.conversation?.canInternal);
+  const slashQuery = !internal && text.startsWith("/") && !text.includes("\n") ? text.slice(1) : null;
   const selectedRef = useRef("");
   const sectionRef = useRef(null);
   // Tela cheia como o Chat do WhatsApp (dono, 2026-10-22: "Remova a opção Sair embaixo, deixe como o Chat: a rolagem
@@ -188,6 +209,8 @@ export default function MarketplaceChat({ canEditSettings = false, canAssign = f
   }, [loadList]);
 
   useEffect(() => {
+    setInternalMode(false);
+    setNoteText("");
     if (!selectedId) return undefined;
     setThread(readCachedThread(viewerKey, selectedId));
     loadThread(selectedId);
@@ -239,6 +262,24 @@ export default function MarketplaceChat({ canEditSettings = false, canAssign = f
       setText("");
       loadThread(selectedId);
       loadList();
+    } catch (sendError) {
+      setError(sendError.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  // Nota interna: texto separado da resposta (alternar o modo nunca troca o destino do que já foi digitado). Só grava no
+  // CRM — nunca vai à fila da extensão nem ao cliente — e não muda a lista de conversas.
+  async function sendInternal(event) {
+    event.preventDefault();
+    if (!noteText.trim() || busy) return;
+    setBusy(true);
+    setError("");
+    try {
+      await callApi(`/api/admin/marketplace-chat/conversations/${selectedId}/internal`, { method: "POST", body: JSON.stringify({ text: noteText }) });
+      setNoteText("");
+      loadThread(selectedId);
     } catch (sendError) {
       setError(sendError.message);
     } finally {
@@ -355,7 +396,16 @@ export default function MarketplaceChat({ canEditSettings = false, canAssign = f
               </div>
             </div>
             <div className="min-h-0 flex-1 space-y-2 overflow-y-auto overscroll-contain bg-mist p-3">
-              {(thread.messages || []).map((message) => (
+              {(thread.messages || []).map((message) => message.internal ? (
+                // Nota interna (MKT-2i): o mesmo visual da do Chat do WhatsApp — centralizada, azul tracejada e com cadeado.
+                <div key={message.id} className="flex justify-center">
+                  <div data-internal-message className="max-w-[88%] rounded-lg border border-dashed border-brand/50 bg-[#EAF2FE] px-3 py-1.5 text-navy shadow-[0_1px_0.5px_rgba(11,20,26,0.13)] sm:max-w-[70%]">
+                    <p className="mb-0.5 flex items-center gap-1 text-[11px] font-extrabold uppercase tracking-wide text-brand"><Lock className="h-3 w-3" aria-hidden="true" />Interno • {message.senderName || "Equipe"} <span className="font-semibold normal-case tracking-normal text-[#54656F]">· o cliente não vê</span></p>
+                    <p className="whitespace-pre-wrap break-words text-sm leading-5 text-[#111B21]">{message.body}</p>
+                    <p className="mt-0.5 text-right text-[11px] font-medium text-[#54656F]">{time.format(new Date(message.at))}</p>
+                  </div>
+                </div>
+              ) : (
                 <div key={message.id} className={`flex ${message.direction === "outbound" ? "justify-end" : "justify-start"}`}>
                   <div className={`max-w-[80%] rounded-card px-3 py-2 text-sm ${message.direction === "outbound" ? "bg-info-soft text-ink" : "bg-white text-ink"}`}>
                     {message.direction === "outbound" ? <p className="text-2xs font-medium text-muted">{message.senderName}</p> : null}
@@ -375,14 +425,30 @@ export default function MarketplaceChat({ canEditSettings = false, canAssign = f
               ))}
               <div ref={endRef} />
             </div>
+            {internal ? (
+              // Modo interno (MKT-2i): mesmo visual do Chat do WhatsApp. Nada daqui vai ao Facebook.
+              <form onSubmit={sendInternal} data-internal-composer className="chat-composer-safe shrink-0 border-t border-brand/25 bg-blue-50/60 p-3">
+                <div className="mb-2 flex items-center gap-2">
+                  <span className="inline-flex items-center gap-1 rounded-full bg-brand px-2 py-0.5 text-[10px] font-black uppercase tracking-wider text-white"><MessageSquareText className="h-3 w-3" /> Modo interno</span>
+                  <span className="text-[11px] font-bold text-brand">Só a equipe vê estas mensagens.</span>
+                </div>
+                <div className="flex gap-2">
+                  <InternalToggle active onClick={() => setInternalMode(false)} />
+                  <textarea autoFocus className={`${inputClasses} min-h-touch border-brand/30 py-2`} rows={2} maxLength={MAX_INTERNAL_LENGTH} value={noteText} onChange={(event) => setNoteText(event.target.value)} placeholder="Mensagem interna — o cliente não verá esta mensagem" />
+                  <Button type="submit" loading={busy} disabled={!noteText.trim()} aria-label="Salvar mensagem interna"><Send className="h-4 w-4" /></Button>
+                </div>
+              </form>
+            ) : (
             <form onSubmit={send} className="chat-composer-safe relative flex shrink-0 gap-2 border-t border-line p-3">
               {slashQuery !== null ? <ShortcutPicker query={slashQuery} shortcuts={shortcuts} onPick={pickShortcut} onManage={canManageShortcuts ? () => setManagingShortcuts(true) : null} /> : null}
               {/* "Nosso WhatsApp" (dono, 2026-10-22: "Enviar o número deve enviar o oficial"): cola o link do WhatsApp OFICIAL
                   com o código do atendimento (a conversa no oficial cai com o mesmo cliente/corretor). Não envia sozinho. */}
               <Button type="button" variant="ghost" size="icon" className="shrink-0" onClick={pasteOfficialWhatsapp} aria-label="Colar o link do nosso WhatsApp oficial" title="Nosso WhatsApp (oficial)"><Phone className="h-4 w-4" /></Button>
+              {conversation.canInternal ? <InternalToggle active={false} onClick={() => setInternalMode(true)} /> : null}
               <textarea ref={textRef} className={`${inputClasses} min-h-touch py-2`} rows={2} maxLength={MAX_OUTBOUND_LENGTH} value={text} onChange={(event) => setText(event.target.value)} placeholder="Escreva a resposta ou / para atalhos (sai pelo Facebook em ~1–2 min)" />
               <Button type="submit" loading={busy} disabled={!text.trim() || slashQuery !== null} aria-label="Enviar"><Send className="h-4 w-4" /></Button>
             </form>
+            )}
           </Card>
         ) : (
           <Card className="hidden items-center justify-center text-sm text-muted md:flex">Escolha uma conversa.</Card>

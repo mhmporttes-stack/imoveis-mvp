@@ -251,6 +251,14 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-22 — Mensagem interna no Chat do Marketplace (MKT-2i)
+- **Data:** 2026-10-22
+- **Área:** Chat Marketplace / Permissões / Banco
+- **Alteração:** botão "Interno" na caixa do Chat do Marketplace grava uma nota só da equipe (`marketplace_messages.direction = 'internal'`, `status = 'sent'`), exibida com o visual da nota interna do Chat do WhatsApp. Rota nova `POST /api/admin/marketplace-chat/conversations/[id]/internal` (`requireAdminApi` + checagem no lib); leitura filtra a nota no backend e devolve `canInternal`. Fila da extensão e limite por hora passam a filtrar `direction = 'outbound'`; renormalização pula notas.
+- **Motivo:** pedido do dono (REGRA OFICIAL, 2026-10-22): "Como a mensagem interna do chat do WhatsApp. Apenas eu, o corretor e a gerente visualizam."
+- **Arquivos afetados:** `lib/marketplace-chat.js`, `lib/marketplace-chat-core.mjs`, `components/marketplace/MarketplaceChat.jsx`, `app/api/admin/marketplace-chat/conversations/[id]/internal/route.js`, `tests/marketplace-internal-note.test.mjs`, migration `supabase/migrations/20261022200000_marketplace_messages_internal.sql` (**não aplicada** — sem ela, salvar a nota responde 503 com aviso; o resto do Chat segue igual); docs `BUSINESS_RULES.md` (MKT-2i), rule `roleta-prospeccao-campanhas.md`.
+- **Risco/observação:** visibilidade = critério da nota do WhatsApp (`canManageConversation`): admin geral, gestor (já limitado à equipe pelo escopo da conversa), atribuído ou responsável pelo cliente; associado não vê, salvo se for o atribuído (igual ao WhatsApp). Não conta como contato/atendimento/resposta/pontuação (sem `markClientOnHumanMessage`, sem `last_human_reply_at`; `marketplaceReplyTimes` ignora a direção `internal`). Sem notificação aos demais (o WhatsApp notifica) — A CONFIRMAR com o dono. Notas entram no limite de 300 mensagens carregadas por conversa.
+- **Autor:** crm-editor (Claude)
 ### 2026-10-22 — Card do cliente: sem a linha Financiamento/Subsídio e "Recebi documentos por fora" no menu "…"
 - **Data:** 2026-10-22
 - **Área:** `components/clients/ClientCard.jsx` (só apresentação).
