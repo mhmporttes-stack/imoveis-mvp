@@ -3,6 +3,8 @@ import {
   isTwoFactorEligibleResult,
   clearAdminSessionCookies,
   clearAdminViewAsCookie,
+  forgetAdminAccessToken,
+  getAccessTokenFromRequest,
   requireAdminApi,
   setAdminSessionCookies,
   verifyAdminAccessToken
@@ -62,6 +64,8 @@ export async function POST(request) {
 }
 
 export async function DELETE(request) {
+  // Saída: o token deixa de valer na hora nesta instância (cache curto da sessão, lib/admin-auth.js).
+  forgetAdminAccessToken(getAccessTokenFromRequest(request));
   const response = NextResponse.json({ ok: true });
   clearAdminSessionCookies(response, request);
   return response;

@@ -44,6 +44,15 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 
 
+### 2026-10-22 — Velocidade etapa 3: cache no servidor (sessão, perfis, etiquetas, imóveis, pontuação, configurações)
+- **Data:** 2026-10-22
+- **Área:** Infra / Permissões / Clientes / Ranking
+- **Alteração:** novo `lib/server-cache-core.mjs` (memória por instância, TTL ≤ 30 s, invalidação por etiqueta). Sessão do painel em cache por 30 s (hash do token; só acesso concedido; 2FA só quando aprovado e com 2FA ativo; view-as recalculado a cada requisição); `listAdminProfiles`, perfil do view-as, `listTags`, `listProperties`/`getProperty`, regras de pontuação e 3 configurações de `crm_settings` (jornada, mensagem do dia, textos da Meta Diária) em cache. Logout esquece o token na instância.
+- **Motivo:** etapa 3 de velocidade aprovada pelo dono em 22/10/2026 (diagnóstico pg_stat_statements: ~42 mil getUser/dia, admin_users 616 mil leituras, properties lida inteira a cada ficha).
+- **Arquivos afetados:** `lib/server-cache-core.mjs` (novo), `lib/admin-auth.js`, `lib/admin-profiles.js`, `lib/admin-two-factor.js`, `lib/whatsapp-access.js`, `lib/lead-distribution.js`, `lib/client-tags.js`, `lib/properties.js`, `lib/captacoes.js`, `lib/scoring-rules.js`, `lib/client-journey.js`, `lib/daily-message.js`, `lib/daily-goal.js`, `app/api/admin/session/route.js`, `tests/server-cache.test.mjs` (novo), `tests/helpers/route-test-loader.mjs`, `docs/SYSTEM_ARCHITECTURE.md` §3, `docs/PERMISSIONS.md` §1.
+- **Risco/observação:** invalidação é imediata só na instância que gravou; nas demais o atraso máximo é o TTL (30 s; etiquetas 15 s) — inclui desativar usuário, trocar papel/equipe, bloquear WhatsApp, ligar 2FA em outra instância (o 2FA "não ativado" não é guardado, então ligar vale na hora) e logout (token antigo vale ≤ 30 s em outra instância). Não cacheados de propósito: `crm_settings` usados como marca/trava de cron e leitura-antes-de-gravar (`whatsapp_master`, LID, silêncio, rollout), mensagens da automação. O 1 milhão de varreduras em `tags` vem do embed `client_tags(tag:tags(*))` (11 linhas, varredura barata) — não alterado. Colunas de `properties` não reduzidas (vários consumidores usam `select *`). 16 falhas pré-existentes na suíte `node --test` iguais antes/depois. Medir em produção depois do deploy (A CONFIRMAR).
+- **Autor:** crm-editor (Claude Code)
+
 ### 2026-10-22 — Velocidade, etapa 2 (frente): fontes, entrada por rolagem, Meta Diária, service worker e fades
 - **Data:** 2026-10-22
 - **Área:** Frontend/PWA (painel inteiro)
