@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { ArrowDown, ArrowUp, Check, Copy, Pause, Play, UsersRound } from "lucide-react";
+import Kpi from "@/components/ui/Kpi";
 
 export default function LeadDistributionDashboard({ initialData }) {
   const [brokers, setBrokers] = useState(initialData?.brokers || []);
@@ -101,7 +102,8 @@ function PresenceBadge({ presence }) {
   return <span className={`rounded-full px-2 py-0.5 text-[10px] font-black uppercase tracking-wide ${config.className}`}>{config.label}</span>;
 }
 function IconButton({ children, disabled, label, onClick }) { return <button aria-label={label} className="icon-button disabled:opacity-30" disabled={disabled} onClick={onClick} title={label} type="button">{children}</button>; }
-function Metric({ label, value, text }) { return <div className="rounded-panel border border-line bg-white p-5 shadow-soft"><p className={`${text ? "truncate text-xl" : "text-3xl"} font-black text-navy`}>{value}</p><p className="mt-1 text-sm font-bold text-muted">{label}</p></div>; }
+// Visual novo (2026-10-22): indicador no padrão único components/ui/Kpi (rótulo em cima, número, nota).
+function Metric({ label, value, text }) { return <Kpi label={label} value={text ? <span className="block truncate text-xl">{value}</span> : value} />; }
 function Empty({ text }) { return <p className="rounded-2xl bg-mist/50 p-5 text-center font-bold text-muted">{text}</p>; }
 function roleLabel(role) { return role === "associate" ? "Associado" : role === "admin" ? "Administrador" : role === "manager" ? "Gestor" : "Corretor"; }
 

@@ -20,7 +20,7 @@ import { cx } from "@/components/ui/cx";
 
 export const INTEGRATION_TONE_CLASS = {
   connected: "border-success-line bg-success-soft text-success",
-  partial: "border-orange-200 bg-orange-50 text-orange-600",
+  partial: "border-warning-line bg-warning-soft text-warning",
   off: "border-line bg-neutral-soft text-muted"
 };
 

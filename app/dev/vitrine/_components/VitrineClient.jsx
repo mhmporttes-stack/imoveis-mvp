@@ -41,6 +41,10 @@ import DailyGoalAdmin from "@/components/DailyGoalAdmin";
 import AutomationRulesManager from "@/components/AutomationRulesManager";
 import CrmNotificationsList from "@/components/CrmNotificationsList";
 import ProspectingTabs from "@/components/ProspectingTabs";
+import AdminViewAsSelector from "@/components/AdminViewAsSelector";
+import DocumentAiRulesManager from "@/components/DocumentAiRulesManager";
+import GuideManager from "@/components/guide/GuideManager";
+import AdminPropertyList from "@/components/AdminPropertyList";
 import * as telas from "../_fixtures/telas";
 import ManualBrowser from "@/components/manual/ManualBrowser";
 import ManualAdmin from "@/components/manual/ManualAdmin";
@@ -142,6 +146,34 @@ const TELAS = {
     active: "prospecting",
     rotas: telas.routes,
     render: () => (<main className="min-h-screen bg-mist py-14"><ProspectingTabs {...telas.props.prospeccao} /></main>)
+  },
+  "alterar-conta": {
+    path: "/admin/corretores",
+    titulo: "Corretores › Alterar conta",
+    active: "brokers",
+    rotas: [],
+    render: () => (<main className="bg-mist py-14"><AdminViewAsSelector {...telas.extras.alterarConta} /></main>)
+  },
+  "regras-ia": {
+    path: "/admin/documentacao/regras",
+    titulo: "Documentação › Regras da IA",
+    active: "document-rules",
+    rotas: [],
+    render: () => (<main className="min-h-screen bg-mist py-14"><DocumentAiRulesManager {...telas.extras.regrasIa} /></main>)
+  },
+  guia: {
+    path: "/admin/guia-atendimento",
+    titulo: "Guia de Atendimento",
+    active: "attendance-guide",
+    rotas: [],
+    render: () => (<main className="min-h-screen bg-mist py-14"><GuideManager {...telas.extras.guias} /></main>)
+  },
+  imoveis: {
+    path: "/admin",
+    titulo: "Imóveis (cadastro)",
+    active: "properties",
+    rotas: [],
+    render: () => (<main className="min-h-screen bg-mist py-14"><AdminPropertyList {...telas.extras.imoveis} /></main>)
   },
   "ranking-topo": {
     // Cabeçalho do ranking como em app/admin/layout.jsx (?variante=completo|sem-dia|vazio|posicao).

@@ -33,7 +33,8 @@ const CIRCUMFERENCE = 2 * Math.PI * RADIUS;
 
 function progressColor(percent) {
   if (percent >= 100) return { stroke: "#059669", text: "text-emerald-600" };
-  if (percent >= 50) return { stroke: "#ea580c", text: "text-orange-600" };
+  // Visual novo (2026-10-22): sem laranja de destaque — meio do caminho no âmbar/dourado do tema.
+  if (percent >= 50) return { stroke: "#C98616", text: "text-warning" };
   return { stroke: "#dc2626", text: "text-red-600" };
 }
 

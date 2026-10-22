@@ -7,6 +7,7 @@ import WhatsappSessionHealthPanel from "./WhatsappSessionHealthPanel";
 import { DEFAULT_WALLET_LIMIT, MAX_WALLET_LIMIT } from "@/lib/daily-goal-wallet-core.mjs";
 import { formatReconnectHoldLine } from "@/lib/daily-goal-policy-core.mjs";
 import { tabClasses } from "@/components/ui/Tabs";
+import Kpi from "@/components/ui/Kpi";
 
 const SESSION_STATUS_LABELS = {
   connected: { label: "Conectado", className: "bg-emerald-50 text-emerald-700" },
@@ -672,10 +673,11 @@ function StatCard({ label, value, tone }) {
     red: "text-red-700",
     navy: "text-navy"
   }[tone] || "text-navy";
+  // Visual novo (2026-10-22): mesmo desenho do indicador único (components/ui/Kpi), com a cor do tom só no número.
   return (
-    <div className="rounded-2xl border border-line bg-white p-3 text-center shadow-soft">
-      <p className={`text-2xl font-black ${toneClass}`}>{value}</p>
-      <p className="mt-0.5 text-[10px] font-bold uppercase tracking-wide text-muted">{label}</p>
+    <div data-reveal="" className="min-w-0 rounded-card border border-line bg-white p-3">
+      <p className="text-xs font-semibold text-muted">{label}</p>
+      <p className={`mt-1 text-2xl font-extrabold tabular-nums ${toneClass}`}>{value}</p>
     </div>
   );
 }
@@ -1356,10 +1358,7 @@ function rate(entry) {
 
 function Metric({ label, value }) {
   return (
-    <div className="rounded-2xl border border-line bg-white p-4 text-center shadow-soft">
-      <p className="text-2xl font-black text-navy">{value}</p>
-      <p className="mt-1 text-xs font-bold text-muted">{label}</p>
-    </div>
+    <Kpi label={label} value={value} />
   );
 }
 

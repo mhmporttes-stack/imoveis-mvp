@@ -36,6 +36,10 @@ html.mm-panel:not(.mm-dark) {
   --mm-success: 17 132 90;
   /* Âmbar do texto/pílula de alerta mais fechado (#96600A): o #A86A00 do protótipo dava < 4,5:1 sobre o fundo claro. */
   --mm-warning: 150 96 10;
+  /* Âmbar do protótipo (warnSoft #FFF4DB) no lugar do laranja: ponto/anel forte em dourado, nunca laranja de destaque. */
+  --mm-warning-soft: 255 244 219;
+  --mm-warning-line: 240 217 166;
+  --mm-warning-strong: 201 134 22;
   --mm-danger: 201 58 51;
   --mm-page: #F3F6FA;
 }
@@ -183,7 +187,7 @@ html.mm-panel .ui-sheet-handle {
 
 /* Classes antigas montadas com @apply (app/globals.css), no visual novo do painel: botão principal no azul de destaque,
    cantos de 12px (controles) e 16px (cards), sem sombra em card comum. O site público continua com o desenho antigo. */
-html.mm-panel .premium-button {
+html.mm-panel :is(.premium-button, .premium-button-primary, .premium-button-secondary) {
   gap: 0.5rem;
   min-height: 44px;
   border-radius: var(--mm-r-control);
@@ -247,6 +251,12 @@ html.mm-panel main h2:is(.text-2xl, .text-3xl, .text-4xl, .text-5xl, .text-\[28p
     font-size: 1.375rem;
   }
 }
+html.mm-panel main h3:is(.text-2xl, .text-3xl, .text-4xl) {
+  font-size: 1.125rem;
+  line-height: 1.35;
+  font-weight: 800;
+  letter-spacing: -0.005em;
+}
 html.mm-panel main h1:is(.text-3xl, .text-4xl, .text-5xl) {
   font-size: 1.5rem;
   line-height: 1.25;
@@ -272,7 +282,7 @@ html.mm-panel main :is(input, select, textarea).border:not([type="checkbox"], [t
   outline-offset: 0;
 }
 /* Botões antigos (premium-button) sem o "pulo" ao passar o mouse — o visual novo só muda a cor. */
-html.mm-panel .premium-button:hover {
+html.mm-panel :is(.premium-button, .premium-button-primary, .premium-button-secondary):hover {
   transform: none;
 }
 

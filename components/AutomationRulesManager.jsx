@@ -12,6 +12,7 @@ import {
   AUTOMATION_WHATSAPP_VARIABLES,
   optionLabel
 } from "@/lib/crm-automation-options";
+import Kpi from "@/components/ui/Kpi";
 
 const AUTOMATION_EMAIL = "mhmporttes@gmail.com";
 const TEMPLATE_STATUS_LABEL = { APPROVED: "aprovado", PENDING: "em análise", REJECTED: "rejeitado" };
@@ -258,7 +259,8 @@ function TargetFields({ action, onChange, users }) {
 
 function EditorGroup({ title, onAdd, children }) { return <div className="mt-6"><div className="mb-3 flex items-center justify-between"><h3 className="text-lg font-black text-navy">{title}</h3><button className="inline-flex items-center gap-1 text-sm font-black text-brand" onClick={onAdd} type="button"><Plus className="h-4 w-4" />Adicionar</button></div><div className="space-y-3">{children}</div></div>; }
 function Field({ label, children }) { return <label className="grid gap-2 text-sm font-black text-navy">{label}{children}</label>; }
-function Metric({ label, value, tone }) { return <div className={`rounded-panel border bg-white p-5 shadow-soft ${tone === "active" ? "border-emerald-200" : "border-line"}`}><p className="text-3xl font-black text-navy">{value}</p><p className="mt-1 text-sm font-bold text-muted">{label}</p></div>; }
+// Visual novo (2026-10-22): indicador no padrão único components/ui/Kpi (rótulo em cima, número, nota).
+function Metric({ label, value, tone }) { return <Kpi label={label} value={value} tone={tone === "active" ? "success" : "default"} />; }
 function SmallButton({ children, danger, onClick }) { return <button className={`inline-flex h-10 items-center gap-1.5 rounded-full border bg-white px-4 text-sm font-black transition hover:bg-mist ${danger ? "border-red-200 text-red-700" : "border-line text-navy"}`} onClick={onClick} type="button">{children}</button>; }
 function option(item) { return <option key={item.value} value={item.value}>{item.label}</option>; }
 function replaceAt(items, index, value) { return items.map((item, itemIndex) => itemIndex === index ? value : item); }

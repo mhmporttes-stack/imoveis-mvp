@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { ChevronDown, ChevronUp, Minus, Plus } from "lucide-react";
+import Kpi from "@/components/ui/Kpi";
 
 const DATE_TIME_FORMATTER = new Intl.DateTimeFormat("pt-BR", {
   timeZone: "America/Sao_Paulo",
@@ -416,11 +417,7 @@ function brokerName(brokers, id) {
 
 function SummaryCard({ label, value, hint = "" }) {
   return (
-    <article className="rounded-2xl border border-navy/10 bg-white p-4 shadow-soft">
-      <p className="text-xs font-extrabold uppercase tracking-[0.1em] text-slate-500">{label}</p>
-      <p className="mt-2 text-2xl font-extrabold text-navy">{value}</p>
-      {hint && <p className="text-xs font-semibold text-slate-500">{hint}</p>}
-    </article>
+    <Kpi label={label} value={value} hint={hint || null} />
   );
 }
 

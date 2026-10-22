@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Eye, Info, LoaderCircle, Save } from "lucide-react";
 import { tabClasses } from "@/components/ui/Tabs";
+import Kpi from "@/components/ui/Kpi";
 
 const PERIODS = [
   { value: 0, label: "Tudo" },
@@ -88,10 +89,10 @@ function PeriodFilter({ days, onChange }) {
 
 function StatCard({ label, value, hint, tone = "text-navy" }) {
   return (
-    <div className="rounded-2xl border border-line bg-white p-4">
-      <p className="text-[11px] font-black uppercase tracking-[0.12em] text-muted">{label}</p>
-      <p className={`mt-1 text-2xl font-black ${tone}`}>{value}</p>
-      {hint ? <p className="mt-0.5 text-xs font-bold text-muted">{hint}</p> : null}
+    <div data-reveal="" className="min-w-0 rounded-card border border-line bg-white p-4">
+      <p className="text-xs font-semibold text-muted">{label}</p>
+      <p className={`mt-1.5 text-[26px] font-extrabold leading-tight tracking-[-0.02em] tabular-nums ${tone}`}>{value}</p>
+      {hint ? <p className="mt-1 text-[11px] leading-4 text-faint">{hint}</p> : null}
     </div>
   );
 }

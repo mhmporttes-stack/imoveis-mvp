@@ -72,6 +72,24 @@ export const props = {
   }
 };
 
+export const extras = {
+  alterarConta: { users },
+  regrasIa: { initialRules: [
+    { id: "d1", title: "Holerite recente", category: "renda", instruction: "Aceitar holerites dos últimos 3 meses; pedir o mais recente se faltar.", active: true },
+    { id: "d2", title: "Comprovante de residência", category: "residencia", instruction: "Conta de consumo em nome do titular ou do cônjuge, até 60 dias.", active: true },
+    { id: "d3", title: "Certidão de casamento", category: "estado_civil", instruction: "Exigir apenas quando o estado civil for casado.", active: false }
+  ] },
+  guias: { initialGuides: [
+    { id: "g1", name: "Primeiro contato (roleta)", description: "Roteiro para o cliente que acabou de chegar.", kind: "attendance", enabled: true, nodeCount: 12, publishedVersion: 3, hasUnpublishedChanges: false },
+    { id: "g2", name: "Cliente sem resposta", description: "Retomada depois de 3 dias.", kind: "attendance", enabled: false, nodeCount: 6, publishedVersion: 1, hasUnpublishedChanges: true }
+  ] },
+  imoveis: { properties: [
+    { id: "i1", code: "COD4358", name: "Casa 2 dormitórios — Jardim Sul", location: "Marília/SP", price: 235000, isPublished: true, isDevelopment: false },
+    { id: "i2", code: "COD4360", name: "Apartamento 2 dormitórios — Centro", location: "Marília/SP", price: 199000, isPublished: false, isDevelopment: false },
+    { id: "i3", code: "EMP0012", name: "Residencial Demo", location: "Marília/SP", price: 210000, isPublished: true, isDevelopment: true }
+  ] }
+};
+
 export const routes = [
   { match: /^\/api\/calendar-activities/, response: () => ({ activities, clients: [], users, canViewTeam: true }) },
   { match: /^\/api\/campaigns/, response: () => ({ campaigns, summary: props.campanhas.initialSummary }) },

@@ -118,9 +118,9 @@ export default function AdminTopBar({
 
   return (
     <div className="admin-topbar container-page flex flex-wrap items-center gap-x-3 gap-y-2 pb-1 pt-[calc(env(safe-area-inset-top)+14px)] md:pt-[calc(env(safe-area-inset-top)+20px)]">
-      <div className="min-w-0 flex-[1_1_220px] md:min-w-[200px]">
+      <div className="min-w-0 flex-[1_1_96px] md:min-w-[200px] md:flex-[1_1_220px]">
         {crumb ? <p className="truncate text-xs text-muted max-md:hidden">{crumb}</p> : null}
-        <p className="truncate text-xl font-extrabold leading-tight tracking-[-0.01em] text-ink md:text-2xl">{title}</p>
+        <p className="text-xl font-extrabold leading-tight tracking-[-0.01em] text-ink max-md:truncate md:text-pretty md:text-2xl">{title}</p>
         {/* Subtítulo nunca cortado (crítica de 2026-10-22): quebra em 2 linhas se a busca e os atalhos apertarem. */}
         {subtitle ? <p className="mt-0.5 text-pretty text-[13px] leading-snug text-muted max-sm:hidden">{subtitle}</p> : null}
       </div>

@@ -12,6 +12,7 @@ import {
 } from "@/lib/admin-profiles";
 import { calculateCrmMetrics, countUnreadCrmNotifications } from "@/lib/crm";
 import { listSimulationRegistrations } from "@/lib/simulation-registrations";
+import Kpi from "@/components/ui/Kpi";
 
 export default async function AdminSectionNav({ active = "properties" }) {
   const admin = await getAdminFromCookies();
@@ -95,9 +96,6 @@ function PerformanceLink({ active, href, children }) {
 
 function Metric({ label, value, tone = "default" }) {
   return (
-    <div className={`rounded-2xl border bg-white px-4 py-3 ${tone === "danger" && value ? "border-red-200" : "border-line"}`}>
-      <p className="text-2xl font-black text-navy">{value}</p>
-      <p className="text-xs font-bold text-muted">{label}</p>
-    </div>
+    <Kpi label={label} value={value} tone={tone === "danger" && value ? "danger" : "default"} className={tone === "danger" && value ? "border-danger-line" : ""} />
   );
 }
