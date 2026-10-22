@@ -1,5 +1,5 @@
-import AdminMenu from "@/components/AdminMenu";
 import Link from "next/link";
+import { tabClasses } from "@/components/ui/Tabs";
 import { Bell } from "lucide-react";
 import { getAdminFromCookies } from "@/lib/admin-auth";
 import {
@@ -12,8 +12,6 @@ import {
 } from "@/lib/admin-profiles";
 import { calculateCrmMetrics, countUnreadCrmNotifications } from "@/lib/crm";
 import { listSimulationRegistrations } from "@/lib/simulation-registrations";
-import { isEffectivelyBlocked } from "@/lib/whatsapp-access-core.mjs";
-import { readChatHiddenForNav } from "@/lib/whatsapp-manual-disconnect";
 
 export default async function AdminSectionNav({ active = "properties" }) {
   const admin = await getAdminFromCookies();
@@ -22,9 +20,6 @@ export default async function AdminSectionNav({ active = "properties" }) {
   const isBroker = isBrokerProfile(profile);
   const isAssociate = isAssociateProfile(profile);
   const isManager = isManagerProfile(profile);
-  const whatsappBlocked = isEffectivelyBlocked(profile);
-  // Modo lista impressa (PRO-15, 2026-10-15): o Chat some do menu enquanto o WhatsApp estiver desconectado.
-  const chatHidden = admin.ok && !whatsappBlocked && (await readChatHiddenForNav(admin));
   let brokerSummary = null;
   let unreadNotifications = 0;
 
@@ -41,15 +36,18 @@ export default async function AdminSectionNav({ active = "properties" }) {
     }
   }
 
+  // Visual novo (dono, 2026-10-22): o menu saiu daqui — é o menu lateral do layout (AdminMenu, com a mesma lista de
+  // getAdminMenuGroups e o Chat que some no modo lista impressa, PRO-15). Sobra só o bloco do gestor (sub-barra de
+  // Desempenho e links pessoais); para os outros perfis nada é desenhado. A leitura de clientes do corretor
+  // acima continua igual (listSimulationRegistrations também dispara o retorno automático da Prospecção).
+  if (!isManager || isAdmin) return null;
+
   return (
-    // Celular: para quem não é gestor o bloco não mostra nada (o menu do topo é só ≥ md), então sem margem — o espaço
-    // vazio acima de "Clientes" (dono, 2026-10-12). Gestor mantém (links e sub-barra aparecem no celular).
-    <div className={`mm-app-hide container-page space-y-2 ${isBroker ? "mb-3" : "mb-6"} ${!isManager || isAdmin ? "max-md:mb-0" : ""}`}>
-      <AdminMenu active={active} isAdmin={isAdmin} isBroker={isBroker} isAssociate={isAssociate} isManager={isManager} whatsappBlocked={whatsappBlocked} chatHidden={chatHidden} />
+    <div className={`mm-app-hide container-page space-y-2 ${isBroker ? "mb-3" : "mb-6"}`}>
 
       {/* Administrador geral navega pelo menu principal (AdminMenu > ownerGroups); a sub-barra abaixo agora só existe para o gestor. */}
       {isManager && ["performance", "daily-report", "financial", "ai-usage", "scoring", "online", "audit"].includes(active) ? (
-        <nav className={`grid rounded-xl border border-navy/[0.07] bg-white p-0.5 shadow-[0_1px_2px_rgba(13,59,102,0.04)] ${isAdmin ? "grid-cols-7" : "grid-cols-5"}`} aria-label="Opções de desempenho">
+        <nav className="mm-noscroll -mx-1 flex gap-1.5 overflow-x-auto px-1 py-1" aria-label="Opções de desempenho">
           {/* Visão geral (dashboard operacional) segue a mesma paridade de acesso do gestor com o admin. */}
           <PerformanceLink active={active === "performance"} href="/admin/desempenho">Visão geral</PerformanceLink>
           <PerformanceLink active={active === "daily-report"} href="/admin/relatorio-diario">Relatório Diário</PerformanceLink>
@@ -90,8 +88,9 @@ export default async function AdminSectionNav({ active = "properties" }) {
   );
 }
 
+// Abas como pílulas (visual novo, dono, 2026-10-22) — mesmo desenho de components/ui/Tabs.jsx.
 function PerformanceLink({ active, href, children }) {
-  return <Link className={`rounded-[10px] px-3 py-1.5 text-center text-[13px] font-black ${active ? "bg-navy text-white" : "text-navy hover:bg-brand/10"}`} href={href}>{children}</Link>;
+  return <Link aria-current={active ? "page" : undefined} className={tabClasses(active)} href={href}>{children}</Link>;
 }
 
 function Metric({ label, value, tone = "default" }) {

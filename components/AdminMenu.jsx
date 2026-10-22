@@ -2,28 +2,19 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import SceneTransitionLink from "@/components/motion/SceneTransitionLink";
-import WhatsappChatNavBadge from "@/components/WhatsappChatNavBadge";
-import MarketplaceNavBadge from "@/components/marketplace/MarketplaceNavBadge";
-import AdminThemeToggle from "@/components/AdminThemeToggle";
+import Avatar from "@/components/Avatar";
 import { useCrmBadgeCounts } from "@/components/useCrmBadgeCounts";
+import { useMarketplaceUnreadCount } from "@/components/marketplace/MarketplaceNavBadge";
 import { useAcademyMenuEnabled } from "@/components/AcademyMenuContext";
 import { useLiveChatHidden } from "@/components/WhatsappAccessProvider";
+import { navBadgeFor, navIconFor } from "@/components/admin-nav-icons";
+import { CountBadge } from "@/components/ui/Badge";
+import { cx } from "@/components/ui/cx";
 import { withAcademyMenuGroup } from "@/lib/academy-menu.mjs";
 import { hiddenNavKeys } from "@/lib/whatsapp-access-core.mjs";
 import { CalendarDays, CircleDot, MessageCircle, MessageSquareReply, UserRoundPlus } from "lucide-react";
-
-const buttonBase =
-  "inline-flex min-h-10 flex-1 items-center justify-center rounded-full font-extrabold transition duration-300";
-
-function buttonClass(isActive, compact = false) {
-  return `${buttonBase} ${compact ? "min-w-0 px-2 text-[11px] sm:px-5 sm:text-sm" : "min-w-[130px] px-5 text-sm"} ${isActive ? "admin-nav-current" : ""} ${
-    isActive
-      ? "bg-navy text-white shadow-soft"
-      : "border border-navy/15 bg-white text-navy hover:-translate-y-0.5 hover:border-brand hover:shadow-soft"
-  }`;
-}
 
 export function isActiveItem(item, active) {
   return item.key === active || item.activeKeys?.includes(active);
@@ -232,11 +223,66 @@ export function getAdminMenuGroups({ isAdmin = false, isBroker = false, isAssoci
   return withAcademyMenuGroup(visible, academiaEnabled);
 }
 
-function getGroupKeyForActive(active, groups = adminGroups) {
-  return groups.find((group) => group.items.some((item) => isActiveItem(item, active)))?.key || groups[0]?.key || "";
+// Chave da tela atual a partir do caminho (o menu agora vive no layout e não recebe mais `active` de cada página).
+// Mesmos valores que as páginas passavam ao AdminSectionNav — os `activeKeys` dos itens continuam valendo.
+const PATH_KEYS = [
+  ["/admin/chat/marketplace", "marketplace-chat"],
+  ["/admin/chat", "chat"],
+  ["/admin/simulacoes", "simulations"],
+  ["/admin/cadastros", "registrations"],
+  ["/admin/calendario", "calendar"],
+  ["/admin/prospeccao", "prospecting"],
+  ["/admin/simulador-caixa", "caixa-simulator"],
+  ["/admin/meta-diaria/gestao", "daily-goal-admin"],
+  ["/admin/meta-diaria", "daily-goal"],
+  ["/admin/desempenho/online", "online"],
+  ["/admin/desempenho/auditoria", "audit"],
+  ["/admin/desempenho/pontuacao", "scoring"],
+  ["/admin/desempenho/reentradas", "reentries"],
+  ["/admin/desempenho/esfriados", "cooled-clients"],
+  ["/admin/desempenho", "performance"],
+  ["/admin/relatorio-diario", "daily-report"],
+  ["/admin/financeiro", "financial"],
+  ["/admin/gastos-ia", "ai-usage"],
+  ["/admin/anuncios", "ads"],
+  ["/admin/empreendimentos", "developments"],
+  ["/admin/imoveis", "properties-catalog"],
+  ["/admin/novo", "new-property"],
+  ["/admin/captacoes", "captacoes"],
+  ["/admin/depoimentos/novo", "new-testimonial"],
+  ["/admin/depoimentos", "testimonials"],
+  ["/admin/corretores", "brokers"],
+  ["/admin/gerador-de-links", "campaign-links"],
+  ["/admin/marketplace", "marketplace"],
+  ["/admin/documentacao/regras", "document-rules"],
+  ["/admin/automacoes", "automations"],
+  ["/admin/guia-atendimento", "attendance-guide"],
+  ["/admin/minha-jornada", "client-journey"],
+  ["/admin/alexa", "alexa"],
+  ["/admin/manual", "manual"],
+  ["/admin/notificacoes", "notifications"],
+  ["/admin/seguranca", "security"]
+];
+
+export function activeKeyForPath(pathname = "", search = "") {
+  const path = String(pathname || "").replace(/\/+$/, "") || "/";
+  if (path === "/admin") return /(^|[?&])area=gestao(&|$)/.test(search || "") ? "management-properties" : "properties";
+  const hit = PATH_KEYS.find(([prefix]) => path === prefix || path.startsWith(`${prefix}/`));
+  return hit ? hit[1] : "";
 }
 
-function CrmBreakdown({ counts, onClose, alignLeft = false, hideChat = false }) {
+// Item e grupo do menu da tela atual (título do cabeçalho e destaque do menu lateral).
+export function findActiveMenuItem(groups, active) {
+  if (!active) return null;
+  for (const group of groups) {
+    const item = group.items.find((entry) => isActiveItem(entry, active));
+    if (item) return { group, item };
+  }
+  return null;
+}
+
+// Lista "Pendências" (o antigo balão do grupo CRM/CLIENTES): agora abre pelo atalho do cabeçalho (AdminTopBar).
+export function CrmBreakdown({ counts, onClose, alignLeft = false, hideChat = false, className = "" }) {
   const items = [
     { label: "Chat", count: counts.chat, href: "/admin/chat", Icon: MessageCircle },
     { label: "Agenda", count: counts.agenda, href: "/admin/calendario?pending=1", Icon: CalendarDays },
@@ -246,189 +292,130 @@ function CrmBreakdown({ counts, onClose, alignLeft = false, hideChat = false }) 
   ].filter((item) => item.count > 0 && !(hideChat && item.label === "Chat"));
 
   return (
-    <div className={`absolute top-full z-50 mt-2 w-[min(20rem,calc(100vw-2.5rem))] rounded-2xl border border-brand/15 bg-white p-3 text-left shadow-soft ${alignLeft ? "left-0" : "left-1/2 -translate-x-1/2"}`}>
-      <p className="px-2 text-xs font-black uppercase tracking-widest text-brand">Pendências</p>
-      <p className="px-2 pb-2 text-sm font-semibold text-slate">{counts.total} no total</p>
+    <div className={cx("absolute top-full z-50 mt-2 w-[min(20rem,calc(100vw-2.5rem))] rounded-card border border-line bg-white p-3 text-left shadow-float", alignLeft ? "left-0" : "right-0", className)}>
+      <p className="px-2 text-2xs font-semibold uppercase tracking-[0.1em] text-faint">Pendências</p>
+      <p className="px-2 pb-2 text-sm font-semibold text-ink-2">{counts.total} no total</p>
       {items.map(({ label, count, href, Icon }) => (
-        <Link key={label} href={href} onClick={onClose} className="flex items-center gap-3 rounded-xl px-2 py-2.5 text-sm font-bold text-navy hover:bg-brand/5">
-          <Icon size={18} className="shrink-0 text-brand" aria-hidden="true" />
+        <Link key={label} href={href} onClick={onClose} className="flex min-h-touch items-center gap-3 rounded-control px-2 text-sm font-semibold text-ink hover:bg-accent-soft">
+          <Icon size={18} className="shrink-0 text-accent" aria-hidden="true" />
           <span className="min-w-0 flex-1">{label}</span>
-          <span className="inline-flex min-w-5 justify-center rounded-full bg-emerald-500 px-1.5 text-[11px] font-black leading-5 text-white">{count}</span>
+          <CountBadge count={count} label={`${count} ${label}`} />
         </Link>
       ))}
-      <Link href="/admin/simulacoes" onClick={onClose} className="mt-1 block border-t border-line px-2 pt-2 text-xs font-bold text-brand">Ver clientes</Link>
+      <Link href="/admin/simulacoes" onClick={onClose} className="mt-1 block border-t border-line px-2 pt-2 text-xs font-semibold text-accent-text">Ver clientes</Link>
     </div>
   );
 }
 
-export default function AdminMenu({ active = "properties", isAdmin = false, isBroker = false, isAssociate = false, isManager = false, whatsappBlocked = false, chatHidden: chatHiddenProp = false }) {
+// Menu lateral do computador (visual novo, dono, 2026-10-22) — substitui as pílulas do topo a partir de 768px.
+// Recolhido em 76px só com ícones; abre (260px, por cima do conteúdo) ao passar o mouse ou ao navegar pelo teclado,
+// com o título de cada grupo. Rola sem barra visível. Logo sem fundo no topo; foto e nome de quem está usando embaixo.
+// Mesmos grupos/itens de getAdminMenuGroups (fonte única, também da barra inferior do celular). Só navegação:
+// a permissão real continua nos guards de cada página. No celular (< md) a navegação é a AdminBottomNav.
+// `currentPath` só existe para a vitrine de desenvolvimento simular a rota.
+export default function AdminMenu({ isAdmin = false, isBroker = false, isAssociate = false, isManager = false, whatsappBlocked = false, chatHidden: chatHiddenProp = false, user = null, currentPath = "" }) {
   // Valor vivo do modo lista impressa (PRO-15): volta o Chat quando o WhatsApp reconecta, sem recarregar a página.
   const chatHidden = useLiveChatHidden(chatHiddenProp);
-  const pathname = usePathname();
-  // Gestor enxerga o mesmo padrão de menu do corretor (pedido do dono,
-  // 2026-09-29): CRM/CADASTROS/DESEMPENHO, CRM colapsado num único pill com
-  // selo — MAIS o pill de GESTÃO (managerGroups), que tinha sumido nessa
-  // mudança e é como ela acessa/gerencia a própria equipe (corrigido em
-  // 2026-09-29). A checagem de permissão/escopo real continua nas próprias
-  // páginas — isso aqui é só o menu.
-  const treatAsBroker = isBroker || isManager;
+  const routerPath = usePathname() || "";
+  const pathname = currentPath || routerPath;
+  const [search, setSearch] = useState("");
+  const [open, setOpen] = useState(false);
   const academiaEnabled = useAcademyMenuEnabled();
   const groups = useMemo(
     () => getAdminMenuGroups({ isAdmin, isBroker, isAssociate, isManager, whatsappBlocked, chatHidden, academiaEnabled }),
     [isAdmin, isBroker, isAssociate, isManager, whatsappBlocked, chatHidden, academiaEnabled]
   );
-  const [visibleGroup, setVisibleGroup] = useState(() => getGroupKeyForActive(active, groups));
-  const menuRef = useRef(null);
   const crmCounts = useCrmBadgeCounts();
-  const crmCount = crmCounts.total;
-  const [showCrmDetails, setShowCrmDetails] = useState(false);
-  const crmPopoverRef = useRef(null);
-  const onMainGroupClick = (event, group) => {
-    setVisibleGroup(group.key);
-    if (!["clientes", "crm"].includes(group.key)) return;
-    if (pathname === group.href && crmCount > 0) {
-      event.preventDefault();
-      setShowCrmDetails((open) => !open);
-    } else {
-      setShowCrmDetails(false);
-    }
-  };
+  const marketplaceUnread = useMarketplaceUnreadCount();
+  const counts = { ...crmCounts, marketplace: marketplaceUnread };
 
+  // "?area=gestao" (Cadastro de empreendimentos) só existe na URL: lido a cada troca de tela.
   useEffect(() => {
-    if (!showCrmDetails) return;
-    const closeOutside = (event) => { if (!crmPopoverRef.current?.contains(event.target)) setShowCrmDetails(false); };
-    const closeEscape = (event) => { if (event.key === "Escape") setShowCrmDetails(false); };
-    document.addEventListener("pointerdown", closeOutside);
-    document.addEventListener("keydown", closeEscape);
-    return () => { document.removeEventListener("pointerdown", closeOutside); document.removeEventListener("keydown", closeEscape); };
-  }, [showCrmDetails]);
+    setSearch(typeof window === "undefined" ? "" : window.location.search);
+    setOpen(false);
+  }, [pathname]);
 
+  // Reserva a coluna do menu à esquerda do conteúdo (app/admin-theme.css, a partir de md).
   useEffect(() => {
-    setVisibleGroup(getGroupKeyForActive(active, groups));
-  }, [active, groups]);
+    document.documentElement.classList.add("admin-has-sidebar");
+    return () => document.documentElement.classList.remove("admin-has-sidebar");
+  }, []);
 
-  // A navegação pode reutilizar o mesmo nó da página; a animação CSS de entrada
-  // não reinicia nesse caso. Animar os irmãos após o menu a cada troca de rota.
-  useEffect(() => {
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-    const frame = requestAnimationFrame(() => {
-      const sectionNav = menuRef.current?.parentElement;
-      if (sectionNav?.parentElement?.tagName !== "MAIN") return;
-      // Cena de troca de tela (2026-10-12): duração/curva das variáveis --mm-motion-* (app/globals.css), só opacity/transform, sem preencher depois (volta a transform: none).
-      // O Chat em modo aplicativo tem as próprias cenas e uma moldura fixa (iPhone): não é animado aqui
-      // — transform num ancestral do Chat prenderia os elementos "fixos" dele à caixa durante a cena.
-      const rootStyle = getComputedStyle(document.documentElement);
-      // O CSS publicado vem minificado ("3060ms" vira "3.06s"): converte os dois formatos para milissegundos.
-      const rawDuration = rootStyle.getPropertyValue("--mm-motion-screen").trim();
-      const duration = (rawDuration.endsWith("ms") ? parseFloat(rawDuration) : parseFloat(rawDuration) * 1000) || 1000;
-      const easing = rootStyle.getPropertyValue("--mm-motion-ease").trim() || "cubic-bezier(0.22, 1, 0.36, 1)";
-      for (let node = sectionNav.nextElementSibling; node; node = node.nextElementSibling) {
-        if (node.matches?.(".chat-app-root, .chat-app-ancestor") || node.querySelector?.(".chat-app-root")) continue;
-        node.animate?.(
-          // A tela fica nítida logo no começo (opacidade completa em 20% da cena) e só o deslize continua: com 1 s de
-          // fade inteiro a tela de Clientes parecia demorar a abrir (dono, 2026-10-12).
-          [{ opacity: 0, transform: "translateY(18px)" }, { opacity: 1, offset: 0.2 }, { opacity: 1, transform: "none" }],
-          { duration, easing }
-        );
-      }
-    });
-    return () => cancelAnimationFrame(frame);
-  }, [active]);
-
-  const visibleItems = useMemo(() => {
-    return groups.find((group) => group.key === visibleGroup)?.items || [];
-  }, [groups, visibleGroup]);
+  const current = findActiveMenuItem(groups, activeKeyForPath(pathname, search));
 
   return (
-    // No celular (< md) a navegação é a barra inferior fixa
-    // (AdminBottomNav, renderizada em app/admin/layout.jsx) — este menu só
-    // aparece do tablet para cima. Mesmos grupos (getAdminMenuGroups).
-    <div className="hidden space-y-2 md:block" ref={menuRef}>
-      {/* Gestor tem 4 pills (CRM/CADASTROS/DESEMPENHO/GESTÃO) contra 3 do
-          corretor — sem quebra de linha eles ficariam espremidos/cortados
-          no celular, por isso só o corretor puro fica flex-nowrap. */}
-      <nav className={`flex w-full justify-center gap-2.5 ${treatAsBroker && !isManager ? "flex-nowrap" : "flex-wrap"}`} aria-label="Categorias administrativas">
-        {groups.map((group) => {
-          const groupActive = group.items.some((item) => isActiveItem(item, active));
-          const highlighted = groupActive || visibleGroup === group.key;
+    <div className="mm-app-hide admin-sidebar fixed inset-y-0 left-0 z-[35] hidden w-[var(--mm-shell-sidebar)] md:block">
+      <nav
+        aria-label="Menu principal"
+        onMouseEnter={() => setOpen(true)}
+        onMouseLeave={() => setOpen(false)}
+        onFocus={() => setOpen(true)}
+        onBlur={(event) => { if (!event.currentTarget.contains(event.relatedTarget)) setOpen(false); }}
+        data-open={open ? "true" : "false"}
+        className={cx(
+          "admin-sidebar-panel absolute inset-y-0 left-0 flex flex-col overflow-hidden border-r border-line pb-3 pt-[calc(env(safe-area-inset-top)+16px)]",
+          "transition-[width,box-shadow] duration-200 ease-out-ui motion-reduce:transition-none",
+          open ? "w-[260px] shadow-float" : "w-[var(--mm-shell-sidebar)]"
+        )}
+      >
+        <Link href="/admin/simulacoes" className="mx-2.5 mb-3 flex min-h-touch shrink-0 items-center gap-3 rounded-control px-[5px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent" aria-label="Matheus Machado Corretor de Imóveis — Clientes">
+          <img src="/assets/matheus-machado-symbol.png" alt="" width={40} height={40} className="h-10 w-10 shrink-0 object-contain" />
+          <span className={cx("min-w-0 whitespace-nowrap leading-tight transition-opacity duration-150", open ? "opacity-100" : "opacity-0")}>
+            <span className="block text-sm font-extrabold text-ink">Matheus Machado</span>
+            <span className="block text-2xs font-medium tracking-normal text-muted">Corretor de Imóveis</span>
+          </span>
+        </Link>
 
-          if (group.key === "academia") {
-            // Academia fica fora de /admin: navegação completa (<a>), não Link.
-            return (
-              <div key={group.key} className="relative flex min-w-[130px] flex-1">
-                <a href={group.href} className={`${buttonClass(false, treatAsBroker)} w-full`}>
-                  {group.label}
-                </a>
-              </div>
-            );
-          }
-
-          if (group.href) {
-            if (treatAsBroker && group.key === "crm") {
-              return (
-                <div key={group.key} ref={crmPopoverRef} className="relative flex min-w-0 flex-1">
-                  <Link href={group.href} className={`${buttonClass(highlighted, true)} w-full`} aria-expanded={crmCount > 0 ? showCrmDetails : undefined} onClick={(event) => onMainGroupClick(event, group)}>
-                    {group.label}
-                  </Link>
-                  {crmCount > 0 ? <span className="pointer-events-none absolute -right-2 -top-2 inline-flex min-w-5 items-center justify-center rounded-full bg-emerald-500 px-1.5 text-[11px] font-black leading-5 text-white" aria-label={`${crmCount} pendências no CRM`}>{crmCount > 99 ? "99+" : crmCount}</span> : null}
-                  {showCrmDetails && crmCount > 0 ? <CrmBreakdown counts={crmCounts} onClose={() => setShowCrmDetails(false)} alignLeft hideChat={whatsappBlocked || chatHidden} /> : null}
-                </div>
-              );
-            }
-            return (
-              <div key={group.key} ref={["clientes", "crm"].includes(group.key) ? crmPopoverRef : null} className="relative flex min-w-[130px] flex-1">
-              <Link
-                href={group.href}
-                className={`${buttonClass(highlighted, treatAsBroker)} w-full`}
-                aria-expanded={["clientes", "crm"].includes(group.key) && crmCount > 0 ? showCrmDetails : undefined}
-                onClick={(event) => onMainGroupClick(event, group)}
-              >
+        <div className="mm-noscroll min-h-0 flex-1 overflow-y-auto overflow-x-hidden px-2.5">
+          {groups.map((group) => (
+            <div key={group.key} className="mb-2">
+              <p className={cx("h-6 truncate whitespace-nowrap px-3 pt-2 text-[10px] font-semibold uppercase leading-4 tracking-[0.1em] text-faint transition-opacity duration-150", open ? "opacity-100" : "opacity-0")} aria-hidden={!open}>
                 {group.label}
-              </Link>
-              {["clientes", "crm"].includes(group.key) && crmCount > 0 ? <span className="pointer-events-none absolute -right-2 -top-2 inline-flex min-w-5 items-center justify-center rounded-full bg-emerald-500 px-1.5 text-[11px] font-black leading-5 text-white" aria-label={`${crmCount} pendências no CRM`}>{crmCount > 99 ? "99+" : crmCount}</span> : null}
-              {["clientes", "crm"].includes(group.key) && showCrmDetails && crmCount > 0 ? <CrmBreakdown counts={crmCounts} onClose={() => setShowCrmDetails(false)} alignLeft={!isAdmin} hideChat={whatsappBlocked || chatHidden} /> : null}
-              </div>
-            );
-          }
+              </p>
+              <ul>
+                {group.items.map((item) => {
+                  const isCurrent = current?.item === item;
+                  const Icon = navIconFor(item.key);
+                  const badge = navBadgeFor(item.key, counts);
+                  const ItemLink = item.fullPage ? "a" : item.key === "daily-goal" ? SceneTransitionLink : Link;
+                  return (
+                    <li key={`${group.key}-${item.key}`}>
+                      <ItemLink
+                        href={item.href}
+                        {...(item.key === "daily-goal" ? { direction: "forward" } : {})}
+                        aria-current={isCurrent ? "page" : undefined}
+                        title={open ? undefined : item.label}
+                        className={cx(
+                          "relative mb-0.5 flex min-h-[42px] items-center gap-3 rounded-control border px-[13px] text-sm",
+                          "transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent",
+                          isCurrent ? "border-accent-line bg-accent-soft font-bold text-ink" : "border-transparent font-medium text-ink-2 hover:bg-surface-2 hover:text-ink"
+                        )}
+                      >
+                        <span className={cx("relative inline-flex w-6 shrink-0 justify-center", isCurrent ? "text-accent" : "text-muted")}>
+                          <Icon className="h-[21px] w-[21px]" strokeWidth={1.8} aria-hidden="true" />
+                          {!open && badge ? <span className="mm-count-dot absolute -right-1.5 -top-1" aria-hidden="true" /> : null}
+                        </span>
+                        <span className={cx("min-w-0 flex-1 truncate whitespace-nowrap transition-opacity duration-150", open ? "opacity-100" : "opacity-0")}>{item.label}</span>
+                        {open ? <CountBadge count={badge} label={`${badge} em ${item.label}`} /> : badge ? <span className="sr-only">{`${badge} em ${item.label}`}</span> : null}
+                      </ItemLink>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          ))}
+        </div>
 
-          return (
-            <button
-              key={group.key}
-              type="button"
-              className={buttonClass(highlighted, treatAsBroker)}
-              onClick={() => setVisibleGroup(group.key)}
-            >
-              {group.label}
-            </button>
-          );
-        })}
-        {/* Modo claro/escuro (dono, 2026-10-16): mesmo botão do "Mais" do celular. */}
-        <AdminThemeToggle variant="pill" />
+        {user ? (
+          <div className="mx-2.5 mt-2 flex shrink-0 items-center gap-2.5 overflow-hidden whitespace-nowrap border-t border-line px-[5px] pt-3">
+            <Avatar name={user.name} photoUrl={user.photoUrl} size={40} className="!border-2 !border-accent" />
+            <span className={cx("min-w-0 leading-tight transition-opacity duration-150", open ? "opacity-100" : "opacity-0")}>
+              <span className="block truncate text-[13px] font-extrabold text-ink">{user.name}</span>
+              <span className="block text-2xs font-medium tracking-normal text-muted">{user.roleLabel}</span>
+            </span>
+          </div>
+        ) : null}
       </nav>
-
-      {(isAdmin && visibleGroup === "clientes") || (treatAsBroker && visibleGroup === "crm") || visibleGroup === "ajuda" ? null : <div className="mx-auto flex w-full flex-wrap justify-center rounded-2xl border border-navy/[0.07] bg-white p-0.5 shadow-[0_1px_2px_rgba(13,59,102,0.04)]" aria-label="Opções da categoria administrativa">
-        {visibleItems.map((item) => {
-          // Meta Diária ganha a coreografia de cenas (SceneTransitionLink)
-          // ao entrar/sair dela; os demais itens continuam com o Link normal.
-          const ItemLink = item.key === "daily-goal" ? SceneTransitionLink : Link;
-          return (
-            <ItemLink
-              key={`${visibleGroup}-${item.key}`}
-              href={item.href}
-              {...(item.key === "daily-goal" ? { direction: "forward" } : {})}
-              className={`admin-motion-enter min-w-[110px] flex-1 rounded-xl px-4 py-1 text-center text-[13px] font-extrabold transition duration-200 ${
-                isActiveItem(item, active)
-                  ? "admin-nav-current bg-navy text-white shadow-soft"
-                  : "text-navy hover:bg-brand/10 hover:text-brand"
-              }`}
-            >
-              {item.label}
-              {item.badge === "chat" ? <WhatsappChatNavBadge className="ml-1.5" /> : null}
-              {item.badge === "marketplace" ? <MarketplaceNavBadge className="ml-1.5" /> : null}
-            </ItemLink>
-          );
-        })}
-      </div>}
     </div>
   );
 }

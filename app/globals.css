@@ -560,7 +560,7 @@ html.ui-sheet-open {
   inset: auto 0 0 0;
   width: 100%;
   max-height: min(88dvh, calc(100dvh - 24px));
-  border-radius: 20px 20px 0 0;
+  border-radius: var(--mm-r-sheet, 20px) var(--mm-r-sheet, 20px) 0 0;
   padding-top: 8px;
   animation: ui-sheet-up var(--mm-motion-sheet) var(--mm-motion-ease);
 }
@@ -587,7 +587,7 @@ html.ui-sheet-open {
   width: min(480px, 100vw);
   height: 100dvh;
   max-height: 100dvh;
-  border-radius: 20px 0 0 20px;
+  border-radius: var(--mm-r-sheet, 20px) 0 0 var(--mm-r-sheet, 20px);
   animation: ui-sheet-left var(--mm-motion-sheet) var(--mm-motion-ease);
 }
 
@@ -607,7 +607,7 @@ html.ui-sheet-open {
     height: 100dvh;
     max-height: 100dvh;
     padding-top: 0;
-    border-radius: 20px 0 0 20px;
+    border-radius: var(--mm-r-sheet, 20px) 0 0 var(--mm-r-sheet, 20px);
     animation-name: ui-sheet-left;
   }
 
@@ -918,4 +918,128 @@ body:has([data-home-hero]) .site-header {
    somem só a partir de md e só enquanto a tela de Clientes está aberta (ClientWorkspace marca o body). */
 @media (min-width: 768px) {
   body[data-shortcuts-moved="true"] [data-top-moved-indicator] { display: none; }
+}
+
+/* ===== Casca do painel — visual novo (dono, 2026-10-22) =====
+   Menu lateral do computador (components/AdminMenu.jsx), cabeçalho (components/AdminTopBar.jsx), contadores verdes e
+   entrada dos blocos por rolagem (components/motion/AdminScrollReveal.jsx). Tudo depende de classes que só existem
+   no painel (html.mm-panel / admin-has-sidebar), então o site público não muda. */
+
+/* Rola, mas sem barra visível (menu lateral, folha "Mais", fileiras de abas). */
+.mm-noscroll {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.mm-noscroll::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
+}
+
+.admin-sidebar-panel {
+  background: #ffffff;
+}
+html.mm-dark .admin-sidebar-panel {
+  background: #0a1626;
+}
+
+/* Coluna do menu recolhido reservada à esquerda do conteúdo (os apps "Chat"/"Financeiro" instalados não têm menu). */
+@media (min-width: 768px) {
+  html.admin-has-sidebar:not([data-mm-app]) body {
+    padding-left: calc(var(--mm-shell-sidebar, 76px) + env(safe-area-inset-left));
+  }
+}
+
+/* Contador verde do visual novo (badge de Chat, Agenda, Marketplace, menu): verde #1FB37A com texto escuro. */
+.mm-count {
+  background: #1fb37a;
+  color: #04140d;
+}
+.mm-count-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 999px;
+  background: #1fb37a;
+  box-shadow: 0 0 0 2px rgb(var(--mm-surf, 255 255 255));
+}
+
+/* Pílula "Online" do cabeçalho: ponto verde pulsando devagar. */
+@keyframes mm-blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
+.mm-online-dot {
+  animation: mm-blink 1.6s ease-in-out infinite;
+}
+
+/* Chat no celular continua de tela cheia (lista → conversa, como o WhatsApp): sem o cabeçalho do painel. */
+@media (max-width: 767px) {
+  html.chat-app-mode .admin-topbar,
+  body:has(.chat-app-root) .admin-topbar {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mm-online-dot {
+    animation: none;
+  }
+}
+
+/* Campeão da semana / Melhor do dia (components/TopRankingBadge.jsx): brilho que passa, anel pulsando, coroa dourada. */
+@keyframes mm-scan {
+  from { transform: translateX(-120%); }
+  to { transform: translateX(320%); }
+}
+@keyframes mm-pulse {
+  0% { box-shadow: 0 0 0 0 var(--mm-pulse-color, rgba(79, 195, 224, 0.45)); }
+  70% { box-shadow: 0 0 0 12px rgba(79, 195, 224, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(79, 195, 224, 0); }
+}
+@keyframes mm-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-4px); }
+}
+.mm-scan {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 35%;
+  pointer-events: none;
+  background: linear-gradient(90deg, transparent, rgba(27, 127, 176, 0.1), transparent);
+  animation: mm-scan 5s ease-in-out infinite;
+}
+.mm-champion-weekly .mm-scan {
+  background: linear-gradient(90deg, transparent, rgba(168, 106, 0, 0.1), transparent);
+}
+html.mm-dark .mm-champion-daily .mm-scan {
+  background: linear-gradient(90deg, transparent, rgba(79, 195, 224, 0.14), transparent);
+}
+html.mm-dark .mm-champion-weekly .mm-scan {
+  background: linear-gradient(90deg, transparent, rgba(242, 198, 109, 0.18), transparent);
+}
+.mm-pulse-ring {
+  animation: mm-pulse 2.6s ease-out infinite;
+}
+.mm-pulse-gold {
+  --mm-pulse-color: rgba(242, 198, 109, 0.5);
+}
+.mm-float {
+  animation: mm-float 2.4s ease-in-out infinite;
+}
+/* Coroa ♛ dourada (a mesma da celebração): gradiente #FFF1C2 → #F2C66D → #C98616 com brilho. */
+.mm-crown {
+  background: linear-gradient(180deg, #fff1c2 0%, #f2c66d 50%, #c98616 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  filter: drop-shadow(0 0 6px rgba(242, 198, 109, 0.6));
+  animation: mm-float 2.4s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .mm-scan,
+  .mm-pulse-ring,
+  .mm-float,
+  .mm-crown {
+    animation: none;
+  }
 }

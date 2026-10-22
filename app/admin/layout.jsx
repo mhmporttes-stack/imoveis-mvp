@@ -1,4 +1,7 @@
 import AdminBottomNav from "@/components/AdminBottomNav";
+import AdminMenu from "@/components/AdminMenu";
+import AdminTopBar from "@/components/AdminTopBar";
+import AdminScrollReveal from "@/components/motion/AdminScrollReveal";
 import AdminWarmup from "@/components/AdminWarmup";
 import { chatViewerKey } from "@/lib/chat-viewer-key.mjs";
 import AdminLogoutButton from "@/components/AdminLogoutButton";
@@ -60,25 +63,33 @@ export default async function AdminLayout({ children }) {
       {/* Central de Alertas (Informativo/Importante) — fora de "Alterar conta", como a Supervisão. */}
       {auth.ok && !auth.accountSwitchMode ? <AlertCenterGate userId={auth.profile?.id} /> : null}
       </HideInFinanceiroApp>
+      {/* O provider envolve o cabeçalho, o menu lateral e a barra inferior: o modo lista impressa (PRO-15) é relido no
+          cliente e o Chat volta sozinho quando o WhatsApp reconecta, sem fechar o app (components/WhatsappAccessProvider.jsx). */}
+      <WhatsappAccessProvider blocked={whatsappBlocked} basic={auth.ok && isBasicMode(auth.profile)} chatHidden={chatHidden} liveCheck={auth.ok && printedListModeAppliesTo({ role: auth.profile?.role || "", isGeneralAdmin: isGeneralAdminAuth(auth) })}>
       {auth.ok ? (
-        // Ranking no início da página, no fluxo normal: rola junto com o
-        // conteúdo e nunca fica sobre os cards de clientes.
+        // Menu lateral do computador (visual novo, dono, 2026-10-22): mesmos grupos de getAdminMenuGroups; no celular a
+        // navegação continua na barra inferior.
+        <AdminMenu
+          {...navFlags(auth, whatsappBlocked, chatHidden)}
+          user={{ name: auth.profile?.name || "", photoUrl: auth.profile?.photoUrl || "", roleLabel: roleLabel(auth.profile?.role) }}
+        />
+      ) : null}
+      {auth.ok ? (
+        // Cabeçalho e ranking no início da página, no fluxo normal: rolam junto com o
+        // conteúdo e nunca ficam sobre os cards de clientes.
         <div className="mm-app-hide">
           {auth.accountSwitchMode ? (
             <AdminViewAsBanner name={auth.profile.name} category={roleLabel(auth.profile.role)} />
           ) : null}
-          {/* pt-[env(safe-area-inset-top)]: no iPhone com notch/Dynamic
-              Island (PWA em modo standalone, viewport-fit=cover já
-              configurado), o topo da tela fica por baixo da barra de
-              status do sistema — sem esse respiro o conteúdo do cabeçalho
-              nasceria atrás dela. O fundo da barra continua se estendendo
-              até o topo real (comportamento padrão esperado em PWAs). */}
-          <header className="admin-ranking-header flex min-h-12 flex-wrap items-center justify-center gap-2 border-b border-line bg-white px-3 pt-[env(safe-area-inset-top)] sm:min-h-14 sm:px-6">
-            {/* Os indicadores de integração ficam DENTRO dos cards do ranking
-                (WhatsApp no Campeão da Semana, Google Contacts no Melhor do
-                Dia, mesma coluna a ~75% da largura) — ver TopRankingBadge.
-                WhatsApp é fixo em toda aba (pedido do dono, 2026-09-30:
-                corretor não percebia o próprio WhatsApp cair). */}
+          {/* Título/subtítulo da tela, busca, atalhos, sol/lua, Online e "Visualizar como corretor" (só admin geral real,
+              fora do "Alterar conta"). O respiro do iPhone (safe-area) fica no próprio cabeçalho. */}
+          <AdminTopBar {...navFlags(auth, whatsappBlocked, chatHidden)} canViewAs={!auth.accountSwitchMode && isGeneralAdminProfile(auth.realProfile || auth.profile)} />
+          {/* Campeão da semana / Melhor do dia em todas as telas, menos o Chat (app/globals.css esconde no Chat).
+              Os indicadores de integração ficam DENTRO dos cards do ranking
+              (WhatsApp no Campeão da Semana, Google Contacts no Melhor do
+              Dia) — ver TopRankingBadge. WhatsApp é fixo em toda aba (pedido do dono, 2026-09-30:
+              corretor não percebia o próprio WhatsApp cair). */}
+          <header className="admin-ranking-header container-page flex flex-wrap items-center gap-2">
             <TopRankingBadge
               weeklyIndicator={whatsappBlocked ? null : <WhatsappIndividualStatus align="end" />}
               dailyIndicator={<>{auth.ok && !auth.accountSwitchMode && (isOwnerAdminEmail(auth.user?.email) || isManagerProfile(auth.profile)) ? <span data-top-moved-indicator="true" className="contents"><CooledClientsInbox align="end" /></span> : null}{auth.ok && !auth.accountSwitchMode ? <span data-top-moved-indicator="true" className="contents"><NotificationHistoryButton align="end" /></span> : null}<GoogleContactsStatus align="end" /></>}
@@ -92,24 +103,15 @@ export default async function AdminLayout({ children }) {
           <OfficePresenceNotice />
         </HideInFinanceiroApp>
       ) : null}
-      {/* O provider envolve também a barra inferior: o modo lista impressa (PRO-15) é relido no cliente e o Chat volta
-          sozinho quando o WhatsApp reconecta, sem fechar o app (components/WhatsappAccessProvider.jsx). */}
-      <WhatsappAccessProvider blocked={whatsappBlocked} basic={auth.ok && isBasicMode(auth.profile)} chatHidden={chatHidden} liveCheck={auth.ok && printedListModeAppliesTo({ role: auth.profile?.role || "", isGeneralAdmin: isGeneralAdminAuth(auth) })}>
+      {/* Entrada dos blocos por rolagem (visual novo): respeita "reduzir movimento"; o Chat fica de fora. */}
+      {auth.ok ? <AdminScrollReveal /> : null}
       <SceneTransitionRoot>{children}</SceneTransitionRoot>
       {/* Indicador "carregando" da transição de cena (SceneSkipCatcher) removido a pedido do dono (2026-10-12): ficava
           girando parado sobre a Meta Diária. A tela de baixo já fica interativa; nada mais depende dele. */}
-      {/* Navegação principal no celular (< md); do tablet para cima continua
-          o AdminMenu do topo. Mesmos flags de perfil do AdminSectionNav. */}
+      {/* Navegação principal no celular (< md); do tablet para cima é o menu lateral (AdminMenu). Mesmos flags de perfil. */}
       {auth.ok ? <AdminWarmup {...warmupTargets(auth, whatsappBlocked, chatHidden)} /> : null}
       {auth.ok ? (
-        <AdminBottomNav
-          isAdmin={isGeneralAdminProfile(auth.profile)}
-          isBroker={isBrokerProfile(auth.profile)}
-          isAssociate={isAssociateProfile(auth.profile)}
-          isManager={isManagerProfile(auth.profile)}
-          whatsappBlocked={whatsappBlocked}
-          chatHidden={chatHidden}
-        />
+        <AdminBottomNav {...navFlags(auth, whatsappBlocked, chatHidden)} />
       ) : null}
       </WhatsappAccessProvider>
       {auth.ok ? (
@@ -159,6 +161,18 @@ function warmupTargets(auth, whatsappBlocked, chatHidden = false) {
       ...(!isAdmin && !isManager ? ["/admin/simulador-caixa"] : [])
     ],
     lightRoutes: isAdmin ? [] : ["/admin/calendario"]
+  };
+}
+
+// Flags de perfil da navegação (menu lateral, cabeçalho e barra inferior) — as mesmas de sempre do AdminSectionNav.
+function navFlags(auth, whatsappBlocked, chatHidden) {
+  return {
+    isAdmin: isGeneralAdminProfile(auth.profile),
+    isBroker: isBrokerProfile(auth.profile),
+    isAssociate: isAssociateProfile(auth.profile),
+    isManager: isManagerProfile(auth.profile),
+    whatsappBlocked,
+    chatHidden
   };
 }
 

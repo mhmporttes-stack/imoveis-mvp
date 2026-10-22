@@ -2,12 +2,10 @@
 
 import Link from "next/link";
 import { useEffect, useId, useRef, useState } from "react";
-import { Calculator, CalendarDays, ChevronLeft, ChevronRight, Inbox, Link2, MessageCircle, Search, SlidersHorizontal, Target, TriangleAlert, UserRoundPlus, UserSearch, X } from "lucide-react";
+import { Calculator, ChevronLeft, ChevronRight, Inbox, Link2, Search, SlidersHorizontal, Target, TriangleAlert, UserRoundPlus, UserSearch, X } from "lucide-react";
 import NotificationHistoryButton from "@/components/alerts/NotificationHistoryButton";
 import CooledClientsInbox from "@/components/cooled/CooledClientsInbox";
-import MarketplaceChatShortcut from "@/components/marketplace/MarketplaceChatShortcut";
 import SceneTransitionLink from "@/components/motion/SceneTransitionLink";
-import { CountBadge } from "@/components/ui/Badge";
 import Button from "@/components/ui/Button";
 import { useConfirm } from "@/components/ui/ConfirmDialog";
 import EmptyState from "@/components/ui/EmptyState";
@@ -17,8 +15,6 @@ import { SkeletonList } from "@/components/ui/Skeleton";
 import { useToast } from "@/components/ui/Toast";
 import { cx } from "@/components/ui/cx";
 import { SHORTCUT_ICON_BUTTON } from "@/components/ui/shortcut-icon";
-import { useCrmBadgeCounts } from "@/components/useCrmBadgeCounts";
-import { useChatHidden } from "@/components/WhatsappAccessProvider";
 import { CLIENT_STATUS, CLIENT_STATUS_FILTER_GROUPS, CLIENT_STATUS_META } from "@/lib/client-status";
 import { formatMoneyBR } from "@/lib/simulation-list-utils";
 import ClientCard from "./ClientCard";
@@ -46,9 +42,6 @@ export default function ClientWorkspace(props) {
   const [confirmAction, confirmElement] = useConfirm();
   const [openClientId, setOpenClientId] = useState("");
   const list = useClientList({ ...props, notify, confirmAction, pinClientId: openClientId });
-  const badgeCounts = useCrmBadgeCounts();
-  // Modo lista impressa (PRO-15, 2026-10-15): sem atalho do Chat enquanto o WhatsApp estiver desconectado.
-  const chatHidden = useChatHidden();
   const [openFocus, setOpenFocus] = useState("");
   const openFicha = (clientId, focus = "") => {
     setOpenFocus(focus);
@@ -100,9 +93,7 @@ export default function ClientWorkspace(props) {
           </p>
         </div>
         <div className="flex items-center gap-2 max-sm:hidden">
-          {/* Atalhos para Meta Diária, Chat e Agenda: no desktop o menu do topo
-              não mostra os subitens do grupo CRM/Clientes; no celular eles
-              estão na barra inferior. */}
+          {/* Atalhos da tela (computador): Meta Diária, Simulador Caixa, Clientes que esfriaram e Notificações. */}
           <nav aria-label="Atalhos" className="mr-1 hidden items-center gap-1 md:flex">
             <SceneTransitionLink href="/admin/meta-diaria" direction="forward" aria-label="Meta Diária" title="Meta Diária" className={SHORTCUT}>
               <Target className="h-5 w-5" aria-hidden="true" />
@@ -111,18 +102,8 @@ export default function ClientWorkspace(props) {
             <Link href="/admin/simulador-caixa" aria-label="Simulador Caixa" title="Simulador Caixa" className={SHORTCUT}>
               <Calculator className="h-5 w-5" aria-hidden="true" />
             </Link>
-            {chatHidden ? null : (
-              <Link href="/admin/chat" aria-label={`Chat${badgeCounts.chat ? ` (${badgeCounts.chat} não lidas)` : ""}`} title="Chat" className={SHORTCUT}>
-                <MessageCircle className="h-5 w-5" aria-hidden="true" />
-                <CountBadge count={badgeCounts.chat} className="absolute -right-1 -top-1 ring-2 ring-mist" label={`${badgeCounts.chat} mensagens não lidas`} />
-              </Link>
-            )}
-            {/* Chat Marketplace (dono, 2026-10-21): todos os perfis; à direita do Chat; contador do menu "Chat Marketplace". */}
-            <MarketplaceChatShortcut />
-            <Link href="/admin/calendario" aria-label={`Agenda${badgeCounts.agenda ? ` (${badgeCounts.agenda} pendentes)` : ""}`} title="Agenda" className={SHORTCUT}>
-              <CalendarDays className="h-5 w-5" aria-hidden="true" />
-              <CountBadge count={badgeCounts.agenda} className="absolute -right-1 -top-1 ring-2 ring-mist" label={`${badgeCounts.agenda} atividades pendentes`} />
-            </Link>
+            {/* Chat, Chat Marketplace e Agenda (com os contadores) ficam no cabeçalho do painel (AdminTopBar) desde o
+                visual novo (dono, 2026-10-22) — aqui seriam repetidos lado a lado. */}
             {showCooledInbox ? <CooledClientsInbox align="end" variant="shortcut" /> : null}
             {showNotifications ? <NotificationHistoryButton align="end" variant="shortcut" /> : null}
           </nav>
