@@ -87,7 +87,7 @@ export default function BrokerBasesOverview({ isOwner = false, users = [] }) {
             key={broker.brokerId}
             type="button"
             onClick={() => setSelected(broker)}
-            className="flex items-center gap-3 rounded-[22px] border border-line bg-white p-4 text-left shadow-soft transition hover:-translate-y-0.5 hover:border-brand/40"
+            className="flex items-center gap-3 rounded-panel border border-line bg-white p-4 text-left shadow-soft transition hover:-translate-y-0.5 hover:border-brand/40"
           >
             <Avatar name={broker.name} photoUrl={broker.photoUrl} size={44} />
             <div className="min-w-0">
@@ -99,7 +99,7 @@ export default function BrokerBasesOverview({ isOwner = false, users = [] }) {
       </div>
 
       {brokers && !brokers.length ? (
-        <p className="rounded-[24px] border border-line bg-white p-8 text-center font-black text-navy">
+        <p className="rounded-panel border border-line bg-white p-8 text-center font-black text-navy">
           Nenhum corretor ativo encontrado.
         </p>
       ) : null}

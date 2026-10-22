@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { ChevronDown, LoaderCircle, MessageCircle } from "lucide-react";
+import { tabClasses } from "@/components/ui/Tabs";
 
 const STATUS_LABEL = { draft: "Rascunho", queued: "Na fila", processing: "Processando", completed: "Concluída", failed: "Falhou", canceled: "Cancelada" };
 const MESSAGE_STATUS_LABEL = { queued: "Na fila", processing: "Enviando", sent: "Enviada", delivered: "Entregue", read: "Lida", failed: "Falhou" };
@@ -109,8 +110,8 @@ function Recipients({ id, onOpenConversation }) {
   return (
     <div className="border-t border-line">
       <div className="flex flex-wrap items-center gap-2 px-4 py-3">
-        <button type="button" onClick={() => setOnlyReplied(false)} className={`rounded-full border px-3 py-1 text-xs font-extrabold ${!onlyReplied ? "border-navy bg-navy text-white" : "border-line text-navy"}`}>Todos ({detail.messages.length})</button>
-        <button type="button" onClick={() => setOnlyReplied(true)} className={`rounded-full border px-3 py-1 text-xs font-extrabold ${onlyReplied ? "border-emerald-600 bg-emerald-600 text-white" : "border-line text-navy"}`}>Responderam ({repliedCount})</button>
+        <button type="button" onClick={() => setOnlyReplied(false)} aria-pressed={!onlyReplied} className={tabClasses(!onlyReplied, "sm")}>Todos ({detail.messages.length})</button>
+        <button type="button" onClick={() => setOnlyReplied(true)} aria-pressed={onlyReplied} className={tabClasses(onlyReplied, "sm")}>Responderam ({repliedCount})</button>
       </div>
       <ul className="max-h-80 divide-y divide-line overflow-y-auto">
         {messages.map((message) => (

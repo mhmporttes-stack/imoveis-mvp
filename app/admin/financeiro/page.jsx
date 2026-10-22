@@ -54,7 +54,7 @@ export default async function AdminFinancialPage({ searchParams }) {
 function FinancialDisabled() {
   return (
     <main className="bg-mist py-14">
-      <section className="container-page rounded-[28px] border border-line bg-white p-10 shadow-soft">
+      <section className="container-page rounded-panel border border-line bg-white p-10 shadow-soft">
         <p className="text-sm font-black uppercase tracking-[0.18em] text-brand">Financeiro</p>
         <h1 className="mt-3 text-5xl font-black text-navy">Módulo financeiro temporariamente desativado</h1>
         <p className="mt-4 max-w-2xl text-lg leading-8 text-muted">
@@ -69,7 +69,7 @@ function FinancialDisabled() {
 function FinancialError({ error }) {
   return (
     <main className="bg-mist py-14">
-      <section className="container-page rounded-[28px] border border-red-200 bg-white p-10 shadow-soft">
+      <section className="container-page rounded-panel border border-red-200 bg-white p-10 shadow-soft">
         <p className="text-sm font-black uppercase tracking-[0.18em] text-red-700">Erro ao carregar financeiro</p>
         <h1 className="mt-3 text-5xl font-black text-navy">A página abriu, mas o Supabase retornou um erro.</h1>
         <p className="mt-6 rounded-2xl border border-red-100 bg-red-50 px-5 py-4 font-bold text-red-800">{error}</p>

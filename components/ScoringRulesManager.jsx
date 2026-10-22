@@ -188,7 +188,7 @@ export default function ScoringRulesManager({
         />
       </div>
 
-      <article className="rounded-[28px] border border-navy/10 bg-white p-5 shadow-soft md:p-7">
+      <article className="rounded-panel border border-navy/10 bg-white p-5 shadow-soft md:p-7">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <p className="text-xs font-extrabold uppercase tracking-[0.35em] text-brand">Configuração de pontos</p>
@@ -269,7 +269,7 @@ export default function ScoringRulesManager({
       </article>
 
       {canEdit && (
-        <article className="rounded-[28px] border border-navy/10 bg-white p-5 shadow-soft md:p-7">
+        <article className="rounded-panel border border-navy/10 bg-white p-5 shadow-soft md:p-7">
           <p className="text-xs font-extrabold uppercase tracking-[0.35em] text-brand">Ajuste manual</p>
           <h2 className="mt-2 text-2xl font-extrabold text-navy">Adicionar ou remover pontos de um corretor</h2>
 
@@ -362,7 +362,7 @@ export default function ScoringRulesManager({
         </article>
       )}
 
-      <article className="rounded-[28px] border border-navy/10 bg-white p-5 shadow-soft md:p-7">
+      <article className="rounded-panel border border-navy/10 bg-white p-5 shadow-soft md:p-7">
         <p className="text-xs font-extrabold uppercase tracking-[0.35em] text-brand">Histórico</p>
 
         <CollapsibleSection

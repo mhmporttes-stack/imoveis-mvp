@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { Eye, Info, LoaderCircle, Save } from "lucide-react";
+import { tabClasses } from "@/components/ui/Tabs";
 
 const PERIODS = [
   { value: 0, label: "Tudo" },
@@ -77,7 +78,7 @@ function PeriodFilter({ days, onChange }) {
   return (
     <div className="flex flex-wrap gap-1.5">
       {PERIODS.map((period) => (
-        <button key={period.value} type="button" onClick={() => onChange(period.value)} className={`rounded-full border px-3.5 py-1.5 text-xs font-extrabold transition ${days === period.value ? "border-navy bg-navy text-white" : "border-line text-navy hover:border-brand"}`}>
+        <button key={period.value} type="button" onClick={() => onChange(period.value)} aria-pressed={days === period.value} className={tabClasses(days === period.value, "sm")}>
           {period.label}
         </button>
       ))}
@@ -312,9 +313,9 @@ export function PerformanceSection({ finance }) {
     <div className="space-y-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <PeriodFilter days={days} onChange={setDays} />
-        <div className="flex gap-1 rounded-xl border border-navy/[0.07] bg-mist/60 p-1">
+        <div className="flex gap-1.5" role="group" aria-label="Agrupar">
           {[{ key: "campaign", label: "Por campanha" }, { key: "template", label: "Por mensagem" }].map((option) => (
-            <button key={option.key} type="button" onClick={() => setView(option.key)} className={`rounded-[10px] px-3.5 py-1.5 text-xs font-black transition ${view === option.key ? "bg-navy text-white" : "text-navy hover:bg-white"}`}>{option.label}</button>
+            <button key={option.key} type="button" onClick={() => setView(option.key)} aria-pressed={view === option.key} className={tabClasses(view === option.key, "sm")}>{option.label}</button>
           ))}
         </div>
       </div>

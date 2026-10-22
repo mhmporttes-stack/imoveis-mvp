@@ -211,7 +211,7 @@ export default function PerformanceOverviewDashboard({ initialOverview, initialE
 
   return (
     <section className="container-page space-y-6">
-      <div className="rounded-[28px] border border-navy/10 bg-white p-4 shadow-soft md:p-7">
+      <div className="rounded-panel border border-navy/10 bg-white p-4 shadow-soft md:p-7">
         {/* Celular: título à esquerda e "Atualizar" à direita na mesma linha
             (economiza uma linha inteira); do md para cima, layout original. */}
         <div className="flex items-start justify-between gap-3 md:flex-col md:items-stretch md:gap-5 lg:flex-row lg:items-center">
@@ -276,7 +276,7 @@ export default function PerformanceOverviewDashboard({ initialOverview, initialE
       </div>
 
       <div className="grid gap-5 lg:grid-cols-[1.65fr_1fr]">
-        <article className="rounded-[28px] border border-navy/10 bg-white p-5 shadow-soft md:p-7">
+        <article className="rounded-panel border border-navy/10 bg-white p-5 shadow-soft md:p-7">
           <p className="text-xs font-extrabold uppercase tracking-[0.35em] text-brand">Ranking da equipe</p>
           <h3 className="mt-2 text-2xl font-extrabold text-navy">Quem mais produziu no período</h3>
 
@@ -323,7 +323,7 @@ export default function PerformanceOverviewDashboard({ initialOverview, initialE
           </div>
         </article>
 
-        <article className="rounded-[28px] border border-navy/10 bg-white p-5 shadow-soft md:p-7">
+        <article className="rounded-panel border border-navy/10 bg-white p-5 shadow-soft md:p-7">
           <p className="text-xs font-extrabold uppercase tracking-[0.35em] text-brand">Precisa de atenção</p>
           <h3 className="mt-2 text-2xl font-extrabold text-navy">Situações para agir agora</h3>
 
@@ -345,7 +345,7 @@ export default function PerformanceOverviewDashboard({ initialOverview, initialE
         </article>
       </div>
 
-      <article className="rounded-[28px] border border-navy/10 bg-white p-5 shadow-soft md:p-7">
+      <article className="rounded-panel border border-navy/10 bg-white p-5 shadow-soft md:p-7">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <p className="text-xs font-extrabold uppercase tracking-[0.35em] text-brand">Ranking histórico</p>
@@ -388,7 +388,7 @@ export default function PerformanceOverviewDashboard({ initialOverview, initialE
         <TeamTrendChart trend={trend} loading={trendLoading} />
       </article>
 
-      <article className="rounded-[28px] border border-navy/10 bg-white p-5 shadow-soft md:p-7">
+      <article className="rounded-panel border border-navy/10 bg-white p-5 shadow-soft md:p-7">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <p className="text-xs font-extrabold uppercase tracking-[0.35em] text-brand">Funil comercial</p>
@@ -414,7 +414,7 @@ export default function PerformanceOverviewDashboard({ initialOverview, initialE
         <FunnelChart funnel={funnel} range={overview?.range} />
       </article>
 
-      <article className="rounded-[28px] border border-navy/10 bg-white p-5 shadow-soft md:p-7">
+      <article className="rounded-panel border border-navy/10 bg-white p-5 shadow-soft md:p-7">
         <p className="text-xs font-extrabold uppercase tracking-[0.35em] text-brand">Equipe</p>
         <h3 className="mt-2 text-2xl font-extrabold text-navy">Desempenho por corretor no período</h3>
 
@@ -438,7 +438,7 @@ function KpiCard({ card, value }) {
   return (
     <Link
       href={card.href}
-      className={`rounded-[22px] border bg-white p-4 shadow-soft transition hover:-translate-y-0.5 hover:shadow-md ${TONE_CLASSES[card.tone]?.split(" ")[0] || "border-navy/10"}`}
+      className={`rounded-panel border bg-white p-4 shadow-soft transition hover:-translate-y-0.5 hover:shadow-md ${TONE_CLASSES[card.tone]?.split(" ")[0] || "border-navy/10"}`}
     >
       <div className="flex items-center justify-between gap-3">
         <span className="text-xs font-extrabold uppercase tracking-[0.1em] text-slate-500">{card.title}</span>

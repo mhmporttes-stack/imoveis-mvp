@@ -605,7 +605,7 @@ export default function WhatsappChat({ canManage = false, canEditRules = false, 
       {/* Menu de abas (Conversas / Visão geral / Campanhas / Corretores) e as 3 telas Visão geral, Campanhas e Corretores
           removidos do Chat a pedido do dono (2026-10-12: "apagar as 3 telas"). O Chat é só a lista de conversas; o status
           do WhatsApp foi para o cabeçalho da lista (ConversationList). As APIs dessas telas continuam no servidor. */}
-      <div ref={sceneRef} data-chat-enter={rowsEnter ? "" : undefined} className={`overflow-hidden rounded-[28px] border border-line bg-white shadow-soft ${appMode ? "flex min-h-0 flex-1 flex-col md:mb-4 max-md:rounded-none max-md:border-x-0 max-md:border-b-0" : ""}`}>
+      <div ref={sceneRef} data-chat-enter={rowsEnter ? "" : undefined} className={`overflow-hidden rounded-panel border border-line bg-white shadow-soft ${appMode ? "flex min-h-0 flex-1 flex-col md:mb-4 max-md:rounded-none max-md:border-x-0 max-md:border-b-0" : ""}`}>
         <div className={`grid grid-cols-1 ${appMode ? "min-h-0 flex-1" : "h-[calc(100dvh-150px)] min-h-[520px]"} ${selectedId && guideOpen && isDesktop ? "lg:grid-cols-[300px_minmax(0,1fr)_390px] xl:grid-cols-[320px_minmax(0,1fr)_420px]" : "lg:grid-cols-[340px_minmax(0,1fr)] xl:grid-cols-[340px_minmax(0,1fr)_300px]"}`}>
           <ConversationList
             className={selectedId ? "hidden lg:flex" : listBack ? "admin-motion-back flex" : "flex"}
@@ -1594,7 +1594,7 @@ function Thread({ canManage, canEditRules, currentUserId, mySlots = [], onOpenCl
 
       {confirmingDelete ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-navy/40 p-4" role="dialog" aria-modal="true" aria-labelledby="delete-conversation-title" onClick={() => !deleting && setConfirmingDelete(false)}>
-          <div className="w-full max-w-sm rounded-[24px] bg-white p-6 shadow-soft" onClick={(event) => event.stopPropagation()}>
+          <div className="w-full max-w-sm rounded-panel bg-white p-6 shadow-soft" onClick={(event) => event.stopPropagation()}>
             <p id="delete-conversation-title" className="text-lg font-black text-navy">Excluir esta conversa?</p>
             <p className="mt-2 text-sm font-semibold leading-5 text-slate-600">A conversa será removida da caixa de atendimento. Essa ação não excluirá o cadastro do cliente.</p>
             {deleteError ? <p className="mt-3 rounded-xl border border-red-100 bg-red-50 px-3 py-2 text-xs font-bold text-red-700">{deleteError}</p> : null}
@@ -2263,7 +2263,7 @@ function ConversationPreviewModal({ conversationId, onClose, onOpen }) {
   const messages = (data?.messages || []).filter((message) => !message.internal).slice(-30);
   return createPortal(
     <div className="fixed inset-0 z-[70] flex items-end justify-center bg-black/40 p-3 sm:items-center" role="dialog" aria-modal="true" aria-label="Pré-visualização da conversa" onClick={onClose}>
-      <div className="flex max-h-[80dvh] w-full max-w-md flex-col overflow-hidden rounded-[24px] bg-white shadow-soft" onClick={(event) => event.stopPropagation()}>
+      <div className="flex max-h-[80dvh] w-full max-w-md flex-col overflow-hidden rounded-panel bg-white shadow-soft" onClick={(event) => event.stopPropagation()}>
         <div className="flex items-center gap-3 border-b border-line px-4 py-3">
           {conversation ? <Avatar name={displayName(conversation)} photoUrl={conversation.photoUrl} size={40} /> : null}
           <div className="min-w-0 flex-1">
@@ -2333,7 +2333,7 @@ function ConversationMediaGallery({ conversationId, onClose }) {
   const visible = (items || []).filter((item) => item.kind === tab);
   return createPortal(
     <div className="fixed inset-0 z-[70] flex items-end justify-center bg-black/40 p-0 sm:items-center sm:p-3" role="dialog" aria-modal="true" aria-label="Mídia, links e docs" onClick={onClose}>
-      <div className="flex h-[85dvh] w-full max-w-lg flex-col overflow-hidden rounded-t-[24px] bg-white shadow-soft sm:rounded-[24px]" onClick={(event) => event.stopPropagation()}>
+      <div className="flex h-[85dvh] w-full max-w-lg flex-col overflow-hidden rounded-t-[24px] bg-white shadow-soft sm:rounded-panel" onClick={(event) => event.stopPropagation()}>
         <div className="flex items-center justify-between border-b border-line px-4 py-3">
           <p className="text-base font-black text-navy">Mídia, links e docs</p>
           <button type="button" onClick={onClose} className="grid h-9 w-9 place-items-center rounded-full text-muted hover:bg-mist" aria-label="Fechar"><X className="h-5 w-5" /></button>
@@ -2825,7 +2825,7 @@ function Composer({ canManage, conversation, insertRequest = null, internalReque
           </button>
           <WhatsappChatShortcuts canManage={canManage} conversationId={conversation.id} disabled={sending || awaiting || Boolean(replyTo) || Boolean(editTarget)} onSent={onSent} slashQuery={slashQuery} onSlashClose={() => setText("")} />
           {/* Campo arredondado branco, com emoji à esquerda e o modo interno à direita (como a câmera no WhatsApp) */}
-          <div className="flex min-h-11 min-w-0 flex-1 items-end rounded-[22px] border border-transparent bg-white shadow-[0_1px_0.5px_rgba(11,20,26,0.13)] focus-within:border-brand focus-within:ring-4 focus-within:ring-brand/10">
+          <div className="flex min-h-11 min-w-0 flex-1 items-end rounded-panel border border-transparent bg-white shadow-[0_1px_0.5px_rgba(11,20,26,0.13)] focus-within:border-brand focus-within:ring-4 focus-within:ring-brand/10">
             <EmojiPicker disabled={sending} onPick={insertEmoji} />
             <textarea
               ref={textareaRef}

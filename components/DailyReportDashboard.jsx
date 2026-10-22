@@ -16,6 +16,7 @@ import {
   TrendingUp,
   Users
 } from "lucide-react";
+import { tabClasses } from "@/components/ui/Tabs";
 
 const PERIODS = [
   { value: "today", label: "Hoje" },
@@ -168,7 +169,7 @@ export default function DailyReportDashboard({
   return (
     <section className="container-page space-y-6">
       <div
-        className={`rounded-[28px] border p-5 shadow-soft transition-colors md:p-7 ${
+        className={`rounded-panel border p-5 shadow-soft transition-colors md:p-7 ${
           presentationMode
             ? "border-brand/30 bg-gradient-to-br from-navy to-[#184a84] text-white"
             : "border-navy/10 bg-white"
@@ -275,11 +276,8 @@ export default function DailyReportDashboard({
                         ? current.filter((id) => id !== broker.id)
                         : [...current, broker.id]
                     ))}
-                    className={`min-h-10 rounded-full border px-4 text-sm font-extrabold transition ${
-                      selected
-                        ? "border-brand bg-brand text-white"
-                        : "border-navy/10 bg-white text-navy hover:border-brand"
-                    }`}
+                    aria-pressed={selected}
+                    className={tabClasses(selected)}
                   >
                     {broker.name}
                   </button>
@@ -297,7 +295,7 @@ export default function DailyReportDashboard({
       )}
 
       {presentationMode && (
-        <div className="rounded-[28px] border border-brand/15 bg-white p-5 shadow-soft md:p-6">
+        <div className="rounded-panel border border-brand/15 bg-white p-5 shadow-soft md:p-6">
           <p className="text-xs font-extrabold uppercase tracking-[0.3em] text-brand">Apresentação ativa</p>
           <p className="mt-2 text-lg font-extrabold text-navy">
             Visual limpo para compartilhar o desempenho sem exibir nomes de clientes.
@@ -306,7 +304,7 @@ export default function DailyReportDashboard({
       )}
 
       <div className="grid gap-5 xl:grid-cols-[1.05fr_1.95fr]">
-        <article className="flex min-h-[260px] items-center justify-center rounded-[28px] border border-brand/15 bg-gradient-to-br from-navy to-[#184a84] p-6 text-center text-white shadow-soft md:p-8">
+        <article className="flex min-h-[260px] items-center justify-center rounded-panel border border-brand/15 bg-gradient-to-br from-navy to-[#184a84] p-6 text-center text-white shadow-soft md:p-8">
           <div>
             <h3 className="text-7xl font-black leading-none md:text-8xl">{formatInteger(metrics.newRegistrations)}</h3>
             <p className="mt-5 text-sm font-extrabold uppercase tracking-[0.35em] text-white/80 md:text-base">
@@ -324,7 +322,7 @@ export default function DailyReportDashboard({
       </div>
 
       <div className="grid gap-5 lg:grid-cols-[1.2fr_0.8fr]">
-        <article className="rounded-[28px] border border-navy/10 bg-white p-5 shadow-soft md:p-7">
+        <article className="rounded-panel border border-navy/10 bg-white p-5 shadow-soft md:p-7">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <p className="text-xs font-extrabold uppercase tracking-[0.35em] text-brand">Funil</p>
@@ -360,7 +358,7 @@ export default function DailyReportDashboard({
           </div>
         </article>
 
-        <article className="rounded-[28px] border border-navy/10 bg-white p-5 shadow-soft md:p-7">
+        <article className="rounded-panel border border-navy/10 bg-white p-5 shadow-soft md:p-7">
           <p className="text-xs font-extrabold uppercase tracking-[0.35em] text-brand">Conversões</p>
           <h3 className="mt-2 text-2xl font-extrabold text-navy">Taxas principais</h3>
           <div className="mt-6 space-y-3">
@@ -372,7 +370,7 @@ export default function DailyReportDashboard({
       </div>
 
       {!presentationMode && brokerBreakdown.length > 1 && (
-        <article className="overflow-hidden rounded-[28px] border border-navy/10 bg-white shadow-soft">
+        <article className="overflow-hidden rounded-panel border border-navy/10 bg-white shadow-soft">
           <div className="flex items-center justify-between gap-4 p-5 md:p-7 md:pb-0">
             <div>
               <p className="text-xs font-extrabold uppercase tracking-[0.35em] text-brand">Detalhamento</p>
@@ -404,7 +402,7 @@ export default function DailyReportDashboard({
       )}
 
       {!presentationMode && (
-        <article className="rounded-[28px] border border-navy/10 bg-white p-5 shadow-soft md:p-7">
+        <article className="rounded-panel border border-navy/10 bg-white p-5 shadow-soft md:p-7">
           <div className="flex items-center justify-between gap-4">
             <div>
               <p className="text-xs font-extrabold uppercase tracking-[0.35em] text-brand">Linha do tempo</p>
@@ -442,7 +440,7 @@ function MetricCard({ metric, value, className = "" }) {
   const Icon = metric.icon;
 
   return (
-    <article className={`rounded-[24px] border border-navy/10 bg-white p-5 shadow-soft ${className}`}>
+    <article className={`rounded-panel border border-navy/10 bg-white p-5 shadow-soft ${className}`}>
       <div className="flex items-start justify-between gap-4">
         <div>
           <p className="text-sm font-extrabold text-navy">{metric.title}</p>

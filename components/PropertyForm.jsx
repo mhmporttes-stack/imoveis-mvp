@@ -332,7 +332,7 @@ export default function PropertyForm({ property, canPublish = false, isDevelopme
   const finalPdfText = form.pdfName || "Nenhum arquivo selecionado";
 
   return (
-    <form onSubmit={submit} className="container-page grid min-w-0 gap-6 rounded-[24px] border border-line bg-white p-4 shadow-soft sm:gap-8 sm:rounded-[28px] sm:p-8">
+    <form onSubmit={submit} className="container-page grid min-w-0 gap-6 rounded-panel border border-line bg-white p-4 shadow-soft sm:gap-8 sm:rounded-panel sm:p-8">
       <section className="min-w-0 rounded-3xl border border-blue-100 bg-[#F4F9FF] p-4 sm:p-6">
         <div className="flex flex-col justify-between gap-5 lg:flex-row lg:items-center">
           <div className="min-w-0">

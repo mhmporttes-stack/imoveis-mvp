@@ -69,7 +69,7 @@ export default function WhatsappTemplateManager() {
   }
 
   return (
-    <section className="container-page mt-6 space-y-6 rounded-[28px] border border-line bg-white p-6 shadow-soft">
+    <section className="container-page mt-6 space-y-6 rounded-panel border border-line bg-white p-6 shadow-soft">
       <div>
         <p className="text-sm font-black uppercase tracking-[0.12em] text-navy">Modelos para usar em Regras de automação</p>
         <p className="mt-1 text-sm text-muted">

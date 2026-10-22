@@ -159,13 +159,13 @@ export default function AlexaSettings({ initialSettings, initialMeta, env, event
 
   return (
     <div className="container-page space-y-4 pb-24">
-      <header className="flex items-start gap-3">
+      <header className="flex items-center gap-3">
         <span className="mt-1 flex h-10 w-10 shrink-0 items-center justify-center rounded-control bg-info-soft text-info">
           <Mic className="h-5 w-5" aria-hidden="true" />
         </span>
         <div>
-          <h1 className="text-xl font-semibold text-ink sm:text-2xl">Alexa</h1>
-          <p className="mt-1 text-sm text-muted">Defina quando e o que o Echo Dot do escritório fala sozinho. Somente leitura: a Alexa nunca altera o CRM.</p>
+          <h1 className="sr-only">Alexa</h1>
+          <p className="text-sm text-muted">Defina quando e o que o Echo Dot do escritório fala sozinho. Somente leitura: a Alexa nunca altera o CRM.</p>
         </div>
       </header>
 

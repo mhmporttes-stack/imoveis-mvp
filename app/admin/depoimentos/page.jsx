@@ -12,7 +12,7 @@ export default async function AdminTestimonialsPage() {
   if (!canManageTestimonials()) {
     return (
       <main className="bg-mist py-14">
-        <section className="container-page rounded-[28px] border border-line bg-white p-10 shadow-soft">
+        <section className="container-page rounded-panel border border-line bg-white p-10 shadow-soft">
           <p className="text-sm font-black uppercase tracking-[0.18em] text-brand">Depoimentos</p>
           <h1 className="mt-3 text-5xl font-black text-navy">Depoimentos desativados</h1>
           <p className="mt-4 max-w-2xl text-lg leading-8 text-muted">
@@ -40,7 +40,7 @@ export default async function AdminTestimonialsPage() {
       </section>
       <AdminSectionNav active="testimonials" />
       {loadError ? (
-        <section className="container-page rounded-[28px] border border-red-200 bg-white p-8 shadow-soft">
+        <section className="container-page rounded-panel border border-red-200 bg-white p-8 shadow-soft">
           <p className="text-sm font-black uppercase tracking-[0.18em] text-red-700">Erro ao carregar depoimentos</p>
           <h2 className="mt-3 text-3xl font-black text-navy">A pagina abriu, mas o Supabase retornou um erro.</h2>
           <p className="mt-4 rounded-2xl border border-red-100 bg-red-50 px-5 py-4 font-bold text-red-800">

@@ -101,7 +101,7 @@ export default function FlowsManager({ initialFlows }) {
 
   return (
     <section className="container-page space-y-4">
-      <div className="flex flex-wrap items-start justify-between gap-3 rounded-[28px] border border-line bg-white p-6 shadow-soft">
+      <div className="flex flex-wrap items-start justify-between gap-3 rounded-panel border border-line bg-white p-6 shadow-soft">
         <div className="max-w-2xl">
           <h2 className="text-2xl font-black text-navy">Fluxos do WhatsApp</h2>
           <p className="mt-1 text-sm font-semibold text-muted">
@@ -114,7 +114,7 @@ export default function FlowsManager({ initialFlows }) {
       {error ? <p className="rounded-2xl bg-red-50 px-4 py-3 text-sm font-bold text-red-700">{error}</p> : null}
 
       {flows.length === 0 ? (
-        <div className="rounded-[28px] border border-dashed border-line bg-white p-10 text-center">
+        <div className="rounded-panel border border-dashed border-line bg-white p-10 text-center">
           <p className="text-lg font-black text-navy">Nenhum fluxo ainda</p>
           <p className="mt-1 text-sm font-semibold text-muted">Comece por um modelo pronto (boas-vindas, fora do horário, qualificação) e ajuste os textos.</p>
           <button type="button" onClick={() => setCreating(true)} className="premium-button-primary mt-4"><Plus className="h-5 w-5" />Criar o primeiro fluxo</button>
@@ -125,7 +125,7 @@ export default function FlowsManager({ initialFlows }) {
             const status = STATUS[flow.status] || STATUS.draft;
             const busy = busyId === flow.id;
             return (
-              <article key={flow.id} className="rounded-[24px] border border-line bg-white p-5 shadow-soft">
+              <article key={flow.id} className="rounded-panel border border-line bg-white p-5 shadow-soft">
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
                     <Link href={`/admin/automacoes/fluxos/${flow.id}`} className="block truncate text-lg font-black text-navy hover:text-brand">{flow.name}</Link>
@@ -236,7 +236,7 @@ function Stat({ label, value }) {
 function Modal({ title, onClose, children, wide = false }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-navy/50 p-4" onPointerDown={(event) => event.target === event.currentTarget && onClose()}>
-      <div className={`max-h-[88dvh] w-full overflow-y-auto rounded-[28px] border border-line bg-white p-6 shadow-soft ${wide ? "max-w-3xl" : "max-w-lg"}`}>
+      <div className={`max-h-[88dvh] w-full overflow-y-auto rounded-panel border border-line bg-white p-6 shadow-soft ${wide ? "max-w-3xl" : "max-w-lg"}`}>
         <div className="mb-4 flex items-center justify-between gap-3">
           <h3 className="text-xl font-black text-navy">{title}</h3>
           <button type="button" onClick={onClose} aria-label="Fechar" className="rounded-full p-2 text-muted hover:bg-mist"><X className="h-5 w-5" /></button>

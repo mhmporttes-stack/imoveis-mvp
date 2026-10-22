@@ -32,6 +32,16 @@ import * as financeiroSaude from "../_fixtures/financeiro-saude";
 import AdminFinancialDashboard from "@/components/AdminFinancialDashboard";
 import * as financeiroVendas from "../_fixtures/financeiro-vendas";
 import AutoClick from "./AutoClick";
+import ActivityCalendar from "@/components/ActivityCalendar";
+import CaixaSimulator from "@/components/CaixaSimulator";
+import AdminUsersManager from "@/components/AdminUsersManager";
+import CampaignsManager from "@/components/CampaignsManager";
+import AdminAiUsageDashboard from "@/components/AdminAiUsageDashboard";
+import DailyGoalAdmin from "@/components/DailyGoalAdmin";
+import AutomationRulesManager from "@/components/AutomationRulesManager";
+import CrmNotificationsList from "@/components/CrmNotificationsList";
+import ProspectingTabs from "@/components/ProspectingTabs";
+import * as telas from "../_fixtures/telas";
 import ManualBrowser from "@/components/manual/ManualBrowser";
 import ManualAdmin from "@/components/manual/ManualAdmin";
 import * as manual from "../_fixtures/manual";
@@ -68,6 +78,70 @@ const TELAS = {
         <AdsBoard initialData={anuncios.data} />
       </main>
     )
+  },
+  // Telas repaginadas no visual novo (frente C, 2026-10-22): wrapper igual ao <main> da página real.
+  agenda: {
+    path: "/admin/calendario",
+    titulo: "Agenda",
+    active: "calendar",
+    rotas: telas.routes,
+    render: () => (<main className="min-h-screen bg-mist py-14"><ActivityCalendar /></main>)
+  },
+  "simulador-caixa": {
+    path: "/admin/simulador-caixa",
+    titulo: "Simulador Caixa",
+    active: "caixa-simulator",
+    rotas: [],
+    render: () => (<main className="min-h-screen bg-mist py-14"><CaixaSimulator /></main>)
+  },
+  corretores: {
+    path: "/admin/corretores",
+    titulo: "Corretores › Usuários",
+    active: "brokers",
+    rotas: [],
+    render: () => (<main className="bg-mist py-14"><AdminUsersManager {...telas.props.usuarios} /></main>)
+  },
+  "gerador-links": {
+    path: "/admin/gerador-de-links",
+    titulo: "Gerador de Links",
+    active: "campaign-links",
+    rotas: telas.routes,
+    render: () => (<main className="bg-mist py-14"><CampaignsManager {...telas.props.campanhas} /></main>)
+  },
+  "gastos-ia": {
+    path: "/admin/gastos-ia",
+    titulo: "Gastos de IA",
+    active: "ai-usage",
+    rotas: [],
+    render: () => (<main className="bg-mist py-14"><AdminAiUsageDashboard {...telas.props.gastosIa} /></main>)
+  },
+  "meta-gestao": {
+    path: "/admin/meta-diaria/gestao",
+    titulo: "Meta Diária › Gestão",
+    active: "daily-goal-admin",
+    rotas: [],
+    render: () => (<main className="min-h-screen bg-mist py-14"><DailyGoalAdmin {...telas.props.metaGestao} /></main>)
+  },
+  automacoes: {
+    path: "/admin/automacoes",
+    titulo: "Automações › Regras",
+    active: "automations",
+    rotas: [],
+    render: () => (<main className="min-h-screen bg-mist py-14"><AutomationRulesManager {...telas.props.automacoes} /></main>)
+  },
+  notificacoes: {
+    path: "/admin/notificacoes",
+    titulo: "Notificações",
+    active: "notifications",
+    rotas: [],
+    render: () => (<main className="min-h-screen bg-mist py-14"><CrmNotificationsList {...telas.props.notificacoes} /></main>)
+  },
+  prospeccao: {
+    path: "/admin/prospeccao",
+    titulo: "Prospecção",
+    active: "prospecting",
+    rotas: telas.routes,
+    render: () => (<main className="min-h-screen bg-mist py-14"><ProspectingTabs {...telas.props.prospeccao} /></main>)
   },
   "ranking-topo": {
     // Cabeçalho do ranking como em app/admin/layout.jsx (?variante=completo|sem-dia|vazio|posicao).

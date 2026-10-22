@@ -14,7 +14,7 @@ export default function HomeSearch() {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="mt-9 flex w-full max-w-[calc(100vw-40px)] flex-col gap-3 rounded-[26px] border border-white/20 bg-white/95 p-2.5 shadow-[0_24px_80px_rgba(0,0,0,0.24)] backdrop-blur-xl transition duration-300 focus-within:-translate-y-0.5 focus-within:border-blue-200 focus-within:shadow-[0_30px_95px_rgba(23,105,209,0.28)] sm:max-w-[690px] sm:flex-row">
+    <form onSubmit={handleSubmit} className="mt-9 flex w-full max-w-[calc(100vw-40px)] flex-col gap-3 rounded-panel border border-white/20 bg-white/95 p-2.5 shadow-[0_24px_80px_rgba(0,0,0,0.24)] backdrop-blur-xl transition duration-300 focus-within:-translate-y-0.5 focus-within:border-blue-200 focus-within:shadow-[0_30px_95px_rgba(23,105,209,0.28)] sm:max-w-[690px] sm:flex-row">
       <label className="flex min-h-14 flex-1 items-center gap-3 rounded-2xl bg-[#F4F8FC] px-5 ring-1 ring-transparent transition duration-300 focus-within:bg-white focus-within:ring-brand/20 sm:min-h-16">
         <Search className="h-5 w-5 text-brand" />
         <input

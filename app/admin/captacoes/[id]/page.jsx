@@ -37,7 +37,7 @@ export default async function CaptacaoDetailPage({ params }) {
       </section>
 
       <section className="container-page grid gap-6">
-        <div className="grid gap-4 rounded-[28px] border border-line bg-white p-6 shadow-soft lg:grid-cols-[1fr_auto] lg:items-center">
+        <div className="grid gap-4 rounded-panel border border-line bg-white p-6 shadow-soft lg:grid-cols-[1fr_auto] lg:items-center">
           <CaptacaoStatusSelect captacaoId={captacao.id} initialStatus={captacao.status} />
           <div className="flex flex-col gap-3 sm:flex-row">
             {captacao.propertyId ? (
@@ -107,7 +107,7 @@ export default async function CaptacaoDetailPage({ params }) {
 
 function InfoCard({ title, children }) {
   return (
-    <article className="rounded-[28px] border border-line bg-white p-6 shadow-soft">
+    <article className="rounded-panel border border-line bg-white p-6 shadow-soft">
       <h2 className="text-sm font-black uppercase tracking-[0.18em] text-brand">{title}</h2>
       <div className="mt-5 grid gap-3">{children}</div>
     </article>

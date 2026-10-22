@@ -31,7 +31,7 @@ export default function WhatsappMasterInbox({ initialEvents = [] }) {
   }
 
   return (
-    <section className="container-page mt-6 rounded-[28px] border border-line bg-white p-6 shadow-soft">
+    <section className="container-page mt-6 rounded-panel border border-line bg-white p-6 shadow-soft">
       <div className="flex items-center gap-3">
         <span className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-blue-50 text-brand">
           <Inbox className="h-5 w-5" />

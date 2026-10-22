@@ -20,6 +20,7 @@ import ClientSheet, { DocumentsListDialog } from "./ClientSheet";
 import ProspectingRepliesPanel from "./ProspectingRepliesPanel";
 import { PAGE_SIZE_OPTIONS, datePresetRange, formatDateRangeLabel } from "./client-format";
 import { useClientList } from "./useClientList";
+import { tabClasses } from "@/components/ui/Tabs";
 
 // Lista de clientes (/admin/simulacoes) — redesenho do Designer CRM,
 // aprovado pelo dono em 2026-10-01. Toda a lógica vive em useClientList.
@@ -348,13 +349,10 @@ function PipelineStrip({ list }) {
                 type="button"
                 aria-pressed={active}
                 onClick={() => list.updateFilters({ status: active ? "all" : status })}
-                className={cx(
-                  "inline-flex h-8 shrink-0 items-center gap-1.5 rounded-full border px-3 text-[13px] font-medium transition-colors",
-                  active ? "border-navy bg-navy text-white" : "border-line bg-white text-ink hover:border-navy/25"
-                )}
+                className={cx(tabClasses(active, "sm"), "gap-1.5")}
               >
                 {CLIENT_STATUS_META[status]?.label || status}
-                <span className={cx("tabular-nums", active ? "text-white/80" : "text-muted")}>{counters.byStatus?.[status] || 0}</span>
+                <span className={cx("tabular-nums", active ? "text-accent-text" : "text-muted")}>{counters.byStatus?.[status] || 0}</span>
               </button>
             );
           })}

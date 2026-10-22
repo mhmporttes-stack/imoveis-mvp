@@ -37,7 +37,7 @@ export default function DeleteRegistrationButton({ registrationId, registrationN
 
   return (
     <div className="container-page">
-      <div className="rounded-[28px] border border-red-100 bg-white p-6 shadow-soft sm:p-8">
+      <div className="rounded-panel border border-red-100 bg-white p-6 shadow-soft sm:p-8">
         <p className="text-sm font-black uppercase tracking-[0.18em] text-red-700">Zona de exclusão</p>
         <div className="mt-4 flex flex-col justify-between gap-4 md:flex-row md:items-center">
           <p className="max-w-2xl text-muted">

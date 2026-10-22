@@ -1079,7 +1079,7 @@ export default function SimulationGenerator({ properties = [], initialSimulation
 
           <div className="mt-5 grid gap-5">
             {SIMULATION_MODEL_TYPES.filter(({ key }) => enabledModels[key]).map(({ key, label }) => (
-              <div key={key} className="rounded-[24px] border border-blue-100 bg-blue-50/45 p-3 sm:p-5">
+              <div key={key} className="rounded-panel border border-blue-100 bg-blue-50/45 p-3 sm:p-5">
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <div>
                     <p className="text-xs font-black uppercase tracking-[0.18em] text-brand">
@@ -1410,7 +1410,7 @@ export default function SimulationGenerator({ properties = [], initialSimulation
 
 function Panel({ children, eyebrow, title, compact = false }) {
   return (
-    <section className={`min-w-0 rounded-[28px] border border-line bg-white shadow-soft ${compact ? "p-3 min-[400px]:p-4 sm:p-5" : "p-3 min-[400px]:p-4 sm:p-6 md:p-8"}`}>
+    <section className={`min-w-0 rounded-panel border border-line bg-white shadow-soft ${compact ? "p-3 min-[400px]:p-4 sm:p-5" : "p-3 min-[400px]:p-4 sm:p-6 md:p-8"}`}>
       <p className={`font-black uppercase tracking-[0.18em] text-brand ${compact ? "text-xs" : "text-sm"}`}>{eyebrow}</p>
       <h2 className={compact ? "mt-1 text-xl font-black leading-tight text-navy" : "mt-2 text-[clamp(1.65rem,7vw,1.875rem)] font-black leading-tight text-navy"}>{title}</h2>
       <div className={compact ? "mt-1" : "mt-6"}>{children}</div>

@@ -138,7 +138,7 @@ export default function EmpreendimentoRegrasEntradaForm({ propertyId }) {
   }
 
   return (
-    <form onSubmit={submit} className="container-page grid min-w-0 gap-6 rounded-[24px] border border-line bg-white p-4 shadow-soft sm:gap-8 sm:rounded-[28px] sm:p-8">
+    <form onSubmit={submit} className="container-page grid min-w-0 gap-6 rounded-panel border border-line bg-white p-4 shadow-soft sm:gap-8 sm:rounded-panel sm:p-8">
       <section className="grid gap-5 rounded-3xl border border-amber-200 bg-amber-50 p-5">
         <p className="text-sm font-bold text-amber-900">
           Essas regras alimentam a simulação de entrada mostrada ao cliente (Gerador de Simulações). São dados sensíveis de

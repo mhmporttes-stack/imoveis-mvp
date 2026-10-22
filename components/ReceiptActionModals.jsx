@@ -51,7 +51,7 @@ function ModalShell({ title, subtitle, onClose, onSubmit, children }) {
   return (
     <div className="fixed inset-0 z-50 grid place-items-end bg-navy/70 p-0 sm:place-items-center sm:p-4" role="dialog" aria-modal="true" onMouseDown={onClose}>
       <form
-        className="max-h-[92vh] w-full max-w-xl overflow-y-auto rounded-t-[28px] bg-white p-6 shadow-2xl sm:rounded-[28px] md:p-8"
+        className="max-h-[92vh] w-full max-w-xl overflow-y-auto rounded-t-[28px] bg-white p-6 shadow-2xl sm:rounded-panel md:p-8"
         onSubmit={onSubmit}
         onMouseDown={(event) => event.stopPropagation()}
       >

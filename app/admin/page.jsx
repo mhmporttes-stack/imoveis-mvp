@@ -45,7 +45,7 @@ export default async function AdminPage({ searchParams }) {
 function AdminDisabled() {
   return (
     <main className="bg-mist py-14">
-      <section className="container-page rounded-[28px] border border-line bg-white p-10 shadow-soft">
+      <section className="container-page rounded-panel border border-line bg-white p-10 shadow-soft">
         <p className="text-sm font-black uppercase tracking-[0.18em] text-brand">Área restrita</p>
         <h1 className="mt-3 text-5xl font-black text-navy">Painel temporariamente desativado</h1>
         <p className="mt-4 max-w-2xl text-lg leading-8 text-muted">
@@ -63,7 +63,7 @@ function AdminDataError({ error }) {
 
   return (
     <main className="bg-mist py-14">
-      <section className="container-page rounded-[28px] border border-red-200 bg-white p-10 shadow-soft">
+      <section className="container-page rounded-panel border border-red-200 bg-white p-10 shadow-soft">
         <p className="text-sm font-black uppercase tracking-[0.18em] text-red-600">Área restrita</p>
         <h1 className="mt-3 text-5xl font-black text-navy">Nao foi possivel carregar o painel</h1>
         <p className="mt-4 max-w-3xl text-lg leading-8 text-muted">

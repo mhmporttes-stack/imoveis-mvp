@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { tabClasses } from "@/components/ui/Tabs";
 
 // Gráficos da aba Saúde — SVG/CSS puro (sem dependência nova), responsivos e
 // legíveis em 360px. Identidade azul/branco. Realizado = traço cheio; projetado = tracejado.
@@ -249,7 +250,7 @@ export function EvolutionChart({ evolution, previousLabel, currentLabel }) {
 
   return (
     <div>
-      <div className="mb-3 inline-flex rounded-full border border-line bg-white p-1" role="tablist" aria-label="Série exibida (valores em R$)">
+      <div className="mm-noscroll mb-3 flex gap-1.5 overflow-x-auto py-1" role="tablist" aria-label="Série exibida (valores em R$)">
         {SERIES_OPTIONS.map((option) => (
           <button
             key={option.key}
@@ -257,7 +258,7 @@ export function EvolutionChart({ evolution, previousLabel, currentLabel }) {
             role="tab"
             aria-selected={metric === option.key}
             onClick={() => setMetric(option.key)}
-            className={`min-h-9 rounded-full px-3.5 text-xs font-black sm:text-sm ${metric === option.key ? "bg-navy text-white" : "text-navy"}`}
+            className={tabClasses(metric === option.key)}
           >
             {option.label}
           </button>

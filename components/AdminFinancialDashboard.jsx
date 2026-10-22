@@ -32,6 +32,7 @@ import {
   PaymentStatusBadge,
   SectionTabs
 } from "@/components/FinancialSalesParts";
+import { tabClasses } from "@/components/ui/Tabs";
 
 const FINANCIAL_STATUS_OPTIONS = [
   { value: "pending", label: "Pendente" },
@@ -589,7 +590,7 @@ function DashboardTab({ metrics, salesCount, resultView, onResultViewChange, cur
 
       <Collapsible title="Ver detalhes" summary={isAssociate ? "VGV, comissão e médias" : "VGV, comissão bruta, repasses, resultado por função e médias"} tone="muted">
         {!isAssociate ? (
-          <div role="group" aria-label="Forma de ver o resultado" className="mb-4 inline-flex rounded-control border border-line bg-mist p-1">
+          <div role="group" aria-label="Forma de ver o resultado" className="mb-4 flex flex-wrap gap-1.5">
             {[
               { key: "separated", label: "Separado por função" },
               { key: "consolidated", label: "Consolidado" }
@@ -599,10 +600,7 @@ function DashboardTab({ metrics, salesCount, resultView, onResultViewChange, cur
                 type="button"
                 aria-pressed={resultView === option.key}
                 onClick={() => onResultViewChange(option.key)}
-                className={cx(
-                  "min-h-10 rounded-chip px-3.5 text-sm font-semibold transition-colors duration-150 ease-out-ui focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand",
-                  resultView === option.key ? "bg-white text-navy shadow-sm ring-1 ring-line" : "text-muted hover:text-navy"
-                )}
+                className={tabClasses(resultView === option.key)}
               >
                 {option.label}
               </button>

@@ -12,6 +12,7 @@ import {
 } from "@/lib/admin-profiles";
 import { formatSimulationRegistrationError, listSimulationRegistrations } from "@/lib/simulation-registrations";
 import { listCca } from "@/lib/cca";
+import { tabClasses } from "@/components/ui/Tabs";
 
 export const dynamic = "force-dynamic";
 
@@ -64,7 +65,7 @@ export default async function AdminBrokersPage({ searchParams }) {
   return (
     <main className="bg-mist py-14">
       <AdminSectionNav active="brokers" />
-      <nav className="container-page mb-5 grid grid-cols-3 rounded-xl border border-navy/[0.07] bg-white p-0.5" aria-label="Opcoes de corretores">
+      <nav className="container-page mm-noscroll mb-5 flex gap-1.5 overflow-x-auto py-1" aria-label="Opções de corretores">
         <TabLink active={activeTab === "users"} href="/admin/corretores">Usuários</TabLink>
         <TabLink active={activeTab === "account"} href="/admin/corretores?tab=account">Alterar conta</TabLink>
         <TabLink active={activeTab === "cca"} href="/admin/corretores?tab=cca">CCA</TabLink>
@@ -81,7 +82,7 @@ export default async function AdminBrokersPage({ searchParams }) {
 }
 
 function TabLink({ active, href, children }) {
-  return <Link className={`rounded-[10px] px-3 py-2 text-center text-sm font-black ${active ? "bg-navy text-white" : "text-navy hover:bg-brand/10"}`} href={href}>{children}</Link>;
+  return <Link aria-current={active ? "page" : undefined} className={tabClasses(active)} href={href}>{children}</Link>;
 }
 
 function buildCounts(registrations = []) {
@@ -103,7 +104,7 @@ function buildCounts(registrations = []) {
 
 function BrokersError({ error }) {
   return (
-    <section className="container-page rounded-[28px] border border-red-200 bg-white p-8 shadow-soft">
+    <section className="container-page rounded-panel border border-red-200 bg-white p-8 shadow-soft">
       <p className="text-sm font-black uppercase tracking-[0.18em] text-red-700">Erro ao carregar corretores</p>
       <h2 className="mt-3 text-3xl font-black text-navy">Não foi possível carregar os usuários.</h2>
       <p className="mt-4 rounded-2xl border border-red-100 bg-red-50 px-5 py-4 font-bold text-red-800">{error}</p>

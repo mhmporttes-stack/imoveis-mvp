@@ -74,7 +74,7 @@ export default function CcaManager({ initialCca }) {
 
   return (
     <section className="container-page space-y-6">
-      <div className="rounded-[28px] border border-line bg-white p-6 shadow-soft">
+      <div className="rounded-panel border border-line bg-white p-6 shadow-soft">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <h2 className="text-xl font-black text-navy">Correspondentes bancárias (CCA)</h2>
@@ -193,7 +193,7 @@ function CcaForm({ initial, busy, onCancel, onSave, onPhotoChange }) {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="rounded-[28px] border border-line bg-white p-6 shadow-soft">
+    <form onSubmit={handleSubmit} className="rounded-panel border border-line bg-white p-6 shadow-soft">
       <h3 className="text-lg font-black text-navy">{initial ? "Editar CCA" : "Nova CCA"}</h3>
 
       {initial?.id ? (

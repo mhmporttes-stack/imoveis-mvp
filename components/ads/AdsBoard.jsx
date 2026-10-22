@@ -5,6 +5,7 @@ import { ClipboardCheck, ImageOff, MessageCircle, RefreshCw } from "lucide-react
 import Sheet from "@/components/ui/Sheet";
 import { cx } from "@/components/ui/cx";
 import { anton } from "./ads-fonts";
+import { tabClasses } from "@/components/ui/Tabs";
 
 // Área ANÚNCIOS (pedido do dono, 2026-10-13): cada anúncio da Meta vira um
 // card baixo (≥ 4 por tela no celular) com miniatura, título, tipo
@@ -33,8 +34,8 @@ const THEMES = {
     eyebrow: "text-brand",
     title: "text-navy",
     sub: "text-muted",
-    chip: "border-line bg-white text-ink-2 hover:border-brand/40",
-    chipOn: "border-navy bg-navy text-white",
+    chip: "border-line bg-transparent text-ink-2 hover:border-accent-line hover:text-ink",
+    chipOn: "border-accent bg-accent-soft font-extrabold text-ink",
     summary: "border-line bg-white",
     card: "border-line bg-white hover:border-brand/40",
     thumbRing: "ring-black/5",
@@ -195,7 +196,7 @@ function Chips({ options, value, onChange, theme, label }) {
           type="button"
           aria-pressed={value === option.key}
           onClick={() => onChange(option.key)}
-          className={cx("min-h-8 shrink-0 rounded-full border px-3 text-[13px] font-semibold transition-colors duration-150", value === option.key ? theme.chipOn : theme.chip)}
+          className={tabClasses(value === option.key, "sm")}
         >
           {option.label}
         </button>
@@ -323,7 +324,8 @@ export default function AdsBoard({ initialData = null, initialError = "", initia
         <header className="flex items-end justify-between gap-3">
           <div className="min-w-0">
             <p className={cx("text-[10px] font-bold uppercase tracking-[0.2em]", theme.eyebrow)}>Meta Ads</p>
-            <h1 className={cx("text-2xl font-extrabold leading-tight tracking-tight md:text-[28px]", theme.title)}>Anúncios</h1>
+            {/* Título no cabeçalho do painel (visual novo): aqui só para leitor de tela. */}
+            <h1 className="sr-only">Anúncios</h1>
             {data?.syncedAtLabel ? (
               <p className={cx("flex items-center gap-1 text-xs", theme.sub)}>
                 <RefreshCw size={11} aria-hidden="true" /> Atualizado {data.syncedAtLabel}

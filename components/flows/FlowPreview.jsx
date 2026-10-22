@@ -126,7 +126,7 @@ export default function FlowPreview({ graph, flowId, onClose }) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-navy/50 p-4" onPointerDown={(event) => event.target === event.currentTarget && onClose()}>
-      <div className="flex h-[min(720px,92dvh)] w-full max-w-[400px] flex-col overflow-hidden rounded-[28px] border border-line bg-white shadow-soft">
+      <div className="flex h-[min(720px,92dvh)] w-full max-w-[400px] flex-col overflow-hidden rounded-panel border border-line bg-white shadow-soft">
         <div className="flex items-center gap-3 bg-[#0b6b5b] px-4 py-3 text-white">
           <div className="flex-1">
             <p className="text-sm font-black">Pré-visualização</p>

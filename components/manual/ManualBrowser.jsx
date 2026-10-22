@@ -17,6 +17,7 @@ import {
   SEARCH_DEBOUNCE_MS, apiErrorMessage, createDebouncer, formatUpdatedDate, resolveOpening, searchPlan,
   sectionDomId, showAckButton, showNewBadge
 } from "@/lib/manual-ui-core.mjs";
+import { tabClasses } from "@/components/ui/Tabs";
 
 // Manual do CRM (leitura). Os dados chegam já filtrados por perfil no servidor.
 export default function ManualBrowser({ initialTopics = [], initialNews = [], initialError = "", manageHref = "" }) {
@@ -149,8 +150,8 @@ export default function ManualBrowser({ initialTopics = [], initialNews = [], in
     <section className="container-page space-y-6" id="manual-topo">
       <header className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div className="max-w-2xl space-y-1.5">
-        <h1 className="text-[28px] font-bold leading-tight tracking-tight text-navy [text-wrap:balance]">Manual do CRM</h1>
-        <p className="text-[15px] text-ink-2">Como usar cada parte do sistema, passo a passo e sem complicação.</p>
+        <h1 className="sr-only">Manual do CRM</h1>
+        <p className="text-sm text-muted">Como usar cada parte do sistema, passo a passo e sem complicação.</p>
       </div>
         {manageHref ? <Button href={manageHref} variant="secondary" size="sm"><Settings2 className="h-4 w-4" aria-hidden="true" /> Gerenciar</Button> : null}
       </header>
@@ -170,22 +171,19 @@ export default function ManualBrowser({ initialTopics = [], initialNews = [], in
       ) : (
         <>
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <nav aria-label="Seções do Manual" className="flex gap-1 border-b border-line">
+            <nav aria-label="Seções do Manual" className="flex gap-1.5 py-1">
               {[{ key: "topics", label: "Tópicos", Icon: BookOpen }, { key: "news", label: "Novidades", Icon: Megaphone }].map(({ key, label, Icon }) => (
                 <button
                   key={key}
                   type="button"
                   onClick={() => setTab(key)}
                   aria-current={tab === key ? "page" : undefined}
-                  className={cx(
-                    "-mb-px inline-flex min-h-touch items-center gap-2 border-b-2 px-3 text-sm font-semibold transition-colors duration-150 ease-out-ui focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand motion-reduce:transition-none",
-                    tab === key ? "border-brand text-navy" : "border-transparent text-muted hover:text-navy"
-                  )}
+                  className={cx(tabClasses(tab === key), "gap-2")}
                 >
                   <Icon className="h-4 w-4" aria-hidden="true" />
                   {label}
                   {key === "news" && unreadNews > 0 ? (
-                    <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-brand px-1.5 text-2xs font-semibold text-white" aria-label={`${unreadNews} para confirmar`}>{unreadNews}</span>
+                    <span className="mm-count inline-flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-[11px] font-extrabold" aria-label={`${unreadNews} para confirmar`}>{unreadNews}</span>
                   ) : null}
                 </button>
               ))}

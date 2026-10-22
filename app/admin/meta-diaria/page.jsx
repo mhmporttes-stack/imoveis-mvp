@@ -65,7 +65,7 @@ export default async function MetaDiariaPage() {
       {/* Dia (São Paulo) em que esta tela foi montada: virou o dia, a tela é pedida de novo (pré-carregamento). */}
       <MetaDayGuard day={getTodayInSaoPaulo()} />
       {error ? (
-        <section className="container-page rounded-[24px] border border-red-200 bg-white p-8 shadow-soft">
+        <section className="container-page rounded-panel border border-red-200 bg-white p-8 shadow-soft">
           <p className="text-sm font-black uppercase tracking-[0.18em] text-red-700">Erro ao carregar</p>
           <p className="mt-3 font-bold text-red-800">{error}</p>
         </section>
@@ -115,7 +115,7 @@ async function OwnerMetaDiariaView({ auth, viewer = "owner", ownGoalHidden = fal
       {/* Dia (São Paulo) em que esta tela foi montada: virou o dia, a tela é pedida de novo (pré-carregamento). */}
       <MetaDayGuard day={getTodayInSaoPaulo()} />
       {error ? (
-        <section className="container-page rounded-[24px] border border-red-200 bg-white p-8 shadow-soft">
+        <section className="container-page rounded-panel border border-red-200 bg-white p-8 shadow-soft">
           <p className="text-sm font-black uppercase tracking-[0.18em] text-red-700">Erro ao carregar</p>
           <p className="mt-3 font-bold text-red-800">{error}</p>
         </section>
@@ -127,7 +127,7 @@ async function OwnerMetaDiariaView({ auth, viewer = "owner", ownGoalHidden = fal
                 {ownGoal ? (
                   <DailyGoalDashboard initialGoal={ownGoal} variant="card" renderId={newRenderId()} />
                 ) : (
-                  <p className="rounded-[20px] border border-line bg-white p-5 text-center text-sm font-bold text-muted">
+                  <p className="rounded-panel border border-line bg-white p-5 text-center text-sm font-bold text-muted">
                     {ownGoalError || "Não foi possível carregar sua Meta Diária agora."}
                   </p>
                 )}

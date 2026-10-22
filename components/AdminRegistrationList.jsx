@@ -45,7 +45,7 @@ export default function AdminRegistrationList({ registrations = [], isOwner = fa
 
   if (!registrations.length) {
     return (
-      <section className="container-page rounded-[28px] border border-line bg-white p-8 shadow-soft">
+      <section className="container-page rounded-panel border border-line bg-white p-8 shadow-soft">
         <h2 className="text-2xl font-black text-navy">Nenhum cadastro recebido</h2>
         <p className="mt-3 text-muted">Quando um cliente concluir a simulação no site, o cadastro aparecerá aqui.</p>
       </section>
@@ -73,7 +73,7 @@ export default function AdminRegistrationList({ registrations = [], isOwner = fa
           ))}
         </div>
       ) : (
-        <div className="rounded-[28px] border border-line bg-white p-8 shadow-soft">
+        <div className="rounded-panel border border-line bg-white p-8 shadow-soft">
           <h2 className="text-2xl font-black text-navy">Nenhum cadastro encontrado</h2>
           <p className="mt-3 text-muted">Tente buscar por outro nome ou telefone.</p>
         </div>
@@ -88,7 +88,7 @@ function RegistrationCard({ registration, removeRegistration, isOwner }) {
   const filled = hasSimulationData(registration);
 
   return (
-    <article className="rounded-[28px] border border-line bg-white p-6 shadow-soft transition duration-300 hover:-translate-y-0.5 hover:shadow-[0_20px_55px_rgba(13,59,102,0.12)]">
+    <article className="rounded-panel border border-line bg-white p-6 shadow-soft transition duration-300 hover:-translate-y-0.5 hover:shadow-[0_20px_55px_rgba(13,59,102,0.12)]">
       <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
         <div className="min-w-0">
           {filled ? (

@@ -4,6 +4,7 @@ import CooledFlowToggle from "@/components/cooled/CooledFlowToggle";
 import CooledClientPhone from "@/components/cooled/CooledClientPhone";
 import { isGeneralAdmin, requireBrokerManagementPage } from "@/lib/admin-auth";
 import { getCooledFlowSettings, listCooledCaseHistory } from "@/lib/cooled-clients";
+import { tabClasses } from "@/components/ui/Tabs";
 
 export const dynamic = "force-dynamic";
 
@@ -57,27 +58,27 @@ export default async function CooledClientsHistoryPage({ searchParams }) {
     for (const [key, value] of [...query.entries()]) if (!value) query.delete(key);
     return `/admin/desempenho/esfriados?${query.toString()}`;
   };
-  const pill = (active) => `rounded-full border px-4 py-2 ${active ? "border-brand bg-brand text-white" : "border-brand/20 bg-white text-brand"}`;
+  const pill = (active) => tabClasses(active);
 
   return (
     <main className="min-h-screen bg-mist py-14">
       <AdminSectionNav active="cooled-clients" />
       <div className="container-page space-y-6">
         <header className="space-y-2">
-          <h1 className="text-2xl font-black text-navy">Clientes que esfriaram</h1>
-          <p className="max-w-2xl text-sm font-semibold text-muted">
+          <h1 className="sr-only">Clientes que esfriaram</h1>
+          <p className="max-w-2xl text-sm text-muted">
             Clientes com mais de 3 dias sem contato e sem atividade agendada: o motivo escrito pelo corretor e a decisão da gestão.
           </p>
           <p className="text-xs font-bold text-navy">Fluxo {settings.enabled ? "LIGADO" : "DESLIGADO"}</p>
           {canToggle ? <CooledFlowToggle enabled={settings.enabled} /> : null}
-          <nav className="flex flex-wrap gap-2 text-xs font-bold" aria-label="Período">
+          <nav className="flex flex-wrap gap-1.5" aria-label="Período">
             {PERIODS.map((period) => <Link key={period} href={href({ dias: String(period) })} className={pill(period === days)}>{period} dias</Link>)}
           </nav>
-          <nav className="flex flex-wrap gap-2 text-xs font-bold" aria-label="Decisão">
+          <nav className="flex flex-wrap gap-1.5" aria-label="Decisão">
             {DECISIONS.map((item) => <Link key={item.key || "all"} href={href({ decisao: item.key })} className={pill(item.key === decision)}>{item.label}</Link>)}
           </nav>
           {report.brokers.length ? (
-            <nav className="flex flex-wrap gap-2 text-xs font-bold" aria-label="Corretor">
+            <nav className="flex flex-wrap gap-1.5" aria-label="Corretor">
               <Link href={href({ corretor: "" })} className={pill(!brokerId)}>Todos os corretores</Link>
               {report.brokers.map((broker) => <Link key={broker.id} href={href({ corretor: broker.id })} className={pill(broker.id === brokerId)}>{broker.name}</Link>)}
             </nav>

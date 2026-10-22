@@ -6,6 +6,7 @@ import Avatar from "./Avatar";
 import WhatsappSessionHealthPanel from "./WhatsappSessionHealthPanel";
 import { DEFAULT_WALLET_LIMIT, MAX_WALLET_LIMIT } from "@/lib/daily-goal-wallet-core.mjs";
 import { formatReconnectHoldLine } from "@/lib/daily-goal-policy-core.mjs";
+import { tabClasses } from "@/components/ui/Tabs";
 
 const SESSION_STATUS_LABELS = {
   connected: { label: "Conectado", className: "bg-emerald-50 text-emerald-700" },
@@ -122,15 +123,15 @@ export default function DailyGoalAdmin({ initialSettings }) {
 
   return (
     <section className="container-page space-y-6">
-      <div className="mx-auto flex w-full max-w-xl flex-wrap justify-center rounded-2xl border border-navy/[0.07] bg-white p-0.5 shadow-[0_1px_2px_rgba(13,59,102,0.04)]">
+      <div className="mm-noscroll flex gap-1.5 overflow-x-auto py-1" role="tablist" aria-label="Meta Diária">
         {TABS.map((item) => (
           <button
             key={item.key}
             type="button"
+            role="tab"
+            aria-selected={tab === item.key}
             onClick={() => setTab(item.key)}
-            className={`min-w-[110px] flex-1 rounded-xl px-4 py-2 text-center text-[13px] font-extrabold transition duration-200 ${
-              tab === item.key ? "bg-navy text-white shadow-soft" : "text-navy hover:bg-brand/10 hover:text-brand"
-            }`}
+            className={tabClasses(tab === item.key)}
           >
             {item.label}
           </button>
@@ -308,7 +309,7 @@ function AutomationTab() {
     }
   }
 
-  if (!brokers) return <p className="rounded-[24px] border border-line bg-white p-8 text-center font-bold text-muted">Carregando…</p>;
+  if (!brokers) return <p className="rounded-panel border border-line bg-white p-8 text-center font-bold text-muted">Carregando…</p>;
 
   // Rodando de verdade primeiro, depois quem tem algum problema, por último
   // quem nunca ligou — assim os casos que precisam de atenção aparecem no topo.
@@ -738,7 +739,7 @@ function GlobalConfigPanel({ onSaved }) {
   }
 
   return (
-    <div className="rounded-[24px] border border-line bg-white p-6 shadow-soft">
+    <div className="rounded-panel border border-line bg-white p-6 shadow-soft">
       <button type="button" className="flex w-full items-center justify-between text-left" onClick={() => setOpen((current) => !current)}>
         <div>
           <h3 className="text-lg font-black text-navy">Configuração geral da automação</h3>
@@ -939,7 +940,7 @@ function AutoMessagesEditor() {
   }
 
   return (
-    <div className="rounded-[24px] border border-line bg-white p-6 shadow-soft">
+    <div className="rounded-panel border border-line bg-white p-6 shadow-soft">
       <button type="button" className="flex w-full items-center justify-between text-left" onClick={() => setOpen((current) => !current)}>
         <div>
           <h3 className="text-lg font-black text-navy">Mensagens da automação (até 4 variações na 1ª e 2ª tentativa; a 3ª não é mais enviada)</h3>
@@ -1008,7 +1009,7 @@ function ConfigTab({ settings, setSettings, busy, setBusy, setFeedback }) {
 
   return (
     <div className="space-y-6">
-      <div className="rounded-[28px] border border-line bg-white p-6 shadow-soft md:p-8">
+      <div className="rounded-panel border border-line bg-white p-6 shadow-soft md:p-8">
         <h2 className="text-xl font-black text-navy">Novos clientes por corretor/dia</h2>
         <p className="mt-1 text-sm font-bold text-muted">Padrão: 30. Alterar aqui só afeta as próximas gerações de Meta Diária.</p>
         <div className="mt-4 flex flex-wrap items-end gap-3">
@@ -1041,7 +1042,7 @@ function ConfigTab({ settings, setSettings, busy, setBusy, setFeedback }) {
         </div>
       </div>
 
-      <div className="rounded-[28px] border border-line bg-white p-6 shadow-soft md:p-8">
+      <div className="rounded-panel border border-line bg-white p-6 shadow-soft md:p-8">
         <h2 className="text-xl font-black text-navy">Carteira ativa</h2>
         <p className="mt-1 text-sm font-bold text-muted">
           Total de clientes que um corretor pode ter aguardando 1ª e 2ª tentativa AO MESMO TEMPO (soma das duas
@@ -1091,7 +1092,7 @@ function MessagesTab({ settings, setSettings, busy, setBusy, setFeedback }) {
   return (
     <div className="space-y-4">
       {MESSAGE_FIELDS.map((field) => (
-        <div key={field.key} className="rounded-[24px] border border-line bg-white p-6 shadow-soft">
+        <div key={field.key} className="rounded-panel border border-line bg-white p-6 shadow-soft">
           <h3 className="text-lg font-black text-navy">{field.label}</h3>
           <textarea
             className="mt-3 w-full rounded-2xl border border-line p-4 font-normal text-navy outline-none focus:border-brand"
@@ -1177,7 +1178,7 @@ function PerformanceTab() {
 
       {error ? <p className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-700">{error}</p> : null}
       {loading || !data ? (
-        <p className="rounded-[24px] border border-line bg-white p-8 text-center font-bold text-muted">Carregando…</p>
+        <p className="rounded-panel border border-line bg-white p-8 text-center font-bold text-muted">Carregando…</p>
       ) : (
         <>
           <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
@@ -1188,7 +1189,7 @@ function PerformanceTab() {
             <Metric label="Taxa de reativação" value={formatPercent(data.summary.taxaReativacao)} />
           </div>
 
-          <div className="rounded-[24px] border border-line bg-white p-6 shadow-soft">
+          <div className="rounded-panel border border-line bg-white p-6 shadow-soft">
             <h3 className="text-lg font-black text-navy">Conversão por mensagem</h3>
             <div className="mt-4 grid gap-3 sm:grid-cols-3">
               {data.summary.porMensagem.map((row) => (
@@ -1202,7 +1203,7 @@ function PerformanceTab() {
             </div>
           </div>
 
-          <div className="overflow-x-auto rounded-[24px] border border-line bg-white p-6 shadow-soft">
+          <div className="overflow-x-auto rounded-panel border border-line bg-white p-6 shadow-soft">
             <h3 className="text-lg font-black text-navy">Desempenho por corretor</h3>
             <table className="mt-4 w-full min-w-[560px] text-left text-sm">
               <thead>
@@ -1277,7 +1278,7 @@ function PointsLedger({ period, team }) {
   const visibleRows = (ledger?.rows || []).filter((row) => activityFilter === "all" || row.origin === activityFilter);
 
   return (
-    <div className="overflow-x-auto rounded-[24px] border border-line bg-white p-6 shadow-soft">
+    <div className="overflow-x-auto rounded-panel border border-line bg-white p-6 shadow-soft">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h3 className="text-lg font-black text-navy">Extrato de Pontos</h3>
         <div className="flex flex-wrap gap-2">
