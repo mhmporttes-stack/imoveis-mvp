@@ -205,27 +205,35 @@ export default function MarketplaceChat({ canEditSettings = false, canAssign = f
 
         {selectedId && conversation ? (
           <Card padding="none" className="flex min-h-[60vh] flex-col overflow-hidden">
-            <div className="flex flex-wrap items-center gap-3 border-b border-line p-3">
-              <Button size="icon" variant="ghost" className="md:hidden" aria-label="Voltar" onClick={() => { setSelectedId(""); setThread(null); }}><ArrowLeft className="h-5 w-5" /></Button>
-              <Avatar name={conversation.contactName} photo={conversation.contactPhotoUrl} />
-              <div className="min-w-0 flex-1">
-                <p className="flex items-center gap-2 font-semibold text-navy">{conversation.contactName} <Badge tone="info">Marketplace</Badge></p>
-                <p className="truncate text-xs text-muted">
-                  {conversation.listingUrl ? <a className="text-brand underline" href={conversation.listingUrl} target="_blank" rel="noreferrer">{conversation.listingTitle || "Ver anúncio"}</a> : conversation.listingTitle || "Anúncio não identificado"}
-                  {conversation.assignedName ? ` · ${conversation.assignedName}` : ""}
-                </p>
+            {/* Cabeçalho em duas linhas (dono, 2026-10-22: "organize" — o seletor cobria o selo no celular): 1) voltar, foto,
+                nome + corretor (ou "Roleta") e anúncio; 2) atribuir + cliente, ocupando a largura toda. */}
+            <div className="space-y-2 border-b border-line p-3">
+              <div className="flex items-center gap-3">
+                <Button size="icon" variant="ghost" className="shrink-0 md:hidden" aria-label="Voltar" onClick={() => { setSelectedId(""); setThread(null); }}><ArrowLeft className="h-5 w-5" /></Button>
+                <Avatar name={conversation.contactName} photo={conversation.contactPhotoUrl} />
+                <div className="min-w-0 flex-1">
+                  <p className="flex min-w-0 items-center gap-2 font-semibold text-navy">
+                    <span className="truncate">{conversation.contactName}</span>
+                    <Badge tone="info" className="shrink-0">{conversation.assignedName ? String(conversation.assignedName).split(" ")[0] : "Roleta"}</Badge>
+                  </p>
+                  <p className="truncate text-xs text-muted">
+                    {conversation.listingUrl ? <a className="text-brand underline" href={conversation.listingUrl} target="_blank" rel="noreferrer">{conversation.listingTitle || "Ver anúncio"}</a> : conversation.listingTitle || "Anúncio não identificado"}
+                  </p>
+                </div>
               </div>
-              {canAssign ? (
-                <select className="rounded-control border border-line px-2 py-1 text-sm" value={conversation.assignedUserId || ""} onChange={(event) => assign(event.target.value)} aria-label="Atribuir conversa a">
-                  <option value="">Sem atendente</option>
-                  {team.map((member) => <option key={member.id} value={member.id}>{member.name}</option>)}
-                </select>
-              ) : null}
-              {conversation.clientId ? (
-                <Button size="sm" variant="secondary" href={`/admin/simulacoes?query=${encodeURIComponent(conversation.contactName || "")}`}>Ver cliente</Button>
-              ) : (
-                <Button size="sm" variant="secondary" onClick={addToCrm}>Adicionar ao CRM</Button>
-              )}
+              <div className="flex flex-wrap items-center gap-2">
+                {canAssign ? (
+                  <select className="min-w-0 flex-1 rounded-control border border-line px-2 py-1.5 text-sm" value={conversation.assignedUserId || ""} onChange={(event) => assign(event.target.value)} aria-label="Atribuir conversa a">
+                    <option value="">Sem atendente</option>
+                    {team.map((member) => <option key={member.id} value={member.id}>{member.name}</option>)}
+                  </select>
+                ) : null}
+                {conversation.clientId ? (
+                  <Button size="sm" variant="secondary" className="shrink-0" href={`/admin/simulacoes?query=${encodeURIComponent(conversation.contactName || "")}`}>Ver cliente</Button>
+                ) : (
+                  <Button size="sm" variant="secondary" className="shrink-0" onClick={addToCrm}>Adicionar ao CRM</Button>
+                )}
+              </div>
             </div>
             <div className="flex-1 space-y-2 overflow-y-auto bg-mist p-3">
               {(thread.messages || []).map((message) => (
