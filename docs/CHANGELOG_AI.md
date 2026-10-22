@@ -44,6 +44,15 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 
 
+### 2026-10-22 — Henry: nome dito do jeito brasileiro ("Rênri")
+- **Data:** 2026-10-22
+- **Área:** Integrações/Henry
+- **Alteração:** tudo que vai para a voz troca "Henry" por "Rênri" (texto, previous_text/next_text da ElevenLabs, OpenAI e voz do navegador); a tela continua mostrando "Henry".
+- **Motivo:** pedido do dono — "está falando o nome dele meio americanizado".
+- **Arquivos afetados:** `lib/henry-voice-providers.mjs` (`pronounceForSpeech`), `lib/henry-voice.js`, `components/henry/HenryVoiceAssistant.jsx`, `components/henry/HenrySettingsCard.jsx`, `tests/henry-voice-providers.test.mjs`, `docs/BUSINESS_RULES.md` (HENRY-1).
+- **Risco/observação:** só a pronúncia muda; "Henrique" não é tocado. Grafia fonética a ajustar se o dono preferir outro som.
+- **Autor:** Claude Code
+
 ### 2026-10-22 — Velocidade etapa 3: cache no servidor (sessão, perfis, etiquetas, imóveis, pontuação, configurações)
 - **Data:** 2026-10-22
 - **Área:** Infra / Permissões / Clientes / Ranking

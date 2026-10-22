@@ -5,6 +5,7 @@ import {
   ELEVENLABS_DEFAULT_MODEL,
   ELEVENLABS_SPEED,
   buildElevenLabsSpeechRequest,
+  pronounceForSpeech,
   chooseHenryVoiceProvider,
   describeElevenLabsError,
   elevenLabsVoiceSettings,
@@ -111,4 +112,13 @@ test("servidor: chave só no servidor, falhas registradas e queda para o próxim
   for (const file of ["../components/henry/HenrySettingsCard.jsx", "../components/henry/HenryVoiceAssistant.jsx", "../components/henry/HenryVoiceView.jsx"]) {
     assert.doesNotMatch(readFileSync(new URL(file, import.meta.url), "utf8"), /process\.env\.ELEVENLABS/);
   }
+});
+
+test("pronúncia brasileira do nome: Henry vira Rênri só na voz", () => {
+  assert.equal(pronounceForSpeech("Eu sou o Henry. HENRY, henry"), "Eu sou o Rênri. Rênri, Rênri");
+  assert.equal(pronounceForSpeech("Henrique comprou"), "Henrique comprou");
+  const { body } = buildElevenLabsSpeechRequest({ text: "Sou o Henry", voiceId: "21m00Tcm4TlvDq8ikWAM", previousText: "Henry", nextText: "Henry" });
+  assert.equal(body.text, "Sou o Rênri");
+  assert.equal(body.previous_text, "Rênri");
+  assert.equal(body.next_text, "Rênri");
 });

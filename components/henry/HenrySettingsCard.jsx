@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Field, { inputClasses } from "@/components/ui/Field";
-import { pickBestBrowserVoice } from "@/lib/henry-voice-providers.mjs";
+import { pickBestBrowserVoice, pronounceForSpeech } from "@/lib/henry-voice-providers.mjs";
 
 // Liga/desliga do assistente de voz "Henry" (docs/BUSINESS_RULES.md HENRY-1) e da visão pela webcam (HENRY-2, nasce
 // desligada). Só o dono consegue ler/gravar (a rota /api/admin/henry recusa os demais e "Alterar conta"); para outros
@@ -192,7 +192,7 @@ function HenryVoiceStyleSection({ saved, options, serverVoice, provider = "brows
         audioRef.current = new Audio(`data:${data.audio.contentType || "audio/mpeg"};base64,${data.audio.base64}`);
         await audioRef.current.play();
       } else if (window.speechSynthesis && data.text) {
-        const utterance = new SpeechSynthesisUtterance(data.text);
+        const utterance = new SpeechSynthesisUtterance(pronounceForSpeech(data.text));
         utterance.lang = "pt-BR";
         utterance.rate = Number(data.browserRate) || 1;
         const voice = pickBestBrowserVoice(window.speechSynthesis.getVoices());

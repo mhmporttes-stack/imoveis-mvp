@@ -19,7 +19,7 @@ import {
   nextRestartDelay,
   pickAcknowledgement
 } from "@/lib/henry-voice-conversation.mjs";
-import { pickBestBrowserVoice, splitSentences } from "@/lib/henry-voice-providers.mjs";
+import { pickBestBrowserVoice, pronounceForSpeech, splitSentences } from "@/lib/henry-voice-providers.mjs";
 import HenryVoiceView from "./HenryVoiceView";
 import { captureWebcamFrame } from "./webcam-capture";
 
@@ -297,7 +297,7 @@ export default function HenryVoiceAssistant() {
     const voice = pickBestBrowserVoice(synth.getVoices());
     const sentences = splitSentences(text);
     sentences.forEach((sentence, index) => {
-      const utterance = new SpeechSynthesisUtterance(sentence);
+      const utterance = new SpeechSynthesisUtterance(pronounceForSpeech(sentence));
       utterance.lang = voice?.lang || "pt-BR";
       utterance.rate = browserRateRef.current;
       if (voice) utterance.voice = voice;
