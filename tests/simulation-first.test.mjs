@@ -2,7 +2,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { isPresentationLinkMessage, requiresSimulationFirst } from "../lib/simulation-first-core.mjs";
+import { SIMULATION_FIRST_DONE_MESSAGE, SIMULATION_FIRST_MESSAGE, isPresentationLinkMessage, requiresSimulationFirst, simulationFirstMessageFor } from "../lib/simulation-first-core.mjs";
 
 const base = { distribution_type: "round_robin", primary_monthly_income: 3100, status: "pending", created_at: "2026-10-09T14:00:00Z" };
 
@@ -20,6 +20,19 @@ test("não trava: simulação enviada, sem dados, link pessoal, depois da simula
   assert.equal(requiresSimulationFirst({ ...base, status: "completed" }), true, "simulação feita mas não enviada continua travando");
   assert.equal(requiresSimulationFirst({ ...base, created_at: "2026-10-09T08:00:00Z" }), false);
   assert.equal(requiresSimulationFirst(null), false);
+});
+
+test("Simulação realizada sem link: continua travando, mas o texto pede só o link (dono, 2026-10-22, #C1016)", () => {
+  assert.equal(requiresSimulationFirst({ ...base, status: "completed" }), true);
+  assert.equal(simulationFirstMessageFor("completed"), SIMULATION_FIRST_DONE_MESSAGE);
+  assert.doesNotMatch(SIMULATION_FIRST_DONE_MESSAGE, /faça a simulação/i);
+  assert.match(SIMULATION_FIRST_DONE_MESSAGE, /Simulação → Enviar link/);
+  for (const status of ["pending", "in_service", "automated_service"]) assert.equal(simulationFirstMessageFor(status), SIMULATION_FIRST_MESSAGE, status);
+  const chat = readFileSync(new URL("../lib/whatsapp-chat.js", import.meta.url), "utf8");
+  assert.match(chat, /new WhatsappChatError\(simulationFirstMessageFor\(state\.status\), \{ status: 409, code: "SIMULATION_FIRST" \}\)/);
+  assert.match(chat, /simulationFirstDone: Boolean\(simulationFirst\?\.done\)/);
+  const ui = readFileSync(new URL("../components/WhatsappChat.jsx", import.meta.url), "utf8");
+  assert.match(ui, /conversation\.simulationFirstDone[\s\S]{0,200}\? SIMULATION_FIRST_DONE_MESSAGE/);
 });
 
 test("só o link da apresentação passa", () => {

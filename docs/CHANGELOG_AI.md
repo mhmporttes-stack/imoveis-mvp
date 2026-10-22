@@ -250,6 +250,13 @@ Copie o modelo abaixo (uma entrada por bloco):
 - **Risco/observação:** textos, links, tracking e SEO inalterados; `pnpm build` ok; `tests/brand-assets.test.mjs` 4/4. Publicado e conferido no ar. A imagem de cidade não é comprovadamente de Marília (trocar por foto real quando o dono enviar).
 
 ## Registro
+### 2026-10-22 — Trava "primeira mensagem = simulação": texto certo quando a simulação já está feita
+- **Data:** 2026-10-22
+- **Área:** `lib/simulation-first-core.mjs` (`SIMULATION_FIRST_DONE_MESSAGE`, `isSimulationFirstDone`, `simulationFirstMessageFor`), `lib/whatsapp-chat.js` (`simulationFirstState` devolve `{ status, done }`, `assertSimulationFirst`, conversa expõe `simulationFirstDone`), `components/WhatsappChat.jsx` (aviso âmbar).
+- **Caso real:** cliente #C1016 em "Simulação realizada", simulação existente mas link `/s/` nunca enviado; o aviso dizia "Faça a simulação", confundindo a corretora.
+- **Alteração:** decisão do dono — a trava continua igual (inclusive `completed` sem link); só o texto muda em `completed`: "A simulação já está feita: envie o link da apresentação (Simulação → Enviar link) para liberar as outras mensagens." (aviso do Chat e erro 409 `SIMULATION_FIRST`). Demais status mantêm o texto original.
+- **Docs:** `BUSINESS_RULES.md` ROL-4c-1.
+- **Verificação:** `tests/simulation-first.test.mjs` (caso novo), `tests/simulation-auto-status.test.mjs`, `pnpm build`.
 ### 2026-10-22 — Chat do Marketplace: envio robusto, 3 tentativas, "Tentar de novo" do corretor (extensão 1.9.2)
 - **Data:** 2026-10-22
 - **Área:** extensão (`background.js` `sendOutbound`/`ensureRoundTab`, `inbox.js` `conversationUrl`/`ownMessagesWith`, `lib/chat-agenda.js`), `lib/marketplace-chat-core.mjs` (`MAX_SEND_ATTEMPTS` 3, `SEND_RETRY_INTERVAL_MS`, `planOutboundResult`, `outboundStatusView`, `isSafeToResend`, `findOutboundEcho`), `lib/marketplace-chat.js` (claim com intervalo, eco confirma falha, `alertOutboundFailed`, `retryMarketplaceOutbound`, `reprocessMarketplaceOutboundFailures`), rotas `POST /api/admin/marketplace-chat/conversations/[id]/messages/[messageId]/retry` (`requireAdminApi` + escopo da conversa) e `GET /api/cron/marketplace-outbound-reprocess` (manual, auth de cron, `?apply=1`), `components/marketplace/MarketplaceChat.jsx`.

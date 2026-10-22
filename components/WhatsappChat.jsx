@@ -63,6 +63,7 @@ import { CLIENT_STATUS_OPTIONS } from "@/lib/client-status";
 import { chatDocumentProgress } from "@/lib/chat-document-progress.mjs";
 import { parseWhatsappText, stripWhatsappFormatting } from "@/lib/whatsapp-format.mjs";
 import { OFFICIAL_WHATSAPP_DIGITS } from "@/lib/official-whatsapp.mjs";
+import { SIMULATION_FIRST_DONE_MESSAGE } from "@/lib/simulation-first-core.mjs";
 import { OLDER_HISTORY_MAX_ROUNDS, OLDER_HISTORY_POLL_MS, OLDER_HISTORY_ROUND_GAP_MS, OLDER_HISTORY_WAIT_MS, olderHistoryMessage, planNextRound, roundPhase } from "@/lib/whatsapp-older-history-core.mjs";
 
 // Desempenho (2026-10-12): partes que só aparecem depois de um toque (abas Visão geral/Campanhas/Corretores, Guia de
@@ -2790,7 +2791,10 @@ function Composer({ canManage, conversation, insertRequest = null, internalReque
       {conversation.simulationFirst ? (
         // Regra do dono (2026-10-09): cliente com dados preenchidos recebe primeiro a simulação (link da apresentação).
         <p role="status" className="mb-1.5 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-bold text-amber-900">
-          Primeiro a simulação: este cliente já preencheu os dados. Faça a simulação pelo card do cliente e envie o link da apresentação — as outras mensagens ficam liberadas depois.
+          {conversation.simulationFirstDone
+            // Decisão do dono (2026-10-22): em "Simulação realizada" a simulação já existe — pedir só o link.
+            ? SIMULATION_FIRST_DONE_MESSAGE
+            : "Primeiro a simulação: este cliente já preencheu os dados. Faça a simulação pelo card do cliente e envie o link da apresentação — as outras mensagens ficam liberadas depois."}
         </p>
       ) : null}
       {!awaiting && !recording && !processing ? (
