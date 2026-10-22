@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import HenryVoiceView from "@/components/henry/HenryVoiceView";
 
 // Vitrine DEV do Henry (HENRY-1): mesma apresentação do painel, com sinal de áudio SIMULADO e conversa fictícia.
@@ -25,6 +25,15 @@ export default function HenryDemo({ mode = "speaking", expanded = true, capturin
     return { mode, level: 0 };
   }, [mode]);
   const engaged = mode !== "idle";
+  // Celular (< 768 px, ex.: 390×844): mesma apresentação do app, tocar para falar.
+  const [mobile, setMobile] = useState(false);
+  useEffect(() => {
+    const media = window.matchMedia("(max-width: 767px)");
+    const sync = () => setMobile(media.matches);
+    sync();
+    media.addEventListener("change", sync);
+    return () => media.removeEventListener("change", sync);
+  }, []);
   return (
     <HenryVoiceView
       expanded={open}
@@ -32,6 +41,8 @@ export default function HenryDemo({ mode = "speaking", expanded = true, capturin
       onMinimize={() => setOpen(false)}
       status={{ idle: "Ouvindo — diga “Henry”", listening: "Em conversa — pode falar sem dizer o nome (“obrigado, Henry” encerra)", thinking: "Pensando…", speaking: "Falando… diga “Henry” para interromper" }[mode] || ""}
       engaged={engaged}
+      mobile={mobile}
+      tapToTalk={mobile}
       inConversation={engaged}
       caption={{ thinking: SAMPLE_TURNS[2].text, speaking: SAMPLE_TURNS[3].text, listening: SAMPLE_TURNS[3].text }[mode] || ""}
       turns={SAMPLE_TURNS}

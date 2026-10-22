@@ -133,3 +133,37 @@ test("rota: fala em partes só com o mesmo texto já liberado pela barreira", ()
   assert.match(client, /addEventListener\("keydown", resume\)/); // destrava o som no 1º clique OU tecla
   assert.match(client, /visibilitychange/);
 });
+
+// --- Celular (dono, 2026-10-22: "também gostaria do Henry no celular, no aplicativo") -----------------------------------
+import { henryListenMode, shouldRunRecognition, silentWavDataUri } from "../lib/henry-voice-conversation.mjs";
+
+test("celular: tocar para falar; escuta contínua só no computador ou com a opção ligada", () => {
+  assert.equal(henryListenMode({ desktop: true }), "always");
+  assert.equal(henryListenMode({ desktop: false }), "tap");
+  assert.equal(henryListenMode({ desktop: false, mobileWake: true }), "always");
+  assert.equal(shouldRunRecognition({ mode: "tap", sessionOpen: false }), false);
+  assert.equal(shouldRunRecognition({ mode: "tap", sessionOpen: true }), true);
+  assert.equal(shouldRunRecognition({ mode: "always", sessionOpen: false }), true);
+});
+
+test("celular: áudio destravado no toque com um elemento único (Safari iOS)", () => {
+  const wav = Buffer.from(silentWavDataUri().split(",")[1], "base64");
+  assert.equal(wav.toString("ascii", 0, 4), "RIFF");
+  assert.equal(wav.toString("ascii", 8, 12), "WAVE");
+  assert.equal(wav.readUInt32LE(4), wav.length - 8);
+  const client = readFileSync(new URL("../components/henry/HenryVoiceAssistant.jsx", import.meta.url), "utf8");
+  assert.equal((client.match(/new Audio\(/g) || []).length, 1); // um só elemento, reaproveitado
+  assert.match(client, /setAttribute\("playsinline", ""\)/);
+  assert.match(client, /unlockAudio\(\);\s*sessionOpenRef\.current = true;\s*startListeningRef\.current\?\.\(\);/); // dentro do toque
+  assert.match(client, /pushState\(\{ \.\.\.\(window\.history\.state \|\| \{\}\), henryOpen: true \}/); // voltar minimiza
+  assert.match(client, /root\.style\.overflow = "hidden"/); // sem rolagem por trás
+});
+
+test("celular: ícone acima da barra inferior e cena com safe-area", () => {
+  const view = readFileSync(new URL("../components/henry/HenryVoiceView.jsx", import.meta.url), "utf8");
+  assert.match(view, /max\(env\(safe-area-inset-bottom\), var\(--admin-bottom-nav-space, 0px\)\)/);
+  assert.match(view, /safe-area-inset-top/);
+  assert.match(view, /end - start > 90/); // arrastar para baixo minimiza
+  const route = readFileSync(new URL("../app/api/admin/henry/route.js", import.meta.url), "utf8");
+  assert.match(route, /typeof body\?\.mobileWake === "boolean"/);
+});

@@ -15,15 +15,28 @@ const VISIBLE_TURNS = 4;
 const ICON_SMALL = 56;
 const ICON_BIG = 112;
 
-function useFullscreenOrbSize(active) {
+// Celular: ícone menor (52 → 88 px quando chamado), no canto inferior ESQUERDO logo acima da barra inferior do app (à
+// direita ficam os botões flutuantes das telas); nunca cobre a barra.
+const MOBILE_SMALL = 52;
+const MOBILE_BIG = 88;
+const MOBILE_BOTTOM = "calc(0.75rem + max(env(safe-area-inset-bottom), var(--admin-bottom-nav-space, 0px)))";
+
+function useFullscreenOrbSize(active, mobile) {
   const [size, setSize] = useState(520);
   useEffect(() => {
     if (!active) return undefined;
-    const update = () => setSize(Math.round(Math.max(280, Math.min(window.innerWidth * 0.6, window.innerHeight * 0.72, 720))));
+    const update = () =>
+      setSize(
+        Math.round(
+          mobile
+            ? Math.max(220, Math.min(window.innerWidth * 0.86, window.innerHeight * 0.46))
+            : Math.max(280, Math.min(window.innerWidth * 0.6, window.innerHeight * 0.72, 720))
+        )
+      );
     update();
     window.addEventListener("resize", update);
     return () => window.removeEventListener("resize", update);
-  }, [active]);
+  }, [active, mobile]);
   return size;
 }
 
@@ -50,13 +63,57 @@ export default function HenryVoiceView({
   vision = false,
   capturing = false,
   onToggleVision,
+  mobile = false,
+  tapToTalk = false,
   fixed = true
 }) {
-  const orbSize = useFullscreenOrbSize(expanded);
+  const orbSize = useFullscreenOrbSize(expanded, mobile);
   const inputRef = useRef(null);
+  const touchRef = useRef(null);
   useEffect(() => {
     if (expanded && showKeyboard) inputRef.current?.focus();
   }, [expanded, showKeyboard]);
+
+  if (!expanded && mobile) {
+    // Celular: toque no anel = abre a cena já ouvindo. Mudo só aparece com "Ouvir 'Henry' com o app aberto" (tapToTalk falso).
+    const box = engaged ? MOBILE_BIG : MOBILE_SMALL;
+    return (
+      <div
+        className={`${fixed ? "pointer-events-none fixed left-3 z-[35]" : "relative"} flex items-end gap-2 md:hidden`}
+        style={fixed ? { bottom: MOBILE_BOTTOM } : undefined}
+        data-henry-assistant
+      >
+        <div className="relative transition-[width,height] duration-300 ease-out motion-reduce:transition-none" style={{ width: box, height: box }}>
+          <button
+            type="button"
+            onClick={onExpand}
+            className="pointer-events-auto absolute bottom-0 left-0 flex items-center justify-center overflow-hidden rounded-full shadow-float ring-1 ring-white/10 transition-transform duration-300 ease-out motion-reduce:transition-none"
+            style={{ background: BACKDROP, width: MOBILE_BIG, height: MOBILE_BIG, transform: `scale(${box / MOBILE_BIG})`, transformOrigin: "bottom left" }}
+            aria-label={`Falar com o Henry. ${status}`}
+          >
+            <HenryOrb size={MOBILE_BIG} fibers={18} points={48} alpha={0.45} lineWidth={0.8} getSignal={getSignal} sleep={sleeping && !engaged} />
+            {inConversation ? <ConversationDot /> : null}
+          </button>
+        </div>
+        {!tapToTalk ? (
+          <span className="pointer-events-auto mb-1.5">
+            <RoundButton onClick={onToggleMute} label={micOff ? "Ligar o microfone do Henry" : "Deixar o Henry no mudo"} small>
+              <MicIcon off={micOff} />
+            </RoundButton>
+          </span>
+        ) : null}
+        {engaged && caption ? (
+          <p
+            className="mb-1.5 max-w-[calc(100vw-9rem)] rounded-2xl px-3 py-2 text-[12px] leading-snug shadow-float ring-1 ring-white/10 [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:3] overflow-hidden"
+            style={{ background: BACKDROP, color: ACCENT }}
+            aria-live="polite"
+          >
+            {caption}
+          </p>
+        ) : null}
+      </div>
+    );
+  }
 
   if (!expanded) {
     // Ícone do canto: 56 px parado; chamado/em conversa (engaged) DOBRA para 112 px, crescendo para dentro da tela a partir
@@ -108,8 +165,18 @@ export default function HenryVoiceView({
       onClick={(event) => {
         if (event.target === event.currentTarget) onMinimize?.(); // clique fora (no fundo) minimiza
       }}
+      // Celular: arrastar para baixo (> 90 px) minimiza; o "voltar" do aparelho também (HenryVoiceAssistant).
+      onTouchStart={(event) => {
+        touchRef.current = event.touches[0]?.clientY ?? null;
+      }}
+      onTouchEnd={(event) => {
+        const start = touchRef.current;
+        touchRef.current = null;
+        const end = event.changedTouches[0]?.clientY;
+        if (mobile && start != null && end != null && end - start > 90 && !(event.target instanceof HTMLInputElement)) onMinimize?.();
+      }}
     >
-      <div className="absolute left-8 top-6">
+      <div className="absolute left-5 top-[calc(1rem+env(safe-area-inset-top))] md:left-8 md:top-6">
         <p className="flex items-center gap-2 text-sm font-bold tracking-wide text-white/85">
           Henry
           {inConversation ? (
@@ -123,7 +190,7 @@ export default function HenryVoiceView({
       <button
         type="button"
         onClick={onMinimize}
-        className="absolute right-6 top-5 flex h-9 w-9 items-center justify-center rounded-full text-white/70 transition hover:bg-white/10 hover:text-white"
+        className="absolute right-4 top-[calc(0.75rem+env(safe-area-inset-top))] flex h-11 w-11 items-center justify-center rounded-full text-white/70 transition hover:bg-white/10 hover:text-white md:right-6 md:top-5 md:h-9 md:w-9"
         aria-label="Minimizar o Henry (Esc)"
         title="Minimizar (Esc)"
       >
@@ -132,10 +199,12 @@ export default function HenryVoiceView({
         </svg>
       </button>
 
-      <HenryOrb size={orbSize} fibers={52} points={140} alpha={0.3} lineWidth={0.85} glow getSignal={getSignal} />
+      <div className={mobile ? "-translate-y-[14vh]" : ""}>
+        <HenryOrb size={orbSize} fibers={mobile ? 40 : 52} points={mobile ? 110 : 140} alpha={0.3} lineWidth={0.85} glow getSignal={getSignal} />
+      </div>
 
-      <div className="absolute bottom-6 right-8 flex w-[min(420px,40vw)] flex-col items-end gap-3">
-        <div className="flex w-full flex-col items-end gap-1.5 text-right text-[13px] leading-snug">
+      <div className="absolute inset-x-4 bottom-[calc(1rem+env(safe-area-inset-bottom))] flex flex-col items-end gap-3 md:inset-x-auto md:bottom-6 md:right-8 md:w-[min(420px,40vw)]">
+        <div className="flex max-h-[30vh] w-full flex-col items-end gap-1.5 overflow-y-auto text-right text-[14px] leading-snug md:max-h-none md:overflow-visible md:text-[13px]">
           {recent.length ? (
             recent.map((turn, index) => (
               <p key={`${turns.length - recent.length + index}`} className={turn.role === "user" ? "text-white/80" : ""} style={turn.role === "user" ? undefined : { color: ACCENT }}>
@@ -143,7 +212,9 @@ export default function HenryVoiceView({
               </p>
             ))
           ) : (
-            <p className="text-white/55">Diga “bom dia, Henry” ou “Henry, quantos clientes aguardam resposta?”</p>
+            <p className="text-white/55">
+              {tapToTalk ? "Pode falar: “quantos clientes aguardam resposta?”" : "Diga “bom dia, Henry” ou “Henry, quantos clientes aguardam resposta?”"}
+            </p>
           )}
           {notice ? <p className="font-bold text-amber-200">{notice}</p> : null}
         </div>
@@ -155,7 +226,7 @@ export default function HenryVoiceView({
               onChange={(event) => onTyped?.(event.target.value)}
               maxLength={500}
               placeholder="Digite a pergunta…"
-              className="h-9 flex-1 rounded-full border border-white/15 bg-white/5 px-4 text-sm text-white placeholder:text-white/45 focus:border-white/40 focus:outline-none"
+              className="h-11 flex-1 rounded-full border border-white/15 bg-white/5 px-4 text-base text-white placeholder:text-white/45 focus:border-white/40 focus:outline-none md:h-9 md:text-sm"
             />
             <button type="submit" disabled={busy} className="h-9 rounded-full bg-white/10 px-4 text-sm font-bold text-white hover:bg-white/20 disabled:opacity-50">
               Enviar

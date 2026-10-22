@@ -24,6 +24,7 @@ export default function HenrySettingsCard() {
             allowed: ok,
             enabled: Boolean(data?.enabled),
             vision: data?.vision === true,
+            mobileWake: data?.mobileWake === true,
             serverVoice: Boolean(data?.serverVoice),
             provider: data?.provider || "browser",
             providerLabel: data?.providerLabel || "voz do navegador",
@@ -54,7 +55,7 @@ export default function HenrySettingsCard() {
       });
       const data = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(data?.error || "Não foi possível salvar.");
-      setState((current) => ({ ...current, enabled: data.enabled, vision: data.vision }));
+      setState((current) => ({ ...current, enabled: data.enabled, vision: data.vision, mobileWake: data.mobileWake === true }));
       window.location.reload(); // o ícone do canto lê a configuração ao montar
     } catch (saveError) {
       setError(saveError?.message || "Não foi possível salvar.");
@@ -67,10 +68,10 @@ export default function HenrySettingsCard() {
     <section className="container-page mt-8 rounded-panel border border-line bg-white p-6">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div className="max-w-2xl">
-          <p className="text-base font-black text-navy">Assistente de voz Henry (no computador)</p>
+          <p className="text-base font-black text-navy">Assistente de voz Henry (computador e celular)</p>
           <p className="mt-1 text-sm text-muted">
-            Ícone no canto do painel, só para você. Diga “bom dia, Henry” para o relatório do dia ou “Henry, …” com a pergunta. Só consulta — não envia
-            nem altera nada. Alt+B deixa no mudo. Funciona no Chrome; o navegador pede o microfone uma vez.
+            Ícone no canto do painel, só para você. No computador, diga “bom dia, Henry” para o relatório do dia ou “Henry, …” com a pergunta. No
+            celular, toque no anel e fale. Só consulta — não envia nem altera nada. Alt+B deixa no mudo. O navegador pede o microfone uma vez.
             {state.serverVoice ? "" : " Voz do servidor não configurada: o Henry fala com a voz do navegador."}
           </p>
         </div>
@@ -98,6 +99,23 @@ export default function HenrySettingsCard() {
           className={`rounded-control px-5 py-2.5 text-sm font-bold disabled:opacity-60 ${state.vision ? "border border-line text-navy" : "bg-navy text-white"}`}
         >
           {state.vision ? "Desligar a visão" : "Ligar a visão"}
+        </button>
+      </div>
+      <div className="mt-5 flex flex-wrap items-center justify-between gap-4 border-t border-line pt-5">
+        <div className="max-w-2xl">
+          <p className="text-sm font-black text-navy">Celular: ouvir “Henry” com o app aberto</p>
+          <p className="mt-1 text-sm text-muted">
+            Desligado (recomendado): no celular você toca no anel para falar. Ligado: com o app aberto e na tela, ele fica ouvindo o nome como no
+            computador — gasta mais bateria e alguns celulares param de ouvir sozinhos.
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={() => save("mobileWake")}
+          disabled={Boolean(saving) || !state.enabled}
+          className={`rounded-control px-5 py-2.5 text-sm font-bold disabled:opacity-60 ${state.mobileWake ? "border border-line text-navy" : "bg-navy text-white"}`}
+        >
+          {state.mobileWake ? "Desligar" : "Ligar"}
         </button>
       </div>
       {state.style && state.options ? (

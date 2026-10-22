@@ -117,7 +117,7 @@ export default async function AdminLayout({ children }) {
       {/* Entrada dos blocos por rolagem (visual novo): respeita "reduzir movimento"; o Chat fica de fora. */}
       {auth.ok ? <AdminScrollReveal /> : null}
       {/* Assistente de voz "Henry" (HENRY-1, dono 2026-10-22): só o dono, conta real, fora de "Alterar conta"; a rota
-          /api/admin/henry confere de novo e o componente só aparece no computador (>= 768px). */}
+          /api/admin/henry confere de novo. Computador: escuta contínua; celular (app): tocar no anel para falar. */}
       {auth.ok && !auth.accountSwitchMode && isOwnerAdminEmail(auth.user?.email) ? (
         <HideInFinanceiroApp>
           <HenryVoiceAssistant />

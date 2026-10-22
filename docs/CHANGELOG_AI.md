@@ -338,6 +338,18 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-22 — Henry no celular (app): tocar para falar, cena cheia com safe-area e áudio do iOS (HENRY-1)
+- **Data:** 2026-10-22
+- **Área:** Henry · PWA/layout do celular
+- **Alteração:** o Henry passa a aparecer no celular para o dono (mesmo guard): botão do anel no canto inferior esquerdo acima da barra inferior; tocar abre a cena já ouvindo (áudio e reconhecimento destravados dentro do toque, elemento de áudio único) e entra em modo conversa; a escuta para ao fechar e encerrar a conversa; opção "Celular: ouvir 'Henry' com o app aberto" (desligada por padrão); cena com safe-area, sem rolagem por trás, "voltar" e arrastar para baixo minimizam; câmera frontal na visão. No computador o elemento de áudio também passou a ser único.
+- **Motivo:** pedido do dono ("também gostaria do Henry no celular, no aplicativo").
+- **Arquivos afetados:** `components/henry/HenryVoiceAssistant.jsx`, `HenryVoiceView.jsx`, `HenrySettingsCard.jsx`, `lib/henry-voice-conversation.mjs` (`henryListenMode`, `shouldRunRecognition`, `silentWavDataUri`), `lib/henry-voice.js` e `app/api/admin/henry/route.js` (`mobileWake`), `app/admin/layout.jsx` (comentário), vitrine `app/dev/vitrine/henry`, `tests/henry-voice-conversation.test.mjs`.
+- **Banco:** sem migration (`crm_settings` `henry_voice_assistant.mobileWake`).
+- **Docs:** `BUSINESS_RULES.md` HENRY-1, `.claude/rules/frontend-pwa.md`.
+- **Risco/observação:** testado só na vitrine em 390×844 com sinal simulado; Web Speech no Safari iOS e no Chrome Android reais **A CONFIRMAR** com o dono no aparelho. Sem reconhecimento → campo de texto.
+- **Verificação:** `node --test tests/henry-voice*.test.mjs` (49/49), `pnpm build`, prints da vitrine (celular e computador).
+- **Autor:** Claude Code
+
 ### 2026-10-22 — Henry/ElevenLabs: saldo de caracteres e erros de permissão claros (HENRY-1)
 - **Data:** 2026-10-22
 - **Área:** Henry · ElevenLabs

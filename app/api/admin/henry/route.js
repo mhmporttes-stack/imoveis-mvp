@@ -38,7 +38,7 @@ export async function GET(request) {
   const auth = await requireHenryOwner(request);
   if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status });
   try {
-    const { enabled, vision, style } = await readHenrySettings();
+    const { enabled, vision, mobileWake, style } = await readHenrySettings();
     const provider = henryVoiceProvider();
     // Lista de vozes da ElevenLabs só para o cartão de configurações (?vozes=1); o ícone do canto não precisa dela.
     // Junto, o saldo de caracteres (GET /v1/user/subscription). 401/403 viram frase clara de permissão na tela.
@@ -63,6 +63,7 @@ export async function GET(request) {
     return NextResponse.json({
       enabled,
       vision,
+      mobileWake,
       serverVoice: isHenryVoiceConfigured(),
       provider,
       providerLabel: HENRY_PROVIDER_LABELS[provider],
@@ -89,6 +90,7 @@ export async function PUT(request) {
   const patch = {};
   if (typeof body?.enabled === "boolean") patch.enabled = body.enabled;
   if (typeof body?.vision === "boolean") patch.vision = body.vision;
+  if (typeof body?.mobileWake === "boolean") patch.mobileWake = body.mobileWake;
   if (body?.style !== undefined) {
     const parsed = parseHenryStylePatch(body.style);
     if (!parsed.ok) return NextResponse.json({ error: parsed.error }, { status: 400 });

@@ -6,6 +6,9 @@ import { detectWakeWord, isAllowedHenryPath, isVisualQuestion } from "@/lib/henr
 import {
   ACK_DELAY_MS,
   acceptFollowUp,
+  henryListenMode,
+  shouldRunRecognition,
+  silentWavDataUri,
   conversationHistory,
   detectBargeIn,
   henryCaption as captionFor,
@@ -56,6 +59,10 @@ export default function HenryVoiceAssistant() {
   const [ready, setReady] = useState(false);
   const [enabled, setEnabled] = useState(false);
   const [desktop, setDesktop] = useState(false);
+  const [mobileWake, setMobileWake] = useState(false);
+  const desktopRef = useRef(false);
+  desktopRef.current = desktop;
+  const meterActiveRef = useRef(false);
   const [supported, setSupported] = useState(true);
   const [muted, setMuted] = useState(false);
   const [micState, setMicState] = useState("idle"); // idle | listening | blocked
@@ -124,6 +131,7 @@ export default function HenryVoiceAssistant() {
         visionRef.current = data?.vision === true;
         setVision(data?.vision === true);
         if (Number.isFinite(data?.browserRate)) browserRateRef.current = data.browserRate;
+        setMobileWake(data?.mobileWake === true);
       })
       .catch(() => alive && setEnabled(false))
       .finally(() => alive && setReady(true));
@@ -133,7 +141,14 @@ export default function HenryVoiceAssistant() {
     };
   }, []);
 
-  const active = ready && enabled && desktop;
+  // Computador e celular (dono, 2026-10-22). Celular = tocar para falar, salvo a opção "Ouvir 'Henry' com o app aberto".
+  const active = ready && enabled;
+  const listenMode = henryListenMode({ desktop, mobileWake });
+  const listenModeRef = useRef(listenMode);
+  listenModeRef.current = listenMode;
+  const sessionOpenRef = useRef(false);
+  const startListeningRef = useRef(() => {});
+  const stopListeningRef = useRef(() => {});
 
   // --- Áudio (WebAudio): nível do microfone e da voz para animar o orbe ---------------------------------------------
   const ensureAudioContext = useCallback(() => {
@@ -168,7 +183,7 @@ export default function HenryVoiceAssistant() {
   const getSignal = useCallback(() => {
     const current = phaseRef.current;
     if (current === "speaking") {
-      return { mode: "speaking", level: outAnalyserRef.current ? levelFrom(outAnalyserRef.current, meterBuffer) : 0.45 + Math.sin(Date.now() / 140) * 0.3 };
+      return { mode: "speaking", level: outAnalyserRef.current && meterActiveRef.current ? levelFrom(outAnalyserRef.current, meterBuffer) : 0.45 + Math.sin(Date.now() / 140) * 0.3 };
     }
     if (current === "thinking") return { mode: "thinking", level: 0.1 };
     const hearing = current === "armed" || Date.now() - lastHeardRef.current < 1500;
@@ -300,8 +315,11 @@ export default function HenryVoiceAssistant() {
     cancelAck();
     speechQueueRef.current = { clips: [], playing: false, done: true };
     const audio = audioRef.current;
-    if (audio && !audio.paused) audio.pause();
-    audioRef.current = null;
+    if (audio) {
+      audio.onended = null;
+      audio.onerror = null;
+      if (!audio.paused) audio.pause();
+    }
     if (window.speechSynthesis?.speaking || window.speechSynthesis?.pending) window.speechSynthesis.cancel();
     if (phaseRef.current === "speaking") listenAgain();
   }, [cancelAck, listenAgain]);
@@ -315,6 +333,45 @@ export default function HenryVoiceAssistant() {
     setCapturing(false);
     if (phaseRef.current === "thinking") listenAgain();
   }, [cancelAck, listenAgain]);
+
+  // Elemento de áudio único. No computador passa pelo medidor (WebAudio) para o anel seguir a voz — ligado UMA vez e só
+  // com o contexto rodando (ligado a um contexto suspenso tocaria mudo). No celular não passa (o iOS suspende o contexto
+  // e calaria a voz); o anel usa o pulso simulado.
+  const getAudioElement = useCallback(() => {
+    if (!audioRef.current) {
+      const element = new Audio();
+      element.setAttribute("playsinline", "");
+      element.preload = "auto";
+      audioRef.current = element;
+    }
+    const element = audioRef.current;
+    const context = audioCtxRef.current;
+    if (!element.dataset.metered && desktopRef.current && context && context.state === "running") {
+      const analyser = context.createAnalyser();
+      analyser.fftSize = 1024;
+      context.createMediaElementSource(element).connect(analyser);
+      analyser.connect(context.destination);
+      outAnalyserRef.current = analyser;
+      element.dataset.metered = "1";
+    }
+    return element;
+  }, []);
+
+  // Toque que abre o Henry no celular: destrava o áudio (elemento único + voz do navegador) dentro do gesto.
+  const unlockAudio = useCallback(() => {
+    ensureAudioContext();
+    const element = getAudioElement();
+    if (element.paused && !element.src) {
+      element.src = silentWavDataUri();
+      element.play().catch(() => {});
+    }
+    const synth = window.speechSynthesis;
+    if (synth && !synth.speaking) {
+      const primer = new SpeechSynthesisUtterance(" ");
+      primer.volume = 0;
+      synth.speak(primer);
+    }
+  }, [ensureAudioContext, getAudioElement]);
 
   const playNextRef = useRef(() => {});
   playNextRef.current = () => {
@@ -330,26 +387,16 @@ export default function HenryVoiceAssistant() {
       if (speechQueueRef.current === queue) playNextRef.current();
     };
     if (!clip.audio?.base64) {
-      outAnalyserRef.current = null;
+      meterActiveRef.current = false; // voz do navegador: o anel usa o pulso simulado
       speakBrowser(clip.text, advance);
       return;
     }
-    // Um elemento por parte: só passa pelo medidor (WebAudio) se o contexto já estiver rodando — um elemento ligado a um
-    // contexto suspenso tocaria mudo.
-    const element = new Audio(`data:${clip.audio.contentType || "audio/mpeg"};base64,${clip.audio.base64}`);
-    element.addEventListener("ended", advance);
-    element.addEventListener("error", advance);
-    const context = audioCtxRef.current;
-    if (context && context.state === "running") {
-      const analyser = context.createAnalyser();
-      analyser.fftSize = 1024;
-      context.createMediaElementSource(element).connect(analyser);
-      analyser.connect(context.destination);
-      outAnalyserRef.current = analyser;
-    } else {
-      outAnalyserRef.current = null;
-    }
-    audioRef.current = element;
+    // UM elemento de áudio reaproveitado por todas as partes (o Safari do iOS só deixa tocar o elemento destravado no toque).
+    const element = getAudioElement();
+    meterActiveRef.current = Boolean(element.dataset.metered);
+    element.onended = advance;
+    element.onerror = advance;
+    element.src = `data:${clip.audio.contentType || "audio/mpeg"};base64,${clip.audio.base64}`;
     element.play().catch(() => {
       if (speechQueueRef.current !== queue) return;
       setNotice("Clique ou aperte uma tecla na página para liberar o som do Henry.");
@@ -574,12 +621,23 @@ export default function HenryVoiceAssistant() {
     recognition.lang = "pt-BR";
     recognition.continuous = true;
     recognition.interimResults = true;
+    // Celular (tocar para falar): só roda com a cena aberta ou em conversa; computador ou "ouvir com o app aberto": sempre.
+    const wantsRun = () => shouldRunRecognition({ mode: listenModeRef.current, sessionOpen: sessionOpenRef.current });
     const startSafe = () => {
-      if (stopped || !shouldListenRef.current) return;
+      if (stopped || !shouldListenRef.current || !wantsRun()) return;
       try {
         recognition.start();
       } catch {
         // já está rodando
+      }
+    };
+    startListeningRef.current = startSafe; // o toque no ícone chama isto DENTRO do gesto (o iOS exige)
+    stopListeningRef.current = () => {
+      window.clearTimeout(restartTimer);
+      try {
+        recognition.stop();
+      } catch {
+        // já parado
       }
     };
     recognition.onstart = () => {
@@ -609,6 +667,10 @@ export default function HenryVoiceAssistant() {
     };
     recognition.onend = () => {
       if (stopped || !shouldListenRef.current) return;
+      if (!wantsRun()) {
+        setMicState("idle");
+        return;
+      }
       if (startedAt && Date.now() - startedAt < 2000) failures += 1; // caiu logo depois de ligar
       window.clearTimeout(restartTimer);
       restartTimer = window.setTimeout(startSafe, nextRestartDelay(failures));
@@ -622,7 +684,8 @@ export default function HenryVoiceAssistant() {
     document.addEventListener("visibilitychange", onVisible);
     recognitionRef.current = recognition;
     startSafe();
-    startMicMeter();
+    // Medidor do microfone só no computador (no celular, abrir o microfone duas vezes atrapalha o reconhecimento).
+    if (desktopRef.current) startMicMeter();
     return () => {
       stopped = true;
       window.clearTimeout(restartTimer);
@@ -630,7 +693,48 @@ export default function HenryVoiceAssistant() {
       recognition.onend = null;
       recognition.abort();
     };
-  }, [active, supported, muted, handleFinal, markActivity, startMicMeter, stopMicMeter, currentSpeech, interrupt]);
+  }, [active, supported, muted, listenMode, handleFinal, markActivity, startMicMeter, stopMicMeter, currentSpeech, interrupt]);
+
+  // Celular: abrir a cena ou estar em conversa mantém a escuta; fechou e a conversa acabou → para de ouvir (bateria).
+  useEffect(() => {
+    sessionOpenRef.current = expanded || inConversation;
+    if (listenMode !== "tap") return;
+    if (sessionOpenRef.current) startListeningRef.current?.();
+    else stopListeningRef.current?.();
+  }, [expanded, inConversation, listenMode]);
+
+  // Cena aberta: sem rolagem da página por trás e o botão/gesto "voltar" minimiza (entrada própria no histórico, com o
+  // estado do Next preservado para o App Router não recarregar).
+  useEffect(() => {
+    if (!expanded) return undefined;
+    const root = document.documentElement;
+    const previous = root.style.overflow;
+    root.style.overflow = "hidden";
+    document.body.style.overflow = "hidden";
+    if (!window.history.state?.henryOpen) window.history.pushState({ ...(window.history.state || {}), henryOpen: true }, "");
+    const onPop = () => {
+      if (!window.history.state?.henryOpen) setExpanded(false);
+    };
+    window.addEventListener("popstate", onPop);
+    return () => {
+      window.removeEventListener("popstate", onPop);
+      root.style.overflow = previous;
+      document.body.style.overflow = "";
+      if (window.history.state?.henryOpen) window.history.back();
+    };
+  }, [expanded]);
+
+  // Toque no ícone. Computador: abre a cena. Celular: abre a cena JÁ OUVINDO — destrava o áudio e liga o reconhecimento
+  // dentro do próprio toque (exigência do iOS), entra em conversa com o som de início.
+  const openScene = useCallback(() => {
+    setExpanded(true);
+    if (listenModeRef.current !== "tap") return;
+    unlockAudio();
+    sessionOpenRef.current = true;
+    startListeningRef.current?.();
+    startConversation({ sound: true });
+    listenAgain();
+  }, [listenAgain, startConversation, unlockAudio]);
 
   const toggleMute = useCallback(() => {
     setMuted((current) => {
@@ -683,7 +787,9 @@ export default function HenryVoiceAssistant() {
                 : "Pode falar…"
               : micState === "listening"
                 ? "Ouvindo — diga “Henry”"
-                : "Ligando o microfone…";
+                : listenMode === "tap"
+                  ? "Toque no anel para falar"
+                  : "Ligando o microfone…";
   const submitTyped = (event) => {
     event.preventDefault();
     const text = typed.trim();
@@ -697,8 +803,10 @@ export default function HenryVoiceAssistant() {
   return (
     <HenryVoiceView
       expanded={expanded}
-      onExpand={() => setExpanded(true)}
+      onExpand={openScene}
       onMinimize={() => setExpanded(false)}
+      mobile={!desktop}
+      tapToTalk={listenMode === "tap"}
       status={status}
       engaged={inConversation || phase !== "idle"}
       inConversation={inConversation}

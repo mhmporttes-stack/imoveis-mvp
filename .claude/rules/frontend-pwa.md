@@ -39,6 +39,8 @@ Academia (`/academia`): fonte Fraunces e a metáfora do prédio com guindaste ap
 
 Pré-carregamento do painel (dono, 2026-10-22: "Carregue primeiro a aba Clientes e depois vá carregando tudo"): `components/AdminWarmup.jsx` + plano puro `components/admin-warmup-plan.mjs` (Clientes → barra/cabeçalho → menu inteiro do perfil; celular e computador). Tela que grava ou chama serviço externo ao abrir entra em `ROUTE_ONLY_PATHS` (só rota) — a Meta Diária nunca é montada (MD-16). Tela nova com dados buscados no cliente pode usar o cache por conta (`readViewerData`/`saveViewerData`, nome em `components/panel-cache-names.js`) e um aquecedor em `DATA_WARMERS`. Detalhe: `docs/pwa-admin.md`.
 
+Henry no app (dono, 2026-10-22, só o dono): botão do anel no canto inferior ESQUERDO, logo acima da barra inferior (`bottom: max(safe-area, --admin-bottom-nav-space)`, `z-[35]`) — não o mova para cima da barra nem para a direita (botões flutuantes das telas). Cena cheia com safe-area, sem rolagem por trás, "voltar" e arrastar para baixo minimizam. Detalhe: `docs/BUSINESS_RULES.md` HENRY-1.
+
 ## Não confundir
 
 - `properties` (imóveis/empreendimentos, conteúdo) com `empreendimentos` (regras comerciais de cálculo de entrada em JSON, mesmo ID do produto).
