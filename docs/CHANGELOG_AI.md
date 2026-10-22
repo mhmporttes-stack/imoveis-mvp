@@ -324,6 +324,14 @@ Copie o modelo abaixo (uma entrada por bloco):
 - **Verificação:** `node --test tests/alexa-bom-dia.test.mjs` (15/15) + suíte Alexa/Início; suíte completa sem falha nova (falhas pré-existentes iguais às do HEAD); `pnpm build`. Sem fala real nem gravação em produção.
 - **Autor:** Claude Code
 
+### 2026-10-22 — Aviso da mensagem interna do Chat do Marketplace (MKT-2i, exceção à AUT-9)
+- **Data:** 2026-10-22
+- **Área:** Chat Marketplace / Notificações / Banco
+- **Alteração:** cada mensagem interna do Marketplace avisa (sino + push) admin geral, corretor responsável/atribuído e gestora da equipe; nunca o autor, associado, inativo nem cliente; 1 aviso por mensagem; tocar abre a conversa (`/admin/chat/marketplace?conversa=<id>`). Tipo novo `marketplace_internal` na política (`lib/notification-policy-core.mjs`, fora de `ALERT_PUSH_KINDS`) e no gatilho do banco; coluna nova `crm_notifications.link`, que o sino usa (`notificationPanelLink`; leitura com `select("*")` para não quebrar antes da migration).
+- **Motivo:** REGRA OFICIAL do dono (2026-10-22), opção B: avisar a equipe; só o Marketplace — a nota interna do WhatsApp continua como está.
+- **Arquivos afetados:** `lib/marketplace-chat.js` (`notifyMarketplaceInternalNote`), `lib/marketplace-chat-core.mjs` (`resolveMarketplaceInternalRecipients`, `buildMarketplaceInternalNotice`, `marketplaceConversationLink`), `lib/notification-policy-core.mjs`, `lib/crm-alerts.js`, `lib/crm-alerts-core.mjs`, `app/admin/chat/marketplace/page.jsx`, `components/marketplace/MarketplaceChat.jsx`, migration `supabase/migrations/20261022231000_crm_notifications_marketplace_internal.sql` (**não aplicada**: sem ela o push sai e o sino não grava, com erro no log), testes `tests/marketplace-internal-notice.test.mjs` (novo), `tests/notification-policy.test.mjs`, `tests/marketplace-internal-note.test.mjs`; docs `BUSINESS_RULES.md` (MKT-2i e AUT-9), `SYSTEM_ARCHITECTURE.md` §12 D-11, rule `roleta-prospeccao-campanhas.md`.
+- **Risco/observação:** divergência encontrada (D-11): WA-4b/`WHATSAPP.md` dizem que a nota interna do WhatsApp avisa por sino/push, mas a AUT-9 bloqueia as duas entregas; não mexida por decisão do dono.
+- **Autor:** crm-editor (Claude)
 ### 2026-10-22 — Desempenho: cenas de entrada no funil, no histórico e nos cards da Visão geral
 - **Data:** 2026-10-22
 - **Área:** Desempenho (só apresentação) · cenas do visual novo

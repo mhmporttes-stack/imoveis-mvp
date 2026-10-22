@@ -155,11 +155,15 @@ function ShortcutPicker({ query, shortcuts, onPick, onManage }) {
   );
 }
 
-export default function MarketplaceChat({ canEditSettings = false, canAssign = false, canManageShortcuts = false, viewerName = "", team = [], viewerKey = "" }) {
+export default function MarketplaceChat({ canEditSettings = false, canAssign = false, canManageShortcuts = false, viewerName = "", team = [], viewerKey = "", initialConversationId = "" }) {
   const [list, setList] = useState(() => readViewerData(viewerKey, `${MARKETPLACE_LIST_CACHE_PREFIX}${listQuery("all", "")}`)?.data || { ready: true, conversations: [], filters: [] });
   const [view, setView] = useState("all");
   const [brokerId, setBrokerId] = useState("");
-  const [selectedId, setSelectedId] = useState("");
+  const [selectedId, setSelectedId] = useState(initialConversationId || "");
+  // Aviso da mensagem interna (sino/push, MKT-2i) com o painel já aberto nesta tela: a URL muda e a conversa abre.
+  useEffect(() => {
+    if (initialConversationId) setSelectedId(initialConversationId);
+  }, [initialConversationId]);
   const [thread, setThread] = useState(null);
   const [text, setText] = useState("");
   const [error, setError] = useState("");

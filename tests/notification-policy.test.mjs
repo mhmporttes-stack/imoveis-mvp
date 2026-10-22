@@ -11,8 +11,8 @@ test("só cliente novo, atividade agendada, transferência de clientes e teste s
   // official_chat_assigned: exceção do dono (2026-10-18, PRES-25) — conversa do oficial atribuída pelo código do atendimento.
   // documents_list_auto: exceção do dono (2026-10-20) — lista de documentos pedida no oficial (enviada sozinha ou pendente).
   // marketplace_extension_silent: exceção do dono (2026-10-22, MKT-2g) — extensão do Marketplace sem sinal, push aos admins.
-  assert.deepEqual([...ALLOWED_NOTIFICATION_KINDS].sort(), ["clients_transferred", "documents_list_auto", "marketplace_extension_silent", "new_client", "official_chat_assigned", "scheduled_activity", "test", "whatsapp_connection"]);
-  for (const kind of ["new_client", "scheduled_activity", "clients_transferred", "test", "whatsapp_connection", "official_chat_assigned", "documents_list_auto", "marketplace_extension_silent"]) assert.equal(isNotificationAllowed(kind), true, kind);
+  assert.deepEqual([...ALLOWED_NOTIFICATION_KINDS].sort(), ["clients_transferred", "documents_list_auto", "marketplace_extension_silent", "marketplace_internal", "new_client", "official_chat_assigned", "scheduled_activity", "test", "whatsapp_connection"]);
+  for (const kind of ["new_client", "scheduled_activity", "clients_transferred", "test", "whatsapp_connection", "official_chat_assigned", "documents_list_auto", "marketplace_extension_silent", "marketplace_internal"]) assert.equal(isNotificationAllowed(kind), true, kind);
   for (const kind of ["chat_message", "chat_internal", "document_analysis", "automation", "prospecting_reply", "alert", "", undefined, null]) assert.equal(isNotificationAllowed(kind), false, String(kind));
 });
 
@@ -74,4 +74,7 @@ test("sino: avisos de cliente novo usam o tipo permitido; Roleta parou/Documenta
   assert.ok(exception.includes("set search_path = public, extensions"));
   const listAuto = read("supabase/migrations/20261020240000_crm_notifications_documents_list_auto.sql");
   assert.ok(listAuto.includes("('new_client', 'scheduled_activity', 'clients_transferred', 'official_chat_assigned', 'documents_list_auto')"));
+  // marketplace_internal: exceção do dono (2026-10-22, MKT-2i) — nota interna do Chat do Marketplace. chat_internal (WhatsApp) segue fora.
+  const mktInternal = read("supabase/migrations/20261022231000_crm_notifications_marketplace_internal.sql");
+  assert.ok(mktInternal.includes("('new_client', 'scheduled_activity', 'clients_transferred', 'official_chat_assigned', 'documents_list_auto', 'marketplace_internal')"));
 });

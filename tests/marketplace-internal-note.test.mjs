@@ -41,7 +41,10 @@ test("nota interna não vai para a fila da extensão nem conta no limite por hor
 });
 
 test("nota interna não conta como contato, atendimento, resposta nem mexe na conversa", () => {
-  const save = fnBody("saveMarketplaceInternalNote");
+  // Só o corpo da gravação: o aviso à equipe (sino/push, dono 2026-10-22) mora em notifyMarketplaceInternalNote,
+  // testado em tests/marketplace-internal-notice.test.mjs.
+  const save = fnBody("saveMarketplaceInternalNote").split("\n// Aviso da nota interna")[0];
+  assert.ok(save.includes("notifyMarketplaceInternalNote(conversation, data.id, auth)"));
   for (const forbidden of ["markClientOnHumanMessage", "last_human_reply_at", "last_message_at", "updateConversation", "unread_count", "assigned_user_id:", "crm_notifications", "status: \"queued\""]) {
     assert.equal(save.includes(forbidden), false, `não usa ${forbidden}`);
   }
