@@ -44,6 +44,15 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 
 
+### 2026-10-22 — "Clientes frios" e Imóveis em blocos com foto
+- **Data:** 2026-10-22
+- **Área:** Frontend/Painel
+- **Alteração:** (1) rótulos visíveis "Clientes esfriados"/"Clientes que esfriaram" passam a "Clientes frios" (menu, caixinha da decisora, título da tela); rota, código e regra FUN-15 iguais. (2) Lista de Imóveis do painel (`AdminPropertyList`) volta a blocos em grade (2–4 colunas) com foto em cima, situação, código e valor sobre a foto; mesmos botões (Abrir, Editar, Regras de entrada, Aprovar/Reprovar, Excluir).
+- **Motivo:** pedido do dono ("mude a escrita para clientes frios"; "antes estava em blocos, mais interessante").
+- **Arquivos afetados:** `components/AdminMenu.jsx`, `components/cooled/CooledClientsInbox.jsx`, `app/admin/desempenho/esfriados/page.jsx`, `components/AdminTopBar.jsx`, `components/AdminPropertyList.jsx`
+- **Risco/observação:** só apresentação. Subtítulo da tela ajustado para "Mais de 3 dias sem contato e sem atividade futura" (FUN-15).
+- **Autor:** Claude Code
+
 ### 2026-10-22 — Painel: botão "Expandir para a tela toda" / "Largura padrão"
 - **Data:** 2026-10-22
 - **Área:** Frontend/Painel

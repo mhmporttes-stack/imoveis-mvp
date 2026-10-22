@@ -76,8 +76,8 @@ export default function CooledClientsInbox({ align = "end", variant = "compact" 
       <button
         type="button"
         onClick={() => { setOpen((value) => !value); setNotice(""); }}
-        title="Clientes que esfriaram"
-        aria-label={`Clientes que esfriaram (${items.length} para decidir)`}
+        title="Clientes frios"
+        aria-label={`Clientes frios (${items.length} para decidir)`}
         aria-expanded={open}
         className={ui.button}
       >
@@ -89,11 +89,11 @@ export default function CooledClientsInbox({ align = "end", variant = "compact" 
         <div
           ref={panelRef}
           role="dialog"
-          aria-label="Clientes que esfriaram"
+          aria-label="Clientes frios"
           className={cx("absolute top-full z-40 mt-1.5 w-[min(94vw,24rem)] overflow-hidden rounded-2xl border border-line bg-white text-left shadow-float", align === "end" ? "right-0" : "left-0")}
         >
           <div className="flex items-center justify-between border-b border-line px-3 py-2">
-            <span className="text-sm font-extrabold text-navy">Clientes que esfriaram</span>
+            <span className="text-sm font-extrabold text-navy">Clientes frios</span>
             <span className="text-[11px] font-semibold text-muted">{items.length} para decidir</span>
           </div>
           {notice ? <p role="status" className="border-b border-line bg-mist px-3 py-2 text-xs font-semibold text-navy">{notice}</p> : null}

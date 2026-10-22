@@ -43,7 +43,7 @@ const SUBTITLES = {
   prospecting: "Base da imobiliária e reativação",
   "caixa-simulator": "Simulação rápida das condições da Caixa",
   financial: "Comissões, recebimentos e despesas",
-  "cooled-clients": "Clientes com mais de 3 dias sem contato",
+  "cooled-clients": "Mais de 3 dias sem contato e sem atividade futura",
   manual: "Como usar cada tela",
   "campaign-links": "Links de campanha e de onde vêm os clientes",
   "attendance-guide": "Roteiros de atendimento da equipe",

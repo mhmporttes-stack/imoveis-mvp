@@ -65,7 +65,7 @@ export default async function CooledClientsHistoryPage({ searchParams }) {
       <AdminSectionNav active="cooled-clients" />
       <div className="container-page space-y-6">
         <header className="space-y-2">
-          <h1 className="sr-only">Clientes que esfriaram</h1>
+          <h1 className="sr-only">Clientes frios</h1>
           <p className="max-w-2xl text-sm text-muted">
             Clientes com mais de 3 dias sem contato e sem atividade agendada: o motivo escrito pelo corretor e a decisão da gestão.
           </p>
