@@ -1,15 +1,19 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { AlertTriangle, Cake, CalendarClock, CalendarDays, CheckCircle2, ChevronLeft, ChevronRight, Clock, MessageCircle, Plus, UserRound, X } from "lucide-react";
 import { toWhatsAppDigits } from "@/lib/phone-utils";
 import { ConfirmReceiptModal, RescheduleReceiptModal } from "@/components/ReceiptActionModals";
 import { tabClasses } from "@/components/ui/Tabs";
+import { readViewerData, saveViewerData } from "@/components/chat-view-cache";
+import { CALENDAR_CACHE_PREFIX, calendarMonthQuery } from "@/components/panel-cache-names";
 
 const WEEK_DAYS = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
 
-export default function ActivityCalendar({ pendingOnly = false }) {
+// viewerKey (conta real + efetiva): o mês já visto/pré-carregado (AdminWarmup) aparece na hora e atualiza em seguida
+// (components/chat-view-cache.js — só memória, limpa ao sair e em "Alterar conta"). Lista de pendentes não usa cache.
+export default function ActivityCalendar({ pendingOnly = false, viewerKey = "" }) {
   const today = useMemo(() => new Date(), []);
   const [visibleMonth, setVisibleMonth] = useState(new Date(today.getFullYear(), today.getMonth(), 1));
   const [selectedDate, setSelectedDate] = useState(toDateKey(today));
@@ -36,20 +40,32 @@ export default function ActivityCalendar({ pendingOnly = false }) {
   const [scope, setScope] = useState(pendingOnly ? "own" : "team");
   const [canViewTeam, setCanViewTeam] = useState(false);
 
+  const lastReloadKey = useRef(reloadKey);
   useEffect(() => {
     let ignore = false;
     async function loadActivities() {
-      setLoading(true);
+      const scopeParam = scope === "team" ? "&scope=team" : "";
+      const monthQuery = pendingOnly ? "" : calendarMonthQuery(visibleMonth, scope);
+      const cacheName = monthQuery ? `${CALENDAR_CACHE_PREFIX}${monthQuery}` : "";
+      // Depois de uma alteração (reloadKey) não mostra a versão guardada, que pode estar desatualizada.
+      const reloading = lastReloadKey.current !== reloadKey;
+      lastReloadKey.current = reloadKey;
+      const cached = cacheName && !reloading ? readViewerData(viewerKey, cacheName) : null;
+      if (cached) {
+        setActivities(cached.activities || []);
+        setClients(cached.clients || []);
+        setUsers(cached.users || []);
+        setCanViewTeam(Boolean(cached.canViewTeam));
+      }
+      setLoading(!cached);
       setError("");
       try {
-        const start = new Date(visibleMonth.getFullYear(), visibleMonth.getMonth(), 1, 0, 0, 0);
-        const end = new Date(visibleMonth.getFullYear(), visibleMonth.getMonth() + 1, 0, 23, 59, 59);
-        const scopeParam = scope === "team" ? "&scope=team" : "";
-        const response = await fetch(pendingOnly ? `/api/calendar-activities?pending=1${scopeParam}` : `/api/calendar-activities?from=${encodeURIComponent(start.toISOString())}&to=${encodeURIComponent(end.toISOString())}${scopeParam}`, {
+        const response = await fetch(pendingOnly ? `/api/calendar-activities?pending=1${scopeParam}` : `/api/calendar-activities?${monthQuery}`, {
           cache: "no-store"
         });
         const payload = await response.json();
         if (!response.ok) throw new Error(payload?.error || "Não foi possível carregar o calendário.");
+        if (cacheName) saveViewerData(viewerKey, cacheName, payload);
         if (!ignore) {
           setActivities(payload.activities || []);
           setClients(payload.clients || []);
@@ -67,6 +83,7 @@ export default function ActivityCalendar({ pendingOnly = false }) {
     return () => {
       ignore = true;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visibleMonth, pendingOnly, reloadKey, scope]);
 
   const activitiesByDate = useMemo(() => {

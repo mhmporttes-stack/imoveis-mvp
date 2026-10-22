@@ -118,7 +118,8 @@ export default async function AdminLayout({ children }) {
       {/* Indicador "carregando" da transição de cena (SceneSkipCatcher) removido a pedido do dono (2026-10-12): ficava
           girando parado sobre a Meta Diária. A tela de baixo já fica interativa; nada mais depende dele. */}
       {/* Navegação principal no celular (< md); do tablet para cima é o menu lateral (AdminMenu). Mesmos flags de perfil. */}
-      {auth.ok ? <AdminWarmup {...warmupTargets(auth, whatsappBlocked, chatHidden)} /> : null}
+      {/* Pré-carrega Clientes, a barra, o cabeçalho e depois todo o menu do perfil (celular e computador, 2026-10-22). */}
+      {auth.ok ? <AdminWarmup {...warmupTargets(auth, whatsappBlocked, chatHidden)} nav={navFlags(auth, whatsappBlocked, chatHidden)} /> : null}
       {auth.ok ? (
         <AdminBottomNav {...navFlags(auth, whatsappBlocked, chatHidden)} />
       ) : null}

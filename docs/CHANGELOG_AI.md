@@ -44,6 +44,15 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 
 
+### 2026-10-22 — Painel pré-carrega Clientes, a barra e todo o menu (celular e computador)
+- **Data:** 2026-10-22
+- **Área:** Infra/PWA (navegação do painel)
+- **Alteração:** `components/AdminWarmup.jsx` passou de "tudo de uma vez, só no celular, uma vez por sessão" para uma fila em segundo plano, um item por vez quando o navegador está ocioso: (1) Clientes (rota + 1ª página da lista padrão); (2) barra inferior do perfil + atalhos do cabeçalho (Chat, Marketplace, Agenda) com os dados que já têm cache (Chat, Marketplace, Desempenho, e agora Agenda); (3) todos os itens do menu do perfil (`getAdminMenuGroups`), na ordem do menu. Vale no celular e no computador. Plano puro em `components/admin-warmup-plan.mjs`. Agenda (`ActivityCalendar`) ganhou cache por conta (mês já visto aparece na hora e atualiza). Só rota, sem montar a tela: Meta Diária (MD-16), Anúncios (abrir chama a Meta e grava miniaturas), Início (números do mês pesados) e Alexa.
+- **Motivo:** dono, 2026-10-22: "Todos os botões do aplicativo devem já ser pré-carregados. Carregue primeiro a aba Clientes..." e "no desktop, quero que TODAS as opções estejam pré-carregadas".
+- **Arquivos afetados:** `components/AdminWarmup.jsx`, `components/admin-warmup-plan.mjs`, `components/panel-cache-names.js`, `components/ActivityCalendar.jsx`, `app/admin/calendario/page.jsx`, `app/admin/layout.jsx` (só passa `nav` ao AdminWarmup), `tests/admin-warmup-plan.test.mjs`, `docs/pwa-admin.md`, `.claude/rules/frontend-pwa.md`. MD-16 continua valendo sem mudança (a Meta nunca é montada; trava no teste).
+- **Risco/observação:** nenhuma consulta nova: o pré-carregamento faz o mesmo que abrir a tela (só leitura; telas com efeito ao abrir ficam só com a rota). Carga extra: barra refeita no máx. a cada 5 min e menu a cada 30 min, e só com o app em uso (volta ao app/troca de tela, nunca por relógio); dados de tela só se ainda não estão na memória. Economia de dados/2G: só as rotas da barra, sem dados e sem menu. Cache por conta real+efetiva, limpo ao sair e em "Alterar conta" (as marcas de "já aqueceu" também). Sem login no ambiente do agente: ganho não medido de ponta a ponta (A CONFIRMAR no aparelho do dono). Pendências do "Mais" com filtro (`?needsFirstContact=1` etc.) não são pré-carregadas (montam lista filtrada no servidor).
+- **Autor:** Claude Code (crm-editor)
+
 ### 2026-10-22 — Chat Marketplace com as mesmas cenas do Chat do WhatsApp
 - **Data:** 2026-10-22
 - **Área:** Chat Marketplace (apresentação)

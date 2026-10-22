@@ -33,6 +33,21 @@ Somente recursos estáticos seguros são armazenados, como:
 - arquivos estáticos do Next.js;
 - página offline sem dados privados.
 
+## Pré-carregamento do painel (AdminWarmup)
+
+Dono, 2026-10-22: botões do app prontos antes do toque, Clientes primeiro. `components/AdminWarmup.jsx` (montado em `app/admin/layout.jsx`) roda no celular e no computador, 2 s depois que o painel abre, um item por vez com o navegador ocioso e o app visível:
+
+1. **Clientes** — rota inteira (`router.prefetch(href, { kind: "full" })`) + 1ª página da lista padrão (`/api/simulation-registrations/list?page=1&pageSize=20`).
+2. **Barra inferior do perfil** (`warmupTargets` no layout) **+ atalhos do cabeçalho** (Chat, Chat Marketplace, Agenda), com os dados que as telas já guardam por conta: lista do Chat (`?warm=1`, sem recibo/lida), lista do Marketplace, números do Desempenho (admin geral) e mês atual da Agenda.
+3. **Todos os itens do menu do perfil** (`getAdminMenuGroups` — o mesmo do menu lateral e do "Mais"), na ordem do menu, 1,2 s entre um e outro.
+
+Regras (`components/admin-warmup-plan.mjs`, teste `tests/admin-warmup-plan.test.mjs`):
+- Só rota (sem montar a tela no servidor): Meta Diária (MD-16), Anúncios (abrir chama a Meta e grava miniaturas), Início e Alexa.
+- Janela: barra/cabeçalho refeitos no máximo a cada 5 min (validade da tela pré-carregada no Next) e menu a cada 30 min — só quando a pessoa volta ao app ou troca de tela, nunca por relógio. Dados só se ainda não estão na memória (a tela atualiza ao abrir de qualquer jeito).
+- Economia de dados / 2G: só as rotas da barra e do cabeçalho, sem montar tela, sem dados e sem menu.
+- Memória por conta real + efetiva (`components/chat-view-cache.js`), só na memória da aba; sair e "Alterar conta" limpam tudo (inclusive as marcas de "já aqueceu", `sessionStorage` `mm-warmup:v2:*`) e chamam `router.refresh()`, que descarta as telas guardadas pelo Next.
+- Nenhuma consulta nova no servidor: pré-carregar uma tela é o mesmo que abri-la (só leitura).
+
 ## Login Persistente
 
 O login administrativo continua usando Supabase Auth.
