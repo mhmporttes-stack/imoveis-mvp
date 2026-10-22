@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRevalidateOnReuse } from "@/components/useRevalidateOnReuse";
 import { Check, MessageCircle, Pencil } from "lucide-react";
 import RevealCard from "@/components/motion/RevealCard";
-import DailyGoalRing from "@/components/DailyGoalRing";
+import MetaRing from "@/components/scenes/MetaRing";
 import { StaggerContainer, StaggerItem } from "@/components/motion/StaggerReveal";
 import DailyGoalAutoPanel from "@/components/DailyGoalAutoPanel";
 import DailyGoalCompensationNotice from "@/components/DailyGoalCompensationNotice";
@@ -88,7 +88,7 @@ export default function DailyGoalDashboard({ initialGoal, variant = "full", rend
       <RevealCard className="rounded-[28px] border border-navy/10 bg-white p-6 shadow-soft md:p-8">
         {isCard ? <h2 className="mb-4 text-center text-sm font-black uppercase tracking-[0.14em] text-navy">Minha Meta Diária</h2> : null}
         <div className="flex flex-col items-center gap-3">
-          <DailyGoalRing percent={goal.percent} name={brokerName} photoUrl={brokerPhotoUrl} />
+          <MetaRing percent={goal.percent} name={brokerName} photoUrl={brokerPhotoUrl} />
           <ul className="w-full max-w-xs space-y-1.5">
             <GoalLine
               label="Prospecção"

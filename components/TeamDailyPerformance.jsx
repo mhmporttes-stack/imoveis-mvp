@@ -20,6 +20,7 @@ import SupervisionChatDock, { SupervisionChatButton, useSupervisionInbox } from 
 // Compensação da janela por restrição VALIDADA (PRO-14): mesmo componente/texto da tela do corretor.
 import DailyGoalCompensationNotice from "@/components/DailyGoalCompensationNotice";
 import Kpi from "@/components/ui/Kpi";
+import MetaRing from "@/components/scenes/MetaRing";
 
 const PERIODS = [
   { value: "today", label: "Hoje" },
@@ -27,16 +28,6 @@ const PERIODS = [
   { value: "last7", label: "7 dias" },
   { value: "last30", label: "30 dias" }
 ];
-
-const RADIUS = 40;
-const CIRCUMFERENCE = 2 * Math.PI * RADIUS;
-
-function progressColor(percent) {
-  if (percent >= 100) return { stroke: "#059669", text: "text-emerald-600" };
-  // Visual novo (2026-10-22): sem laranja de destaque — meio do caminho no âmbar/dourado do tema.
-  if (percent >= 50) return { stroke: "#C98616", text: "text-warning" };
-  return { stroke: "#dc2626", text: "text-red-600" };
-}
 
 // Painel gerencial exclusivo do administrador principal — visão consolidada
 // da equipe na Meta Diária. Reaproveita a mesma rota /admin/meta-diaria; o
@@ -118,10 +109,11 @@ export default function TeamDailyPerformance({ initialOverview, initialError = "
           <TeamSummary summary={overview.summary} />
 
           <div className="grid gap-x-4 gap-y-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            {overview.brokers.map((broker) => (
+            {overview.brokers.map((broker, index) => (
               <BrokerCard
                 key={broker.brokerId}
                 broker={broker}
+                index={index}
                 presenceStatus={presenceById[broker.brokerId]}
                 automation={automationById[broker.brokerId]}
                 restriction={restrictionById[broker.brokerId]}
@@ -311,9 +303,8 @@ function formatNextDispatchCompact(automation) {
   return new Intl.DateTimeFormat("pt-BR", { timeZone: "America/Sao_Paulo", hour: "2-digit", minute: "2-digit" }).format(new Date(scheduled));
 }
 
-function BrokerCard({ broker, presenceStatus, automation, restriction, onRestrictionChanged, onClick, onRequeued, onAccessChanged, readOnly = false, chatUnread = 0, onOpenChat }) {
+function BrokerCard({ broker, index = 0, presenceStatus, automation, restriction, onRestrictionChanged, onClick, onRequeued, onAccessChanged, readOnly = false, chatUnread = 0, onOpenChat }) {
   const [requeuing, setRequeuing] = useState(false);
-  const colors = progressColor(broker.meta.percent);
   const sessionInfo = automation ? (AUTOMATION_SESSION_LABELS[automation.sessionStatus] || AUTOMATION_SESSION_LABELS.nunca_conectou) : null;
   const googleInfo = automation ? (GOOGLE_CONTACTS_STATUS_LABELS[automation.googleContactsStatus] || GOOGLE_CONTACTS_STATUS_LABELS.disconnected) : null;
   // "Rodando" só quando dá pra enviar de verdade (WhatsApp individual
@@ -373,8 +364,8 @@ function BrokerCard({ broker, presenceStatus, automation, restriction, onRestric
       className="row-span-2 grid cursor-pointer grid-rows-subgrid gap-0 rounded-panel border border-line bg-white p-5 text-left transition hover:-translate-y-0.5 hover:border-brand/40"
     >
       <div className="min-w-0">
+      {/* A foto do corretor fica no anel da meta (abaixo); repetir o avatar aqui só duplicava o rosto. */}
       <div className="flex items-center gap-3">
-        <Avatar name={broker.name} photoUrl={broker.photoUrl} size={44} />
         <h3 className="flex min-w-0 flex-1 items-center gap-2 text-base font-black text-navy">
           <span
             aria-hidden="true"
@@ -419,22 +410,19 @@ function BrokerCard({ broker, presenceStatus, automation, restriction, onRestric
       </div>
 
       <div className="min-w-0">
+      {/* Mesma cena do anel do corretor (pedido do dono, 2026-10-22): foto, anel azul subindo até 100% com a faísca,
+          pulinho no "100%" e volta ao percentual real. O número é o MESMO broker.meta.percent de antes (nenhum cálculo novo);
+          a cena começa quando o card entra na tela, levemente escalonada entre os cards. */}
       <div className="mt-4 flex items-center justify-center">
-        <div className="relative h-24 w-24 motion-reduce:[&_circle]:!transition-none">
-          <svg viewBox="0 0 100 100" className="h-full w-full -rotate-90">
-            <circle cx="50" cy="50" r={RADIUS} fill="none" stroke="#E5EAF1" strokeWidth="8" />
-            <circle
-              cx="50" cy="50" r={RADIUS} fill="none"
-              stroke={colors.stroke} strokeWidth="8" strokeLinecap="round"
-              strokeDasharray={CIRCUMFERENCE}
-              strokeDashoffset={CIRCUMFERENCE * (1 - Math.min(100, broker.meta.percent) / 100)}
-              style={{ transition: "stroke-dashoffset 0.7s ease-out, stroke 0.4s ease-out" }}
-            />
-          </svg>
-          <div className="absolute inset-0 flex items-center justify-center">
-            <span className={`text-xl font-black ${colors.text}`}>{broker.meta.percent}%</span>
-          </div>
-        </div>
+        <MetaRing
+          percent={broker.meta.percent}
+          name={broker.name}
+          photoUrl={broker.photoUrl}
+          size={132}
+          playOnView
+          delayMs={(index % 4) * 140}
+          label={`Meta diária de ${broker.name}`}
+        />
       </div>
 
       <p

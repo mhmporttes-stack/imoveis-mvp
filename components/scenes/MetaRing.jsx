@@ -8,7 +8,10 @@ import scene from "@/components/scenes/scenes.module.css";
 // Anel da Meta Diária com a foto do corretor (visual novo, 2026-10-22). Na PRIMEIRA vez que aparece, o anel sobe
 // até 100% com uma faísca azul na ponta, dá um pulinho mostrando "100%" e volta até o percentual real (mesmo efeito
 // de "sobe e volta" que já existia). Atualizações seguintes (ex.: depois de uma tentativa) animam direto.
-// Só apresentação: o percentual vem pronto do servidor (dailyGoalOverallProgress).
+// Só apresentação: o percentual vem pronto do servidor (dailyGoalOverallProgress) — nunca recalcular aqui.
+// Usado na tela do corretor (DailyGoalDashboard, tamanho padrão) e em cada card da visão da equipe
+// (TeamDailyPerformance, menor, com playOnView: a cena só começa quando o card entra na tela, com um pequeno
+// atraso escalonado entre os cards).
 const R = 60;
 const CIRCUMFERENCE = 2 * Math.PI * R; // ≈ 377
 const INTRO_S = 3.8;
@@ -21,8 +24,38 @@ function initials(name) {
   return ((parts[0][0] || "") + (parts.length > 1 ? parts[parts.length - 1][0] || "" : "")).toUpperCase();
 }
 
-export default function DailyGoalRing({ percent = 0, name = "", photoUrl = "" }) {
+// Espera o anel entrar na tela (pelo menos 35% visível) e então o atraso pedido. Sem IntersectionObserver: começa já.
+function useStartWhenVisible(ref, enabled, delayMs) {
+  const [started, setStarted] = useState(!enabled);
+  useEffect(() => {
+    if (!enabled || started) return undefined;
+    let timer = null;
+    const go = () => { timer = setTimeout(() => setStarted(true), Math.max(0, delayMs)); };
+    const node = ref.current;
+    if (!node || typeof IntersectionObserver === "undefined") {
+      go();
+      return () => clearTimeout(timer);
+    }
+    const observer = new IntersectionObserver((entries) => {
+      if (entries.some((entry) => entry.isIntersecting)) {
+        observer.disconnect();
+        go();
+      }
+    }, { threshold: 0.35 });
+    observer.observe(node);
+    return () => {
+      observer.disconnect();
+      clearTimeout(timer);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [enabled, started]);
+  return started;
+}
+
+export default function MetaRing({ percent = 0, name = "", photoUrl = "", size = 160, playOnView = false, delayMs = 0, label = "Meta diária" }) {
   const reduced = usePrefersReducedMotion();
+  const rootRef = useRef(null);
+  const started = useStartWhenVisible(rootRef, playOnView, delayMs);
   const real = Math.max(0, Math.round(Number(percent) || 0));
   const ringTarget = Math.min(100, real);
   const value = useMotionValue(0);
@@ -38,6 +71,7 @@ export default function DailyGoalRing({ percent = 0, name = "", photoUrl = "" })
       mounted.current = true;
       return undefined;
     }
+    if (!started) return undefined; // aguardando entrar na tela: anel vazio, só a foto
     if (mounted.current) {
       const controls = animate(value, ringTarget, { duration: 0.6, ease: [0.16, 1, 0.3, 1] });
       return () => controls.stop();
@@ -57,12 +91,19 @@ export default function DailyGoalRing({ percent = 0, name = "", photoUrl = "" })
       clearTimeout(done);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ringTarget, reduced]);
+  }, [ringTarget, reduced, started]);
 
   const userInitials = initials(name);
+  const compact = size < 150;
 
   return (
-    <div className={`${scene.theme} ${scene.metaRing} ${phase === "peak" ? scene.metaHop : ""}`} role="img" aria-label={`Meta diária: ${real}%`}>
+    <div
+      ref={rootRef}
+      className={`${scene.theme} ${scene.metaRing} ${compact ? scene.metaRingCompact : ""} ${phase === "peak" ? scene.metaHop : ""}`}
+      style={size !== 160 ? { "--meta-ring-size": `${size}px` } : undefined}
+      role="img"
+      aria-label={`${label}: ${real}%`}
+    >
       <svg viewBox="0 0 132 132" aria-hidden="true">
         <circle cx="66" cy="66" r={R} fill="none" stroke="var(--scene-track)" strokeWidth="7" />
         <motion.circle
@@ -74,7 +115,7 @@ export default function DailyGoalRing({ percent = 0, name = "", photoUrl = "" })
       <span className={scene.metaPhoto} aria-hidden="true">
         {photoUrl ? <img src={photoUrl} alt="" /> : userInitials || <img src="/assets/matheus-machado-symbol.png" alt="" style={{ width: "58%", height: "auto", objectFit: "contain", filter: "var(--scene-logo-filter)" }} />}
       </span>
-      {phase === "rise" ? (
+      {phase === "rise" && started ? (
         <motion.div className={scene.metaTipArm} style={{ rotate: tipRotate }} aria-hidden="true">
           <span className={scene.metaTip} />
         </motion.div>

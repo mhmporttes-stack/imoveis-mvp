@@ -44,6 +44,15 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 
 
+### 2026-10-22 — Meta Diária da equipe com a mesma cena do anel do corretor
+- **Data:** 2026-10-22
+- **Área:** Meta Diária (apresentação)
+- **Alteração:** o anel animado do corretor virou componente único `components/scenes/MetaRing.jsx` (antes `components/DailyGoalRing.jsx`, mesmo comportamento na tela do corretor e no card "Minha Meta Diária" da gestora). Cada card da visão do dono/gestora (`TeamDailyPerformance`) usa o mesmo anel: foto/iniciais do corretor, anel azul sobe até 100% com a faísca, pulinho no "100%", volta ao percentual real; começa quando o card entra na tela (IntersectionObserver), escalonado 140 ms entre colunas; movimento reduzido mostra direto o valor. O avatar pequeno do cabeçalho do card saiu (a foto agora está no anel). Cor do anel deixou de ser vermelho/âmbar/verde: azul, pílula verde a partir de 100%.
+- **Motivo:** pedido do dono ("quero a mesma cena ... quando eu entrar para visualizar").
+- **Arquivos afetados:** `components/scenes/MetaRing.jsx`, `components/scenes/scenes.module.css`, `components/DailyGoalDashboard.jsx`, `components/TeamDailyPerformance.jsx`
+- **Risco/observação:** percentual é o mesmo `broker.meta.percent` (nenhum cálculo novo); sem mudança em lib/API. Validado na vitrine (equipe, claro/escuro, 390/1440, quadros da animação, reduced-motion), testes da área e build.
+- **Autor:** Claude Code (designer-crm)
+
 ### 2026-10-22 — "Clientes frios" e Imóveis em blocos com foto
 - **Data:** 2026-10-22
 - **Área:** Frontend/Painel
