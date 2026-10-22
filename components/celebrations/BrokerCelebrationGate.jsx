@@ -22,7 +22,8 @@ function hasBlockingUi() {
 // recebe os PRÓPRIOS eventos (o back-end já escopa por auth.profile.id).
 // Fila local: se dois gatilhos coincidirem, mostra um de cada vez, na ordem
 // de prioridade que a API já devolve (meta > ranking > demais).
-export default function BrokerCelebrationGate({ userId }) {
+// userName/userPhotoUrl (opcionais): foto e nome do corretor no anel da cena (sem foto: iniciais).
+export default function BrokerCelebrationGate({ userId, userName = "", userPhotoUrl = "" }) {
   const [queue, setQueue] = useState([]);
   const busyRetryRef = useRef(null);
   const pathname = usePathname();
@@ -91,6 +92,8 @@ export default function BrokerCelebrationGate({ userId }) {
           message={active.message}
           animation={active.animation}
           triggerKey={active.trigger_key}
+          userName={userName}
+          userPhotoUrl={userPhotoUrl}
           onDismiss={handleDismiss}
         />
       ) : null}

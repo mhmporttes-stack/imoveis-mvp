@@ -156,3 +156,5 @@ Detalhe das mudanças: `docs/CHANGELOG_AI.md` e o histórico do git de 2026-09-2
 ## Reconhecimentos (Incentivo) e ranking semanal
 
 Popups de reconhecimento (`lib/celebrations.js`, `components/celebrations/**`, cron `celebrations-ranking`) e o campeão semanal (`lib/weekly-ranking.js`, cron `weekly-ranking`) leem os mesmos números da Meta Diária e do ranking — regra completa em `docs/BUSINESS_RULES.md` (RAN-9 e seguintes). Ao mudar a fórmula da meta ou da pontuação, confira esses consumidores.
+
+**[REGRA OFICIAL DE NEGÓCIO — dono, 2026-10-22] Reconhecimento não fecha sozinho (refina RAN-9).** A cena de reconhecimento fica parada na tela até o corretor tocar (para tirar print/story) — substitui o "fecha sozinho em 3-5 s" de 2026-09-29. Fecha por toque/clique em qualquer lugar, pelo botão do rodapé ou Esc; nunca trava o CRM. Implementação: `components/celebrations/CelebrationOverlay.jsx` (sem temporizador). Detalhes: `docs/BUSINESS_RULES.md` RAN-9a.
