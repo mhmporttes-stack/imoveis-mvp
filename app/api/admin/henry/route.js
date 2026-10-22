@@ -1,8 +1,18 @@
 import { NextResponse } from "next/server";
 import { isOwnerAdminEmail, requireAdminApi } from "@/lib/admin-auth";
 import { checkPublicRateLimit } from "@/lib/rate-limit";
-import { answerHenry, isHenryVoiceConfigured, readHenrySettings, setHenrySettings, synthesizeHenrySpeech } from "@/lib/henry-voice";
+import {
+  answerHenry,
+  henryDefaultVoice,
+  isHenryVoiceConfigured,
+  previewHenryStyle,
+  readHenrySettings,
+  setHenrySettings,
+  synthesizeHenrySample,
+  synthesizeHenrySpeech
+} from "@/lib/henry-voice";
 import { HENRY_MAX_QUESTION_LENGTH, isHenryEligible, parseHenryImage, shouldUseHenryImage } from "@/lib/henry-voice-core.mjs";
+import { henryBrowserRate, henryStyleOptions, parseHenryStylePatch } from "@/lib/henry-voice-style.mjs";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -23,8 +33,15 @@ export async function GET(request) {
   const auth = await requireHenryOwner(request);
   if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status });
   try {
-    const { enabled, vision } = await readHenrySettings();
-    return NextResponse.json({ enabled, vision, serverVoice: isHenryVoiceConfigured() });
+    const { enabled, vision, style } = await readHenrySettings();
+    return NextResponse.json({
+      enabled,
+      vision,
+      serverVoice: isHenryVoiceConfigured(),
+      style,
+      browserRate: henryBrowserRate(style),
+      options: henryStyleOptions({ defaultVoice: henryDefaultVoice() })
+    });
   } catch (error) {
     console.error("[henry] falha ao ler a configuração:", error?.message || error);
     return NextResponse.json({ error: "Não foi possível ler a configuração do Henry." }, { status: 500 });
@@ -32,6 +49,7 @@ export async function GET(request) {
 }
 
 // Liga/desliga o Henry (nasce ligado) e a visão pela webcam (nasce desligada): { enabled?, vision? }.
+// Voz e personalidade: { style: { voice?, tone?, speed?, details?, address? } } validado por Zod (henry-voice-style.mjs).
 export async function PUT(request) {
   const auth = await requireHenryOwner(request);
   if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status });
@@ -39,9 +57,15 @@ export async function PUT(request) {
   const patch = {};
   if (typeof body?.enabled === "boolean") patch.enabled = body.enabled;
   if (typeof body?.vision === "boolean") patch.vision = body.vision;
-  if (!Object.keys(patch).length) return NextResponse.json({ error: "Informe enabled e/ou vision (true ou false)." }, { status: 400 });
+  if (body?.style !== undefined) {
+    const parsed = parseHenryStylePatch(body.style);
+    if (!parsed.ok) return NextResponse.json({ error: parsed.error }, { status: 400 });
+    patch.style = parsed.patch;
+  }
+  if (!Object.keys(patch).length) return NextResponse.json({ error: "Informe enabled, vision e/ou style." }, { status: 400 });
   try {
-    return NextResponse.json(await setHenrySettings(auth, patch));
+    const saved = await setHenrySettings(auth, patch);
+    return NextResponse.json({ ...saved, browserRate: henryBrowserRate(saved.style) });
   } catch (error) {
     console.error("[henry] falha ao salvar a configuração:", error?.message || error);
     return NextResponse.json({ error: "Não foi possível salvar a configuração do Henry." }, { status: 500 });
@@ -65,20 +89,38 @@ export async function POST(request) {
   } catch {
     body = {};
   }
+  // "Ouvir amostra" (Voz e personalidade): frase curta fixa com o estilo escolhido na tela (ainda não salvo). Chamada paga
+  // pequena: mesmo limite de taxa das perguntas e custo em ai_usage_log (henry_voice_tts). Não exige o Henry ligado.
+  if (body?.mode === "sample") {
+    const parsed = parseHenryStylePatch(body?.style);
+    if (!parsed.ok) return NextResponse.json({ error: parsed.error }, { status: 400 });
+    try {
+      if (!(await checkPublicRateLimit(`henry:${auth.profile?.id}`, { windowSeconds: 60, maxAttempts: 20 }))) {
+        return NextResponse.json({ error: "Muitas amostras seguidas. Espere um minuto." }, { status: 429 });
+      }
+      const { style: saved } = await readHenrySettings();
+      const style = previewHenryStyle(saved, parsed.patch);
+      const sample = await synthesizeHenrySample(auth, style);
+      return NextResponse.json({ text: sample.text, audio: sample.audio, browserRate: henryBrowserRate(style) });
+    } catch (error) {
+      console.warn(`[henry] amostra falhou: ${error?.name === "TimeoutError" ? "timeout" : "erro"}.`);
+      return NextResponse.json({ error: "Não consegui tocar a amostra agora." }, { status: 502 });
+    }
+  }
   const mode = body?.mode === "report" ? "report" : "question";
   const question = typeof body?.question === "string" ? body.question.trim() : "";
   if (mode === "question" && !question) return NextResponse.json({ error: "Pergunta vazia." }, { status: 400 });
   if (question.length > HENRY_MAX_QUESTION_LENGTH) return NextResponse.json({ error: "Pergunta longa demais." }, { status: 400 });
 
   try {
-    const { enabled, vision } = await readHenrySettings();
+    const { enabled, vision, style } = await readHenrySettings();
     if (!enabled) return NextResponse.json({ error: "O Henry está desligado. Ligue em Alexa e Henry." }, { status: 409 });
     if (!(await checkPublicRateLimit(`henry:${auth.profile?.id}`, { windowSeconds: 60, maxAttempts: 20 }))) {
       return NextResponse.json({ error: "Muitas perguntas seguidas. Espere um minuto." }, { status: 429 });
     }
     const image = shouldUseHenryImage({ vision, mode, question }) ? parseHenryImage(body?.image) : null;
-    const answer = await answerHenry(auth, { mode, question, history: body?.history, image });
-    const audio = body?.voice === false ? null : await synthesizeHenrySpeech(auth, answer.reply);
+    const answer = await answerHenry(auth, { mode, question, history: body?.history, image, style });
+    const audio = body?.voice === false ? null : await synthesizeHenrySpeech(auth, answer.reply, style);
     return NextResponse.json({ reply: answer.reply, navigate: answer.navigate ? { path: answer.navigate.path, label: answer.navigate.label } : null, audio });
   } catch (error) {
     console.warn(`[henry] pergunta falhou: ${error?.status ? error.message : error?.name === "TimeoutError" ? "timeout" : "erro"}.`);

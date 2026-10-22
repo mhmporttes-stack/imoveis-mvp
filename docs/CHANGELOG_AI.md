@@ -329,6 +329,18 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-22 — Henry: tela "Voz e personalidade" (voz, tom, velocidade, jeito de falar, como tratar o dono) (HENRY-1)
+- **Data:** 2026-10-22
+- **Área:** Henry (assistente de voz do dono) · Integrações (OpenAI TTS)
+- **Alteração:** no cartão do Henry em `/admin/alexa`, nova seção para escolher a voz (13 vozes do `gpt-4o-mini-tts`, conferidas no guia oficial e na especificação da API), o tom (Profissional/Carismático/Descontraído/Executivo — muda a instrução da voz e o estilo do texto), a velocidade (pela instrução da voz; `rate` na voz do navegador), um campo livre "Detalhes do jeito de falar" (≤ 300, sanitizado) e "Como tratar você" (padrão "Matheus"), com botão "Ouvir amostra".
+- **Motivo:** pergunta do dono "como configuro a voz e tom do Henry?" — antes só por variável de ambiente.
+- **Arquivos afetados:** `lib/henry-voice-style.mjs` (novo: opções, Zod, sanitização, montagem das instruções), `lib/henry-voice.js` (estilo no TTS, no prompt, no elogio e na amostra), `lib/henry-voice-core.mjs` (vocativo em `withReportIntro`/`composeHenryDailyReport`/`buildComplimentPrompt`), `app/api/admin/henry/route.js` (GET devolve `style`/`options`/`browserRate`; PUT `{style}`; POST `mode:"sample"`), `components/henry/HenrySettingsCard.jsx`, `components/henry/HenryVoiceAssistant.jsx` (rate), `tests/henry-voice-style.test.mjs`.
+- **Banco:** sem migration. `crm_settings` `henry_voice_assistant.style` `{voice?, tone?, speed?, details?, address?}`.
+- **Docs:** `BUSINESS_RULES.md` HENRY-1.
+- **Risco/observação:** o campo livre vai ao modelo como preferência de estilo; as barreiras de segurança continuam no código (não dependem do prompt). A nota de cada voz é impressão de ouvido, não descrição oficial da OpenAI. Amostra = chamada paga pequena (~US$ 0,0008). Nenhuma chamada paga real feita no teste.
+- **Verificação:** `node --test tests/henry-voice-style.test.mjs tests/henry-voice.test.mjs` (28/28), `pnpm build`.
+- **Autor:** Claude Code
+
 ### 2026-10-22 — Henry fase 2: visão pela webcam (elogio no "bom dia" e "o que é isso?") + relatório com o resumo do dono (HENRY-2)
 - **Data:** 2026-10-22
 - **Área:** Henry (assistente de voz do dono) · Integrações (Anthropic com imagem) · Permissões

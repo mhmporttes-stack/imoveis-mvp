@@ -67,6 +67,7 @@ export default function HenryVoiceAssistant() {
   const [vision, setVision] = useState(false);
   const [capturing, setCapturing] = useState(false);
   const visionRef = useRef(false);
+  const browserRateRef = useRef(1); // velocidade escolhida em "Voz e personalidade" (só a voz do navegador usa)
 
   const updatePhase = useCallback((value) => {
     phaseRef.current = value;
@@ -97,6 +98,7 @@ export default function HenryVoiceAssistant() {
         setEnabled(Boolean(data?.enabled));
         visionRef.current = data?.vision === true;
         setVision(data?.vision === true);
+        if (Number.isFinite(data?.browserRate)) browserRateRef.current = data.browserRate;
       })
       .catch(() => alive && setEnabled(false))
       .finally(() => alive && setReady(true));
@@ -202,6 +204,7 @@ export default function HenryVoiceAssistant() {
     synth.cancel();
     const utterance = new SpeechSynthesisUtterance(text);
     utterance.lang = "pt-BR";
+    utterance.rate = browserRateRef.current;
     const voice = synth.getVoices().find((item) => item.lang?.toLowerCase().startsWith("pt-br"));
     if (voice) utterance.voice = voice;
     utterance.onend = finishSpeaking;
