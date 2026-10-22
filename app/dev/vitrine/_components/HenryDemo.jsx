@@ -29,7 +29,37 @@ const SAMPLE_DETAIL = {
   ]
 };
 
-export default function HenryDemo({ mode: initialMode = "speaking", expanded = true, capturing = false, scene = "", topic = "relatorio", brokerCount = 2 }) {
+// Cenas da RESPOSTA (dono, 2026-10-22: "cenas diferentes por tipo de pergunta"): uma conversa fictícia por tipo.
+const ANSWER_SAMPLES = {
+  numeros: { q: "Henry, como tá a prospecção hoje?", text: "Hoje a equipe fez 148 prospecções e 23 atendimentos; a Meta tá em 72% da equipe.", scene: { kind: "numeros" } },
+  comparativo: {
+    q: "Henry, compara essa semana com a passada",
+    text: "Nos últimos 7 dias entraram 54 leads, um pouco mais que antes. Os detalhes estão na tela.",
+    scene: { kind: "comparativo", chart: { currentLabel: "Últimos 7 dias", previousLabel: "09/10 a 15/10", rows: [{ label: "Leads", current: 54, previous: 47 }, { label: "Atendimentos", current: 31, previous: 35 }, { label: "Simulações", current: 18, previous: 12 }, { label: "Aprovados", current: 4, previous: 3 }, { label: "Vendas", current: 2, previous: 1 }] } }
+  },
+  cliente: {
+    q: "Henry, como tá a cliente Fulana?",
+    text: "A Fulana está em Documentação, com a Ana; último contato ontem.",
+    scene: { kind: "cliente" },
+    detail: { title: "Clientes: “Fulana”", subtitle: "1 resultado", sections: [{ title: "Fulana de Tal", rows: [{ label: "Etapa", value: "Documentação" }, { label: "Responsável", value: "Ana" }, { label: "Último contato", value: "21/10" }] }] }
+  },
+  web: {
+    q: "Henry, vai chover amanhã em Marília?",
+    text: "Segundo o Climatempo, amanhã tem chance de chuva à tarde em Marília.",
+    scene: { kind: "web" },
+    detail: { title: "Fontes da pesquisa", subtitle: "", sections: [{ title: "Fontes", rows: [{ label: "Previsão Marília", value: "climatempo.com.br", href: "https://www.climatempo.com.br" }, { label: "Tempo", value: "tempo.com", href: "https://www.tempo.com" }] }] }
+  },
+  memoria: {
+    q: "Henry, lembra que sexta tem reunião com a Caixa",
+    text: "Fechado, anotei.",
+    scene: { kind: "memoria" },
+    detail: { title: "Lembretes do Henry", subtitle: "3 anotados", sections: [{ title: "Lembretes", rows: [{ label: "sexta tem reunião com a Caixa", value: "" }] }] }
+  },
+  conversa: { q: "Boa noite, Henry, tudo bem?", text: "Boa noite, Matheus! E aí, tudo certo?", scene: { kind: "conversa" } },
+  corretor: { q: "Henry, como foi a Ana no mês?", text: "A Ana fez 412 pontos e tá em 1º no ranking.", scene: { kind: "corretor" } }
+};
+
+export default function HenryDemo({ mode: initialMode = "speaking", expanded = true, capturing = false, scene = "", topic = "relatorio", brokerCount = 2, answer = "" }) {
   // "achou" (redesenho da cena, 2026-10-22): busca 2,6 s → resposta 3,4 s, em ciclo, para ver entrada/busca/achou/saída.
   const [cycleSearching, setCycleSearching] = useState(true);
   useEffect(() => {
@@ -61,8 +91,11 @@ export default function HenryDemo({ mode: initialMode = "speaking", expanded = t
       ? [{ id: "b1", firstName: "Ana", photoUrl: AVATAR, stats: [], found: false }]
       : scene === "corretor"
         ? allBrokers.slice(0, Math.max(1, Math.min(3, brokerCount)))
-        : [];
-  const turns = scene === "relatorio" ? [...SAMPLE_TURNS.slice(0, 2), { role: "user", text: "Henry, quero o relatório mensal" }, { role: "assistant", text: "Nos últimos 30 dias entraram 214 leads, 128 de anúncio. Os detalhes estão na tela.", detail: SAMPLE_DETAIL }] : SAMPLE_TURNS;
+        : answer === "corretor"
+          ? allBrokers.slice(0, 1)
+          : [];
+  const sample = ANSWER_SAMPLES[answer];
+  const turns = sample ? [{ role: "user", text: sample.q }, { role: "assistant", text: sample.text, scene: sample.scene, ...(sample.detail ? { detail: sample.detail } : {}) }] : scene === "relatorio" ? [...SAMPLE_TURNS.slice(0, 2), { role: "user", text: "Henry, quero o relatório mensal" }, { role: "assistant", text: "Nos últimos 30 dias entraram 214 leads, 128 de anúncio. Os detalhes estão na tela.", detail: SAMPLE_DETAIL }] : SAMPLE_TURNS;
   // Celular (< 768 px, ex.: 390×844): mesma apresentação do app, tocar para falar.
   const [mobile, setMobile] = useState(false);
   useEffect(() => {

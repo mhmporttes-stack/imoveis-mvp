@@ -34,7 +34,7 @@ import {
   nextRestartDelay
 } from "@/lib/henry-voice-conversation.mjs";
 import { pickBestBrowserVoice, pronounceForSpeech, splitSentences } from "@/lib/henry-voice-providers.mjs";
-import { pickWaitPhrase, rememberPhrase, shouldNarrate } from "@/lib/henry-voice-narration.mjs";
+import { normalizeHenryScene, pickWaitPhrase, rememberPhrase, shouldNarrate } from "@/lib/henry-voice-narration.mjs";
 import { HENRY_LISTEN_PROMPTS, pickVariant, rememberVariant } from "@/lib/henry-voice-persona.mjs";
 import HenryVoiceView from "./HenryVoiceView";
 import HenryCursor from "./HenryCursor";
@@ -160,7 +160,8 @@ export default function HenryVoiceAssistant() {
   const waitRef = useRef({ id: 0, startedAt: 0, replied: true, topic: "geral", lastAt: 0, names: [] });
   const recentPhrasesRef = useRef([]);
   const narratingTextRef = useRef("");
-  const [scene, setScene] = useState({ topic: "geral", label: "", brokers: [] });
+  // live = já houve ferramenta (ou é o "bom dia"): só então a cena de busca entra; antes disso, as ondas da conversa.
+  const [scene, setScene] = useState({ topic: "geral", label: "", brokers: [], live: false });
   const [navRequest, setNavRequest] = useState(null);
   // Ouviu "Henry" no parcial: o ícone já dobra de tamanho, mesmo minimizado (dono, 2026-10-22), antes da frase terminar.
   const [calling, setCalling] = useState(false);
@@ -690,7 +691,7 @@ export default function HenryVoiceAssistant() {
         const previous = brokers.find((item) => item.id === card.id);
         brokers = [...others, previous && !card.found ? previous : { ...previous, ...card, stats: card.stats.length ? card.stats : previous?.stats || [] }].slice(-3);
       }
-      return { topic, label: String(message.label || "").slice(0, 80), brokers };
+      return { topic, label: String(message.label || "").slice(0, 80), brokers, live: current.live || message.progress !== "inicio" };
     });
   }, []);
 
@@ -734,7 +735,7 @@ export default function HenryVoiceAssistant() {
     updatePhase("thinking");
     startConversation(); // depois de qualquer resposta, ~40 s em que frases sem o nome valem (também no computador)
     waitRef.current = { id, startedAt: Date.now(), replied: false, topic: mode === "report" ? "relatorio" : "geral", lastAt: 0, names: [] };
-    setScene({ topic: mode === "report" ? "relatorio" : "geral", label: "", brokers: [] });
+    setScene({ topic: mode === "report" ? "relatorio" : "geral", label: "", brokers: [], live: mode === "report" });
     touchConversation();
     // "Esquece a conversa de hoje": a tela também começa do zero.
     const clearTurns = () => {
@@ -742,9 +743,11 @@ export default function HenryVoiceAssistant() {
       conversationRef.current = { ...conversationRef.current, historyStart: 0 };
       setTurns([]);
     };
-    const onReply = (reply, navigate, detail = null) => {
+    const onReply = (reply, navigate, detail = null, rawScene = null) => {
       if (waitRef.current.id === id) waitRef.current = { ...waitRef.current, replied: true };
-      const withReply = [...turnsRef.current, detail ? { role: "assistant", text: reply, detail } : { role: "assistant", text: reply }];
+      // Cena da resposta (HenryAnswerScenes), escolhida no servidor pelas ferramentas chamadas.
+      const answerScene = normalizeHenryScene(rawScene);
+      const withReply = [...turnsRef.current, { role: "assistant", text: reply, ...(detail ? { detail } : {}), ...(answerScene ? { scene: answerScene } : {}) }];
       turnsRef.current = withReply;
       setTurns(withReply);
       // Navegação guiada: minimiza a tela cheia e o cursor do Henry mostra o caminho (HenryCursor faz a navegação).
@@ -787,7 +790,7 @@ export default function HenryVoiceAssistant() {
           return;
         }
         if (data.memoryCleared) clearTurns();
-        onReply(data.reply || "", data.navigate, data.detail || null);
+        onReply(data.reply || "", data.navigate, data.detail || null, data.scene || null);
         enqueueClip({ audio: data.audio, text: data.reply || "" });
         endSpeech();
         return;
@@ -818,7 +821,7 @@ export default function HenryVoiceAssistant() {
           }
           if (typeof message?.reply === "string") {
             if (message.memoryCleared) clearTurns();
-            onReply(message.reply, message.navigate, message.detail || null);
+            onReply(message.reply, message.navigate, message.detail || null, message.scene || null);
           }
           else if (typeof message?.text === "string") enqueueClip({ audio: message.audio, text: message.text });
           else if (message?.done) endSpeech();
@@ -1427,6 +1430,7 @@ export default function HenryVoiceAssistant() {
       capturing={capturing}
       onToggleVision={toggleVision}
       searching={phase === "thinking" && !capturing}
+      dataScene={phase === "thinking" && !capturing && scene.live}
       sceneTopic={scene.topic}
       brokers={phase === "thinking" || phase === "speaking" ? scene.brokers : []}
     />

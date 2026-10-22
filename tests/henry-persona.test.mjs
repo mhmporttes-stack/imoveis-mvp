@@ -55,6 +55,12 @@ test("prompt: assistente pessoal, jeito de amigo e TODAS as travas (somente cons
   assert.match(prompt, /Todo número ou nome do CRM vem SEMPRE de uma ferramenta/);
   assert.match(prompt, /Nunca leia links/);
   assert.match(prompt, /Minha Casa Minha Vida/); // conhecimento de base
+  // Saudação/papo casual (dono, 2026-10-22: "ninguém fala assim"): 1 frase, espelha, sem menu, sem responder a si mesmo.
+  assert.match(prompt, /Saudação e papo casual/);
+  assert.match(prompt, /UMA frase curta/);
+  assert.match(prompt, /"Boa noite, Matheus! E aí, tudo certo\?"/);
+  assert.match(prompt, /Nunca responda a sua própria pergunta/);
+  assert.match(prompt, /nunca ofereça ajuda nem menu/);
   // A parte fixa vai para o cache de prompt; a variável traz data/hora de Brasília, lembretes, memória e variação.
   const blocks = buildHenrySystemBlocks("x");
   assert.deepEqual(blocks[0].cache_control, { type: "ephemeral" });

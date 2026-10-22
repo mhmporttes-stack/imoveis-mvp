@@ -17,7 +17,8 @@ import styles from "./HenrySearchScene.module.css";
 //   HenryBrokerCards — carrossel de silhuetas passando rápido com a mira travando no corretor; achou → card premium
 //                      (borda dourado/ciano, foto do painel, primeiro nome, 1–2 números contando, posição se vier) ligado
 //                      ao anel por um feixe curvo com partículas. Até 3, em arco à direita do anel (celular: acima dele).
-//   HenryDetailPanel — o detalhe completo da resposta (relatório/corretor/cliente) em lista, na tela (a voz só resume).
+//   HenryDetailPanel — o detalhe completo da resposta (relatório/corretor/cliente) em lista, na tela (a voz só resume),
+//                      sem card/fundo (dono, 2026-10-22): só o texto com sombra.
 // Paleta do Henry: navy #07111F, ciano #4FC3E0, azul #1E9BFF, dourado #E8B85C. Estilos em HenrySearchScene.module.css.
 // Aba oculta = tudo pausado (CSS, ticker e canvas); prefers-reduced-motion = versão parada.
 
@@ -47,7 +48,7 @@ export function useTabHidden() {
   return hidden;
 }
 
-function useViewportWidth() {
+export function useViewportWidth() {
   const [width, setWidth] = useState(1280);
   useEffect(() => {
     const sync = () => setWidth(window.innerWidth);
@@ -724,20 +725,21 @@ export function HenryDetailPanel({ detail, mobile = false }) {
   if (!detail?.sections?.length) return null;
   return (
     <section
-      className={`${mobile ? "w-full" : "absolute left-6 top-24 w-[min(380px,30vw)] max-h-[calc(100vh-9rem)] overflow-y-auto md:left-8"} rounded-2xl p-4 text-left`}
-      style={{ background: "rgba(10, 28, 50, 0.72)", boxShadow: "0 0 0 1px rgba(79,195,224,0.22)", userSelect: "text", WebkitUserSelect: "text" }}
+      className={`${mobile ? "w-full" : "absolute left-6 top-24 w-[min(380px,30vw)] max-h-[calc(100vh-9rem)] overflow-y-auto md:left-8"} py-1 text-left`}
+      // Sem card (dono, 2026-10-22: "texto sem fundo, só as palavras flutuando"): sombra em camadas para ler sobre a cena.
+      style={{ textShadow: "0 1px 2px rgba(0,0,0,0.95), 0 0 10px rgba(7,17,31,0.95), 0 0 22px rgba(7,17,31,0.85)", userSelect: "text", WebkitUserSelect: "text" }}
       aria-label={detail.title}
       data-henry-detail
     >
       <p className="text-[13px] font-bold text-white">{detail.title}</p>
-      {detail.subtitle ? <p className="text-[11px] text-white/55">{detail.subtitle}</p> : null}
+      {detail.subtitle ? <p className="text-[11px] text-white/75">{detail.subtitle}</p> : null}
       <div className="mt-3 space-y-3">
         {detail.sections.map((section, index) => (
           <div key={`${section.title}-${index}`}>
             <p className="mb-1 text-[11px] font-bold uppercase tracking-wider" style={{ color: ACCENT }}>{section.title}</p>
             <ul className="space-y-0.5">
               {(section.rows || []).map((row, rowIndex) => (
-                <li key={rowIndex} className="flex items-baseline gap-2 text-[12px] leading-snug text-white/85">
+                <li key={rowIndex} className="flex items-baseline gap-2 text-[13px] leading-snug text-white/90">
                   {row.href && /^https:\/\//.test(row.href) ? (
                     <a href={row.href} target="_blank" rel="noopener noreferrer" className="min-w-0 flex-1 truncate underline decoration-white/30 underline-offset-2 hover:text-white">
                       {row.label}
@@ -746,7 +748,7 @@ export function HenryDetailPanel({ detail, mobile = false }) {
                     <span className={`min-w-0 flex-1 ${row.value ? "truncate" : ""}`}>{row.label}</span>
                   )}
                   <span className="font-bold tabular-nums text-white">{row.value}</span>
-                  {row.note ? <span className="text-[11px] text-white/50">{row.note}</span> : null}
+                  {row.note ? <span className="text-[11px] text-white/70">{row.note}</span> : null}
                 </li>
               ))}
             </ul>

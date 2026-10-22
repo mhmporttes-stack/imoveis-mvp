@@ -401,6 +401,13 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-22 — Henry: cenas por tipo de resposta, texto sem card, erro de créditos da ElevenLabs e saudação de amigo
+- **Pedidos do dono:** cenas diferentes por tipo de pergunta (manter a do corretor); texto sem card na tela; "os créditos acabaram" em vez de erro de chave; saudação curta como amigo, sem oferecer menu.
+- **O que mudou:** servidor escolhe a cena pelas ferramentas usadas (`pickHenryAnswerScene`) e manda `scene` no NDJSON/JSON de `/api/admin/henry` (campo novo, compatível); componente novo `components/henry/HenryAnswerScenes.jsx` (contadores, barras período x anterior, ficha, globo, nota, ondas); `HenryDetailPanel` e a transcrição sem fundo, com sombra; 401 `quota_exceeded` da ElevenLabs vira "Os créditos da ElevenLabs acabaram." (TTS, STT, vozes, saldo); regra de saudação/papo no prompt fixo.
+- **Docs:** `docs/BUSINESS_RULES.md` HENRY-1 (Cena da resposta, Texto sem card, Créditos, Saudação).
+- **Arquivos:** `lib/henry-voice-narration.mjs`, `lib/henry-voice.js`, `lib/henry-reports-core.mjs`, `lib/henry-voice-providers.mjs`, `lib/henry-voice-persona.mjs`, `app/api/admin/henry/route.js`, `components/henry/*`, vitrine, testes `henry-reports`/`henry-persona`/`henry-voice-providers`.
+- **Risco/observação:** visual das cenas sem teste no iPhone real (A CONFIRMAR no uso).
+
 ### 2026-10-22 — Henry mais expressivo: vocabulário de 900+ expressões, piadas e nada repetido no mesmo dia
 - **Pedido do dono:** "mais expressivo, com um vocabulário muito, mas muito maior, para não repetir [...] pelo menos no mesmo dia"; "algumas piadas, um pouco de brincadeira, respostas irônicas, mais risadas, um tom descontraído, leve". Modelo continua o Haiku (Sonnet não aprovado); voz continua `eleven_flash_v2_5` (v3 não aprovado).
 - **O que mudou:** banco novo `lib/henry-voice-lexicon.mjs` (912 expressões por categoria/tom + 54 piadas); repertório de 20–30 itens sorteado por resposta conforme o contexto, sem o que já foi usado hoje; uso detectado na resposta e gravado em `henry_day_memory.lexicon` (`recordDayLexicon`, `lib/henry-memory-core.mjs`); estrutura da resposta (`pickDayHint`, 30 dicas) não repete no dia; piada no máximo 1 vez por dia e 1 a cada 3–4 respostas; guia de estilo longo na parte fixa do prompt (cache); voz "Amigo" estabilidade 0,26/estilo 0,6; risada "haha" → "rárá" só na voz.

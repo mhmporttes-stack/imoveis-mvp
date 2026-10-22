@@ -161,6 +161,15 @@ test("fala para texto: 401/403 viram a frase de liberar a permissão", () => {
   assert.equal(describeElevenLabsError(403, "stt"), ELEVENLABS_STT_PERMISSION_MESSAGE);
   assert.match(describeElevenLabsError(429, "stt"), /429/);
   assert.match(describeElevenLabsError(403, "tts"), /Text to Speech/); // os demais seguem como antes
+  // Créditos esgotados (401 com detail.status = quota_exceeded): nunca sugere problema de chave/permissão (TTS e STT).
+  const quota = { detail: { status: "quota_exceeded", message: "This request exceeds your quota of 10000." } };
+  for (const what of ["tts", "stt", "voices", "user"]) {
+    const message = describeElevenLabsError(401, what, quota);
+    assert.match(message, /^Os créditos da ElevenLabs acabaram/);
+    assert.doesNotMatch(message, /chave|permissão|Libere/);
+  }
+  assert.match(describeElevenLabsError(401, "tts", { detail: { status: "invalid_api_key" } }), /recusou a chave \(401\)/);
+  assert.match(describeElevenLabsError(401, "tts", null), /recusou a chave \(401\)/);
 });
 
 test("fala para texto: áudio nunca é gravado nem logado; custo em henry_voice_stt", () => {

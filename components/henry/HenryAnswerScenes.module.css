@@ -1,0 +1,181 @@
+/* Cenas da resposta do Henry (HenryAnswerScenes.jsx). Texto sempre SEM card/fundo (pedido do dono, 2026-10-22): só as
+   palavras flutuando, com sombra em camadas para ler sobre a cena (inclusive no iPhone). Só transform/opacity nas
+   animações longas; aba oculta = .paused; prefers-reduced-motion = .still (tudo parado no estado final). */
+
+.layer {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  --cyan: #4fc3e0;
+  --blue: #1e9bff;
+  --gold: #e8b85c;
+  --ink: 0 1px 2px rgba(0, 0, 0, 0.95), 0 0 10px rgba(7, 17, 31, 0.95), 0 0 22px rgba(7, 17, 31, 0.85);
+  animation: layerIn 520ms cubic-bezier(0.2, 0, 0, 1) both;
+}
+@keyframes layerIn { from { opacity: 0; } }
+.paused,
+.paused * { animation-play-state: paused !important; }
+
+.panel { position: absolute; color: #fff; text-shadow: var(--ink); }
+.kicker { font-size: 11px; font-weight: 800; letter-spacing: 0.16em; text-transform: uppercase; color: var(--cyan); }
+
+/* ---------- conversa: ondas e partículas ---------- */
+.waves { position: absolute; left: 50%; transform: translate(-50%, -50%); --lvl: 0; }
+.wave {
+  position: absolute;
+  inset: 0;
+  border-radius: 999px;
+  border: 1px solid rgba(79, 195, 224, 0.32);
+  box-shadow: 0 0 24px rgba(79, 195, 224, 0.12), inset 0 0 18px rgba(79, 195, 224, 0.08);
+  transform: scale(calc(1 + var(--i) * 0.13 + var(--lvl) * (0.1 + var(--i) * 0.07)));
+  opacity: calc(0.55 - var(--i) * 0.11 + var(--lvl) * 0.3);
+  animation: breathe 5.5s ease-in-out infinite;
+  animation-delay: calc(var(--i) * -1.3s);
+}
+.wave[data-gold="1"] { border-color: rgba(232, 184, 92, 0.3); box-shadow: 0 0 24px rgba(232, 184, 92, 0.1); }
+@keyframes breathe { 50% { translate: 0 -1.5%; filter: brightness(1.35); } }
+.waves[data-quiet="1"] { opacity: 0.35; }
+.waves[data-quiet="1"] .mote { display: none; }
+/* partículas: sobem devagar em volta do anel (cada uma num ângulo e raio) */
+.mote {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 3px;
+  height: 3px;
+  margin: -1.5px;
+  border-radius: 999px;
+  background: var(--cyan);
+  box-shadow: 0 0 6px var(--cyan);
+  transform: rotate(var(--a)) translateY(calc(var(--R, 200px) * var(--r) * -1.9));
+  animation: drift var(--d) ease-in-out infinite;
+  animation-delay: var(--delay);
+  opacity: 0;
+}
+.mote[data-gold="1"] { background: var(--gold); box-shadow: 0 0 6px var(--gold); }
+@keyframes drift {
+  0% { opacity: 0; translate: 0 10px; }
+  30% { opacity: 0.85; }
+  100% { opacity: 0; translate: 0 -46px; }
+}
+
+/* ---------- números: contadores grandes ---------- */
+.counters { display: flex; flex-direction: column; gap: 18px; }
+.counter { position: relative; display: grid; grid-template-columns: 76px minmax(0, 1fr); grid-template-rows: auto auto; column-gap: 14px; align-items: center; animation: rise 700ms cubic-bezier(0.2, 0.8, 0.2, 1) both; animation-delay: var(--delay); }
+@keyframes rise { from { opacity: 0; transform: translateY(14px); filter: blur(8px); } to { filter: blur(0); } }
+.counterRing { grid-row: 1 / span 2; width: 76px; height: 76px; transform: rotate(-90deg); filter: drop-shadow(0 0 6px rgba(79, 195, 224, 0.35)); }
+.counterArc { stroke-dasharray: 1; stroke-dashoffset: 1; animation: arc 1400ms cubic-bezier(0.2, 0.8, 0.2, 1) forwards; animation-delay: calc(var(--delay) + 120ms); }
+@keyframes arc { to { stroke-dashoffset: 0.08; } }
+.counterValue { font-size: 46px; line-height: 1; font-weight: 800; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; color: #fff; text-shadow: var(--ink), 0 0 26px rgba(232, 184, 92, 0.35); }
+.counter:first-child .counterValue { color: #f6d891; }
+.counterLabel { margin-top: 4px; font-size: 12px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: rgba(215, 238, 246, 0.85); }
+.layer[data-henry-answer-scene] .counters { min-width: 0; }
+
+/* ---------- comparativo: barras ---------- */
+.compare { display: flex; flex-direction: column; gap: 10px; }
+.legend { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 11px; font-weight: 700; color: rgba(215, 238, 246, 0.9); }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+.legend i { width: 10px; height: 10px; border-radius: 3px; box-shadow: 0 0 8px currentColor; }
+.chart { position: relative; display: flex; align-items: flex-end; gap: 10px; margin-top: 18px; }
+.group { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; align-items: center; height: 100%; animation: rise 600ms cubic-bezier(0.2, 0.8, 0.2, 1) both; animation-delay: var(--delay); }
+.barsPair { flex: 1; width: 100%; display: flex; align-items: flex-end; justify-content: center; gap: 4px; }
+.barCol { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; height: 100%; width: 42%; max-width: 22px; }
+.barNow,
+.barBefore {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: 4px 4px 1px 1px;
+  transform-origin: 50% 100%;
+  transform: scaleY(max(0.02, var(--h)));
+  animation: growUp 1100ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  animation-delay: calc(var(--delay) + 200ms);
+}
+.barNow { background: linear-gradient(to top, rgba(232, 184, 92, 0.35), var(--gold)); box-shadow: 0 0 16px rgba(232, 184, 92, 0.35); }
+.barBefore { background: linear-gradient(to top, rgba(30, 155, 255, 0.25), rgba(79, 195, 224, 0.7)); }
+@keyframes growUp { from { transform: scaleY(0.02); } }
+/* valor em cima da barra: acompanha a altura (fica no topo da coluna, sobe junto) */
+.barValue { position: absolute; bottom: calc(max(0.02, var(--h, 0)) * 100%); animation: rise 700ms both; animation-delay: calc(var(--delay) + 700ms); font-size: 12px; font-weight: 800; font-variant-numeric: tabular-nums; white-space: nowrap; margin-bottom: 4px; color: #fff; }
+.barCol:has(.barNow) .barValue { color: #f6d891; }
+.barValue[data-muted="1"] { font-size: 10px; color: rgba(215, 238, 246, 0.75); }
+.groupLabel { margin-top: 6px; max-width: 100%; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-size: 10px; font-weight: 700; letter-spacing: 0.04em; color: rgba(215, 238, 246, 0.9); }
+.delta { font-size: 10.5px; font-weight: 800; color: var(--cyan); }
+.delta[data-up="1"] { color: #f6d891; }
+@keyframes draw { to { stroke-dashoffset: 0; } }
+
+/* ---------- cliente: ficha ---------- */
+.file { min-height: 170px; padding: 34px 22px 22px; }
+.fileFrame { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; filter: drop-shadow(0 0 6px rgba(79, 195, 224, 0.45)); }
+.fileDraw { stroke-dasharray: 1; stroke-dashoffset: 1; animation: draw 900ms cubic-bezier(0.3, 0, 0.2, 1) forwards; }
+.fileBody { position: relative; display: flex; gap: 14px; align-items: flex-start; }
+.fileAvatar { flex-shrink: 0; width: 50px; height: 50px; border-radius: 999px; display: flex; align-items: center; justify-content: center; font-size: 20px; font-weight: 800; color: var(--gold); box-shadow: inset 0 0 0 1.5px var(--gold), 0 0 16px rgba(232, 184, 92, 0.35); animation: rise 600ms 250ms both; }
+.fileName { font-size: 18px; font-weight: 800; line-height: 1.2; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; animation: rise 600ms 300ms both; }
+.fileRow { margin-top: 6px; font-size: 13px; font-weight: 700; line-height: 1.3; animation: rise 600ms both; animation-delay: var(--delay); }
+.fileRow span { margin-right: 4px; font-size: 10.5px; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; color: var(--cyan); }
+.fileMore { margin-top: 8px; font-size: 11px; font-weight: 700; color: rgba(215, 238, 246, 0.75); }
+.skeleton { display: block; height: 7px; margin-top: 10px; border-radius: 4px; background: linear-gradient(90deg, rgba(79, 195, 224, 0.15), rgba(79, 195, 224, 0.5), rgba(79, 195, 224, 0.15)); background-size: 200% 100%; animation: rise 600ms both, shimmer 1.6s linear infinite; animation-delay: var(--delay, 0ms), 0ms; }
+@keyframes shimmer { to { background-position: -200% 0; } }
+.lens { position: absolute; width: 30px; height: 30px; top: 40px; left: 20px; filter: drop-shadow(0 0 6px rgba(232, 184, 92, 0.7)); animation: lens 1500ms cubic-bezier(0.45, 0, 0.2, 1) forwards; }
+@keyframes lens {
+  0% { opacity: 0; transform: translate(0, 0); }
+  15% { opacity: 1; }
+  70% { opacity: 1; transform: translate(220%, 120%); }
+  100% { opacity: 0; transform: translate(260%, 140%) scale(1.3); }
+}
+
+/* ---------- web: globo ---------- */
+.globe { position: absolute; left: 50%; transform: translate(-50%, -50%); filter: drop-shadow(0 0 10px rgba(79, 195, 224, 0.35)); animation: globeIn 900ms cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+@keyframes globeIn { from { opacity: 0; transform: translate(-50%, -50%) scale(0.86); } }
+/* meridiano "girando": a elipse estreita e alarga (rotação aparente), cada um defasado */
+.meridian { transform-box: fill-box; transform-origin: center; animation: spinY 6s linear infinite; animation-delay: var(--m); }
+@keyframes spinY {
+  0% { transform: scaleX(1); }
+  25% { transform: scaleX(0); }
+  50% { transform: scaleX(-1); }
+  75% { transform: scaleX(0); }
+  100% { transform: scaleX(1); }
+}
+.orbit { transform-origin: 100px 100px; animation: orbit 9s linear infinite; }
+@keyframes orbit { to { transform: rotate(360deg); } }
+.sources { display: flex; flex-direction: column; gap: 8px; }
+.source { display: flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 700; animation: rise 600ms both; animation-delay: var(--delay); overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.source i { flex-shrink: 0; width: 7px; height: 7px; border-radius: 999px; background: var(--gold); box-shadow: 0 0 8px var(--gold); }
+
+/* ---------- memória: nota ---------- */
+.note { padding: 4px 2px; }
+.noteBody { position: relative; display: flex; gap: 10px; align-items: flex-start; margin-top: 10px; }
+.pin { flex-shrink: 0; width: 22px; height: 22px; margin-top: 2px; filter: drop-shadow(0 0 6px rgba(232, 184, 92, 0.7)); animation: pinIn 600ms cubic-bezier(0.3, 1.4, 0.4, 1) both; }
+@keyframes pinIn { from { opacity: 0; transform: translateY(-14px) rotate(-30deg); } }
+/* escrita: o texto aparece da esquerda para a direita, como uma caneta */
+.noteText { font-size: 19px; font-weight: 700; line-height: 1.35; font-style: italic; color: #fff; clip-path: inset(0 100% 0 0); animation: write 1500ms steps(28, end) 350ms forwards; }
+@keyframes write { to { clip-path: inset(0 0 0 0); } }
+.noteStrike { display: block; flex: 1; height: 2px; margin-top: 12px; background: var(--gold); transform-origin: 0 50%; animation: growX 700ms 300ms both; box-shadow: 0 0 8px var(--gold); }
+@keyframes growX { from { transform: scaleX(0); } }
+.rule { display: block; height: 1px; margin-top: 12px; background: linear-gradient(90deg, rgba(232, 184, 92, 0.7), rgba(79, 195, 224, 0.25) 70%, transparent); transform-origin: 0 50%; animation: growX 900ms 200ms both; }
+.rule[data-short="1"] { width: 62%; animation-delay: 380ms; }
+.noteCount { margin-top: 10px; font-size: 11px; font-weight: 700; letter-spacing: 0.08em; color: rgba(215, 238, 246, 0.8); }
+
+/* ---------- celular (faixa acima do anel; tudo mais compacto) ---------- */
+@media (max-width: 767px) {
+  .counters { flex-direction: row; justify-content: center; gap: 12px; }
+  .counter { grid-template-columns: 1fr; text-align: center; justify-items: center; flex: 1 1 0; min-width: 0; }
+  .counterRing { display: none; }
+  .counterValue { font-size: 34px; }
+  .counterLabel { font-size: 10px; letter-spacing: 0.06em; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .chart { margin-top: 14px; gap: 6px; }
+  .file { min-height: 0; padding: 26px 16px 14px; }
+  .fileAvatar { width: 38px; height: 38px; font-size: 16px; }
+  .fileName { font-size: 15px; }
+  .fileRow { font-size: 12px; margin-top: 3px; }
+  .noteText { font-size: 16px; }
+  .source { font-size: 13px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .layer, .layer * { animation: none !important; transition: none !important; }
+  .counterArc, .fileDraw { stroke-dashoffset: 0; }
+  .noteText { clip-path: none; }
+  .lens, .mote { display: none; }
+}
+.still .counterArc, .still .fileDraw { stroke-dashoffset: 0; }

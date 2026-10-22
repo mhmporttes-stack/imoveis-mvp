@@ -16,10 +16,14 @@ import {
   NARRATION_FIRST_DELAY_MS,
   NARRATION_MIN_GAP_MS,
   RECENT_PHRASES_TO_AVOID,
+  HENRY_ANSWER_SCENES,
   brokerWithArticle,
+  extractSpokenFigures,
   henryInitialProgress,
   henryProgressFor,
   narrationVoiceKey,
+  normalizeHenryScene,
+  pickHenryAnswerScene,
   pickWaitPhrase,
   rememberPhrase,
   shouldNarrate
@@ -116,6 +120,12 @@ test("relatório mensal: leads por origem, funil, ranking, Meta Diária, atenç�
   assert.match(report.spoken, /9 clientes aguardando resposta/);
   assert.ok(isSafeToSpeak(report.spoken));
   assert.equal(report.facts.meta_diaria_equipe, "87%");
+  // Cena "comparativo": mesmos números da seção de comparação, período atual x anterior.
+  assert.equal(report.chart.previousLabel, "24/08 a 22/09");
+  assert.deepEqual(report.chart.rows.map((row) => row.label), ["Leads", "Atendimentos", "Simulações", "Aprovados", "Vendas"]);
+  assert.deepEqual(report.chart.rows[0], { label: "Leads", current: 214, previous: 191 });
+  const compare = report.detail.sections.find((section) => section.title.startsWith("Comparação")).rows;
+  for (const row of report.chart.rows) assert.equal(String(row.current), compare.find((item) => item.label === row.label).value);
 });
 
 test("relatório: fonte que falhou vira 'indisponível', nunca um zero falso", () => {
@@ -125,6 +135,7 @@ test("relatório: fonte que falhou vira 'indisponível', nunca um zero falso", (
   assert.equal(report.detail.sections.find((section) => section.title === "Funil").rows[0].label, "Indisponível agora");
   assert.doesNotMatch(report.spoken, /0 atendimentos|aguardando resposta/);
   assert.equal(report.detail.sections.find((section) => section.title === "Atenção agora").rows[0].value, "—");
+  assert.equal(report.chart, null); // sem período anterior → a cena usa os números da fala
 });
 
 test("corretor no período: números da linha dele, posição no ranking e 2 números no card", () => {
@@ -262,4 +273,54 @@ test("selo de posição no card: só com ranking/pontos (ou resumo) e quando o c
   assert.match(lib, /\.\.\.\(Number\.isInteger\(position\) && position > 0 \? \{ position \} : \{\}\)/);
   const client = readFileSync(new URL("../components/henry/HenryVoiceAssistant.jsx", import.meta.url), "utf8");
   assert.match(client, /broker\.position > 0 \? \{ position: broker\.position \} : \{\}/);
+});
+
+// --- Cena da resposta (dono, 2026-10-22: "cenas diferentes por tipo de pergunta") ---------------------------------------
+test("cena da resposta: escolhida pelas ferramentas chamadas, sem IA extra", () => {
+  const tool = (name, input = {}) => ({ name, input });
+  assert.equal(pickHenryAnswerScene({ tools: [tool("consultar_corretor", { corretor: "Carol" })] }), "corretor");
+  assert.equal(pickHenryAnswerScene({ tools: [tool("consultar_crm", { assunto: "ranking" })] }), "corretor");
+  assert.equal(pickHenryAnswerScene({ tools: [tool("consultar_crm", { assunto: "pontos", corretor: "Ana" })] }), "corretor");
+  assert.equal(pickHenryAnswerScene({ tools: [tool("consultar_crm", { assunto: "prospeccao_equipe" })] }), "numeros");
+  assert.equal(pickHenryAnswerScene({ tools: [tool("relatorio_do_dia")] }), "numeros");
+  assert.equal(pickHenryAnswerScene({ mode: "report" }), "numeros"); // "bom dia, Henry"
+  assert.equal(pickHenryAnswerScene({ tools: [tool("relatorio_periodo", { tipo: "semanal" })] }), "comparativo");
+  assert.equal(pickHenryAnswerScene({ tools: [tool("consultar_crm", { assunto: "funil", periodo: "semana_passada" })] }), "comparativo");
+  assert.equal(pickHenryAnswerScene({ tools: [tool("buscar_cliente", { nome: "Ana" })] }), "cliente");
+  assert.equal(pickHenryAnswerScene({ tools: [tool("abrir_tela", { destino: "clientes" })] }), "cliente");
+  assert.equal(pickHenryAnswerScene({ tools: [], webSearches: 2 }), "web");
+  assert.equal(pickHenryAnswerScene({ memory: true }), "memoria");
+  assert.equal(pickHenryAnswerScene({ tools: [] }), "conversa"); // papo, piada, elogio
+  assert.equal(pickHenryAnswerScene(), "conversa");
+  for (const kind of ["corretor", "numeros", "comparativo", "cliente", "web", "memoria", "conversa"]) assert.ok(HENRY_ANSWER_SCENES.includes(kind));
+});
+
+test("cena da resposta: só tipos conhecidos e gráfico numérico chegam à tela", () => {
+  assert.equal(normalizeHenryScene(null), null);
+  assert.equal(normalizeHenryScene({ kind: "<script>" }), null);
+  assert.deepEqual(normalizeHenryScene({ kind: "numeros", chart: { rows: [{ label: "x", current: 1, previous: 2 }] } }), { kind: "numeros" });
+  const scene = normalizeHenryScene({ kind: "comparativo", chart: { currentLabel: "Últimos 7 dias", previousLabel: "08/10 a 14/10", rows: [{ label: "Leads", current: 30, previous: 20 }, { label: "ruim", current: "x", previous: 1 }] } });
+  assert.deepEqual(scene.chart.rows, [{ label: "Leads", current: 30, previous: 20 }]);
+  assert.equal(scene.chart.previousLabel, "08/10 a 14/10");
+});
+
+test("números da fala para os contadores: só o que ele falou, sem hora/data/ano/posição", () => {
+  assert.deepEqual(extractSpokenFigures("Hoje entraram 12 leads e 5 clientes aguardando resposta."), [
+    { value: 12, decimals: 0, suffix: "", label: "leads" },
+    { value: 5, decimals: 0, suffix: "", label: "clientes aguardando resposta" }
+  ]);
+  assert.deepEqual(extractSpokenFigures("A equipe tá em 87% da meta, faltam 1.040 atividades.").map((item) => [item.value, item.suffix, item.label]), [[87, "%", "da meta"], [1040, "", "atividades"]]);
+  assert.deepEqual(extractSpokenFigures("Reunião às 14h do dia 22 de outubro de 2026, com 3 clientes.").map((item) => item.value), [3]);
+  assert.deepEqual(extractSpokenFigures("A Carol é a 2º no ranking com 412 pontos.").map((item) => item.value), [412]);
+  assert.equal(extractSpokenFigures("7,5 por cento de conversão")[0].value, 7.5);
+  assert.deepEqual(extractSpokenFigures("Boa noite, Matheus! E aí, tudo certo?"), []);
+  assert.equal(extractSpokenFigures("1 2 3 4 5 6").length, 3);
+});
+
+test("cena da resposta vai no stream e na resposta JSON; comparativo leva o gráfico do relatório", () => {
+  const route = readFileSync(new URL("../app/api/admin/henry/route.js", import.meta.url), "utf8");
+  assert.match(route, /scene: answer\.scene \|\| null/);
+  const lib = readFileSync(new URL("../lib/henry-voice.js", import.meta.url), "utf8");
+  assert.match(lib, /pickHenryAnswerScene\(\{ tools: context\.tools, webSearches: usage\.webSearches \}\)/);
+  assert.match(lib, /context\.chart = report\.chart/);
 });

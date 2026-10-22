@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import HenryOrb from "./HenryOrb";
+import HenryAnswerScenes from "./HenryAnswerScenes";
 import { HenryBrokerCards, HenryDataScene, HenryDetailPanel, HenryIconSearchHint, HenrySceneStyles } from "./HenrySearchScene";
 
 // Apresentação do Henry (sem estado de voz): ícone do canto e tela cheia. Visual pedido pelo dono em 2026-10-22 a partir de
@@ -89,7 +90,8 @@ export default function HenryVoiceView({
   recording = false,
   onTalk,
   heardHint = "", // minimizado: "Ouvi: … (diga 'Henry' antes)" — o que foi ignorado, para o dono ver
-  searching = false, // pensando/buscando: "dados" transparentes atrás do anel (HenrySearchScene)
+  searching = false, // pensando/buscando (ícone do canto: arco girando)
+  dataScene = searching, // tela cheia: cena de busca (HenrySearchScene) só depois que uma ferramenta foi chamada
   sceneTopic = "geral",
   brokers = [], // corretores do pedido: procurando (scanner) → achado (card com foto e números)
   fixed = true
@@ -104,6 +106,10 @@ export default function HenryVoiceView({
   const foundBroker = [...brokers].reverse().find((broker) => broker.found) || null;
   const lastAssistant = [...turns].reverse().find((turn) => turn?.role === "assistant");
   const detail = !searching && lastAssistant?.detail ? lastAssistant.detail : null;
+  // Cena da resposta (HenryAnswerScenes): a da última resposta enquanto ela for a última fala da tela; antes de qualquer
+  // resposta e enquanto pensa sem ferramenta (papo), as ondas da conversa.
+  const lastTurn = turns[turns.length - 1];
+  const answer = !searching && lastTurn?.role === "assistant" ? lastTurn : null;
 
   if (!expanded && mobile) {
     // Celular: toque no anel = abre a cena já ouvindo. Mudo só aparece com "Ouvir 'Henry' com o app aberto" (tapToTalk falso).
@@ -225,7 +231,20 @@ export default function HenryVoiceView({
       }}
     >
       <HenrySceneStyles />
-      <HenryDataScene active={searching} topic={sceneTopic} mobile={mobile} orbSize={orbSize} hasBrokers={brokers.length > 0} />
+      <HenryDataScene active={dataScene} topic={sceneTopic} mobile={mobile} orbSize={orbSize} hasBrokers={brokers.length > 0} />
+      {!dataScene ? (
+        <HenryAnswerScenes
+          kind={answer?.scene?.kind || "conversa"}
+          scene={answer?.scene || null}
+          text={answer?.text || ""}
+          detail={answer?.detail || null}
+          hasBrokers={brokers.length > 0}
+          mobile={mobile}
+          orbSize={orbSize}
+          getSignal={getSignal}
+          sceneKey={answer ? `a${turns.length}` : "idle"}
+        />
+      ) : null}
       {!mobile ? <HenryDetailPanel detail={detail} /> : null}
       <div className="absolute left-5 top-[calc(1rem+env(safe-area-inset-top))] md:left-8 md:top-6">
         <p className="flex items-center gap-2 text-sm font-bold tracking-wide text-white/85">
@@ -262,7 +281,11 @@ export default function HenryVoiceView({
       </div>
 
       <div className="absolute inset-x-4 bottom-[calc(1rem+env(safe-area-inset-bottom))] flex flex-col items-end gap-3 md:inset-x-auto md:bottom-6 md:right-8 md:w-[min(420px,40vw)]">
-        <div className="flex max-h-[30vh] w-full flex-col items-end gap-1.5 overflow-y-auto text-right text-[14px] leading-snug md:max-h-none md:overflow-visible md:text-[13px]">
+        {/* Texto sem card (dono, 2026-10-22): só as palavras sobre a cena, com sombra para ler (iPhone incluso). */}
+        <div
+          className="flex max-h-[30vh] w-full flex-col items-end gap-1.5 overflow-y-auto text-right text-[14px] leading-snug md:max-h-none md:overflow-visible md:text-[13px]"
+          style={{ textShadow: "0 1px 2px rgba(0,0,0,0.95), 0 0 10px rgba(7,17,31,0.95), 0 0 22px rgba(7,17,31,0.85)" }}
+        >
           {mobile ? <HenryDetailPanel detail={detail} mobile /> : null}
           {recent.length ? (
             recent.map((turn, index) => (

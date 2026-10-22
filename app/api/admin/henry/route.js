@@ -128,7 +128,7 @@ export async function PUT(request) {
 // Modo conversa em linhas (NDJSON), aberto LOGO ao receber o pedido (sem silêncio enquanto ele pensa):
 //   { progress, topic, label, broker? } — evento inicial e um por ferramenta chamada (narração e cena de busca);
 //   { narration: { text, audio } }     — frase curta com o nome do corretor, na voz do Henry (sintetizada na hora);
-//   { reply, navigate, detail }        — resposta (texto falado + detalhe da tela, quando houver);
+//   { reply, navigate, detail, scene } — resposta (texto falado + detalhe da tela, quando houver + cena da resposta);
 //   { part, text, audio|null } por parte → { done: true }. audio null = o navegador fala a parte.
 //   { error } — falhou depois de aberto (a tela mostra a frase).
 // Se o navegador cancelar (o dono interrompeu), as escritas seguintes falham em silêncio e o fluxo termina.
@@ -157,7 +157,7 @@ function answerStream(auth, request, style) {
           }
         });
         const navigate = navigationPayload(answer.navigate);
-        send({ reply: answer.reply, navigate, detail: answer.detail || null, ...(answer.memoryCleared ? { memoryCleared: true } : {}) });
+        send({ reply: answer.reply, navigate, detail: answer.detail || null, scene: answer.scene || null, ...(answer.memoryCleared ? { memoryCleared: true } : {}) });
         const parts = splitForSpeech(answer.reply);
         const audios = parts.map((text, index) => synthesizeHenrySpeech(auth, text, style, { previousText: parts[index - 1] || "", nextText: parts[index + 1] || "" }));
         for (let index = 0; index < parts.length; index += 1) {
@@ -283,7 +283,7 @@ export async function POST(request) {
     const answer = await answerHenry(auth, { mode, question, history: body?.history, image, style, vision, webSearch });
     const navigate = navigationPayload(answer.navigate);
     const audio = body?.voice === false ? null : await synthesizeHenrySpeech(auth, answer.reply, style);
-    return NextResponse.json({ reply: answer.reply, navigate, detail: answer.detail || null, memoryCleared: answer.memoryCleared === true, audio });
+    return NextResponse.json({ reply: answer.reply, navigate, detail: answer.detail || null, scene: answer.scene || null, memoryCleared: answer.memoryCleared === true, audio });
   } catch (error) {
     console.warn(`[henry] pergunta falhou: ${error?.status ? error.message : error?.name === "TimeoutError" ? "timeout" : "erro"}.`);
     return NextResponse.json({ error: error?.status ? error.message : "Não consegui responder agora. Tente de novo." }, { status: error?.status || 502 });
