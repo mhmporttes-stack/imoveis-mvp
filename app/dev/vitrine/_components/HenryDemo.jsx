@@ -16,18 +16,24 @@ export default function HenryDemo({ mode = "speaking", expanded = true, capturin
   const [vision, setVision] = useState(true);
   const [keyboard, setKeyboard] = useState(false);
   const [open, setOpen] = useState(expanded);
+  // Sinal simulado com "sílabas" (picos curtos) para ver a reação ao volume em cada estado.
   const getSignal = useCallback(() => {
     const t = Date.now() / 1000;
-    if (mode === "speaking") return { mode, level: 0.35 + 0.35 * Math.abs(Math.sin(t * 5.3)) * (0.6 + 0.4 * Math.sin(t * 1.7)) };
-    if (mode === "listening") return { mode, level: 0.2 + 0.15 * Math.abs(Math.sin(t * 3.1)) };
+    const syllables = Math.max(0, Math.sin(t * 9.1)) * (0.55 + 0.45 * Math.sin(t * 1.3));
+    if (mode === "speaking") return { mode, level: 0.2 + 0.75 * syllables };
+    if (mode === "listening") return { mode, level: 0.1 + 0.7 * syllables };
     return { mode, level: 0 };
   }, [mode]);
+  const engaged = mode !== "idle";
   return (
     <HenryVoiceView
       expanded={open}
       onExpand={() => setOpen(true)}
       onMinimize={() => setOpen(false)}
-      status={{ idle: "Ouvindo — diga “Henry”", listening: "Pode falar…", thinking: "Pensando…", speaking: "Falando… diga “Henry” para interromper" }[mode] || ""}
+      status={{ idle: "Ouvindo — diga “Henry”", listening: "Em conversa — pode falar sem dizer o nome (“obrigado, Henry” encerra)", thinking: "Pensando…", speaking: "Falando… diga “Henry” para interromper" }[mode] || ""}
+      engaged={engaged}
+      inConversation={engaged}
+      caption={{ thinking: SAMPLE_TURNS[2].text, speaking: SAMPLE_TURNS[3].text, listening: SAMPLE_TURNS[3].text }[mode] || ""}
       turns={SAMPLE_TURNS}
       micOff={muted}
       onToggleMute={() => setMuted((value) => !value)}

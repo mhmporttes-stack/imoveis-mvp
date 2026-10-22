@@ -13,6 +13,7 @@ import {
 } from "@/lib/henry-voice";
 import { HENRY_MAX_QUESTION_LENGTH, isHenryEligible, parseHenryImage, shouldUseHenryImage } from "@/lib/henry-voice-core.mjs";
 import { henryBrowserRate, henryStyleOptions, parseHenryStylePatch } from "@/lib/henry-voice-style.mjs";
+import { splitForSpeech } from "@/lib/henry-voice-conversation.mjs";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -72,6 +73,35 @@ export async function PUT(request) {
   }
 }
 
+// Linhas: { reply, navigate } → { part, text, audio|null } por parte → { done: true }. audio null = o navegador fala a parte.
+// Se o navegador cancelar (o dono interrompeu), as escritas seguintes falham em silêncio e o fluxo termina.
+function speechStream(auth, reply, navigate, style) {
+  const parts = splitForSpeech(reply);
+  const encoder = new TextEncoder();
+  const stream = new ReadableStream({
+    async start(controller) {
+      let open = true;
+      const send = (payload) => {
+        if (!open) return;
+        try {
+          controller.enqueue(encoder.encode(`${JSON.stringify(payload)}\n`));
+        } catch {
+          open = false;
+        }
+      };
+      send({ reply, navigate });
+      const audios = parts.map((text) => synthesizeHenrySpeech(auth, text, style));
+      for (let index = 0; index < parts.length; index += 1) {
+        send({ part: index, text: parts[index], audio: await audios[index] });
+      }
+      send({ done: true });
+      if (open) controller.close();
+    },
+    cancel() {}
+  });
+  return new Response(stream, { headers: { "content-type": "application/x-ndjson; charset=utf-8", "cache-control": "no-store" } });
+}
+
 // Pergunta → resposta (texto + tela da lista fechada + voz). Nada é gravado além do custo em "Gastos de IA".
 // Visão (HENRY-2): o corpo pode trazer `image` (1 quadro JPEG da webcam). Só é usada com a visão LIGADA e no "bom dia" ou
 // em pergunta com intenção visual; nunca é gravada nem logada. Corpo limitado (MAX_BODY_CHARS).
@@ -120,8 +150,12 @@ export async function POST(request) {
     }
     const image = shouldUseHenryImage({ vision, mode, question }) ? parseHenryImage(body?.image) : null;
     const answer = await answerHenry(auth, { mode, question, history: body?.history, image, style });
+    const navigate = answer.navigate ? { path: answer.navigate.path, label: answer.navigate.label } : null;
+    // Modo conversa: `stream` = resposta em linhas (NDJSON) — o texto sai na hora e a voz vai em partes (1ª frase primeiro,
+    // geradas em paralelo), para começar a falar antes. Mesmo texto, mesma barreira (safeHenryReply já aplicada).
+    if (body?.stream === true && body?.voice !== false) return speechStream(auth, answer.reply, navigate, style);
     const audio = body?.voice === false ? null : await synthesizeHenrySpeech(auth, answer.reply, style);
-    return NextResponse.json({ reply: answer.reply, navigate: answer.navigate ? { path: answer.navigate.path, label: answer.navigate.label } : null, audio });
+    return NextResponse.json({ reply: answer.reply, navigate, audio });
   } catch (error) {
     console.warn(`[henry] pergunta falhou: ${error?.status ? error.message : error?.name === "TimeoutError" ? "timeout" : "erro"}.`);
     return NextResponse.json({ error: error?.status ? error.message : "Não consegui responder agora. Tente de novo." }, { status: error?.status || 502 });

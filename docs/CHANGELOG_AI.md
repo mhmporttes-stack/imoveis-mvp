@@ -362,6 +362,18 @@ Copie o modelo abaixo (uma entrada por bloco):
 - **Verificação:** `node --test tests/*.test.js` da extensão (91/91); `node --test tests/*marketplace*.test.mjs` (78/78); `pnpm build` limpo. Sem teste no Facebook real (sem acesso ao PC do dono).
 - **Autor:** Claude Code
 
+### 2026-10-22 — Henry: conversa natural, sempre ativo, ícone que cresce e anel mais vivo (HENRY-1)
+- **Data:** 2026-10-22
+- **Área:** Henry (assistente de voz do dono) · Interface do painel
+- **Alteração:** (1) interrupção imediata pelo nome ou "para/espera/pera/chega" já no resultado parcial, cortando a voz e cancelando o pedido; com pergunta junto, responde direto; (2) modo conversa: segue ouvindo sem o nome até ~20 s sem troca ou "obrigado, Henry"/"pode parar"/"tchau", com filtro de eco; (3) memória das últimas ~6 trocas só na página (`HENRY_HISTORY_TURNS` 6 → 12), zerada ao sair; (4) confirmação curta na voz do navegador quando demora > 1,2 s; resposta em NDJSON com a voz em partes (1ª frase primeiro); sons de início/fim que respeitam o mudo; (5) escuta sempre ativa com religar em espera crescente e ao voltar à aba; som destravado no 1º clique/tecla; (6) ícone do canto dobra de tamanho com legenda quando chamado/em conversa, clique abre a tela cheia, clique no fundo minimiza; (7) anel com estados bem distintos (ouvindo/pensando/falando/parado) e transição de ~300 ms.
+- **Motivo:** pedidos do dono ("quero que pareça com uma conversa…", "não quero que precise clicar no ícone…", "quero mais movimentos quando ele escutar, falar ou pensar").
+- **Arquivos afetados:** `lib/henry-voice-conversation.mjs` (novo), `lib/henry-voice-core.mjs` (histórico 12), `lib/henry-voice.js` (1 linha no prompt), `app/api/admin/henry/route.js` (`stream: true` → NDJSON), `components/henry/HenryVoiceAssistant.jsx`, `HenryVoiceView.jsx`, `HenryOrb.jsx`, `henry-orb-states.mjs` (novo), vitrine `app/dev/vitrine/_components/HenryDemo.jsx`, `tests/henry-voice-conversation.test.mjs` (novo).
+- **Banco:** nada. A memória da conversa nunca sai da página.
+- **Docs:** `BUSINESS_RULES.md` HENRY-1.
+- **Risco/observação:** a fala em partes faz 2 chamadas de voz por resposta longa (mesmo total de caracteres; custo praticamente igual). A confirmação curta usa a voz do navegador, diferente da voz do servidor. Comportamento de microfone/autoplay depende do Chrome; só testado com sinal simulado (vitrine), sem microfone real.
+- **Verificação:** `node --test tests/henry-voice-conversation.test.mjs tests/henry-voice-style.test.mjs tests/henry-voice.test.mjs` (38/38), `pnpm build`, prints da vitrine dos 4 estados.
+- **Autor:** Claude Code
+
 ### 2026-10-22 — Henry: tela "Voz e personalidade" (voz, tom, velocidade, jeito de falar, como tratar o dono) (HENRY-1)
 - **Data:** 2026-10-22
 - **Área:** Henry (assistente de voz do dono) · Integrações (OpenAI TTS)
