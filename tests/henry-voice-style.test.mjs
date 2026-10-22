@@ -119,7 +119,7 @@ test("como tratar o dono: saudação do relatório, amostra e elogio (regras do 
   assert.match(composeHenryDailyReport({ assistant: { text: "Boa tarde, Matheus. Tudo em dia." } }, { address: "Sr. Matheus" }), /^Boa tarde, Sr\. Matheus\. Segue/);
   assert.equal(henrySampleText({ address: "chefe" }), "Bom dia, chefe. Eu sou o Henry, seu assistente.");
   const prompt = buildComplimentPrompt([], { address: "chefe" });
-  assert.match(prompt, /Chame-o de "chefe"/);
+  assert.match(prompt, /Ele é o "chefe", mas NÃO diga o nome/);
   assert.match(prompt, /NUNCA comente corpo/);
   assert.match(buildComplimentPrompt([]), /Chame-o de "Matheus"/);
 });
