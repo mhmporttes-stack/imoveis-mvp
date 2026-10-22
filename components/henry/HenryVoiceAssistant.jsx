@@ -622,7 +622,9 @@ export default function HenryVoiceAssistant() {
     recognition.continuous = true;
     recognition.interimResults = true;
     // Celular (tocar para falar): só roda com a cena aberta ou em conversa; computador ou "ouvir com o app aberto": sempre.
-    const wantsRun = () => shouldRunRecognition({ mode: listenModeRef.current, sessionOpen: sessionOpenRef.current });
+    // Celular: enquanto o Henry fala, o microfone fica DESLIGADO — com o microfone aberto o iOS/Android manda a voz para o
+    // alto-falante de ligação (baixinho ou mudo). Dono, 2026-10-22: "mostra que ele está falando e não sai áudio".
+    const wantsRun = () => shouldRunRecognition({ mode: listenModeRef.current, sessionOpen: sessionOpenRef.current }) && !(!desktopRef.current && phaseRef.current === "speaking");
     const startSafe = () => {
       if (stopped || !shouldListenRef.current || !wantsRun()) return;
       try {
@@ -694,6 +696,18 @@ export default function HenryVoiceAssistant() {
       recognition.abort();
     };
   }, [active, supported, muted, listenMode, handleFinal, markActivity, startMicMeter, stopMicMeter, currentSpeech, interrupt]);
+
+  // Celular, meia via: fala do Henry → microfone e medidor desligados (o som vai para o alto-falante); acabou de falar e a
+  // conversa segue → volta a ouvir. Para interromper no celular: tocar na tela (onInterrupt).
+  useEffect(() => {
+    if (desktop) return;
+    if (phase === "speaking") {
+      stopListeningRef.current?.();
+      stopMicMeter();
+    } else if (phase === "armed" && sessionOpenRef.current) {
+      startListeningRef.current?.();
+    }
+  }, [phase, desktop, stopMicMeter]);
 
   // Celular: abrir a cena ou estar em conversa mantém a escuta; fechou e a conversa acabou → para de ouvir (bateria).
   useEffect(() => {
@@ -780,7 +794,7 @@ export default function HenryVoiceAssistant() {
         : phase === "thinking"
           ? "Pensando…"
           : phase === "speaking"
-            ? "Falando… diga “Henry” para interromper"
+            ? desktop ? "Falando… diga “Henry” para interromper" : "Falando… toque na tela para interromper"
             : phase === "armed"
               ? inConversation
                 ? "Em conversa — pode falar sem dizer o nome (“obrigado, Henry” encerra)"
@@ -805,6 +819,8 @@ export default function HenryVoiceAssistant() {
       expanded={expanded}
       onExpand={openScene}
       onMinimize={() => setExpanded(false)}
+      speaking={phase === "speaking"}
+      onInterrupt={interrupt}
       mobile={!desktop}
       tapToTalk={listenMode === "tap"}
       status={status}

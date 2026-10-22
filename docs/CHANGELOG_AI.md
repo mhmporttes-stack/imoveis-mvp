@@ -44,6 +44,15 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 
 
+### 2026-10-22 — Henry no celular: voz pelo alto-falante (microfone desligado enquanto fala)
+- **Data:** 2026-10-22
+- **Área:** Integrações/Henry
+- **Alteração:** no celular, quando o Henry começa a falar, o reconhecimento e o medidor do microfone param; terminou e a conversa segue → volta a ouvir. Tocar no fundo da tela cheia durante a fala interrompe (antes minimizava).
+- **Motivo:** dono — "mostra que ele está falando e não sai áudio". Com o microfone aberto, iOS/Android mandam a saída para o alto-falante de ligação (baixo ou mudo).
+- **Arquivos afetados:** `components/henry/HenryVoiceAssistant.jsx`, `components/henry/HenryVoiceView.jsx`, `docs/BUSINESS_RULES.md` (HENRY-1).
+- **Risco/observação:** no celular não dá para interromper falando "Henry" (só tocando). Se o navegador do celular não religar o microfone sozinho depois da fala, o dono toca no anel. Confirmar no aparelho do dono (iPhone ou Android).
+- **Autor:** Claude Code
+
 ### 2026-10-22 — Henry: interrupção pelo nome no meio da frase e elogio mais discreto
 - **Data:** 2026-10-22
 - **Área:** Integrações/Henry

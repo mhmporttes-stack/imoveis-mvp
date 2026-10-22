@@ -64,6 +64,8 @@ export default function HenryVoiceView({
   capturing = false,
   onToggleVision,
   mobile = false,
+  speaking = false,
+  onInterrupt,
   tapToTalk = false,
   fixed = true
 }) {
@@ -163,7 +165,9 @@ export default function HenryVoiceView({
       aria-modal="true"
       aria-label="Assistente Henry"
       onClick={(event) => {
-        if (event.target === event.currentTarget) onMinimize?.(); // clique fora (no fundo) minimiza
+        if (event.target !== event.currentTarget) return;
+        if (mobile && speaking) onInterrupt?.(); // celular: o microfone fica desligado enquanto ele fala; tocar na tela corta
+        else onMinimize?.(); // clique fora (no fundo) minimiza
       }}
       // Celular: arrastar para baixo (> 90 px) minimiza; o "voltar" do aparelho também (HenryVoiceAssistant).
       onTouchStart={(event) => {
