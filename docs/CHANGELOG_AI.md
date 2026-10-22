@@ -250,6 +250,15 @@ Copie o modelo abaixo (uma entrada por bloco):
 - **Risco/observação:** textos, links, tracking e SEO inalterados; `pnpm build` ok; `tests/brand-assets.test.mjs` 4/4. Publicado e conferido no ar. A imagem de cidade não é comprovadamente de Marília (trocar por foto real quando o dono enviar).
 
 ## Registro
+### 2026-10-22 — Chat do Marketplace: envio robusto, 3 tentativas, "Tentar de novo" do corretor (extensão 1.9.2)
+- **Data:** 2026-10-22
+- **Área:** extensão (`background.js` `sendOutbound`/`ensureRoundTab`, `inbox.js` `conversationUrl`/`ownMessagesWith`, `lib/chat-agenda.js`), `lib/marketplace-chat-core.mjs` (`MAX_SEND_ATTEMPTS` 3, `SEND_RETRY_INTERVAL_MS`, `planOutboundResult`, `outboundStatusView`, `isSafeToResend`, `findOutboundEcho`), `lib/marketplace-chat.js` (claim com intervalo, eco confirma falha, `alertOutboundFailed`, `retryMarketplaceOutbound`, `reprocessMarketplaceOutboundFailures`), rotas `POST /api/admin/marketplace-chat/conversations/[id]/messages/[messageId]/retry` (`requireAdminApi` + escopo da conversa) e `GET /api/cron/marketplace-outbound-reprocess` (manual, auth de cron, `?apply=1`), `components/marketplace/MarketplaceChat.jsx`.
+- **Caso real:** resposta do Gabriel Ribeiro "Falhou — A conversa não abriu em 20 s depois do clique (aba em /marketplace/inbox/)"; 5 falhas (2 não abriu, 2 "Não confirmei", 1 "No tab with id").
+- **Alteração:** a leitura guarda o endereço direto da conversa e o envio abre por ele (senão clique confiável com 45 s); aba recriada se fechada; confirmação pela própria mensagem ("por Você", texto igual) com 2ª checagem; falha antes de digitar → até 3 tentativas com 2 min; "Não confirmei" nunca reenvia sozinho e vira enviada quando o eco aparece; corretor vê texto simples e "Tentar de novo"; alerta Importante aos admins na falha final.
+- **Verificação:** `tests/marketplace-chat-core.test.mjs`, extensão `node --test tests/*.test.js`, `pnpm build`.
+- **Risco/observação:** reprocessamento só reenfileira falha que certamente não digitou; "Não confirmei" sem eco fica para conferir. Ver `docs/INCIDENTES.md`.
+- **Autor:** Claude Code (crm-editor)
+
 ### 2026-10-22 — Chat do Marketplace: avisos do Facebook e respostas rápidas fora; abrir não marca como lida (extensão 1.9.1)
 - **Data:** 2026-10-22
 - **Área:** extensão (`selectors.js`, `inbox.js`), `lib/marketplace-chat-core.mjs`, `lib/marketplace-chat.js` (`getMarketplaceConversation`, `renormalizeMarketplaceMessages`), `lib/whatsapp-chat-scope.mjs` (`marksReadOnOpen`).

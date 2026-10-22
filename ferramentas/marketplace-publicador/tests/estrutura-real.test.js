@@ -364,3 +364,26 @@ test("1.9.1: aviso do sistema e painel \"Envie uma resposta rápida\" não viram
   }
   for (const text of ["Sim, você tem interesse?", "Você pode me mandar o endereço?", "Ainda está disponível?"]) assert.equal(MP.isSystemMessage(text), false, text);
 });
+
+// 1.9.2 — envio pelo CRM (dono, 2026-10-22: corretores dependem 100% dele).
+test("1.9.2: leitura guarda o endereço direto da conversa; envio abre por ele, espera 45 s, recria a aba e não reenvia sem confirmação", async () => {
+  const win = chatWindow("Ana Teste", "Casa 2 quartos", [inbound("mid.$aaa", "Ana Teste", "Olá")]);
+  win.append(h("a", { href: "/messages/t/1234567890123/", role: "link", "aria-label": "Abrir no Messenger" }));
+  const send = await loadInbox(fakeDocument(h("body", {}, h("div", { role: "main" }), win)));
+  const result = await send({ type: "mp-inbox-read", threadKey: "n1", contactName: "Ana Teste" });
+  assert.equal(result.ok, true, result.error);
+  assert.equal(result.threadUrl, "https://www.facebook.com/messages/t/1234567890123/");
+  const bg = readFileSync(new URL("../background.js", import.meta.url), "utf8");
+  assert.match(bg, /threadUrl: thread\.threadUrl \|\| read\?\.threadUrl \|\| ""/);
+  const sendFn = bg.slice(bg.indexOf("async function sendOutbound"), bg.indexOf("async function ensureRoundTab"));
+  assert.ok(sendFn.indexOf('message.threadUrl || "").startsWith(FB_PREFIX)') < sendFn.indexOf("readInbox(tabId)"), "endereço direto primeiro");
+  assert.match(bg, /const SEND_OPEN_WAIT_MS = 45 \* 1000;/);
+  assert.match(sendFn, /focus = await focusTab\(tabId\)/);
+  assert.match(sendFn, /finally \{\s*if \(focus\) await focus\.restore\(\)/);
+  assert.match(bg, /tab = await ensureRoundTab\(tab, round\);/);
+  const { outboundResultBody } = await import("../lib/chat-agenda.js");
+  assert.deepEqual(outboundResultBody({ ok: false, sentAttempted: true, unconfirmed: true, error: "Não confirmei" }), { status: "failed", error: "Não confirmei", retry: false, unconfirmed: true });
+  assert.equal(outboundResultBody({ ok: false, sentAttempted: false, error: "A conversa não abriu" }).retry, true);
+  const inboxSource = readFileSync(new URL("../inbox.js", import.meta.url), "utf8");
+  assert.match(inboxSource, /by you/);
+});

@@ -142,11 +142,13 @@ test("resposta do corretor: texto obrigatório, até 2000; sem prefixo automáti
   assert.deepEqual(toOutboxPayload({ id: "m1", body: "Olá!", attempts: 1 }, { thread_key: "123", thread_url: "u" }), { id: "m1", threadKey: "123", threadUrl: "u", body: "Olá!", attempt: 1 });
 });
 
-test("retorno do envio: enviada; falha antes do Enter volta à fila (máx. 2); depois do Enter não", () => {
+test("retorno do envio: enviada; falha antes do Enter volta à fila (até 3 tentativas, com intervalo); depois do Enter não", () => {
   const sending = { status: "sending", attempts: 1, claimed_at: ago(1) };
   assert.equal(planOutboundResult(sending, { status: "sent" }, now).status, "sent");
-  assert.equal(planOutboundResult(sending, { status: "failed", retry: true, error: "x" }, now).status, "queued");
-  assert.equal(planOutboundResult({ ...sending, attempts: 2 }, { status: "failed", retry: true }, now).status, "failed");
+  const retry = planOutboundResult(sending, { status: "failed", retry: true, error: "x" }, now);
+  assert.deepEqual([retry.status, retry.claimed_at], ["queued", now.toISOString()], "claimed_at = agora segura o intervalo");
+  assert.equal(planOutboundResult({ ...sending, attempts: 2 }, { status: "failed", retry: true }, now).status, "queued");
+  assert.equal(planOutboundResult({ ...sending, attempts: 3 }, { status: "failed", retry: true }, now).status, "failed");
   assert.equal(planOutboundResult(sending, { status: "failed", retry: false }, now).status, "failed");
   assert.throws(() => planOutboundResult({ status: "sent" }, { status: "sent" }, now), /não está em envio/);
 });
@@ -227,8 +229,10 @@ test("1ª carga no servidor: ignora antes de gravar, vale para a fila de espera 
   assert.match(queue, /route\.kind === "assignee"\) \{\s*await assignDirect/);
   assert.match(queue, /waiting_distribution_at: null/);
   assert.doesNotMatch(lib, /from\(CONVERSATIONS\)\.delete\(/, "nenhuma conversa é apagada");
-  // Única exclusão: mensagem LIDA do Facebook descartável na renormalização (nunca resposta escrita no CRM).
-  assert.equal((lib.match(/\.delete\(\)/g) || []).length, 1);
+  // Exclusões: mensagem LIDA do Facebook descartável na renormalização e a cópia (eco) de uma resposta confirmada —
+  // nunca resposta escrita no CRM.
+  assert.equal((lib.match(/\.delete\(\)/g) || []).length, 2);
+  assert.match(lib, /from\(MESSAGES\)\.delete\(\)\.eq\("id", echo\.id\)\.is\("sender_user_id", null\)\.like\("external_id", "fb:%"\)/);
   assert.match(lib, /from\(MESSAGES\)\.delete\(\)\.in\("id", deletes\)\.not\("external_id", "is", null\)/);
 });
 
@@ -387,4 +391,48 @@ test("abrir conversa do Marketplace só marca lida pelo corretor atribuído (ou 
   const fn = lib.slice(lib.indexOf("export async function getMarketplaceConversation"), lib.indexOf("export async function", lib.indexOf("export async function getMarketplaceConversation") + 10));
   assert.match(fn, /marksReadOnOpen\(scopeFor\(auth\), \{ ownerId: conversation\.assigned_user_id, viewerId: auth\?\.profile\?\.id \|\| null \}\)/);
   assert.match(fn, /if \(markRead\) await db\(\)\.from\(CONVERSATIONS\)\.update\(\{ unread_count: 0 \}\)/);
+});
+
+// Envio pelo CRM (dono, 2026-10-22: os corretores dependem 100% dele). Caso Gabriel Ribeiro: "Falhou — A conversa não
+// abriu em 20 s depois do clique (aba em /marketplace/inbox/)".
+test("envio: corretor vê situação simples (tentando de novo n/3, Não enviada + Tentar de novo); erro técnico só admin", async () => {
+  const { outboundStatusView, isSafeToResend } = await import("../lib/marketplace-chat-core.mjs");
+  const error = "A conversa não abriu em 20 s depois do clique (aba em /marketplace/inbox/).";
+  const base = { direction: "outbound", sender_user_id: "u1", error };
+  assert.deepEqual(outboundStatusView({ ...base, status: "queued", attempts: 1 }), { statusLabel: "Não enviada — tentando de novo (1/3)", canRetry: false, error: null });
+  assert.deepEqual(outboundStatusView({ ...base, status: "failed", attempts: 3 }), { statusLabel: "Não enviada", canRetry: true, error: null });
+  assert.equal(outboundStatusView({ ...base, status: "failed" }, { technical: true }).error, error);
+  assert.equal(outboundStatusView({ direction: "outbound", sender_user_id: "u1", status: "sent" }).statusLabel, "Enviada");
+  assert.equal(outboundStatusView({ direction: "inbound", status: "received" }).statusLabel, "");
+  // Pode reenviar sem risco: não abriu / aba fechada; "Não confirmei" (depois do Enter) não.
+  assert.equal(isSafeToResend(error), true);
+  assert.equal(isSafeToResend("No tab with id: 591498080."), true);
+  assert.equal(isSafeToResend("Não confirmei a mensagem na conversa (confira no Facebook)."), false);
+  assert.equal(isSafeToResend("A extensão não deu retorno. Confira no Facebook antes de reenviar."), false);
+});
+
+test("eco confirma resposta que falhou ou está em nova tentativa (saiu → enviada, sem duplicar)", () => {
+  const created = ago(30);
+  const row = { id: "m9", external_id: null, direction: "outbound", body: "Meu nome é Gabriel Ribeiro, sou associado do Corretor Matheus Machado", created_at: created, sent_at: null };
+  const echo = { direction: "outbound", body: "Meu nome é Gabriel Ribeiro, sou associado do Corretor Matheus Machado", at: ago(25) };
+  assert.equal(findOutboundEcho(echo, [{ ...row, status: "failed" }], now).id, "m9");
+  assert.equal(findOutboundEcho(echo, [{ ...row, status: "queued", attempts: 1 }], now).id, "m9");
+  assert.equal(findOutboundEcho(echo, [{ ...row, status: "queued", attempts: 0 }], now), null, "nunca tentada não é eco");
+  assert.equal(findOutboundEcho({ ...echo, at: ago(60) }, [{ ...row, status: "failed" }], now), null, "eco anterior à resposta não conta");
+  const lib = readFileSync(new URL("../lib/marketplace-chat.js", import.meta.url), "utf8");
+  assert.match(lib, /status: "sent", sent_at: message\.at \|\| now\.toISOString\(\), error: null/);
+  const claim = lib.slice(lib.indexOf("export async function claimNextMarketplaceOutbound"), lib.indexOf("export async function reportMarketplaceOutboundResult"));
+  assert.match(claim, /\.or\(`claimed_at\.is\.null,claimed_at\.lt\.\$\{retryBefore\}`\)/);
+  const retry = lib.slice(lib.indexOf("export async function retryMarketplaceOutbound"), lib.indexOf("export async function reprocessMarketplaceOutboundFailures"));
+  assert.match(retry, /loadScopedConversation\(conversationId, auth\)/);
+  assert.ok(retry.indexOf("findStoredEcho(row)") < retry.indexOf('status: "queued", attempts: 0'), "confere o eco antes de reenfileirar");
+  const reprocess = lib.slice(lib.indexOf("export async function reprocessMarketplaceOutboundFailures"), lib.indexOf("// --- Renormalização"));
+  assert.match(reprocess, /apply = false/);
+  assert.match(reprocess, /if \(isSafeToResend\(row\.error\)\)/);
+  assert.match(reprocess, /attempts: MAX_SEND_ATTEMPTS - 1/, "reenfileira UMA vez");
+  assert.match(lib, /dedupe_key: `marketplace_outbound_failed:\$\{message\.id\}`/);
+  const route = readFileSync(new URL("../app/api/admin/marketplace-chat/conversations/[id]/messages/[messageId]/retry/route.js", import.meta.url), "utf8");
+  assert.match(route, /requireAdminApi\(request\)/);
+  const cron = readFileSync(new URL("../app/api/cron/marketplace-outbound-reprocess/route.js", import.meta.url), "utf8");
+  assert.match(cron, /reprocessMarketplaceOutboundFailures\(\{ apply \}\)/);
 });

@@ -43,7 +43,7 @@ function saveCachedThread(viewerKey, id, thread) {
   for (const old of ids.slice(0, Math.max(0, ids.length - MAX_CACHED_THREADS))) delete current[old];
   saveViewerData(viewerKey, MARKETPLACE_THREADS_CACHE_NAME, current);
 }
-const STATUS_TEXT = { queued: "Na fila de envio", sending: "Enviando…", sent: "Enviada", failed: "Falhou" };
+// Situação da resposta vem pronta do servidor (`statusLabel`, sem texto técnico para o corretor — 2026-10-22).
 
 async function callApi(url, options = {}) {
   const response = await fetch(url, { ...options, headers: { "Content-Type": "application/json" }, cache: "no-store" });
@@ -299,6 +299,17 @@ export default function MarketplaceChat({ canEditSettings = false, canAssign = f
     }
   }
 
+  // "Tentar de novo" (dono, 2026-10-22): o servidor confere antes se a resposta já saiu (nunca duplica).
+  async function retry(messageId) {
+    try {
+      const result = await callApi(`/api/admin/marketplace-chat/conversations/${selectedId}/messages/${messageId}/retry`, { method: "POST" });
+      if (result.confirmed) window.alert("Essa resposta já tinha saído pelo Facebook — marcada como enviada.");
+      loadThread(selectedId);
+    } catch (retryError) {
+      setError(retryError.message);
+    }
+  }
+
   async function assign(userId) {
     try {
       await callApi(`/api/admin/marketplace-chat/conversations/${selectedId}`, { method: "PATCH", body: JSON.stringify({ assignedUserId: userId || null }) });
@@ -417,9 +428,12 @@ export default function MarketplaceChat({ canEditSettings = false, canAssign = f
                     ))}
                     <p className="mt-1 text-2xs text-muted">
                       {time.format(new Date(message.at))}
-                      {message.direction === "outbound" && STATUS_TEXT[message.status] ? ` · ${STATUS_TEXT[message.status]}` : ""}
-                      {message.status === "failed" && message.error ? ` — ${message.error}` : ""}
+                      {message.direction === "outbound" && message.statusLabel ? ` · ${message.statusLabel}` : ""}
+                      {message.error ? ` — ${message.error}` : ""}
                     </p>
+                    {message.canRetry ? (
+                      <Button size="sm" variant="secondary" className="mt-1" onClick={() => retry(message.id)}>Tentar de novo</Button>
+                    ) : null}
                   </div>
                 </div>
               ))}

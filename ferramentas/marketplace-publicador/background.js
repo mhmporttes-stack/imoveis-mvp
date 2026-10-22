@@ -657,7 +657,8 @@ async function readThread(tabId, thread, config) {
     };
     read = { ...read, error: `${read?.error || "Não abriu a conversa."}${await sendOpenDiagnostic(config, payload)}` };
   }
-  return { read, conversation: { threadKey: thread.threadKey, threadUrl: thread.threadUrl, contactName: thread.contactName, contactPhotoUrl: thread.contactPhotoUrl, listingTitle: thread.listingTitle, listingUrl: read?.listingUrl || "", lastActivityAt: thread.lastActivityAt || null, messages: read?.messages || [] } };
+  // threadUrl lido na conversa (1.9.2): o CRM guarda e o envio abre a conversa direto por ele.
+  return { read, conversation: { threadKey: thread.threadKey, threadUrl: thread.threadUrl || read?.threadUrl || "", contactName: thread.contactName, contactPhotoUrl: thread.contactPhotoUrl, listingTitle: thread.listingTitle, listingUrl: read?.listingUrl || "", lastActivityAt: thread.lastActivityAt || null, messages: read?.messages || [] } };
 }
 
 // Caminho anonimizado (mesma regra de MP.skeletonPath, que só existe na página).
@@ -675,33 +676,51 @@ async function pauseForCheckpoint(where) {
   notify("Marketplace pausado por 24 h", `O Facebook pediu verificação ou avisou de limite (${where}). Nada será lido nem enviado até lá.`);
 }
 
+// Envio pelo CRM (1.9.2 — os corretores não têm acesso ao Facebook; dependem 100% deste envio). Abre a conversa pelo
+// endereço direto quando o CRM já o tem (lido na conversa); senão, pela lista com o clique confiável e espera de até
+// 45 s. A aba fica visível só durante o envio. Falha antes de digitar → retry (o CRM tenta até 3 vezes); depois do
+// Enter sem confirmação → unconfirmed (o CRM nunca reenvia sozinho; confirma pelo eco).
+const SEND_OPEN_WAIT_MS = 45 * 1000;
+
 async function sendOutbound(tabId, config, message) {
   let outcome;
+  let focus = null;
   try {
     await attachDebugger(tabId);
-    await chrome.tabs.update(tabId, { active: true });
+    focus = await focusTab(tabId);
     if (String(message.threadUrl || "").startsWith(FB_PREFIX)) {
-      await navigateAndWait(tabId, message.threadUrl);
-      await injectInbox(tabId);
+      await navigateAndWait(tabId, message.threadUrl).catch((error) => { throw Object.assign(error, { beforeSend: true }); });
+      const state = await waitOpened(tabId, "", "", 0, SEND_OPEN_WAIT_MS);
+      if (!state.found) throw Object.assign(new Error("A conversa não abriu pelo endereço direto."), { beforeSend: true });
     } else {
-      // Conversa sem link (painel do Messenger): reabre a caixa do Marketplace e clica no item.
-      const inbox = await readInbox(tabId);
+      // Conversa sem endereço: reabre a caixa do Marketplace e clica no item (clique confiável, espera de até 45 s).
+      const inbox = await readInbox(tabId).catch((error) => { throw Object.assign(error, { beforeSend: true }); });
       if (!(inbox?.threads || []).some((thread) => thread.threadKey === message.threadKey)) throw Object.assign(new Error("Conversa não encontrada na caixa do Marketplace."), { beforeSend: true });
-      const before = (await chrome.tabs.get(tabId)).url;
-      // 1.8.8: o leitor espera na própria página (até 20 s) a janela/rota da conversa aparecer.
-      const opened = await pageCall(tabId, { type: "mp-inbox-open", threadKey: message.threadKey }, 60000);
+      const opened = await pageCall(tabId, { type: "mp-inbox-open", threadKey: message.threadKey, openWaitMs: SEND_OPEN_WAIT_MS }, SEND_OPEN_WAIT_MS + 60000)
+        .catch((error) => ({ ok: false, error: error.message }));
       if (!opened?.ok) throw Object.assign(new Error(opened?.error || "Não abriu a conversa."), { beforeSend: true });
-      await waitTabSettled(tabId, before).catch((error) => { throw Object.assign(error, { beforeSend: true }); });
-      await injectInbox(tabId);
     }
     outcome = await pageCall(tabId, { type: "mp-inbox-send", text: message.body }, 120000);
   } catch (error) {
-    // Falhou antes de digitar (conversa não aberta): pode tentar de novo; senão, sem saber se saiu, não reenvia.
+    // Falhou antes de digitar (conversa não aberta, aba fechada): pode tentar de novo; senão, sem saber se saiu, não reenvia.
     outcome = { ok: false, sentAttempted: !error?.beforeSend, error: error.message };
+  } finally {
+    if (focus) await focus.restore().catch(() => {});
   }
   // O depurador fica ligado até o fim da rodada (desligado no finally do chatTick).
   await postOutboundResult(config, message.id, outboundResultBody(outcome)).catch((error) => console.warn("[marketplace] retorno do envio falhou:", error?.message || error));
   return outcome;
+}
+
+// Aba da rodada fechada no meio (erro real "No tab with id"): abre outra antes do envio.
+async function ensureRoundTab(tab, round) {
+  const alive = tab?.id ? await chrome.tabs.get(tab.id).catch(() => null) : null;
+  if (alive) return alive;
+  const fresh = await chrome.tabs.create({ url: "about:blank", active: false });
+  await round.set({ tabId: fresh.id }).catch(() => {});
+  await sleep(500);
+  await attachDebugger(fresh.id);
+  return fresh;
 }
 
 // --- Trava da sincronização (1.8.7) -------------------------------------------------------------------------------
@@ -709,7 +728,7 @@ async function sendOutbound(tabId, config, message) {
 // (o Chrome encerrou o worker no meio da rodada e o finally não rodou — causa do "sincronizando" eterno da 1.8.6).
 const WORKER_INSTANCE = crypto.randomUUID();
 const CHAT_HEARTBEAT_MS = 20 * 1000;
-const STEP_TIMEOUT_MS = { inbox: 180 * 1000, threadFull: 300 * 1000, thread: 150 * 1000, post: 45 * 1000, outbox: 30 * 1000, send: 200 * 1000 };
+const STEP_TIMEOUT_MS = { inbox: 180 * 1000, threadFull: 300 * 1000, thread: 150 * 1000, post: 45 * 1000, outbox: 30 * 1000, send: 330 * 1000 };
 const THREAD_READ_MS = { full: 210 * 1000, incremental: 60 * 1000 };
 
 class ChatLockLost extends Error {}
@@ -914,6 +933,7 @@ async function chatTick() {
       }
       const next = await round.step("buscando respostas a enviar", () => fetchNextOutbound(config), STEP_TIMEOUT_MS.outbox, summary);
       if (!next?.message) break;
+      tab = await ensureRoundTab(tab, round);
       const outcome = await round.step(`enviando resposta ${i + 1}`, () => sendOutbound(tab.id, config, next.message), STEP_TIMEOUT_MS.send, summary);
       if (outcome.ok) summary.sent += 1;
       else summary.failed += 1;

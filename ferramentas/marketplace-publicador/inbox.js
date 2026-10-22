@@ -455,6 +455,26 @@
 
   // Mensagens da conversa aberta, com lado pela geometria. full=true (1ª vez que a conversa é vista): sobe até o
   // início (o Messenger carrega aos poucos) e desce juntando tudo — histórico completo (dono, 2026-10-20).
+  // Endereço direto da conversa (1.9.2): a rota atual, se for /marketplace/t/… ou /messages/t/…, ou um link assim dentro
+  // da janela (cabeçalho "Abrir no Messenger"). O CRM guarda e o envio abre por ele, sem clicar na lista.
+  function conversationUrl(scope) {
+    const absolute = (href) => {
+      try {
+        const url = new URL(href, location.origin);
+        return url.origin === "https://www.facebook.com" && /^\/(marketplace\/t|messages\/t|t)\/[A-Za-z0-9_.:-]+/.test(url.pathname) ? `${url.origin}${url.pathname}` : "";
+      } catch {
+        return "";
+      }
+    };
+    const fromRoute = absolute(location.href);
+    if (fromRoute) return fromRoute;
+    for (const link of (scope || document).querySelectorAll?.('a[href*="/messages/t/"], a[href*="/marketplace/t/"]') || []) {
+      const url = absolute(link.getAttribute("href"));
+      if (url) return url;
+    }
+    return "";
+  }
+
   // maxMs (1.8.7): prazo da leitura dado pelo background; a rolagem para antes dele e devolve o que juntou.
   async function readThread(threadKey, full = false, contactName = "", maxMs = 0) {
     const deadline = maxMs > 0 ? Date.now() + maxMs : Infinity;
@@ -490,11 +510,12 @@
       rows = MP.mergeRowWindows(rows, readRows(scope, area, contactName));
     }
     const listing = scope.querySelector?.(MP.listingLink) || document.querySelector(MP.listingLink);
+    const threadUrl = conversationUrl(scope);
     // 1.8.9: linhas lidas mas nenhuma mensagem válida (tudo texto do sistema/vazio) é FALHA — antes ia ao CRM uma
     // conversa sem mensagens e a prévia era guardada (o histórico nunca mais era lido).
     const messages = rows.length ? MP.buildMessages(threadKey, rows).slice(full ? -500 : -60) : [];
     const result = messages.length
-      ? { ok: true, listingUrl: listing ? MP.cleanListingUrl(listing.href || listing.getAttribute("href")) : "", messages, checkpoint: pageCheckpoint() }
+      ? { ok: true, listingUrl: listing ? MP.cleanListingUrl(listing.href || listing.getAttribute("href")) : "", threadUrl, messages, checkpoint: pageCheckpoint() }
       : { ok: false, error: `Conversa aberta, mas nenhuma mensagem reconhecida (${rows.length} linha(s) lidas, todas descartadas; ${area.querySelectorAll(MP.inbox.article).length} article, ${area.querySelectorAll(MP.inbox.messageId).length} data-message-id, ${area.querySelectorAll(MP.inbox.messageRows).length} linhas, ${area.querySelectorAll(MP.inbox.messageText).length} textos na área; seletores a calibrar).`, checkpoint: pageCheckpoint() };
     await closeChatWindow(win); // não acumula janelas abertas
     return result;
@@ -506,6 +527,16 @@
     } catch {
       return false;
     }
+  }
+
+  // Quantas mensagens NOSSAS (saída ou rótulo "por Você"/"by You") contêm o texto, nas últimas 15 da conversa.
+  function ownMessagesWith(target, win = null) {
+    if (!target) return 0;
+    const log = (win || document).querySelector(MP.inbox.log);
+    const rows = log ? MP.readLogRows(log, { directionOf: (article) => geometryDirection(article, log) }) : [];
+    const own = (row) => row.direction === "outbound" || /\b(por voce|by you)\b/.test(MP.normalize(row.body));
+    const found = rows.slice(-15).filter((row) => own(row) && MP.normalize(row.body).includes(target)).length;
+    return found || lastOutboundTexts(5, win).filter((text) => text.includes(target)).length;
   }
 
   function lastOutboundTexts(count = 3, win = null) {
@@ -542,16 +573,20 @@
       await sleep(between(80, 260));
     }
     await sleep(between(400, 900));
-    const before = lastOutboundTexts(3, win).join("|");
+    const target = MP.normalize(flat).slice(0, 40);
+    const seenBefore = ownMessagesWith(target, win);
     if (!(await trusted("key", { key: "Enter" }))) return { ok: false, sentAttempted: false, error: "Depurador desligado: não envio com eventos simulados." };
-    const target = MP.normalize(flat);
-    const confirmed = await waitFor(() => {
-      const after = lastOutboundTexts(3, win);
-      return after.join("|") !== before && after.some((item) => item === target || item.includes(target.slice(0, 40)));
-    }, 15000, 700);
+    // 1.9.2: confirma pela própria mensagem na conversa (texto igual, "por Você"/saída), não só pelas 3 últimas de saída
+    // (a direção às vezes vinha errada e dava "Não confirmei" para mensagem que saiu). Até 30 s; depois relê uma vez.
+    let confirmed = await waitFor(() => ownMessagesWith(target, win) > seenBefore || null, 30000, 700);
+    if (!confirmed) {
+      await sleep(4000);
+      confirmed = ownMessagesWith(target, win) > seenBefore || ownMessagesWith(target, null) > seenBefore;
+    }
     if (pageCheckpoint()) return { ok: false, checkpoint: true, sentAttempted: true, error: "O Facebook mostrou verificação/limite depois do envio." };
     await closeChatWindow(win); // não acumula janelas abertas
-    return confirmed ? { ok: true, sentAttempted: true } : { ok: false, sentAttempted: true, error: "Não confirmei a mensagem na conversa (confira no Facebook)." };
+    // Sem confirmação: unconfirmed — o CRM não reenvia sozinho; confirma pelo eco na próxima leitura da conversa.
+    return confirmed ? { ok: true, sentAttempted: true } : { ok: false, sentAttempted: true, unconfirmed: true, error: "Não confirmei a mensagem na conversa (confira no Facebook)." };
   }
 
   // --- Diagnóstico de estrutura (1.8.5) ---------------------------------------------------------------------------

@@ -39,6 +39,16 @@ Copie o modelo abaixo (uma entrada por bloco):
 ```
 
 ## Registro
+### 2026-10-22 — Resposta do corretor no Chat Marketplace "Falhou — A conversa não abriu em 20 s depois do clique"
+- **Data:** 2026-10-22
+- **Sintoma:** resposta do Gabriel Ribeiro ficou "Falhou — A conversa não abriu em 20 s depois do clique (aba em /marketplace/inbox/)"; outras com "Não confirmei a mensagem na conversa" e "No tab with id". Corretores não têm acesso ao Facebook.
+- **Área:** Chat Marketplace / extensão
+- **Impacto:** 5 respostas não enviadas (de 50); corretor sem saída a não ser o dono.
+- **Causa raiz:** envio abria a conversa clicando na lista (20 s, aba oculta), a confirmação dependia da direção das 3 últimas mensagens (às vezes errada) e a aba da rodada podia sumir; o servidor só tentava 2 vezes e mostrava o erro técnico.
+- **Correção:** endereço direto da conversa, espera de 45 s com a aba visível, aba recriada, confirmação pelo texto "por Você", 3 tentativas com intervalo, confirmação pelo eco, "Tentar de novo" do corretor, alerta ao admin; reprocessamento manual das falhas.
+- **Arquivos/commit:** `ferramentas/marketplace-publicador/{background,inbox}.js`, `lib/marketplace-chat{,-core}.{js,mjs}`, rotas de retry e reprocessamento
+- **Prevenção/teste:** `tests/marketplace-chat-core.test.mjs`, `ferramentas/marketplace-publicador/tests/estrutura-real.test.js`
+- **Status:** Resolvido no código; falhas atuais dependem do acionamento do reprocessamento
 ### 2026-10-22 — "Debora iniciou esta conversa." e sugestão de resposta rápida aparecem como mensagem da cliente
 - **Data:** 2026-10-22
 - **Sintoma:** no Chat Marketplace a conversa da Debora mostrava como da cliente o aviso "Debora iniciou esta conversa." e "Sim, você tem interesse?" (22/10 06:33), que ninguém enviou — era uma sugestão do painel "Envie uma resposta rápida". Também: o dono abriu a conversa e o contador de não lidas sumiu.

@@ -96,5 +96,5 @@ export function rememberPreviews(known = {}, threads = []) {
 // Corpo do retorno de um envio: só pede nova tentativa se não chegou a apertar Enter (nada saiu no Facebook).
 export function outboundResultBody(outcome = {}) {
   if (outcome.ok) return { status: "sent" };
-  return { status: "failed", error: String(outcome.error || "Falha sem descrição.").slice(0, 500), retry: !outcome.sentAttempted && !outcome.checkpoint };
+  return { status: "failed", error: String(outcome.error || "Falha sem descrição.").slice(0, 500), retry: !outcome.sentAttempted && !outcome.checkpoint, unconfirmed: Boolean(outcome.unconfirmed) };
 }
