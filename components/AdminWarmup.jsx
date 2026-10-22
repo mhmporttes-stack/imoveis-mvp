@@ -3,7 +3,7 @@
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { readChatView, readViewerData, saveChatView, saveViewerData } from "@/components/chat-view-cache";
-import { CLIENTS_CACHE_NAME, CLIENTS_DEFAULT_LIST_QUERY, PERFORMANCE_CACHE_NAME } from "@/components/panel-cache-names";
+import { CLIENTS_CACHE_NAME, CLIENTS_DEFAULT_LIST_QUERY, MARKETPLACE_DEFAULT_LIST_QUERY, MARKETPLACE_LIST_CACHE_PREFIX, PERFORMANCE_CACHE_NAME } from "@/components/panel-cache-names";
 
 // Pré-carrega as telas da barra inferior depois que o painel abre (pedido do dono, 2026-10-12: "o primeiro toque no Chat
 // demora mais"). Só no celular, uma vez por sessão, com o app visível, fora de "economia de dados"/2G, e só as telas que
@@ -14,6 +14,8 @@ import { CLIENTS_CACHE_NAME, CLIENTS_DEFAULT_LIST_QUERY, PERFORMANCE_CACHE_NAME 
 // - lightRoutes: só o código da tela (Agenda).
 // - chat: lista de conversas no cache do Chat (components/chat-view-cache.js), sem recibo "entregue" nem marcar lida
 //   (?warm=1 em /api/admin/whatsapp-chat/conversations). A tela mostra isso na hora e atualiza ao abrir.
+// - marketplace: lista do Chat do Marketplace na visão padrão (mesma API e escopo da tela; listar não marca lida —
+//   só abrir a conversa marca). Dono, 2026-10-22: "Messenger deve carregar quando abrir o app para ficar mais rápido".
 const START_DELAY_MS = 3000;
 let done = false;
 
@@ -69,7 +71,19 @@ function warmClients(viewerKey) {
     .catch(() => {});
 }
 
-export default function AdminWarmup({ viewerKey = "", chat = false, clients = false, performance = false, fullRoutes = [], lightRoutes = [] }) {
+// Lista do Chat do Marketplace (só leitura). Guarda { at, data }: a tela usa `at` para não buscar de novo logo em seguida.
+function warmMarketplaceList(viewerKey) {
+  const name = `${MARKETPLACE_LIST_CACHE_PREFIX}${MARKETPLACE_DEFAULT_LIST_QUERY}`;
+  if (readViewerData(viewerKey, name)) return;
+  fetch(`/api/admin/marketplace-chat/conversations?${MARKETPLACE_DEFAULT_LIST_QUERY}`, { cache: "no-store" })
+    .then((response) => (response.ok ? response.json() : null))
+    .then((data) => {
+      if (Array.isArray(data?.conversations) && !readViewerData(viewerKey, name)) saveViewerData(viewerKey, name, { at: Date.now(), data });
+    })
+    .catch(() => {});
+}
+
+export default function AdminWarmup({ viewerKey = "", chat = false, clients = false, performance = false, marketplace = false, fullRoutes = [], lightRoutes = [] }) {
   const router = useRouter();
 
   useEffect(() => {
@@ -98,6 +112,7 @@ export default function AdminWarmup({ viewerKey = "", chat = false, clients = fa
       if (chat) warmChatList(viewerKey);
       if (performance) warmPerformance(viewerKey);
       if (clients) warmClients(viewerKey);
+      if (marketplace) warmMarketplaceList(viewerKey);
     }
     function schedule() {
       window.clearTimeout(timer);

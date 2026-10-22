@@ -4,6 +4,7 @@ import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useStat
 import Link from "next/link";
 import dynamic from "next/dynamic";
 import { createPortal } from "react-dom";
+import { useChatAppMode } from "@/components/useChatAppMode";
 import {
   AlertCircle,
   Archive,
@@ -216,34 +217,13 @@ function formatPhone(phone) {
   return phone || "";
 }
 
-// Modo aplicativo (pedido do dono, 2026-10-09): marca <html> e os ancestrais do Chat para o CSS (app/globals.css,
-// "Chat em modo aplicativo") fixar a tela na altura da janela — só a lista e as mensagens rolam por dentro.
+// Modo aplicativo (pedido do dono, 2026-10-09): components/useChatAppMode.js (compartilhado com o Chat do Marketplace).
 // "3000ms" no código vira "3s" no CSS publicado (minificador): converte os dois formatos para milissegundos.
 function cssTimeMs(value, fallback) {
   const text = String(value || "").trim();
   const number = parseFloat(text);
   if (!Number.isFinite(number)) return fallback;
   return text.endsWith("ms") ? number : text.endsWith("s") ? number * 1000 : number;
-}
-
-// useLayoutEffect (2026-10-12): marca antes da 1ª pintura — com useEffect aparecia um quadro com o banner do ranking
-// e a página fora da moldura, e depois tudo pulava para cima.
-function useChatAppMode(enabled, ref) {
-  useLayoutEffect(() => {
-    if (!enabled || !ref.current) return undefined;
-    const root = document.documentElement;
-    const ancestors = [];
-    for (let node = ref.current.parentElement; node && node !== document.body; node = node.parentElement) {
-      node.classList.add("chat-app-ancestor");
-      ancestors.push(node);
-    }
-    root.classList.add("chat-app-mode");
-    window.scrollTo(0, 0);
-    return () => {
-      root.classList.remove("chat-app-mode");
-      ancestors.forEach((node) => node.classList.remove("chat-app-ancestor"));
-    };
-  }, [enabled, ref]);
 }
 
 export default function WhatsappChat({ canManage = false, canEditRules = false, currentUserId = "", currentUserName = "", initialClientId = "", initialText = "", initialSlot = "", canSeeArchived = false, appMode = false, viewerKey = "" }) {
@@ -1464,10 +1444,12 @@ function Thread({ canManage, canEditRules, currentUserId, mySlots = [], onOpenCl
               <button
                 type="button"
                 onClick={() => setPrivate(!conversation.private)}
-                disabled={archiving}
-                className={`inline-flex h-9 items-center gap-1.5 rounded-full px-2.5 text-xs font-extrabold hover:bg-mist disabled:opacity-50 ${conversation.private ? "text-brand" : "text-navy"}`}
-                aria-label={conversation.private ? "Tirar de Particular" : "Mover para Particular"}
-                title={conversation.private ? "Tirar de Particular (volta para a lista)" : "Particular: contato pessoal, sai da lista e não vira cliente"}
+                // WA-19b (dono, 2026-10-22): cliente do número oficial, link do Matheus, roleta ou Marketplace não vai
+                // para Particular — o servidor recusa; aqui o botão só fica desligado com o motivo.
+                disabled={archiving || (!conversation.private && Boolean(conversation.privateBlocked))}
+                className={`inline-flex h-9 items-center gap-1.5 rounded-full px-2.5 text-xs font-extrabold hover:bg-mist disabled:cursor-not-allowed disabled:opacity-50 ${conversation.private ? "text-brand" : "text-navy"}`}
+                aria-label={conversation.private ? "Tirar de Particular" : conversation.privateBlocked || "Mover para Particular"}
+                title={conversation.private ? "Tirar de Particular (volta para a lista)" : conversation.privateBlocked || "Particular: contato pessoal, sai da lista e não vira cliente"}
               >
                 <Lock className="h-4 w-4" />
                 <span className="hidden sm:inline">{conversation.private ? "Tirar de Particular" : "Particular"}</span>

@@ -7,6 +7,9 @@ import Badge from "@/components/ui/Badge";
 import Card from "@/components/ui/Card";
 import { inputClasses } from "@/components/ui/Field";
 import MessengerBadge from "@/components/marketplace/MessengerBadge";
+import { useChatAppMode } from "@/components/useChatAppMode";
+import { readViewerData, saveViewerData } from "@/components/chat-view-cache";
+import { MARKETPLACE_LIST_CACHE_PREFIX, MARKETPLACE_THREADS_CACHE_NAME } from "@/components/panel-cache-names";
 
 // Chat do Marketplace (MKT-2). A tela só mostra e chama /api/admin/marketplace-chat/**; regra, escopo e roleta ficam
 // no servidor (lib/marketplace-chat.js). As mensagens chegam e saem pela extensão no PC do escritório (~1–2 min).
@@ -18,6 +21,26 @@ const time = new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "
 // (`filters`) e aplica o escopo. Na lista, o nome do corretor (1º nome) no lugar da etiqueta; sem corretor = "Roleta".
 const ROULETTE = "__roleta";
 const firstName = (name) => String(name || "").trim().split(/\s+/)[0] || "";
+// Abre na hora (dono, 2026-10-22): lista e últimas conversas abertas vêm do cache por conta (components/chat-view-cache.js,
+// também pré-carregado pelo AdminWarmup) e atualizam em seguida pelas mesmas APIs. Lista buscada há menos de
+// FRESH_MS (ex.: pelo pré-carregamento) não é buscada de novo ao entrar — a próxima volta do polling atualiza.
+const FRESH_MS = 15000;
+const MAX_CACHED_THREADS = 6;
+const listQuery = (view, brokerId) => {
+  const params = new URLSearchParams({ view });
+  if (brokerId) params.set("brokerId", brokerId);
+  return params.toString();
+};
+const readCachedThread = (viewerKey, id) => (id && readViewerData(viewerKey, MARKETPLACE_THREADS_CACHE_NAME)?.[id]) || null;
+function saveCachedThread(viewerKey, id, thread) {
+  if (!viewerKey || !id || !thread) return;
+  const current = { ...(readViewerData(viewerKey, MARKETPLACE_THREADS_CACHE_NAME) || {}) };
+  delete current[id];
+  current[id] = thread;
+  const ids = Object.keys(current);
+  for (const old of ids.slice(0, Math.max(0, ids.length - MAX_CACHED_THREADS))) delete current[old];
+  saveViewerData(viewerKey, MARKETPLACE_THREADS_CACHE_NAME, current);
+}
 const STATUS_TEXT = { queued: "Na fila de envio", sending: "Enviando…", sent: "Enviada", failed: "Falhou" };
 
 async function callApi(url, options = {}) {
@@ -75,8 +98,8 @@ export function SettingsCard() {
   );
 }
 
-export default function MarketplaceChat({ canEditSettings = false, canAssign = false, team = [] }) {
-  const [list, setList] = useState({ ready: true, conversations: [], filters: [] });
+export default function MarketplaceChat({ canEditSettings = false, canAssign = false, team = [], viewerKey = "" }) {
+  const [list, setList] = useState(() => readViewerData(viewerKey, `${MARKETPLACE_LIST_CACHE_PREFIX}${listQuery("all", "")}`)?.data || { ready: true, conversations: [], filters: [] });
   const [view, setView] = useState("all");
   const [brokerId, setBrokerId] = useState("");
   const [selectedId, setSelectedId] = useState("");
@@ -85,32 +108,54 @@ export default function MarketplaceChat({ canEditSettings = false, canAssign = f
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const endRef = useRef(null);
+  const selectedRef = useRef("");
+  const sectionRef = useRef(null);
+  // Tela cheia como o Chat do WhatsApp (dono, 2026-10-22: "Remova a opção Sair embaixo, deixe como o Chat: a rolagem
+  // deve rolar apenas as conversas"): sem rodapé, altura da janela e só a lista / as mensagens rolam.
+  useChatAppMode(true, sectionRef);
+  selectedRef.current = selectedId;
 
   const loadList = useCallback(() => {
-    const params = new URLSearchParams({ view });
-    if (brokerId) params.set("brokerId", brokerId);
-    callApi(`/api/admin/marketplace-chat/conversations?${params}`).then(setList).catch((loadError) => setError(loadError.message));
-  }, [view, brokerId]);
+    const query = listQuery(view, brokerId);
+    callApi(`/api/admin/marketplace-chat/conversations?${query}`)
+      .then((data) => {
+        setList(data);
+        saveViewerData(viewerKey, `${MARKETPLACE_LIST_CACHE_PREFIX}${query}`, { at: Date.now(), data });
+      })
+      .catch((loadError) => setError(loadError.message));
+  }, [view, brokerId, viewerKey]);
   const loadThread = useCallback((id) => {
     if (!id) return;
-    callApi(`/api/admin/marketplace-chat/conversations/${id}`).then(setThread).catch((loadError) => setError(loadError.message));
-  }, []);
+    callApi(`/api/admin/marketplace-chat/conversations/${id}`)
+      .then((data) => {
+        saveCachedThread(viewerKey, id, data);
+        // Só mostra se a pessoa ainda está nesta conversa (trocou no meio do caminho: guarda e não troca a tela).
+        if (selectedRef.current === id) setThread(data);
+      })
+      .catch((loadError) => setError(loadError.message));
+  }, [viewerKey]);
 
   useEffect(() => {
-    loadList();
+    // Ao trocar o filtro: mostra o que já estava guardado para ele e atualiza; recém-buscada não repete a busca.
+    const cached = readViewerData(viewerKey, `${MARKETPLACE_LIST_CACHE_PREFIX}${listQuery(view, brokerId)}`);
+    if (cached?.data) setList(cached.data);
+    if (!cached || Date.now() - cached.at > FRESH_MS) loadList();
     const timer = setInterval(() => document.visibilityState === "visible" && loadList(), LIST_REFRESH_MS);
     return () => clearInterval(timer);
   }, [loadList]);
 
   useEffect(() => {
     if (!selectedId) return undefined;
+    setThread(readCachedThread(viewerKey, selectedId));
     loadThread(selectedId);
     const timer = setInterval(() => document.visibilityState === "visible" && loadThread(selectedId), THREAD_REFRESH_MS);
     return () => clearInterval(timer);
   }, [selectedId, loadThread]);
 
   useEffect(() => {
-    endRef.current?.scrollIntoView({ block: "end" });
+    // Rola só a caixa das mensagens (scrollIntoView mexeria também na moldura fixa da tela cheia).
+    const box = endRef.current?.parentElement;
+    if (box) box.scrollTop = box.scrollHeight;
   }, [thread?.messages?.length]);
 
   async function send(event) {
@@ -156,16 +201,16 @@ export default function MarketplaceChat({ canEditSettings = false, canAssign = f
   return (
     <>
     <h1 id="marketplace-chat-title" className="sr-only">Chat do Marketplace</h1>
-    <section className="container-page space-y-3" aria-labelledby="marketplace-chat-title">
+    <section ref={sectionRef} className="chat-app-root container-page space-y-3" aria-labelledby="marketplace-chat-title">
       {/* Sem título, explicação nem botão "Chat do WhatsApp" no topo (dono, 2026-10-22: "remova todos esses textos").
           O título só para leitores de tela fica FORA do space-y (senão o primeiro bloco ganha margem e sobra espaço). */}
-      {!list.ready ? <Card className="bg-warning-soft text-sm text-warning">O Chat do Marketplace ainda não foi criado no banco (migration 20261020180000).</Card> : null}
-      {error ? <p role="alert" className="rounded-control bg-danger-soft px-3 py-2 text-sm text-danger">{error}</p> : null}
+      {!list.ready ? <Card className="shrink-0 bg-warning-soft text-sm text-warning">O Chat do Marketplace ainda não foi criado no banco (migration 20261020180000).</Card> : null}
+      {error ? <p role="alert" className="shrink-0 rounded-control bg-danger-soft px-3 py-2 text-sm text-danger">{error}</p> : null}
 
-      <div className="grid gap-3 md:grid-cols-[320px,1fr]">
-        <Card padding="none" className={`overflow-hidden ${selectedId ? "hidden md:block" : ""}`}>
+      <div className="grid min-h-0 flex-1 grid-rows-[minmax(0,1fr)] gap-3 md:mb-4 md:grid-cols-[320px,1fr]">
+        <Card padding="none" className={`min-h-0 flex-col overflow-hidden max-md:rounded-none max-md:border-x-0 ${selectedId ? "hidden md:flex" : "flex"}`}>
           {list.filters?.length ? (
-            <div className="border-b border-line p-2">
+            <div className="shrink-0 border-b border-line p-2">
               <select className="w-full rounded-control border border-line px-2 py-1.5 text-sm" aria-label="Mostrar conversas de"
                 value={brokerId || (view === "unassigned" ? ROULETTE : "")}
                 onChange={(event) => {
@@ -179,8 +224,8 @@ export default function MarketplaceChat({ canEditSettings = false, canAssign = f
               </select>
             </div>
           ) : null}
-          {!list.conversations.length ? <p className="p-4 text-sm text-muted">Nenhuma conversa do Marketplace ainda.</p> : null}
-          <ul className="max-h-[70vh] divide-y divide-line overflow-y-auto">
+          {!list.conversations.length ? <p className="shrink-0 p-4 text-sm text-muted">Nenhuma conversa do Marketplace ainda.</p> : null}
+          <ul className="min-h-0 flex-1 divide-y divide-line overflow-y-auto overscroll-contain">
             {list.conversations.map((item) => (
               <li key={item.id}>
                 <button type="button" onClick={() => setSelectedId(item.id)} className={`flex w-full items-center gap-3 px-3 py-3 text-left hover:bg-info-soft ${item.id === selectedId ? "bg-info-soft" : ""}`}>
@@ -202,10 +247,10 @@ export default function MarketplaceChat({ canEditSettings = false, canAssign = f
         </Card>
 
         {selectedId && conversation ? (
-          <Card padding="none" className="flex min-h-[60vh] flex-col overflow-hidden">
+          <Card padding="none" className="flex min-h-0 flex-col overflow-hidden max-md:rounded-none max-md:border-x-0">
             {/* Cabeçalho em duas linhas (dono, 2026-10-22: "organize" — o seletor cobria o selo no celular): 1) voltar, foto,
                 nome + corretor (ou "Roleta") e anúncio; 2) atribuir + cliente, ocupando a largura toda. */}
-            <div className="space-y-2 border-b border-line p-3">
+            <div className="shrink-0 space-y-2 border-b border-line p-3">
               <div className="flex items-center gap-3">
                 <Button size="icon" variant="ghost" className="shrink-0 md:hidden" aria-label="Voltar" onClick={() => { setSelectedId(""); setThread(null); }}><ArrowLeft className="h-5 w-5" /></Button>
                 <Avatar name={conversation.contactName} photo={conversation.contactPhotoUrl} />
@@ -233,7 +278,7 @@ export default function MarketplaceChat({ canEditSettings = false, canAssign = f
                 )}
               </div>
             </div>
-            <div className="flex-1 space-y-2 overflow-y-auto bg-mist p-3">
+            <div className="min-h-0 flex-1 space-y-2 overflow-y-auto overscroll-contain bg-mist p-3">
               {(thread.messages || []).map((message) => (
                 <div key={message.id} className={`flex ${message.direction === "outbound" ? "justify-end" : "justify-start"}`}>
                   <div className={`max-w-[80%] rounded-card px-3 py-2 text-sm ${message.direction === "outbound" ? "bg-info-soft text-ink" : "bg-white text-ink"}`}>
@@ -254,7 +299,7 @@ export default function MarketplaceChat({ canEditSettings = false, canAssign = f
               ))}
               <div ref={endRef} />
             </div>
-            <form onSubmit={send} className="flex gap-2 border-t border-line p-3">
+            <form onSubmit={send} className="chat-composer-safe flex shrink-0 gap-2 border-t border-line p-3">
               <textarea className={`${inputClasses} min-h-touch py-2`} rows={2} maxLength={2000} value={text} onChange={(event) => setText(event.target.value)} placeholder="Escreva a resposta (sai pelo Facebook em ~1–2 min)" />
               <Button type="submit" loading={busy} disabled={!text.trim()} aria-label="Enviar"><Send className="h-4 w-4" /></Button>
             </form>

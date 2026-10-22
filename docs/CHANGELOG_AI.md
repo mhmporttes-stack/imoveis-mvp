@@ -44,6 +44,13 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 
 
+### 2026-10-22 — Chat Marketplace: pré-carregado ao abrir o app e em tela cheia como o Chat
+
+- Pedidos do dono: "Messenger deve carregar quando abrir o app para ficar mais rápido" e "Remova a opção Sair embaixo, deixe como o Chat: a rolagem deve rolar apenas as conversas".
+- Pré-carregamento: `AdminWarmup` (mesmas condições de sempre: celular, app visível, uma vez por sessão, após 3 s + ocioso) agora monta `/admin/chat/marketplace` e busca a lista padrão (`/api/admin/marketplace-chat/conversations?view=all`, mesmo escopo do servidor; listar não marca lida). Guardado no cache por conta de `components/chat-view-cache.js` (`readViewerData`, nomes em `components/panel-cache-names.js`), limpo ao sair/trocar de conta como o resto.
+- `MarketplaceChat.jsx`: abre com a lista do cache e atualiza em seguida (lista buscada há < 15 s não é buscada de novo ao entrar; polling de 20 s/10 s inalterado); guarda as 6 últimas conversas abertas e as mostra na hora ao reabrir (a busca da conversa, que marca lida, continua só ao abrir). Resposta atrasada de outra conversa não troca mais a tela.
+- Tela cheia: o hook `useChatAppMode` saiu de `WhatsappChat.jsx` para `components/useChatAppMode.js` (mesmo código) e passou a ser usado também pelo Chat do Marketplace (`chat-app-root`): some o rodapé Sair/Segurança, só a lista ou as mensagens rolam e o campo de resposta fica fixo embaixo (celular e computador). Sem mudança em `lib/`, API ou extensão.
+
 ### 2026-10-21 — App (celular): Chat Marketplace na barra inferior e ícones menores
 - **Área:** Navegação do celular (`AdminBottomNav`) / Marketplace
 - **Alteração:** no app o único atalho do Chat é a barra inferior; nela entrou o **Chat Marketplace** logo à direita do Chat, em todos os perfis (6 colunas; mesma chave `marketplace-chat` do menu, então sai do "Mais"; contador = `useMarketplaceUnreadCount`; o Chat deixa de ficar ativo em `/admin/chat/marketplace`). Ícones da barra 22px → 20px (ladrilho 28×48 → 24×40) e rótulos 11px → 10px, para caber em 360px; rótulo "Market" abaixo de 390px e "Marketplace" a partir de 390px (leitor de tela: "Chat Marketplace"). O ícone é o mesmo do atalho do computador (`MarketplaceChatIcon` exportado, aceita `strokeWidth`). Computador inalterado (a barra é `md:hidden`).

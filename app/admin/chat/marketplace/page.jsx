@@ -1,6 +1,7 @@
 import AdminSectionNav from "@/components/AdminSectionNav";
 import MarketplaceChat from "@/components/marketplace/MarketplaceChat";
 import { requireAdminPage } from "@/lib/admin-auth";
+import { chatViewerKey } from "@/lib/chat-viewer-key.mjs";
 import { isGeneralAdminAuth, isManagerProfile, listVisibleTeamProfiles } from "@/lib/admin-profiles";
 
 export const dynamic = "force-dynamic";
@@ -14,9 +15,9 @@ export default async function MarketplaceChatPage() {
   const team = canAssign ? (await listVisibleTeamProfiles(auth)).map((profile) => ({ id: profile.id, name: profile.name })) : [];
 
   return (
-    <main className="bg-mist pb-6 pt-3 md:pt-6">
+    <main className="bg-mist pt-3 md:pt-6">
       <AdminSectionNav active="marketplace-chat" />
-      <MarketplaceChat canEditSettings={isAdmin} canAssign={canAssign} team={team} />
+      <MarketplaceChat canEditSettings={isAdmin} canAssign={canAssign} team={team} viewerKey={chatViewerKey(auth)} />
     </main>
   );
 }

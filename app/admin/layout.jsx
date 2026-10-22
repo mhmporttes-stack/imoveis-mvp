@@ -144,9 +144,12 @@ function warmupTargets(auth, whatsappBlocked, chatHidden = false) {
     chat,
     performance: isAdmin,
     clients: true,
+    // Chat do Marketplace está na barra de todos os perfis (AdminBottomNav); escopo da lista decidido no servidor.
+    marketplace: true,
     fullRoutes: [
       "/admin/simulacoes",
       ...(chat ? ["/admin/chat"] : []),
+      "/admin/chat/marketplace",
       // Admin geral (dono, 2026-10-19): "Online" no lugar da Meta Diária — a Meta saiu da barra dele em 2026-10-13 e
       // continuava sendo montada ao abrir o app (visão da equipe inteira, pesada). Online só lê a presença da equipe.
       ...(isAdmin ? ["/admin/desempenho/online", "/admin/desempenho"] : []),
