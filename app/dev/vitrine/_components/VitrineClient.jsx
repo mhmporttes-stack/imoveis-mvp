@@ -46,7 +46,7 @@ import Cenas from "./Cenas";
 // espelhe o wrapper da página correspondente.
 const TELAS = {
   cenas: {
-    // Cenas do visual novo (?variante=mensagem|mensagem-longa|reconhecimento:gatilho:animação|meta:percentual).
+    // Cenas do visual novo (?variante=mensagem|mensagem-longa|reconhecimento:gatilho:animação|meta).
     path: "/admin/meta-diaria",
     titulo: "Cenas (Mensagem do dia, Reconhecimento, anel da Meta)",
     active: "daily-goal",

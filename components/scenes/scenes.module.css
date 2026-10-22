@@ -24,8 +24,21 @@
   --scene-bad-soft: rgba(201, 58, 51, 0.12);
   --scene-overlay: rgba(15, 30, 50, 0.38);
   --scene-shadow: 0 18px 40px rgba(14, 30, 51, 0.14);
-  --scene-logo-filter: drop-shadow(0 1px 1.5px rgba(14, 30, 51, 0.28));
+  --scene-logo-filter: none;
+  --scene-logo-disc: #0D3B66;
+  /* Solda no claro: parte do azul da marca com halo ciano (branco some no fundo claro). */
+  --weld-c0: #1B7FB0;
+  --weld-c1: #2A8FB8;
+  --weld-s0: 0 0 4px #6FE3FF, 0 0 10px #1E9BFF;
+  --weld-s1: 0 0 3px #8FE9FF, 0 0 8px #2FA8FF;
+  --fly-blur: 4px;
+  --scene-confetti-light: #9FD3EE;
+  --crown-a: #F2C66D;
+  --crown-b: #D9A23A;
+  --crown-c: #A86A00;
   color: var(--scene-text);
+  letter-spacing: normal;
+  word-spacing: normal;
 }
 
 :global(html.mm-dark) .theme {
@@ -50,6 +63,16 @@
   --scene-overlay: rgba(3, 10, 20, 0.72);
   --scene-shadow: 0 18px 40px rgba(0, 0, 0, 0.45);
   --scene-logo-filter: none;
+  --scene-logo-disc: transparent;
+  --weld-c0: #FFFFFF;
+  --weld-c1: #BFF1FF;
+  --weld-s0: 0 0 6px #E6FBFF, 0 0 14px #6FE3FF, 0 0 28px #1E9BFF;
+  --weld-s1: 0 0 4px #8FE9FF, 0 0 16px #2FA8FF;
+  --fly-blur: 10px;
+  --scene-confetti-light: #FFFFFF;
+  --crown-a: #FFF1C2;
+  --crown-b: #F2C66D;
+  --crown-c: #C98616;
 }
 
 /* ---------- Letras soldadas: cada letra voa de um ponto, crava e é soldada (brilho ciano → cor do texto) ---------- */
@@ -65,15 +88,15 @@
 .boom { transform-origin: center; animation: sceneBoom 0.7s cubic-bezier(0.3, 1.6, 0.5, 1) var(--boom, 0ms) both; }
 
 @keyframes sceneFly {
-  0% { opacity: 0; transform: translate(var(--x), var(--y)) rotate(var(--r)) scale(3.2); filter: blur(10px); }
+  0% { opacity: 0; transform: translate(var(--x), var(--y)) rotate(var(--r)) scale(3.2); filter: blur(var(--fly-blur, 10px)); }
   62% { opacity: 1; transform: translate(0, 0) rotate(0) scale(1.18); filter: blur(0); }
   74% { transform: scale(0.78); }
   86% { transform: scale(1.06); }
   100% { opacity: 1; transform: none; filter: none; }
 }
 @keyframes sceneWeld {
-  0% { color: #FFFFFF; text-shadow: 0 0 6px #E6FBFF, 0 0 14px #6FE3FF, 0 0 28px #1E9BFF; }
-  35% { color: #BFF1FF; text-shadow: 0 0 4px #8FE9FF, 0 0 16px #2FA8FF; }
+  0% { color: var(--weld-c0); text-shadow: var(--weld-s0); }
+  35% { color: var(--weld-c1); text-shadow: var(--weld-s1); }
   100% { color: var(--scene-text); text-shadow: none; }
 }
 @keyframes sceneBoom {
@@ -145,6 +168,8 @@
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 11px; font-weight: 600;
 }
 .muted { color: var(--scene-muted); }
+/* Texto auxiliar pequeno: peso 500 e espaçamento normal (legível a 11–13px). */
+.note { font-size: 12.5px; font-weight: 500; letter-spacing: 0; word-spacing: 0.04em; line-height: 1.45; color: var(--scene-muted); }
 .text2 { color: var(--scene-text2); }
 .title { color: var(--scene-text); }
 .bubble {

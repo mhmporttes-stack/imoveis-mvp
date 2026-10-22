@@ -56,7 +56,12 @@ function todayLabel() {
 // preview=true (usado pelo administrador em Gestão > Automações) roda a
 // mesma sequência visual mas nunca registra conclusão — quem invoca decide
 // o que fazer no fechamento do preview.
-export default function DailyMessageExperience({ card, font = "cormorant_garamond", onComplete, preview = false, userName = "" }) {
+// Fonte da frase: o padrão do sistema ("cormorant_garamond", valor de fábrica em lib/daily-message.js) usa Manrope 800
+// do painel, como no protótipo aprovado (o efeito de solda/boom precisa do traço pesado); qualquer outra fonte escolhida
+// pelo admin em Automações › Mensagem do Dia continua valendo.
+const DEFAULT_FONT = "cormorant_garamond";
+
+export default function DailyMessageExperience({ card, font = DEFAULT_FONT, onComplete, preview = false, userName = "" }) {
   const reduced = usePrefersReducedMotion();
   const [skipped, setSkipped] = useState(false);
   const [ready, setReady] = useState(false);
@@ -86,7 +91,8 @@ export default function DailyMessageExperience({ card, font = "cormorant_garamon
   }
 
   if (!card) return null;
-  const fontVariable = FONT_CLASS[font] || FONT_CLASS.cormorant_garamond;
+  const useUiFont = !FONT_CLASS[font] || font === DEFAULT_FONT;
+  const fontVariable = useUiFont ? "" : FONT_CLASS[font];
   const isBiblical = card.type === "biblical";
   const timing = {
     "--boom": `${layout.end - 150}ms`,
@@ -106,9 +112,11 @@ export default function DailyMessageExperience({ card, font = "cormorant_garamon
     >
       <div className={styles.glow} aria-hidden="true" />
       <div className={styles.frame} data-length={lengthTier(card.mainText)}>
-        <img className={styles.logo} src="/assets/matheus-machado-symbol.png" alt="Matheus Machado Corretor de Imóveis" width={1000} height={785} />
+        <span className={styles.logoDisc}>
+          <img className={styles.logo} src="/assets/matheus-machado-symbol.png" alt="Matheus Machado Corretor de Imóveis" width={1000} height={785} />
+        </span>
         <p className={styles.greeting}><span className={styles.typed} style={{ "--chars": greeting.length }}>{greeting}</span></p>
-        <p className={`${styles.mainText} ${scene.boom}`} aria-label={card.mainText}>
+        <p className={`${styles.mainText} ${useUiFont ? styles.uiFont : ""} ${scene.boom}`} aria-label={card.mainText}>
           <WeldText layout={layout} />
         </p>
         {card.sourceText ? <p className={styles.sourceText}>{card.sourceText}</p> : null}

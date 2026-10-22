@@ -12,7 +12,8 @@
 
 export const CELEBRATION_ANIMATIONS = ["confete", "fogos", "moedas", "coroa", "combo_200"];
 
-const BLUES = ["#4FC3E0", "#2A8FB8", "#9FE3F5", "#FFFFFF", "#1B6FA8"];
+// "Branco" vira azul-claro no tema claro (--scene-confetti-light), senão some no fundo.
+const BLUES = ["#4FC3E0", "#2A8FB8", "#9FE3F5", "var(--scene-confetti-light, #FFFFFF)", "#1B6FA8"];
 const GOLD = "linear-gradient(135deg,#FFF1C2,#F6C552 50%,#C98616)";
 
 function rnd(n, salt = 91.345) {

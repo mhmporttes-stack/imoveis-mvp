@@ -304,7 +304,7 @@ function SupervisionCard({ ref, message, position, total, done, nudge, reduced, 
           <Avatar name={sender.name} photoUrl={sender.photoUrl} size={44} />
           <div className="min-w-0 flex-1">
             <h2 id="supervision-message-title" className={`truncate text-[15px] font-extrabold ${scene.title}`}>{sender.name || "Supervisão"}</h2>
-            <p className={`truncate text-xs ${scene.muted}`}>Mensagem da supervisão · {formatSupervisionTime(message.createdAt)}</p>
+            <p className={`truncate ${scene.note}`}>Mensagem da supervisão · {formatSupervisionTime(message.createdAt)}</p>
           </div>
           {total > 1 ? (
             <span className={`shrink-0 tabular-nums ${scene.counter}`} aria-label={`Mensagem ${position} de ${total}`}>
@@ -364,7 +364,7 @@ function SupervisionCard({ ref, message, position, total, done, nudge, reduced, 
             </button>
           </div>
           {error ? <p className="mt-2 text-xs font-medium" style={{ color: "var(--scene-bad)" }} role="alert">{error}</p> : null}
-          <p className={`mt-2.5 text-center text-xs ${scene.muted}`}>Só sai com OK ou com uma resposta</p>
+          <p className={`mt-2.5 text-center ${scene.note}`}>Só sai com OK ou com uma resposta</p>
         </form>
 
         <AnimatePresence>

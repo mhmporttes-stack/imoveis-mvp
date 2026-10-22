@@ -105,7 +105,7 @@
 }
 .crown span {
   display: block;
-  background: linear-gradient(180deg, #FFF1C2 0%, #F2C66D 45%, #C98616 100%);
+  background: linear-gradient(180deg, var(--crown-a, #FFF1C2) 0%, var(--crown-b, #F2C66D) 45%, var(--crown-c, #C98616) 100%);
   -webkit-background-clip: text; background-clip: text; color: transparent;
   filter: drop-shadow(0 0 14px rgba(242, 198, 109, 0.55));
   animation: float 2.4s ease-in-out 2.6s infinite;
@@ -141,13 +141,13 @@
 .chips { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin-top: 18px; }
 .chip {
   display: inline-flex; align-items: center; gap: 6px; min-height: 34px; padding: 0 14px; border-radius: 999px;
-  border: 1px solid var(--scene-hero-border); background: var(--scene-surface); color: var(--scene-muted); font-size: 13px;
+  border: 1px solid var(--scene-hero-border); background: var(--scene-surface); color: var(--scene-muted); font-size: 13px; font-weight: 500; letter-spacing: 0; word-spacing: 0.04em;
   animation: intro 0.9s cubic-bezier(0.2, 0.8, 0.2, 1) both;
 }
 .chip b { color: var(--scene-text); font-weight: 800; }
 .close {
-  margin-top: 22px; min-height: 44px; padding: 0 16px; border: 0; border-radius: 999px; background: transparent;
-  color: var(--scene-muted); font-size: 12px; cursor: pointer;
+  display: inline-block; margin-top: 20px; min-height: 44px; padding: 0 12px; border: 0; background: transparent;
+  color: var(--scene-muted); font-size: 13px; font-weight: 500; letter-spacing: 0; word-spacing: 0.04em; cursor: pointer;
   animation: intro 1s ease var(--after) both;
 }
 .close:focus-visible { outline: 3px solid var(--scene-accent-soft); outline-offset: 2px; }

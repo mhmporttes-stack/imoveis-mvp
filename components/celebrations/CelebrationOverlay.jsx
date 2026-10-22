@@ -52,7 +52,7 @@ export default function CelebrationOverlay({ message, animation = "confete", tri
         userName={userName}
         userPhotoUrl={userPhotoUrl}
         previewMode={previewMode}
-        closeLabel={previewMode ? "Fechar prévia" : "Toque na tela para fechar"}
+        closeLabel={previewMode ? "Fechar prévia" : "Só você vê · toque na tela para fechar"}
       />
     </motion.div>
   );

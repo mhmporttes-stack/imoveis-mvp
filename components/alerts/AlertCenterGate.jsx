@@ -82,7 +82,8 @@ export default function AlertCenterGate({ userId }) {
 
   const currentImportant = !blockedByOther ? important[0] || null : null;
   const pausedInformative = Boolean(currentImportant);
-  const maxVisible = isMobile ? INFORMATIVE_MAX_VISIBLE.mobile : INFORMATIVE_MAX_VISIBLE.desktop;
+  // Visual novo (2026-10-22): no celular, 1 aviso por vez logo acima da barra inferior (a fila continua igual).
+  const maxVisible = isMobile ? 1 : INFORMATIVE_MAX_VISIBLE.desktop;
   const visible = queue.slice(0, maxVisible);
   const waiting = Math.max(0, queue.length - visible.length);
 
@@ -140,22 +141,19 @@ function InformativeStack({ items, waiting, paused, isMobile, onDone }) {
       aria-atomic="false"
       data-alert-informative-stack="true"
       className={isMobile
-        ? "pointer-events-none fixed inset-x-3 bottom-[calc(var(--admin-bottom-nav-space)+18dvh)] z-[70] flex flex-col-reverse gap-2"
+        ? "pointer-events-none fixed inset-x-3 bottom-[calc(var(--admin-bottom-nav-space,72px)+12px)] z-[70] flex flex-col-reverse gap-2"
         : "pointer-events-none fixed bottom-[40vh] right-6 z-[70] flex w-[360px] max-w-[calc(100vw-2rem)] flex-col-reverse gap-2"}
     >
       <AnimatePresence initial={false}>
-        {items.map((item) => (
-          <InformativeCard key={item.id} item={item} paused={paused} reduce={reduce} onDone={onDone} isMobile={isMobile} />
+        {items.map((item, index) => (
+          <InformativeCard key={item.id} item={item} paused={paused} reduce={reduce} onDone={onDone} isMobile={isMobile} waiting={index === 0 ? waiting : 0} />
         ))}
       </AnimatePresence>
-      {waiting > 0 ? (
-        <span className="pointer-events-auto self-end rounded-chip bg-white px-2 py-0.5 text-2xs font-semibold text-muted shadow-float">+{waiting} avisos</span>
-      ) : null}
     </div>
   );
 }
 
-function InformativeCard({ item, paused, reduce, onDone, isMobile }) {
+function InformativeCard({ item, paused, reduce, onDone, isMobile, waiting = 0 }) {
   const [hovered, setHovered] = useState(false);
   const remaining = useRef(INFORMATIVE_TIMING.enterMs + INFORMATIVE_TIMING.visibleMs);
   const startedAt = useRef(0);
@@ -210,7 +208,10 @@ function InformativeCard({ item, paused, reduce, onDone, isMobile }) {
       <div className="flex items-start gap-3 px-4 py-3.5">
         <span className={scene.toastIcon} aria-hidden="true"><Info className="h-[18px] w-[18px]" /></span>
         <span className="min-w-0 flex-1">
-          <span className={`block ${scene.kicker}`}>Informativo</span>
+          <span className="flex items-center gap-2">
+            <span className={scene.kicker}>Informativo</span>
+            {waiting > 0 ? <span className={`tabular-nums ${scene.counter}`}>+{waiting} {waiting === 1 ? "aviso" : "avisos"}</span> : null}
+          </span>
           <span className={`mt-0.5 block text-sm font-extrabold line-clamp-1 ${scene.title}`}>{item.title}</span>
           <span className={`block text-[13px] leading-5 line-clamp-2 ${scene.text2}`}>{item.body}</span>
           {link ? <Link href={link} onClick={() => onDone(item.id)} className={`mt-1 inline-block text-[13px] hover:underline ${scene.link}`}>Abrir</Link> : null}
@@ -311,7 +312,7 @@ function ImportantDialog({ alert, position, total, onAcknowledge }) {
         <div className="px-6 pb-6 pt-5">
           <div className="flex items-center gap-2.5">
             <span className={scene.importantSeal}>IMPORTANTE</span>
-            {alert.created_at ? <span className={`text-xs ${scene.muted}`}>{formatSupervisionTime(alert.created_at)}</span> : null}
+            {alert.created_at ? <span className={scene.note}>{formatSupervisionTime(alert.created_at)}</span> : null}
             {total > 1 ? <span className={`ml-auto tabular-nums ${scene.counter}`} aria-label={`Alerta ${position} de ${total}`}>{position} de {total}</span> : null}
           </div>
           <h2 id={`alert-title-${alert.id}`} className={`mt-3.5 text-[19px] font-extrabold leading-snug text-balance ${scene.title}`}>{alert.title}</h2>
@@ -344,7 +345,7 @@ function ImportantDialog({ alert, position, total, onAcknowledge }) {
               data-cooled-reason="true"
             />
           ) : null}
-          {!cooled ? <p className={`mt-3.5 text-xs ${scene.muted}`}>O CRM fica bloqueado até você confirmar. A confirmação fica registrada.</p> : null}
+          {!cooled ? <p className={`mt-3.5 ${scene.note}`}>O CRM fica bloqueado até você confirmar. A confirmação fica registrada.</p> : null}
           {state === "error" ? <p role="alert" className="mt-3 text-xs font-semibold" style={{ color: "var(--scene-bad)" }}>{errorText || "Não foi possível confirmar. Tente de novo."}</p> : null}
           <button
             type="button"

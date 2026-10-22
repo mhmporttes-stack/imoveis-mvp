@@ -60,7 +60,7 @@ export default function RecognitionScene({ message, animation = "confete", trigg
   const chips = [
     look.chip ? { label: look.chip } : null,
     { label: "Hoje", value: todayChip() },
-    previewMode ? { label: "Prévia" } : { label: "Só você vê" }
+    previewMode ? { label: "Prévia" } : null
   ].filter(Boolean);
   const userInitials = initials(userName);
 
@@ -114,7 +114,7 @@ export default function RecognitionScene({ message, animation = "confete", trigg
         <div className={styles.chips}>
           {chips.map((chip, i) => (
             <span key={chip.label} className={styles.chip} style={{ animationDelay: `${end + i * 160}ms` }}>
-              {chip.value ? <><b>{chip.label}</b> {chip.value}</> : <b>{chip.label}</b>}
+              {chip.value ? <><b>{chip.label}</b>{" "}<span>{chip.value}</span></> : <b>{chip.label}</b>}
             </span>
           ))}
         </div>
