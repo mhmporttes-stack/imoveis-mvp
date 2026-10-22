@@ -43,7 +43,27 @@ const SUBTITLES = {
   "caixa-simulator": "Simulação rápida das condições da Caixa",
   financial: "Comissões, recebimentos e despesas",
   "cooled-clients": "Clientes com mais de 3 dias sem contato",
-  manual: "Como usar cada tela"
+  manual: "Como usar cada tela",
+  "campaign-links": "Links de campanha e de onde vêm os clientes",
+  "attendance-guide": "Roteiros de atendimento da equipe",
+  "document-rules": "O que a IA confere nos documentos",
+  brokers: "Usuários, Alterar conta e CCA",
+  automations: "Regras, fluxos e mensagens automáticas",
+  "client-journey": "O que o cliente vê em cada etapa",
+  properties: "Imóveis cadastrados no CRM",
+  "properties-catalog": "Imóveis cadastrados no CRM",
+  developments: "Empreendimentos e condições",
+  "management-properties": "Cadastro dos empreendimentos",
+  captacoes: "Imóveis oferecidos por proprietários",
+  testimonials: "Depoimentos de clientes",
+  marketplace: "Anúncios para o Facebook Marketplace",
+  ads: "Campanhas da Meta e resultado",
+  reentries: "Clientes que voltaram por anúncio",
+  audit: "Atendimentos conferidos",
+  scoring: "Regras de pontuação do ranking",
+  "ai-usage": "Consumo de IA por período",
+  notifications: "Avisos enviados à equipe",
+  security: "Verificação em duas etapas"
 };
 
 function titleCase(label = "") {
@@ -103,7 +123,8 @@ export default function AdminTopBar({
   const active = activeKeyForPath(pathname, search);
   const current = findActiveMenuItem(groups, active);
   const title = current?.item.label || EXTRA_TITLES[active] || "Painel";
-  const subtitle = SUBTITLES[active] || (current ? titleCase(current.group.label) : "");
+  // Sem subtítulo próprio, nenhum — repetir o nome do grupo duplicava o rótulo de cima (crítica de 2026-10-22).
+  const subtitle = SUBTITLES[active] || "";
   const crumb = current ? titleCase(current.group.label) : "";
 
   const hidden = hiddenNavKeys({ blocked: whatsappBlocked, chatHidden, isBrokerOrAssociate: (isBroker || isAssociate) && !isManager && !isAdmin });
@@ -120,7 +141,8 @@ export default function AdminTopBar({
     <div className="admin-topbar container-page flex flex-wrap items-center gap-x-3 gap-y-2 pb-1 pt-[calc(env(safe-area-inset-top)+14px)] md:pt-[calc(env(safe-area-inset-top)+20px)]">
       <div className="min-w-0 flex-[1_1_96px] md:min-w-[200px] md:flex-[1_1_220px]">
         {crumb ? <p className="truncate text-xs text-muted max-md:hidden">{crumb}</p> : null}
-        <p className="text-xl font-extrabold leading-tight tracking-[-0.01em] text-ink max-md:truncate md:text-pretty md:text-2xl">{title}</p>
+        {/* Título nunca cortado (crítica de 2026-10-22): no celular quebra em até 2 linhas, um pouco menor. */}
+        <p className="text-pretty text-lg font-extrabold leading-tight tracking-[-0.01em] text-ink max-md:line-clamp-2 md:text-2xl">{title}</p>
         {/* Subtítulo nunca cortado (crítica de 2026-10-22): quebra em 2 linhas se a busca e os atalhos apertarem. */}
         {subtitle ? <p className="mt-0.5 text-pretty text-[13px] leading-snug text-muted max-sm:hidden">{subtitle}</p> : null}
       </div>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import AdminBottomNav from "@/components/AdminBottomNav";
 import AdminMenu from "@/components/AdminMenu";
 import AdminTopBar from "@/components/AdminTopBar";
@@ -67,7 +67,9 @@ const TELAS = {
     rotas: online.routes,
     render: () => (
       <main className="min-h-screen bg-mist py-14">
-        <OnlinePresenceBoard initialPresence={online.presence} />
+        {/* Só no navegador: os horários fictícios são relativos à hora atual e o servidor da vitrine renderiza segundos
+            antes — na virada do minuto o texto divergia e o Next acusava erro de hidratação (só na vitrine). */}
+        <ClientOnly><OnlinePresenceBoard initialPresence={online.presence} /></ClientOnly>
       </main>
     )
   },
@@ -373,6 +375,12 @@ const TELAS = {
     )
   }
 };
+
+function ClientOnly({ children }) {
+  const [ready, setReady] = useState(false);
+  useEffect(() => setReady(true), []);
+  return ready ? children : null;
+}
 
 const PAPEIS = { admin: "Administrador geral", gestor: "Gestor", corretor: "Corretor", associado: "Associado" };
 

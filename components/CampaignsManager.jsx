@@ -214,7 +214,7 @@ export default function CampaignsManager({ initialCampaigns = [], initialSummary
             value={search}
             onChange={(event) => setSearch(event.target.value)}
             placeholder="Buscar por nome do link ou corretor..."
-            className="h-11 w-full min-w-0 rounded-2xl border border-line bg-white px-4 font-bold outline-none transition focus:border-brand focus:ring-4 focus:ring-brand/10 lg:max-w-xs"
+            className="h-11 w-full min-w-0 rounded-2xl border border-line bg-white px-4 font-bold outline-none transition focus:border-brand focus:ring-4 focus:ring-brand/10 lg:w-[26rem] lg:max-w-[45%]"
           />
         </div>
 

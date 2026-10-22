@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { BookOpen, Copy, Loader2, Pencil, Plus, Power, Trash2, X } from "lucide-react";
+import { Copy, Loader2, Pencil, Plus, Power, Trash2, X } from "lucide-react";
 import { GUIDE_KINDS, GUIDE_KIND_KEYS } from "@/lib/attendance-guide-core.mjs";
 
 const KIND_TONE = {
@@ -85,8 +85,9 @@ export default function GuideManager({ initialGuides }) {
     <section className="container-page space-y-4">
       <div className="flex flex-wrap items-start justify-between gap-3 rounded-panel border border-line bg-white p-6 shadow-soft">
         <div className="max-w-2xl">
-          <h2 className="flex items-center gap-2 text-2xl font-black text-navy"><BookOpen className="h-6 w-6 text-brand" />Guia de Atendimento</h2>
-          <p className="mt-1 text-sm font-semibold text-muted">
+          {/* O título "Guia de Atendimento" já está no cabeçalho do painel (visual novo): aqui só para leitor de tela. */}
+          <h2 className="sr-only">Guia de Atendimento</h2>
+          <p className="text-sm text-muted">
             A árvore de decisão que aparece ao lado do Chat: o corretor escolhe o que o cliente respondeu e vê a orientação, o argumento e a mensagem pronta. Cada guia abre sozinho conforme a origem do cliente (Prospecção, Lead ou Orgânico). Alterações só chegam aos corretores quando você clica em <strong>Publicar</strong>.
           </p>
         </div>
