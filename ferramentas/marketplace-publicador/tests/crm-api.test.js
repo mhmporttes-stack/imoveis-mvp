@@ -56,3 +56,16 @@ test("fila bloqueada pelo CRM devolve motivo e até quando", async () => {
   assert.equal(result.reason, "intervalo_seguranca");
   assert.equal(result.waitUntil, "2026-10-20T13:02:00.000Z");
 });
+
+test("1.9.3: a versão da extensão vai no cabeçalho X-Extension-Version", async () => {
+  const calls = [];
+  const fetchImpl = async (url, options) => {
+    calls.push(options);
+    return { ok: true, status: 200, json: async () => ({ ok: true }) };
+  };
+  const { postChatSync } = await import("../lib/crm-api.js");
+  await postChatSync({ baseUrl: "https://www.matheusmachadoimoveis.com.br", key: "mkp_x", version: "1.9.3" }, [], fetchImpl);
+  assert.equal(calls[0].headers["X-Extension-Version"], "1.9.3");
+  await postChatSync({ baseUrl: "https://www.matheusmachadoimoveis.com.br", key: "mkp_x" }, [], fetchImpl);
+  assert.equal("X-Extension-Version" in calls[1].headers, false);
+});

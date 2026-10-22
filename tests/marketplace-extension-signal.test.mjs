@@ -43,6 +43,9 @@ test("sinal volta depois de um aviso: aviso de volta e fecha o de sem sinal", ()
 });
 
 test("servidor: sinal gravado na sincronização e conferido no cron whatsapp-flows", () => {
-  assert.match(read("app/api/marketplace/chat/sync/route.js"), /recordMarketplaceExtensionSignal\(\)/);
+  // Desde a extensão 1.9.3 o sinal leva a versão (cabeçalho X-Extension-Version) — e continua gravado antes de ler o corpo.
+  const route = read("app/api/marketplace/chat/sync/route.js");
+  assert.match(route, /recordMarketplaceExtensionSignal\(new Date\(\), \{ version: request\.headers\.get\("x-extension-version"\)/);
+  assert.ok(route.indexOf("recordMarketplaceExtensionSignal(") < route.indexOf("request.json()"));
   assert.match(read("app/api/cron/whatsapp-flows/route.js"), /checkMarketplaceExtensionSignal\(\)/);
 });

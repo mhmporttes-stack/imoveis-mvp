@@ -98,3 +98,39 @@ export function outboundResultBody(outcome = {}) {
   if (outcome.ok) return { status: "sent" };
   return { status: "failed", error: String(outcome.error || "Falha sem descrição.").slice(0, 500), retry: !outcome.sentAttempted && !outcome.checkpoint, unconfirmed: Boolean(outcome.unconfirmed) };
 }
+
+// Nova tentativa espaçada por conversa (1.9.3). Diagnóstico real de 21–22/10: a mesma conversa que não abria era
+// tentada de novo a cada rodada (2 min), gastando 25 s a 3,5 min, trocando a aba do Facebook na frente e travando as
+// outras. Agora, depois de uma falha, a conversa espera 4 → 8 → 15 → 30 min (teto) antes de nova tentativa; leitura
+// bem-sucedida zera. Falha por aba oculta (Chrome sem mostrar a página) não conta: não é culpa da conversa.
+export const THREAD_RETRY_STEPS_MIN = [4, 8, 15, 30];
+
+export function threadRetryBlocked(backoff = {}, threadKey, now = new Date()) {
+  const entry = backoff?.[threadKey];
+  return Boolean(entry?.nextAt && new Date(entry.nextAt).getTime() > now.getTime());
+}
+
+export function recordThreadFailure(backoff = {}, threadKey, now = new Date()) {
+  const fails = Number(backoff?.[threadKey]?.fails || 0) + 1;
+  const minutes = THREAD_RETRY_STEPS_MIN[Math.min(fails, THREAD_RETRY_STEPS_MIN.length) - 1];
+  const next = { ...backoff, [threadKey]: { fails, nextAt: new Date(now.getTime() + minutes * 60 * 1000).toISOString() } };
+  // Guarda no máximo 100 conversas (as mais antigas saem).
+  const keys = Object.keys(next);
+  for (const key of keys.slice(0, Math.max(0, keys.length - 100))) delete next[key];
+  return next;
+}
+
+export function clearThreadFailure(backoff = {}, threadKey) {
+  if (!backoff?.[threadKey]) return backoff || {};
+  const next = { ...backoff };
+  delete next[threadKey];
+  return next;
+}
+
+// Diagnóstico de conversa que não abriu (1.9.3): no máximo 1 a cada 30 min POR TIPO de falha (antes era 1 a cada
+// 30 min no total — uma falha nova ficava escondida atrás da repetida); "aba_oculta" (causa já conhecida) 1 a cada 2 h.
+export function diagnosticDue(sentAt = {}, result = "", now = new Date()) {
+  const every = result === "aba_oculta" ? 2 * 60 * 60 * 1000 : 30 * 60 * 1000;
+  const last = new Date(sentAt?.[result] || 0).getTime();
+  return !Number.isFinite(last) || now.getTime() - last >= every;
+}

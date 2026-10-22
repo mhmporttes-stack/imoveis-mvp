@@ -6,7 +6,24 @@
   if (globalThis.__mpInboxLoaded && globalThis.__mpInbox) return;
   globalThis.__mpInboxLoaded = true;
   const MP = globalThis.MP;
-  const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+  // 1.9.3: espera pelo relógio do service worker (mensagem "mp-sleep"), com o setTimeout da página em paralelo — o que
+  // terminar primeiro. Com a aba oculta o Chrome segura os timers da página (até 1 min cada) e os prazos da leitura
+  // estouravam (erro real "passou de 210 s"); a resposta da extensão chega na hora certa. Sem resposta ok → só o timer.
+  const sleep = (ms) => new Promise((resolve) => {
+    let done = false;
+    const finish = () => {
+      if (!done) {
+        done = true;
+        resolve();
+      }
+    };
+    setTimeout(finish, ms);
+    try {
+      Promise.resolve(chrome.runtime.sendMessage({ type: "mp-sleep", ms })).then((reply) => reply?.ok && finish(), () => {});
+    } catch {
+      // extensão recarregada: fica o timer da página
+    }
+  });
   const between = (min, max) => min + Math.floor(Math.random() * (max - min + 1));
 
   function visible(element) {
@@ -247,6 +264,8 @@
       path: MP.skeletonPath(location.href),
       before: MP.skeletonPath(before),
       waitedMs,
+      visibility: document.visibilityState,
+      hasFocus: typeof document.hasFocus === "function" ? document.hasFocus() : null,
       clicked: clicked ? { item: skeleton(clicked.element, 0, { left: 150 }), href: MP.skeletonPath(clicked.href) } : null,
       counts: { dialogs: dialogs.length, logs: document.querySelectorAll('[role="log"]').length, panes: panes.length, visiblePanes: panes.filter(visible).length, textboxes: document.querySelectorAll('[role="textbox"]').length },
       dialogs,
@@ -323,7 +342,7 @@
 
   // Checagem instantânea (o background repete a cada 0,5 s — sem depender de timer da aba, que o Chrome segura).
   function openState(contactName = "") {
-    return { found: namedPane(contactName) ? "painel" : threadRouteWithLog() ? "rota" : null, path: MP.skeletonPath(location.href), iframes: document.querySelectorAll("iframe").length, dialogs: document.querySelectorAll('[role="dialog"]').length, logs: document.querySelectorAll('[role="log"]').length };
+    return { found: namedPane(contactName) ? "painel" : threadRouteWithLog() ? "rota" : null, path: MP.skeletonPath(location.href), visibility: document.visibilityState, iframes: document.querySelectorAll("iframe").length, dialogs: document.querySelectorAll('[role="dialog"]').length, logs: document.querySelectorAll('[role="log"]').length };
   }
 
   async function openItem(threadKey, contactName = "", waitMs = OPEN_WAIT_MS) {

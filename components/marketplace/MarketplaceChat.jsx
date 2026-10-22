@@ -103,13 +103,14 @@ export function SettingsCard() {
 
 // "Extensão: última leitura há X min" (MKT-2g, dono, 2026-10-22): último sinal que a extensão do PC do escritório mandou
 // ao CRM (gravado a cada ciclo dela). Mais de 30 min fica em destaque — o aviso aos admins é do servidor (cron).
-function extensionReadText(lastSyncAt, nowMs) {
+// Versão da extensão (1.9.3+) no texto, para conferir se o PC já foi atualizado.
+function extensionReadText(lastSyncAt, nowMs, version = null) {
   const at = Date.parse(lastSyncAt || "");
   // Sem nenhuma leitura registrada não mostra nada (dono, 2026-10-22: "remova esse aviso de nenhuma leitura registrada").
   if (!Number.isFinite(at)) return null;
   const minutes = Math.max(0, Math.floor((nowMs - at) / 60000));
   const ago = minutes < 1 ? "agora" : minutes < 120 ? `há ${minutes} min` : minutes < 48 * 60 ? `há ${Math.floor(minutes / 60)} h` : `em ${time.format(new Date(at))}`;
-  return { text: `Extensão: última leitura ${ago}`, stale: minutes > 30 };
+  return { text: `Extensão${version ? ` ${version}` : ""}: última leitura ${ago}`, stale: minutes > 30 };
 }
 
 // Botão "Interno" (MKT-2i): o mesmo do Chat do WhatsApp (cadeado + "Interno").
@@ -361,7 +362,7 @@ export default function MarketplaceChat({ canEditSettings = false, canAssign = f
             </div>
           ) : null}
           {list.extension ? (() => {
-            const read = extensionReadText(list.extension.lastSyncAt, Date.now());
+            const read = extensionReadText(list.extension.lastSyncAt, Date.now(), list.extension.extensionVersion);
             if (!read) return null;
             return <p className={`shrink-0 border-b border-line px-3 py-1.5 text-xs ${read.stale ? "bg-warning-soft text-warning" : "text-muted"}`}>{read.text}</p>;
           })() : null}

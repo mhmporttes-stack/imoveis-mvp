@@ -21,7 +21,8 @@ Extensão pessoal do Matheus Machado Corretor de Imóveis. Pega no CRM **só os 
 1. Descompacte o zip novo **por cima da mesma pasta** (substituindo os arquivos).
 2. Em `chrome://extensions`, clique no botão de recarregar (seta circular) do "Publicador Marketplace".
 3. A chave e as opções continuam salvas — não precisa configurar de novo.
-4. **Versão 1.9.2:** confira se o cartão da extensão mostra "1.9.2". Desde a 1.9.2 o envio das respostas abre a conversa pelo endereço direto (guardado na leitura), espera até 45 s, mostra a aba do Facebook por alguns instantes durante o envio e confere a mensagem na conversa antes de dar como enviada; falha antes de digitar é tentada de novo pelo CRM (até 3 vezes). Ela pede uma permissão nova ("power", para o computador não dormir) — o Chrome não mostra aviso para essa permissão e a extensão continua ligada. "Manter acordado" já vem ligado.
+4. **Versão 1.9.3:** confira se o cartão da extensão mostra "1.9.3" — e, no CRM, Chat Marketplace mostra "Extensão 1.9.3: última leitura…". Na 1.9.3: se o Chrome não estiver mostrando a aba do Facebook (tela desligada/bloqueada, janela minimizada ou coberta), a extensão não tenta abrir conversa (o Facebook não abre assim) e deixa para a próxima rodada; conversa que falhou espera 4 → 8 → 15 → 30 min antes de nova tentativa (antes era a cada 2 min); a leitura do histórico para sozinha antes do prazo (não perde mais o que leu). Sem permissão nova.
+5. Desde a 1.9.2 o envio das respostas abre a conversa pelo endereço direto (guardado na leitura), espera até 45 s, mostra a aba do Facebook por alguns instantes durante o envio e confere a mensagem na conversa antes de dar como enviada; falha antes de digitar é tentada de novo pelo CRM (até 3 vezes). Ela pede uma permissão nova ("power", para o computador não dormir) — o Chrome não mostra aviso para essa permissão e a extensão continua ligada. "Manter acordado" já vem ligado.
 
 ## Configurar
 

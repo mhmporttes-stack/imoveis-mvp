@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import "../selectors.js";
-import { CHAT_LOCK_MAX_MS, CHAT_LOCK_TTL_MS, MAX_THREADS_PER_ROUND, chatLockAlive, decideChatTick, describeChatLock, outboundResultBody, rememberPreviews, threadsToRead } from "../lib/chat-agenda.js";
+import { CHAT_LOCK_MAX_MS, CHAT_LOCK_TTL_MS, MAX_THREADS_PER_ROUND, chatLockAlive, clearThreadFailure, decideChatTick, describeChatLock, diagnosticDue, outboundResultBody, recordThreadFailure, rememberPreviews, threadRetryBlocked, threadsToRead } from "../lib/chat-agenda.js";
 import { decideTick, initialState } from "../lib/agenda.js";
 import { fetchNextOutbound, postChatSync, postOutboundResult } from "../lib/crm-api.js";
 
@@ -434,4 +434,38 @@ test("1ª carga (dono, 2026-10-21): conversa anterior ao dia configurado nem é 
   const bg = readFileSync(new URL("../background.js", import.meta.url), "utf8");
   assert.match(bg, /splitIgnored\(threads, settings\.firstLoadIgnoreBefore\)/);
   assert.match(bg, /previews = rememberPreviews\(previews, ignored\)/);
+});
+
+// --- 1.9.3: falhas de 21–22/10 (conversa que não abre a cada 2 min, leitura que passava de 210 s) -------------------
+test("1.9.3: conversa que falhou espera 4 → 8 → 15 → 30 min; sucesso zera", () => {
+  const now = at("10:00");
+  let backoff = recordThreadFailure({}, "k1", now);
+  assert.equal(threadRetryBlocked(backoff, "k1", new Date(now.getTime() + 3 * 60000)), true);
+  assert.equal(threadRetryBlocked(backoff, "k1", new Date(now.getTime() + 4 * 60000)), false);
+  assert.equal(threadRetryBlocked(backoff, "outra", now), false);
+  for (let i = 0; i < 5; i += 1) backoff = recordThreadFailure(backoff, "k1", now);
+  assert.equal(backoff.k1.fails, 6);
+  assert.equal(new Date(backoff.k1.nextAt).getTime() - now.getTime(), 30 * 60000, "teto de 30 min");
+  backoff = clearThreadFailure(backoff, "k1");
+  assert.equal(threadRetryBlocked(backoff, "k1", now), false);
+});
+
+test("1.9.3: diagnóstico 1 a cada 30 min POR TIPO (falha nova não fica escondida); aba oculta 1 a cada 2 h", () => {
+  const now = at("10:00");
+  const sent = { nao_abriu: at("09:50").toISOString(), aba_oculta: at("09:00").toISOString() };
+  assert.equal(diagnosticDue(sent, "nao_abriu", now), false);
+  assert.equal(diagnosticDue(sent, "sem_mensagens", now), true);
+  assert.equal(diagnosticDue(sent, "aba_oculta", now), false);
+  assert.equal(diagnosticDue(sent, "aba_oculta", at("11:00")), true);
+});
+
+test("1.9.3: aba oculta não clica nem conta falha; leitura para antes do prazo; espera pelo relógio da extensão", () => {
+  const bg = readFileSync(new URL("../background.js", import.meta.url), "utf8");
+  const inbox = readFileSync(new URL("../inbox.js", import.meta.url), "utf8");
+  // A checagem de visibilidade vem ANTES de preparar o clique.
+  assert.ok(bg.indexOf('if (view.visibility === "hidden") return { ok: false, hidden: true') < bg.indexOf('type: "mp-inbox-prepare-open"'));
+  assert.match(bg, /if \(read\?\.hidden\) \{[\s\S]{0,120}break;/);
+  assert.match(bg, /maxMs: readMs - \(thread\.full \? READ_MARGIN_MS\.full : READ_MARGIN_MS\.incremental\)/);
+  assert.match(bg, /message\?\.type === "mp-sleep"/);
+  assert.match(inbox, /chrome\.runtime\.sendMessage\(\{ type: "mp-sleep", ms \}\)/);
 });

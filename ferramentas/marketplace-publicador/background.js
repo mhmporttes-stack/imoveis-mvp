@@ -2,7 +2,7 @@
 // Regras de agenda/limite em lib/agenda.js (testadas). Seletores do Facebook em selectors.js.
 import { CHECK_EVERY_MINUTES, REASON_LABELS, STALE_RUN_MS, buildResultBody, decideTick, finishJob, initialState, localWaitUntil, recomputeFromHistory, recordCheck, setManualPause, startJob } from "./lib/agenda.js";
 import { DEFAULT_CRM_URL, downloadPhotos, fetchNextListing, fetchNextOutbound, postChatSync, postDiagnostic, postOutboundResult, postResult } from "./lib/crm-api.js";
-import { CHAT_EVERY_MINUTES, MAX_SENDS_PER_ROUND, ROUND_BUDGET_MS, chatLockAlive, splitIgnored, decideChatTick, describeChatLock, outboundResultBody, rememberPreviews, threadsToRead } from "./lib/chat-agenda.js";
+import { CHAT_EVERY_MINUTES, MAX_SENDS_PER_ROUND, ROUND_BUDGET_MS, chatLockAlive, clearThreadFailure, diagnosticDue, splitIgnored, decideChatTick, describeChatLock, outboundResultBody, recordThreadFailure, rememberPreviews, threadRetryBlocked, threadsToRead } from "./lib/chat-agenda.js";
 import { CHECKPOINT_PAUSE_MS } from "./lib/agenda.js";
 import { KEEP_AWAKE_ALARM, KEEP_AWAKE_EVERY_MINUTES, PULSE_PAGE, PULSE_TAB_CLOSE_MS, decidePulse, shouldHoldPower } from "./lib/keep-awake.js";
 
@@ -27,7 +27,9 @@ async function saveState(state) {
 
 async function loadConfig() {
   const { config } = await chrome.storage.local.get("config");
-  return { baseUrl: config?.baseUrl || DEFAULT_CRM_URL, key: config?.key || "" };
+  // version (1.9.3): vai no cabeçalho de toda chamada ao CRM — o CRM guarda junto do sinal e mostra no Chat qual versão
+  // está rodando no PC (em 22/10 o PC ainda rodava a 1.9.0 com o zip da 1.9.2 publicado no repositório).
+  return { baseUrl: config?.baseUrl || DEFAULT_CRM_URL, key: config?.key || "", version: chrome.runtime.getManifest().version };
 }
 
 function notify(title, message) {
@@ -378,6 +380,12 @@ async function tick(origin, onDecision = () => {}) {
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   (async () => {
     if (message?.type === "mp-trusted") return sender.tab?.id ? trustedInput(sender.tab.id, message) : { ok: false, reason: "sem_aba" };
+    // Relógio do leitor da página (1.9.3): com a aba oculta o Chrome segura os timers da página (até 1 min por espera)
+    // e a leitura estourava o prazo ("passou de 210 s"); o relógio do service worker não é segurado.
+    if (message?.type === "mp-sleep") {
+      await sleep(Math.max(0, Math.min(Number(message.ms) || 0, 30000)));
+      return { ok: true };
+    }
     if (message?.type === "mp-progress") {
       const state = await loadState();
       if (state.running) await saveState({ ...state, running: { ...state.running, step: message.step } });
@@ -537,21 +545,23 @@ async function readInbox(tabId) {
 }
 
 const THREAD_PATH_RE = /\/(?:marketplace\/t|messages\/t|t)\//;
-const OPEN_DIAGNOSTIC_EVERY_MS = 30 * 60 * 1000;
 
 // Conversa não abriu: manda o esqueleto anonimizado (URL, diálogos, o que foi clicado) para calibrar, no máximo 1 a
-// cada 30 min. Vai como kind "thread" (já aceito pelo CRM) com stage "open_conversation" — sem depender de deploy.
+// cada 30 min por tipo de falha (1.9.3; regra em lib/chat-agenda.js diagnosticDue). Vai como kind "thread" (já aceito
+// pelo CRM) com stage "open_conversation" — sem depender de deploy.
 async function sendOpenDiagnostic(config, diagnostic) {
   if (!diagnostic || !config?.key) return "";
-  const { lastOpenDiagnosticAt } = await chrome.storage.local.get("lastOpenDiagnosticAt");
-  if (lastOpenDiagnosticAt && Date.now() - new Date(lastOpenDiagnosticAt).getTime() < OPEN_DIAGNOSTIC_EVERY_MS) return "";
-  await chrome.storage.local.set({ lastOpenDiagnosticAt: new Date().toISOString() });
+  const { openDiagnosticSentAt } = await chrome.storage.local.get("openDiagnosticSentAt");
+  if (!diagnosticDue(openDiagnosticSentAt || {}, diagnostic.result)) return "";
+  await chrome.storage.local.set({ openDiagnosticSentAt: { ...(openDiagnosticSentAt || {}), [diagnostic.result]: new Date().toISOString() } });
   return postDiagnostic(config, "thread", diagnostic).then(() => " (diagnóstico open_conversation enviado)", (error) => ` (diagnóstico falhou: ${error.message})`);
 }
 
 // Lê a conversa numa página que já está nela (link direto, rota /t/ ou último recurso).
+// O leitor para sozinho READ_MARGIN_MS antes do prazo (devolve o que juntou e fecha a janela) — antes a margem era de
+// 15 s e, com os timers da página segurados, a etapa era abandonada sem nada (erro real "passou de 210 s").
 function readOpenThread(tabId, thread, readMs) {
-  return pageCall(tabId, { type: "mp-inbox-read", threadKey: thread.threadKey, full: thread.full === true, contactName: thread.contactName || "", maxMs: readMs - 15000 }, readMs)
+  return pageCall(tabId, { type: "mp-inbox-read", threadKey: thread.threadKey, full: thread.full === true, contactName: thread.contactName || "", maxMs: readMs - (thread.full ? READ_MARGIN_MS.full : READ_MARGIN_MS.incremental) }, readMs)
     .catch(async (error) => ({ ok: false, error: `${error.message} (lendo a conversa em ${(await chrome.tabs.get(tabId).catch(() => ({}))).url || "?"}; esperava a janela com o campo "Aa" ou a área de mensagens)` }));
 }
 
@@ -563,12 +573,28 @@ function readOpenThread(tabId, thread, readMs) {
 async function focusTab(tabId) {
   const tab = await chrome.tabs.get(tabId);
   const window = await chrome.windows.get(tab.windowId).catch(() => ({}));
-  const info = { wasActive: Boolean(tab.active), windowState: window.state || "?" };
+  const info = { wasActive: Boolean(tab.active), windowState: window.state || "?", windowFocused: Boolean(window.focused) };
   if (tab.active) return { info, restore: async () => {} };
   const [previous] = await chrome.tabs.query({ active: true, windowId: tab.windowId });
   await chrome.tabs.update(tabId, { active: true });
   await sleep(600);
   return { info, restore: async () => { if (previous?.id && previous.id !== tabId) await chrome.tabs.update(previous.id, { active: true }).catch(() => {}); } };
+}
+
+// Visibilidade da página como o Chrome a vê (1.9.3; vai também nos diagnósticos). "hidden" com a aba ativa = tela
+// desligada/bloqueada, janela minimizada ou coberta — o Chrome para de desenhar a página e segura os timers dela.
+async function pageVisibility(tabId) {
+  try {
+    const results = await withTimeout(chrome.scripting.executeScript({ target: { tabId, allFrames: false }, func: () => ({ visibility: document.visibilityState, hasFocus: document.hasFocus() }) }), 10000, "visibilidade da página");
+    return results?.[0]?.result || { visibility: "?" };
+  } catch (error) {
+    return { visibility: "?", error: String(error?.message || error) };
+  }
+}
+
+function hiddenTabMessage(focus = {}) {
+  const where = focus.windowState === "minimized" ? "janela do Chrome minimizada" : "tela desligada/bloqueada ou janela do Chrome coberta por outro programa";
+  return `O Chrome não está mostrando a aba do Facebook (${where}); assim o Facebook não abre a conversa. Fica para a próxima rodada.`;
 }
 
 async function trustedClick(tabId, x, y) {
@@ -602,6 +628,11 @@ async function openAndReadByClick(tabId, thread, readMs) {
   if (!new URL(current.url || INBOX_URL).pathname.startsWith("/marketplace/inbox")) await navigateAndWait(tabId, INBOX_URL);
   const focus = await focusTab(tabId);
   try {
+    // 1.9.3: aba ativa mas página OCULTA para o Chrome (tela desligada/bloqueada, janela minimizada ou coberta por outro
+    // programa): o Facebook não abre a conversa nem carrega as mensagens assim (1.8.10) — não clica, não espera 25 s
+    // nem 3,5 min; a conversa fica para a próxima rodada. Nunca tira a janela de minimizada nem rouba o foco do Windows.
+    const view = await pageVisibility(tabId);
+    if (view.visibility === "hidden") return { ok: false, hidden: true, error: hiddenTabMessage(focus.info), opened: { ok: false, focus: focus.info, view } };
     const prep = await pageCall(tabId, { type: "mp-inbox-prepare-open", threadKey: thread.threadKey, contactName: thread.contactName || "" }, 60000)
       .catch((error) => ({ ok: false, error: error.message }));
     if (!prep?.ok) return { ok: false, error: prep?.error || "Não preparou o clique.", stack: prep?.stack || "", opened: { ok: false, focus: focus.info } };
@@ -623,7 +654,7 @@ async function openAndReadByClick(tabId, thread, readMs) {
     }
     if (read.ok) return { ...read, opened: { ok: true, how, found: state.found } };
     const diagnostic = await pageCall(tabId, { type: "mp-inbox-open-diagnostic", before: prep.before, waitedMs, stage: state.found ? "abriu_sem_mensagens" : "sem_painel" }, 15000).catch((error) => ({ error: error.message }));
-    return { ...read, opened: { ok: Boolean(state.found), focus: focus.info, click, point: { by: prep.by, hitOk: prep.hitOk, innerButtons: prep.innerButtons }, attrNames: prep.attrNames, hasThreadId: Boolean(prep.threadId), state, diagnostic } };
+    return { ...read, opened: { ok: Boolean(state.found), focus: focus.info, view: await pageVisibility(tabId), click, point: { by: prep.by, hitOk: prep.hitOk, innerButtons: prep.innerButtons }, attrNames: prep.attrNames, hasThreadId: Boolean(prep.threadId), state, diagnostic } };
   } finally {
     await focus.restore();
   }
@@ -646,14 +677,15 @@ async function readThread(tabId, thread, config) {
     const tab = await chrome.tabs.get(tabId).catch(() => ({}));
     const payload = {
       stage: "open_conversation",
-      result: read?.lost ? "sem_resposta_da_pagina" : read?.opened && !read.opened.ok ? "nao_abriu" : "sem_mensagens",
+      result: read?.hidden ? "aba_oculta" : read?.lost ? "sem_resposta_da_pagina" : read?.opened && !read.opened.ok ? "nao_abriu" : "sem_mensagens",
       version: chrome.runtime.getManifest().version,
       path: MP_PATH(tab.url),
       error: String(read?.error || "").replace(thread.contactName || "\u0000", "NOME").slice(0, 500),
       stack: String(read?.stack || "").slice(0, 1500),
       opened: read?.opened ? { ...read.opened, diagnostic: undefined } : null,
       openedPage: read?.opened?.diagnostic || null,
-      snapshot: await takeSnapshot(tabId)
+      view: await pageVisibility(tabId),
+      snapshot: read?.hidden ? null : await takeSnapshot(tabId)
     };
     read = { ...read, error: `${read?.error || "Não abriu a conversa."}${await sendOpenDiagnostic(config, payload)}` };
   }
@@ -704,6 +736,8 @@ async function sendOutbound(tabId, config, message) {
   } catch (error) {
     // Falhou antes de digitar (conversa não aberta, aba fechada): pode tentar de novo; senão, sem saber se saiu, não reenvia.
     outcome = { ok: false, sentAttempted: !error?.beforeSend, error: error.message };
+    // 1.9.3: falha ao abrir com a página oculta para o Chrome → diz o motivo real no erro (vai ao CRM e ao aviso do admin).
+    if (error?.beforeSend && (await pageVisibility(tabId)).visibility === "hidden") outcome.error = `${error.message} ${hiddenTabMessage(focus?.info)}`.slice(0, 480);
   } finally {
     if (focus) await focus.restore().catch(() => {});
   }
@@ -729,7 +763,8 @@ async function ensureRoundTab(tab, round) {
 const WORKER_INSTANCE = crypto.randomUUID();
 const CHAT_HEARTBEAT_MS = 20 * 1000;
 const STEP_TIMEOUT_MS = { inbox: 180 * 1000, threadFull: 300 * 1000, thread: 150 * 1000, post: 45 * 1000, outbox: 30 * 1000, send: 330 * 1000 };
-const THREAD_READ_MS = { full: 210 * 1000, incremental: 60 * 1000 };
+const THREAD_READ_MS = { full: 180 * 1000, incremental: 60 * 1000 };
+const READ_MARGIN_MS = { full: 30 * 1000, incremental: 15 * 1000 };
 
 class ChatLockLost extends Error {}
 
@@ -810,7 +845,7 @@ function createChatRound(token, startedAt) {
 }
 
 async function chatTick() {
-  const { chatSettings, chatPreviews } = await chrome.storage.local.get(["chatSettings", "chatPreviews"]);
+  const { chatSettings, chatPreviews, chatBackoff } = await chrome.storage.local.get(["chatSettings", "chatPreviews", "chatBackoff"]);
   const state = await loadState();
   const previousLock = await loadChatLock();
   const decision = decideChatTick({ state, settings: chatSettings || {}, now: new Date(), lock: previousLock, instance: WORKER_INSTANCE });
@@ -875,7 +910,11 @@ async function chatTick() {
       previews = rememberPreviews(previews, ignored);
       await chrome.storage.local.set({ chatPreviews: previews });
     }
-    const toRead = threadsToRead(keep, previews);
+    // Conversa que falhou há pouco espera a vez dela (4 → 8 → 15 → 30 min; lib/chat-agenda.js).
+    let backoff = chatBackoff || {};
+    const waiting = keep.filter((thread) => threadRetryBlocked(backoff, thread.threadKey));
+    if (waiting.length) summary.steps += ` → ${waiting.length} conversa(s) com falha recente aguardando nova tentativa`;
+    const toRead = threadsToRead(keep.filter((thread) => !threadRetryBlocked(backoff, thread.threadKey)), previews);
     summary.pending = toRead.length;
     let posted = 0;
     for (const [index, thread] of toRead.entries()) {
@@ -897,10 +936,18 @@ async function chatTick() {
         await pauseForCheckpoint("conversa do Marketplace");
         return { reason: (result = "chat_erro") };
       }
-      summary.steps += ` → ${thread.contactName}: ${read?.ok ? `${(read.messages || []).length} msg` : "falhou"}`;
-      // Sem mensagem nenhuma não vai ao CRM nem guarda a prévia (1.8.9): a próxima rodada tenta de novo.
+      summary.steps += ` → ${thread.contactName}: ${read?.ok ? `${(read.messages || []).length} msg` : read?.hidden ? "aba oculta" : "falhou"}`;
+      // Aba oculta (1.9.3): nenhuma outra conversa abre nesta rodada — para aqui, sem contar falha para a conversa.
+      if (read?.hidden) {
+        summary.error = read.error;
+        result = "chat_parcial";
+        break;
+      }
+      // Sem mensagem nenhuma não vai ao CRM nem guarda a prévia (1.8.9): tenta de novo depois do intervalo (1.9.3).
       if (!read?.ok || !conversation || !conversation.messages.length) {
         if (read?.error) summary.error = `${thread.contactName}: ${read.error}`;
+        backoff = recordThreadFailure(backoff, thread.threadKey);
+        await chrome.storage.local.set({ chatBackoff: backoff });
         continue;
       }
       try {
@@ -911,7 +958,8 @@ async function chatTick() {
         summary.newMessages += synced.newMessages || 0;
         settings = synced.settings || settings;
         previews = rememberPreviews(previews, [thread]);
-        await chrome.storage.local.set({ chatSettings: settings, chatPreviews: previews });
+        backoff = clearThreadFailure(backoff, thread.threadKey);
+        await chrome.storage.local.set({ chatSettings: settings, chatPreviews: previews, chatBackoff: backoff });
         if (synced.settings?.syncEnabled === false) return { reason: (result = "chat_desligado") };
       } catch (error) {
         if (error instanceof ChatLockLost || error?.status === 401) throw error;

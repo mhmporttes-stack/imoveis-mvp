@@ -338,6 +338,18 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-22 — Extensão do Marketplace 1.9.3: página oculta, esperas pelo relógio da extensão, nova tentativa espaçada, versão no CRM
+- **Data:** 2026-10-22
+- **Área:** Chat Marketplace · extensão do Chrome (`ferramentas/marketplace-publicador`) · sinal da extensão (MKT-2g)
+- **Alteração:** (1) antes de clicar numa conversa a extensão confere se o Chrome está mostrando a página (`document.visibilityState`); oculta → não clica, não conta falha, encerra as leituras da rodada com o motivo no popup; (2) esperas do leitor da página (`sleep` de `inbox.js`) pelo relógio do service worker (mensagem `mp-sleep`, com o timer da página em paralelo); (3) leitura do histórico: prazo 180 s, o leitor para 30 s antes (era 210 s com margem de 15 s); (4) conversa que falhou espera 4 → 8 → 15 → 30 min (`chatBackoff`, `lib/chat-agenda.js`), sucesso zera; (5) diagnóstico `open_conversation` 1 a cada 30 min **por tipo** de falha (`aba_oculta` 1 a cada 2 h) e com `view` (visibilidade/foco) e `windowFocused`; (6) erro de envio com a página oculta diz o motivo (vai ao CRM e ao aviso "Resposta do Marketplace não enviada"); (7) cabeçalho `X-Extension-Version` em toda chamada ao CRM; a sincronização grava `extension_version` no sinal (`crm_settings` `marketplace_extension_signal`) e o Chat mostra "Extensão 1.9.3: última leitura há X min".
+- **Motivo:** avisos de erro da extensão relatados pelo dono; diagnóstico em `docs/INCIDENTES.md` (2026-10-22, "A conversa não abriu em 25 s…"). Achado principal: o zip não tinha sido regerado na 1.9.1/1.9.2 e o PC continuava na 1.9.0.
+- **Arquivos afetados:** `ferramentas/marketplace-publicador/{manifest.json,background.js,inbox.js,README.md,lib/chat-agenda.js,lib/crm-api.js,tests/chat.test.js,tests/crm-api.test.js}`, `ferramentas/marketplace-publicador.zip`, `app/api/marketplace/chat/sync/route.js`, `lib/marketplace-chat.js`, `components/marketplace/MarketplaceChat.jsx`, `tests/marketplace-extension-signal.test.mjs`.
+- **Banco:** nada de schema; o JSON do sinal ganha `extension_version` (opcional).
+- **Docs:** `docs/INCIDENTES.md`; README da extensão (como atualizar).
+- **Risco/observação:** com a tela desligada/bloqueada a leitura passa a ser adiada em vez de falhar — conversas novas só chegam quando a tela estiver ligada e o Chrome visível. Manter a tela ligada é decisão do dono (a opção atual segura só o sistema). Envio continua tentando como antes (3 tentativas do CRM). **Toda versão nova da extensão tem de regerar o zip**: `cd ferramentas && zip -r -X marketplace-publicador.zip marketplace-publicador -x 'marketplace-publicador/tests/*'`.
+- **Verificação:** `node --test tests/*.test.js` da extensão (91/91); `node --test tests/*marketplace*.test.mjs` (78/78); `pnpm build` limpo. Sem teste no Facebook real (sem acesso ao PC do dono).
+- **Autor:** Claude Code
+
 ### 2026-10-22 — Henry: tela "Voz e personalidade" (voz, tom, velocidade, jeito de falar, como tratar o dono) (HENRY-1)
 - **Data:** 2026-10-22
 - **Área:** Henry (assistente de voz do dono) · Integrações (OpenAI TTS)
