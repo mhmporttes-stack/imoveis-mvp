@@ -233,6 +233,14 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-22 — Card do cliente ainda menor: simulação numa linha, contato/cadastro/tags curtos e rodapé compacto
+- **Data:** 2026-10-22
+- **Área:** `components/clients/ClientCard.jsx`, `components/ui/Menu.jsx` (novo `size="xs"`, aditivo; só usado no card). Só apresentação.
+- **Pedido do dono:** continuação do card menor (print do celular depois de 425cbae).
+- **Alteração:** `SimulationLine` com título e detalhe numa linha que quebra sozinha (ex.: "Simulação a fazer · Renda R$ … · CLT"; "Regime " tirado só da exibição), em todas as variantes. Linha de contato encurtada ("Contato há 6 d · Cadastro há 6 d", texto completo no title); "Adicionar tag" e preferência de contato viram só ícone com aria-label/title. Rodapé (WhatsApp, Simulação, Lista, "…") com 24px visíveis (era 44px), ícone 14px, texto 13px, área de toque de 44px por `::before`; padding do rodapé menor. Ações e regras iguais.
+- **Verificação:** testes que citam ClientCard/Menu (`client-card-whatsapp-chat` segue com as mesmas 4 falhas do HEAD); `pnpm build`. Sem render (vitrine não tem o card; container sem navegador).
+- **Autor:** Claude Code (designer-crm)
+
 ### 2026-10-22 — Card do cliente menor: agenda e "sem contato +3 dias" viram ícones antes do nome
 - **Data:** 2026-10-22
 - **Área:** `components/clients/ClientCard.jsx` (só apresentação).

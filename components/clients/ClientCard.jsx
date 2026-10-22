@@ -40,6 +40,13 @@ import { OFFLINE_ACTION_LABEL, OFFLINE_CONFIRM_DESCRIPTION, OFFLINE_CONFIRM_TITL
 // dia. A ficha fica para o secundário (cadastro completo, CCA, aviso de
 // progresso, histórico).
 const MAX_TAGS = 4;
+// Botão compacto do rodapé: 24px visíveis, área de toque de 44px pelo ::before (sem mudar o layout).
+const COMPACT_BUTTON = "relative !min-h-0 h-6 !gap-1 rounded-control px-2.5 text-[13px] before:absolute before:inset-x-0 before:-inset-y-2.5 before:content-['']";
+
+// "há 6 dias" → "há 6 d" (só exibição; o texto completo vai no title).
+function shortAgo(text) {
+  return String(text || "").replace(/^há (\d+) dias$/, "há $1 d");
+}
 
 export default function ClientCard({ client, activities, responsibleName, responsibleProfile, showResponsible, busy, selected, isOwner, canReturnAssignedProspecting, list, confirmAction, onOpen }) {
   // Acesso WhatsApp bloqueado (2026-10-04): o botão WhatsApp NÃO é renderizado (o restante do card segue igual).
@@ -113,17 +120,18 @@ export default function ClientCard({ client, activities, responsibleName, respon
       <div className="mt-2.5 space-y-2 px-3.5 sm:px-4">
         <SimulationLine client={client} />
         <div className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[13px] text-ink-2">
+          {/* Dono, 2026-10-22: rótulos curtos ("Contato há 6 d") para contato, cadastro e tags caberem numa linha em 360–390px;
+              o texto completo fica no title. Preferência de contato vira só o ícone (com title/aria-label). */}
           {lastContact
-            ? <span>Último contato <span className="font-medium text-ink">{lastContact}</span></span>
+            ? <span title={`Último contato ${lastContact}`}>Contato <span className="font-medium text-ink">{shortAgo(lastContact)}</span></span>
             : <span className="font-medium text-warning">Sem contato</span>}
           <span aria-hidden="true" className="text-faint">·</span>
-          <span>Cadastro {formatAgo(registration.createdAt) || "sem data"}</span>
+          <span title={`Cadastro ${formatAgo(registration.createdAt) || "sem data"}`}>Cadastro {shortAgo(formatAgo(registration.createdAt)) || "sem data"}</span>
           {registration.contactPreference === "call" || registration.contactPreference === "whatsapp" ? (
             <>
               <span aria-hidden="true" className="text-faint">·</span>
-              <span className="inline-flex items-center gap-1">
-                {registration.contactPreference === "call" ? <Phone className="h-3.5 w-3.5 text-brand" aria-hidden="true" /> : <MessageCircle className="h-3.5 w-3.5 text-brand" aria-hidden="true" />}
-                prefere {registration.contactPreference === "call" ? "ligação" : "WhatsApp"}
+              <span role="img" aria-label={`Prefere ${registration.contactPreference === "call" ? "ligação" : "WhatsApp"}`} title={`Prefere ${registration.contactPreference === "call" ? "ligação" : "WhatsApp"}`} className="inline-flex text-brand">
+                {registration.contactPreference === "call" ? <Phone className="h-3.5 w-3.5" aria-hidden="true" /> : <MessageCircle className="h-3.5 w-3.5" aria-hidden="true" />}
               </span>
             </>
           ) : null}
@@ -138,26 +146,28 @@ export default function ClientCard({ client, activities, responsibleName, respon
       {/* Ações do dia a dia */}
       {/* WhatsApp segue primário, mas com o mesmo tamanho de Agendar (pedido do
           dono: pesos próximos, sem o botão dominar o card). */}
-      <footer className="mt-auto flex flex-wrap items-center gap-2 border-t border-line px-3.5 py-2.5 sm:px-4">
-        {whatsappBlocked ? null : <Button size="sm" className="!min-h-touch px-3.5" onClick={() => list.openWhatsApp(client)} disabled={busy}>
-          <MessageCircle className="h-4 w-4" aria-hidden="true" /> WhatsApp
+      {/* Dono, 2026-10-22: botões com metade da altura (24px visíveis); a área de toque segue ≥ 44px pelo ::before (COMPACT_BUTTON). */}
+      <footer className="mt-auto flex flex-wrap items-center gap-2 border-t border-line px-3.5 py-2 sm:px-4">
+        {whatsappBlocked ? null : <Button size="sm" className={COMPACT_BUTTON} onClick={() => list.openWhatsApp(client)} disabled={busy}>
+          <MessageCircle className="h-3.5 w-3.5" aria-hidden="true" /> WhatsApp
         </Button>}
         {/* Pedido do dono (2026-10-07): o botão do card abre os valores (renomeado "Simulação"); "Agendar" foi para o menu. */}
-        <Button size="sm" variant="secondary" className="!min-h-touch px-3.5" onClick={() => list.openValues(client)} disabled={busy}>
-          <Calculator className="h-4 w-4" aria-hidden="true" /> Simulação
+        <Button size="sm" variant="secondary" className={COMPACT_BUTTON} onClick={() => list.openValues(client)} disabled={busy}>
+          <Calculator className="h-3.5 w-3.5" aria-hidden="true" /> Simulação
         </Button>
         {/* Dono, 2026-10-20: "Lista de documentos" visível no card (mesma ação da ficha: prévia com Enviar pelo Chat ou só
             "Copiar texto" + motivo quando o envio está bloqueado). Arquivado/Não contactar: o servidor recusa (409). */}
         {registration.id && ![CLIENT_STATUS.ARCHIVED, CLIENT_STATUS.DO_NOT_CONTACT].includes(client.status) ? (
-          <Button size="sm" variant="secondary" className="!min-h-touch px-3" onClick={() => list.prepareDocumentsList(client, { accessBlocked: whatsappBlocked })} disabled={busy} data-card-documents-list="" title="Lista de documentos">
+          <Button size="sm" variant="secondary" className={COMPACT_BUTTON} onClick={() => list.prepareDocumentsList(client, { accessBlocked: whatsappBlocked })} disabled={busy} data-card-documents-list="" title="Lista de documentos">
             {/* Rótulo curto em todas as larguras: com "Lista de documentos" o rodapé estourava a largura do card e o
                 botão "…" ficava por cima do WhatsApp (dono, 2026-10-21). O nome completo fica no title. */}
-            <ListChecks className="h-4 w-4" aria-hidden="true" /> Lista
+            <ListChecks className="h-3.5 w-3.5" aria-hidden="true" /> Lista
           </Button>
         ) : null}
         <Menu
           label={`Mais ações para ${name}`}
-          trigger={<MoreHorizontal className="h-5 w-5" aria-hidden="true" />}
+          trigger={<MoreHorizontal className="h-4 w-4" aria-hidden="true" />}
+          size="xs"
           className="ml-auto"
           items={[
             { label: "Documentação", icon: FileText, onSelect: () => onOpen("documents"), hidden: !registration.id },
@@ -357,29 +367,26 @@ function AgendaIcon({ agenda, busy, onOpen }) {
   );
 }
 
+// Dono, 2026-10-22: título e detalhe da simulação numa linha só ("Simulação a fazer · Renda R$ … · CLT"), quebrando
+// só se faltar espaço. Mesma informação de antes.
 function SimulationLine({ client }) {
   if (client.completed && client.summary) {
+    const components = client.summary.components || [];
     return (
-      <div className="min-w-0">
-        <p className="text-[13px] text-ink-2">
-          Poder de compra <span className="ml-1 text-base font-bold tracking-[-0.01em] text-navy tabular-nums">{formatMoneyBR(client.summary.purchasePower)}</span>
-        </p>
-        {client.summary.components?.length ? <p className="truncate text-xs leading-4 text-muted tabular-nums" title={client.summary.components.join(" · ")}>{client.summary.components.join(" · ")}</p> : null}
-      </div>
+      <p className="flex min-w-0 flex-wrap items-baseline gap-x-1.5 text-[13px] text-ink-2">
+        <span>Poder de compra <span className="ml-1 text-base font-bold tracking-[-0.01em] text-navy tabular-nums">{formatMoneyBR(client.summary.purchasePower)}</span></span>
+        {components.length ? <DetailText>{components.join(" · ")}</DetailText> : null}
+      </p>
     );
   }
   // Simulação automática do site (SIM-AUTO): mostra a estimativa no lugar de "Simulação a fazer".
   const automatic = client.summary?.automatic;
   if (automatic) {
     return (
-      <div className="min-w-0">
-        <p className="text-[13px] text-ink-2">
-          Poder de compra <span className="ml-1 text-base font-bold tracking-[-0.01em] text-navy tabular-nums">{formatMoneyBR(automatic.purchasePower)}</span>
-        </p>
-        <p className="truncate text-xs leading-4 text-muted tabular-nums">
-          {[automatic.firstInstallment > 0 ? `Parcela ${formatMoneyBR(automatic.firstInstallment)}` : "", "estimativa automática"].filter(Boolean).join(" · ")}
-        </p>
-      </div>
+      <p className="flex min-w-0 flex-wrap items-baseline gap-x-1.5 text-[13px] text-ink-2">
+        <span>Poder de compra <span className="ml-1 text-base font-bold tracking-[-0.01em] text-navy tabular-nums">{formatMoneyBR(automatic.purchasePower)}</span></span>
+        <DetailText>{[automatic.firstInstallment > 0 ? `Parcela ${formatMoneyBR(automatic.firstInstallment)}` : "", "estimativa automática"].filter(Boolean).join(" · ")}</DetailText>
+      </p>
     );
   }
   const registration = client.registration;
@@ -387,14 +394,23 @@ function SimulationLine({ client }) {
   const filled = registration && hasSimulationData(registration);
   const details = filled ? [
     Number(registration.primaryMonthlyIncome) > 0 ? `Renda ${formatCurrency(registration.primaryMonthlyIncome)}` : "",
-    registration.primaryIncomeType ? incomeTypeLabel(registration.primaryIncomeType) : "",
+    registration.primaryIncomeType ? incomeTypeLabel(registration.primaryIncomeType).replace(/^Regime /, "") : "",
     Number(registration.availablePurchaseResource) > 0 ? `Recurso ${formatCurrency(registration.availablePurchaseResource)}` : ""
   ].filter(Boolean) : [];
   return (
-    <div className="min-w-0">
-      <p className={cx("text-[13px] font-medium", awaiting ? "text-warning" : "text-ink-2")}>{awaiting ? "Simulação a fazer" : "Simulação ainda não realizada"}</p>
-      {details.length ? <p className="truncate text-xs leading-4 text-muted">{details.join(" · ")}</p> : null}
-    </div>
+    <p className="flex min-w-0 flex-wrap items-baseline gap-x-1.5 text-[13px]">
+      <span className={cx("font-medium", awaiting ? "text-warning" : "text-ink-2")}>{awaiting ? "Simulação a fazer" : "Simulação ainda não realizada"}</span>
+      {details.length ? <DetailText>{details.join(" · ")}</DetailText> : null}
+    </p>
+  );
+}
+
+function DetailText({ children }) {
+  return (
+    <>
+      <span aria-hidden="true" className="text-faint">·</span>
+      <span className="min-w-0 text-xs text-muted tabular-nums">{children}</span>
+    </>
   );
 }
 
@@ -452,8 +468,8 @@ function AddTagButton({ onClick }) {
   return (
     <>
       <span aria-hidden="true" className="text-faint">·</span>
-      <button type="button" onClick={onClick} className="inline-flex items-center gap-1 rounded-chip font-semibold text-brand hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand">
-        <TagIcon className="h-3.5 w-3.5" aria-hidden="true" /> Adicionar tag
+      <button type="button" onClick={onClick} aria-label="Adicionar tag" title="Adicionar tag" className="relative inline-flex h-6 w-6 items-center justify-center rounded-chip text-brand after:absolute after:-inset-2.5 after:content-[''] hover:bg-info-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand">
+        <TagIcon className="h-3.5 w-3.5" aria-hidden="true" />
       </button>
     </>
   );

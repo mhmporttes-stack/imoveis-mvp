@@ -48,7 +48,7 @@ export default function Menu({ label, trigger, items, align = "right", size = "m
         aria-expanded={open}
         aria-controls={open ? menuId : undefined}
         onClick={() => setOpen((value) => !value)}
-        className={cx(size === "sm" ? "h-10 w-10" : "h-touch w-touch", "inline-flex items-center justify-center rounded-control border border-line bg-white text-ink-2 transition-colors hover:bg-navy/[0.05] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand")}
+        className={cx(size === "xs" ? "relative h-6 w-9 before:absolute before:inset-x-0 before:-inset-y-2.5 before:content-['']" : size === "sm" ? "h-10 w-10" : "h-touch w-touch", "inline-flex items-center justify-center rounded-control border border-line bg-white text-ink-2 transition-colors hover:bg-navy/[0.05] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand")}
       >
         {trigger}
       </button>
