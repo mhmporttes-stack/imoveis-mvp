@@ -4,9 +4,9 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
-import { Bell, Clock, X } from "lucide-react";
-import Button from "@/components/ui/Button";
-import { useSupervisionRealtime } from "@/components/supervision/useSupervisionRealtime";
+import { Info, X } from "lucide-react";
+import { formatSupervisionTime, useSupervisionRealtime } from "@/components/supervision/useSupervisionRealtime";
+import scene from "@/components/scenes/scenes.module.css";
 import { INFORMATIVE_MAX_VISIBLE, INFORMATIVE_TIMING, alertLink, enqueueInformative } from "@/lib/crm-alerts-core.mjs";
 import CooledClientPhone from "@/components/cooled/CooledClientPhone";
 import { COOLED_ALERT_TYPE, COOLED_NO_RESPONSE_REASON, COOLED_REASON_MIN_LENGTH, isValidCooledText } from "@/lib/cooled-clients-core.mjs";
@@ -190,9 +190,10 @@ function InformativeCard({ item, paused, reduce, onDone, isMobile }) {
   const motionProps = reduce
     ? { initial: { opacity: 0 }, animate: { opacity: 1, transition: { duration: 0.15 } }, exit: { opacity: 0, transition: { duration: 0.15 } } }
     : {
-        initial: { opacity: 0, y: "45vh" },
-        animate: { opacity: 1, y: 0, transition: { duration: INFORMATIVE_TIMING.enterMs / 1000, ease: [0.16, 1, 0.3, 1] } },
-        exit: { opacity: 0, y: -8, scale: 0.98, transition: { duration: INFORMATIVE_TIMING.exitMs / 1000, ease: "easeOut" } }
+        // Visual novo (2026-10-22): entra pela direita; a barra embaixo mostra os ~5 s (para junto com o tempo).
+        initial: { opacity: 0, x: 60 },
+        animate: { opacity: 1, x: 0, transition: { duration: INFORMATIVE_TIMING.enterMs / 1000, ease: [0.2, 0.8, 0.2, 1] } },
+        exit: { opacity: 0, x: 40, transition: { duration: INFORMATIVE_TIMING.exitMs / 1000, ease: "easeOut" } }
       };
 
   return (
@@ -204,22 +205,30 @@ function InformativeCard({ item, paused, reduce, onDone, isMobile }) {
       onMouseLeave={() => setHovered(false)}
       onFocus={() => setHovered(true)}
       onBlur={() => setHovered(false)}
-      className="group pointer-events-auto flex items-start gap-3 rounded-card border border-line bg-white p-3.5 shadow-float"
+      className={`${scene.theme} ${scene.toast} group pointer-events-auto`}
     >
-      <span className="grid size-9 shrink-0 place-items-center rounded-control bg-info-soft text-info" aria-hidden="true"><Bell className="h-[18px] w-[18px]" /></span>
-      <span className="min-w-0 flex-1">
-        <span className="block text-sm font-semibold text-navy line-clamp-1">{item.title}</span>
-        <span className="block text-[13px] leading-5 text-ink-2 line-clamp-2">{item.body}</span>
-        {link ? <Link href={link} onClick={() => onDone(item.id)} className="mt-1 inline-block text-[13px] font-semibold text-brand hover:underline">Abrir</Link> : null}
-      </span>
-      <button
-        type="button"
-        onClick={() => onDone(item.id)}
-        aria-label="Fechar aviso"
-        className={`grid size-8 shrink-0 place-items-center rounded-chip text-muted hover:bg-mist hover:text-navy ${isMobile ? "" : "opacity-0 focus:opacity-100 group-hover:opacity-100"}`}
-      >
-        <X className="h-4 w-4" />
-      </button>
+      <div className="flex items-start gap-3 px-4 py-3.5">
+        <span className={scene.toastIcon} aria-hidden="true"><Info className="h-[18px] w-[18px]" /></span>
+        <span className="min-w-0 flex-1">
+          <span className={`block ${scene.kicker}`}>Informativo</span>
+          <span className={`mt-0.5 block text-sm font-extrabold line-clamp-1 ${scene.title}`}>{item.title}</span>
+          <span className={`block text-[13px] leading-5 line-clamp-2 ${scene.text2}`}>{item.body}</span>
+          {link ? <Link href={link} onClick={() => onDone(item.id)} className={`mt-1 inline-block text-[13px] hover:underline ${scene.link}`}>Abrir</Link> : null}
+        </span>
+        <button
+          type="button"
+          onClick={() => onDone(item.id)}
+          aria-label="Fechar aviso"
+          className={`grid size-8 shrink-0 place-items-center rounded-full ${scene.toastClose} ${isMobile ? "" : "opacity-0 focus:opacity-100 group-hover:opacity-100"}`}
+        >
+          <X className="h-4 w-4" />
+        </button>
+      </div>
+      <span
+        aria-hidden="true"
+        className={`${scene.toastBar} ${paused || hovered ? scene.toastBarPaused : ""}`}
+        style={{ "--toast-ms": `${INFORMATIVE_TIMING.enterMs + INFORMATIVE_TIMING.visibleMs}ms` }}
+      />
     </motion.div>
   );
 }
@@ -292,55 +301,75 @@ function ImportantDialog({ alert, position, total, onAcknowledge }) {
     >
       <motion.div
         ref={cardRef}
-        initial={reduce ? { opacity: 0 } : { opacity: 0, scale: 0.96 }}
+        initial={reduce ? { opacity: 0 } : { opacity: 0, scale: 0.9 }}
         animate={reduce ? { opacity: 1 } : { opacity: 1, scale: 1 }}
-        transition={{ duration: 0.24, ease: [0.16, 1, 0.3, 1] }}
-        className="max-h-[85dvh] overflow-auto rounded-panel bg-white p-6 shadow-float"
+        transition={reduce ? { duration: 0.15 } : { duration: 0.45, ease: [0.2, 0.9, 0.3, 1.1] }}
+        className={`${scene.theme} ${scene.dialogCard} max-h-[85dvh] overflow-auto`}
       >
-        <div className="flex items-center justify-between gap-2">
-          <span className="text-2xs font-semibold uppercase tracking-wide text-warning">Alerta importante</span>
-          {total > 1 ? <span className="rounded-chip bg-info-soft px-1.5 py-0.5 text-2xs font-semibold tabular-nums text-info">{position} de {total}</span> : null}
-        </div>
-        <span className="mt-4 grid size-11 place-items-center rounded-full bg-warning-soft text-warning" aria-hidden="true"><Clock className="h-[22px] w-[22px]" /></span>
-        <h2 id={`alert-title-${alert.id}`} className="mt-3 text-lg font-semibold text-navy text-balance">{alert.title}</h2>
-        {cooled ? (
-          <CooledReasonFields alert={alert} />
-        ) : null}
-        <p id={`alert-body-${alert.id}`} className={cooled ? "mt-3 text-[15px] font-semibold leading-6 text-navy" : "mt-2 text-[15px] leading-6 text-ink-2"}>{alert.body}</p>
-        {cooled ? (
+        {/* Visual novo (2026-10-22): faixa vermelha no topo + selo IMPORTANTE; comportamento de bloqueio igual. */}
+        <div className={scene.badRail} aria-hidden="true" />
+        <div className="px-6 pb-6 pt-5">
+          <div className="flex items-center gap-2.5">
+            <span className={scene.importantSeal}>IMPORTANTE</span>
+            {alert.created_at ? <span className={`text-xs ${scene.muted}`}>{formatSupervisionTime(alert.created_at)}</span> : null}
+            {total > 1 ? <span className={`ml-auto tabular-nums ${scene.counter}`} aria-label={`Alerta ${position} de ${total}`}>{position} de {total}</span> : null}
+          </div>
+          <h2 id={`alert-title-${alert.id}`} className={`mt-3.5 text-[19px] font-extrabold leading-snug text-balance ${scene.title}`}>{alert.title}</h2>
+          {cooled ? (
+            <CooledReasonFields alert={alert} />
+          ) : null}
+          <p id={`alert-body-${alert.id}`} className={cooled ? `mt-3 text-[15px] font-semibold leading-6 ${scene.title}` : `mt-2 text-[15px] leading-6 ${scene.text2}`}>{alert.body}</p>
+          {cooled ? (
+            <button
+              type="button"
+              aria-pressed={noResponse}
+              onClick={() => { setNoResponse((current) => !current); if (state === "error") setState("idle"); }}
+              className={`mt-2 w-full px-3 py-2.5 text-left outline-none focus-visible:ring-2 focus-visible:ring-brand ${scene.choice} ${noResponse ? scene.choiceOn : ""}`}
+              data-cooled-quick-reason="no_response"
+            >
+              <span className="block text-[15px] font-semibold">{COOLED_NO_RESPONSE_REASON.label}</span>
+              <span className={`block text-xs ${scene.muted}`}>O cliente vai direto para a roleta, sem passar pela aprovação da gestão.</span>
+            </button>
+          ) : null}
+          {cooled && !noResponse ? (
+            <textarea
+              value={reason}
+              onChange={(event) => { setReason(event.target.value); if (state === "error") setState("idle"); }}
+              rows={4}
+              maxLength={1000}
+              autoFocus
+              aria-label="Motivo"
+              placeholder="Outro motivo? Escreva aqui o que aconteceu com este cliente."
+              className={`mt-2 p-3 text-[15px] leading-6 ${scene.field}`}
+              data-cooled-reason="true"
+            />
+          ) : null}
+          {!cooled ? <p className={`mt-3.5 text-xs ${scene.muted}`}>O CRM fica bloqueado até você confirmar. A confirmação fica registrada.</p> : null}
+          {state === "error" ? <p role="alert" className="mt-3 text-xs font-semibold" style={{ color: "var(--scene-bad)" }}>{errorText || "Não foi possível confirmar. Tente de novo."}</p> : null}
           <button
             type="button"
-            aria-pressed={noResponse}
-            onClick={() => { setNoResponse((current) => !current); if (state === "error") setState("idle"); }}
-            className={`mt-2 w-full rounded-control border px-3 py-2.5 text-left outline-none focus-visible:ring-2 focus-visible:ring-brand ${noResponse ? "border-brand bg-info-soft" : "border-line bg-white"}`}
-            data-cooled-quick-reason="no_response"
+            className={`mt-4 w-full ${scene.btn} ${scene.btnPrimary}`}
+            disabled={state === "sending"}
+            aria-busy={state === "sending" || undefined}
+            onClick={() => confirm(false)}
+            autoFocus={!cooled}
+            data-alert-ack="true"
           >
-            <span className="block text-[15px] font-semibold text-navy">{COOLED_NO_RESPONSE_REASON.label}</span>
-            <span className="block text-xs text-muted">O cliente vai direto para a roleta, sem passar pela aprovação da gestão.</span>
+            {state === "sending" ? <span className={scene.spinner} aria-hidden="true" /> : null}
+            {cooled ? (state === "sending" ? "Enviando…" : noResponse ? "Transferir para a roleta" : "Enviar motivo") : state === "sending" ? "Confirmando…" : state === "error" ? "Tentar de novo" : "Entendi"}
           </button>
-        ) : null}
-        {cooled && !noResponse ? (
-          <textarea
-            value={reason}
-            onChange={(event) => { setReason(event.target.value); if (state === "error") setState("idle"); }}
-            rows={4}
-            maxLength={1000}
-            autoFocus
-            aria-label="Motivo"
-            placeholder="Outro motivo? Escreva aqui o que aconteceu com este cliente."
-            className="mt-2 w-full rounded-control border border-line bg-white p-3 text-[15px] leading-6 text-ink outline-none focus-visible:ring-2 focus-visible:ring-brand"
-            data-cooled-reason="true"
-          />
-        ) : null}
-        {state === "error" ? <p role="alert" className="mt-3 text-xs text-danger">{errorText || "Não foi possível confirmar. Tente de novo."}</p> : null}
-        <Button size="lg" block className="mt-5" loading={state === "sending"} onClick={() => confirm(false)} autoFocus={!cooled} data-alert-ack="true">
-          {cooled ? (state === "sending" ? "Enviando…" : noResponse ? "Transferir para a roleta" : "Enviar motivo") : state === "sending" ? "Confirmando…" : state === "error" ? "Tentar de novo" : "Entendi"}
-        </Button>
-        {link && !cooled ? (
-          <Button size="lg" block variant="secondary" className="mt-2" disabled={state === "sending"} onClick={() => confirm(true)} data-alert-open="true">
-            Entendi e abrir
-          </Button>
-        ) : null}
+          {link && !cooled ? (
+            <button
+              type="button"
+              className={`mt-2 w-full ${scene.btn} ${scene.btnSecondary}`}
+              disabled={state === "sending"}
+              onClick={() => confirm(true)}
+              data-alert-open="true"
+            >
+              Entendi e abrir
+            </button>
+          ) : null}
+        </div>
       </motion.div>
     </dialog>
   );
@@ -350,15 +379,15 @@ function ImportantDialog({ alert, position, total, onAcknowledge }) {
 function CooledReasonFields({ alert }) {
   const context = alert.context || {};
   return (
-    <div className="mt-3 rounded-card border border-line bg-mist px-3 py-2.5 text-[13px] leading-5 text-ink-2" data-cooled-context="true">
-      <p><span className="font-semibold text-navy">{context.client_name || "Cliente"}</span>{context.stage_label ? ` · ${context.stage_label}` : ""}</p>
+    <div className={`mt-3 px-3 py-2.5 text-[13px] leading-5 ${scene.panel}`} data-cooled-context="true">
+      <p><span className={`font-semibold ${scene.title}`}>{context.client_name || "Cliente"}</span>{context.stage_label ? ` · ${context.stage_label}` : ""}</p>
       {/* Telefone para achar a conversa no celular (FUN-15d); só vem do servidor se quem vê pode acessar o cliente. */}
       {context.client_phone ? <CooledClientPhone phone={context.client_phone} className="mt-0.5" /> : null}
-      <p className="text-muted">Mais de 3 dias sem contato e sem atividade agendada.</p>
+      <p className={scene.muted}>Mais de 3 dias sem contato e sem atividade agendada.</p>
       {context.round === 2 && context.returned_text ? (
-        <div className="mt-2 border-t border-line pt-2">
-          {context.first_reason ? <p><span className="font-semibold text-navy">Seu motivo:</span> {context.first_reason}</p> : null}
-          <p className="mt-1"><span className="font-semibold text-navy">{context.returned_by_name || "A gestão"} pediu:</span> {context.returned_text}</p>
+        <div className="mt-2 border-t pt-2" style={{ borderColor: "var(--scene-border)" }}>
+          {context.first_reason ? <p><span className={`font-semibold ${scene.title}`}>Seu motivo:</span> {context.first_reason}</p> : null}
+          <p className="mt-1"><span className={`font-semibold ${scene.title}`}>{context.returned_by_name || "A gestão"} pediu:</span> {context.returned_text}</p>
         </div>
       ) : null}
     </div>
