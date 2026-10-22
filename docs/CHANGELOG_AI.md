@@ -241,6 +241,15 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-22 — Saída do Marketplace (inclusive fora do CRM) conta no relógio de 3 dias (MKT-2h)
+- **Data:** 2026-10-22
+- **Área:** Clientes (último atendimento) / Meta Diária (lista congelada) / Chat Marketplace
+- **Alteração:** nova fonte (8) em `loadRecentAttendanceByClient`: mensagem de saída `sent` do Marketplace na conversa ligada ao cliente, só depois do `assigned_at` e só respondendo a mensagem do cliente (saídas seguidas sem resposta não contam). Regra pura `marketplaceReplyTimes`.
+- **Motivo:** ideia aprovada pelo dono na Mesa "Chat do Marketplace + WhatsApp" ("5 sim"): hoje 100% das respostas saem por fora do CRM e o cliente atendido aparecia como "sem contato".
+- **Arquivos afetados:** `lib/client-attendance.js`, `lib/client-attendance-core.mjs`, `tests/client-attendance-marketplace.test.mjs`; docs `BUSINESS_RULES.md` (MKT-2h, nota na FUN-15f), rules `roleta-prospeccao-campanhas.md` e `meta-diaria-ranking.md`.
+- **Risco/observação:** só leitura — nada é gravado, etapa/crédito/pontuação/roleta intactos; a baixa da pendência do dia (`evaluateDailyGoalPending`) NÃO mudou (teste trava). Consumidores afetados (de propósito): lista de Clientes e contadores, Desempenho (`performance-overview.js`), congelamento dos pendentes da Meta Diária, casos novos de cliente esfriado. Custo: 2 consultas a mais por chamada (conversas do Marketplace com atividade na janela + mensagens delas). Não resolve as pendências já existentes cuja saída foi antes do cadastro. PENDENTE com o dono: se a mensagem do cliente no Marketplace também conta.
+- **Autor:** crm-editor (Claude)
+
 ### 2026-10-22 — Chat Marketplace: sinal de "extensão ativa" e aviso "sem sinal" (MKT-2g)
 - **Data:** 2026-10-22
 - **Área:** Chat Marketplace / Automações (Central de Alertas) / Cron
