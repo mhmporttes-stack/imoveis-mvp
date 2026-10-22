@@ -260,6 +260,13 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-22 — Roleta: bloqueados de 30 dias não seguram mais a fila de espera (ROL-2b)
+- **Data:** 2026-10-22
+- **Área:** `lib/pending-roulette-core.mjs` (`planWaitingQueue`: bloqueio de 30 dias fora do lote; rótulo `stalled` = "travado atrás de link pessoal/canal direto"), `lib/lead-distribution.js` (`reassignPendingRouletteLeads` lê a fila inteira, até 1000, e busca `available_after` em blocos de 150), `tests/roulette-queue-position.test.mjs`.
+- **Alteração:** decisão do dono sobre o risco da entrada anterior. Os 30 bloqueados que ocupavam o lote de 25 desde 17/10 deixam de ocupá-lo; os 7 elegíveis passam a ser entregues (1 por corretor liberado por rodada, ROL-2b/ROL-2h inalteradas). Bloqueados ficam com o dono e voltam à fila sozinhos quando o bloqueio vence. Lista e entrega continuam pela mesma função. Nenhum dado alterado à mão.
+- **Docs:** `BUSINESS_RULES.md` ROL-2b, rule de roleta, `INCIDENTES.md`.
+- **Verificação:** testes da área, suíte completa sem falha nova, `pnpm build`; régua rodada sobre os 218 clientes reais: 7 entregáveis na rodada.
+
 ### 2026-10-22 — Clientes: filtro "Roleta" e posição real na fila (ROL-2b/ROL-2g)
 - **Data:** 2026-10-22
 - **Área:** `lib/pending-roulette-core.mjs` (`planWaitingQueue`, `compareWaitingQueue`, `waitingQueueBlockReason`, `rouletteQueueLabel`, `compareRouletteQueueEntries`, `WAITING_QUEUE_BATCH_LIMIT`), `lib/cooled-clients-reactivation-core.mjs` (`compareReactivationQueue`, `reactivationQueuePositions`), `lib/lead-distribution.js` (`reassignPendingRouletteLeads` passa a usar `planWaitingQueue`; novo `loadRouletteQueueEntries`, só leitura), `lib/cooled-clients-reactivation.js` (ordenação via `compareReactivationQueue`), `lib/simulation-list-query.js` (filtro `responsibleUserId=roulette`, ordem pela posição, `rouletteQueue` nos itens), `components/clients/ClientWorkspace.jsx` (opção "Roleta" depois de "Todos", chip "Roleta", etiqueta com posição), `components/clients/ClientCard.jsx` (`title` no nome truncado).

@@ -38,20 +38,38 @@ test("ordem real: mais antigo primeiro, empate pelo id; inelegíveis ficam fora 
   assert.deepEqual(release.map((item) => item.id), ["outro"]);
 });
 
-test("lote de 25: bloqueados à frente ocupam o lote e travam quem vem atrás (comportamento atual do entregador)", () => {
+test("bloqueados de 30 dias não seguram a fila (dono, 2026-10-22): 30 na frente + elegíveis atrás → entregues", () => {
   const blocked = new Map();
   const rows = [];
-  for (let index = 0; index < 3; index += 1) {
+  for (let index = 0; index < 30; index += 1) {
     blocked.set(`c${index}`, "2026-11-10T00:00:00Z");
-    rows.push(row(`b${index}`, index, { prospecting_contact_id: `c${index}` }));
+    rows.push(row(`b${String(index).padStart(2, "0")}`, index, { prospecting_contact_id: `c${index}` }));
   }
-  rows.push(row("ok", 10));
-  const stuck = planWaitingQueue(rows, { ownerId: OWNER, availableAfterByContact: blocked, now: NOW, limit: 3 });
+  for (let index = 0; index < 7; index += 1) rows.push(row(`ok${index}`, 100 + index));
+  const { entries, deliver } = planWaitingQueue(rows, { ownerId: OWNER, availableAfterByContact: blocked, now: NOW });
+  assert.deepEqual(deliver.map((item) => item.id), ["ok0", "ok1", "ok2", "ok3", "ok4", "ok5", "ok6"]);
+  assert.deepEqual(entries.get("ok0"), { position: 1 });
+  assert.equal(entries.get("b00").reason, "blocked_30d");
+  for (const [, entry] of entries) assert.notEqual(entry.reason, "stalled");
+  // Bloqueio vencido: volta à fila sozinho, na ordem de entrada (na frente).
+  const expired = planWaitingQueue(rows, { ownerId: OWNER, availableAfterByContact: blocked, now: new Date("2026-11-11T00:00:00Z") });
+  assert.deepEqual(expired.entries.get("b00"), { position: 1 });
+  assert.equal(expired.deliver.length, 25, "o lote continua de 25");
+});
+
+test("link pessoal/canal direto ainda ocupam o lote: elegível atrás de 25+ deles fica travado", () => {
+  const rows = [row("l0", 0, { direct_broker_link: true }), row("l1", 1, { distribution_type: "direct_channel" }), row("l2", 2, { direct_broker_link: true }), row("ok", 10)];
+  const stuck = planWaitingQueue(rows, { ownerId: OWNER, now: NOW, limit: 3 });
   assert.equal(stuck.entries.get("ok").reason, "stalled");
-  assert.equal(stuck.deliver.length, 0, "o entregador não alcança o elegível");
-  const free = planWaitingQueue(rows, { ownerId: OWNER, availableAfterByContact: blocked, now: NOW, limit: 4 });
-  assert.deepEqual(free.entries.get("ok"), { position: 1 });
+  assert.equal(rouletteQueueLabel({ queue: "waiting", reason: "stalled" }), "Roleta · fora da fila (travado atrás de link pessoal/canal direto)");
+  const free = planWaitingQueue(rows, { ownerId: OWNER, now: NOW, limit: 4 });
   assert.deepEqual(free.deliver.map((item) => item.id), ["ok"]);
+});
+
+test("entregador lê a fila inteira e monta o lote sem os bloqueados", () => {
+  const lead = read("lib/lead-distribution.js");
+  assert.match(lead, /\.limit\(1000\);/);
+  assert.match(lead, /planWaitingQueue\(candidates, \{ ownerId, availableAfterByContact, limit \}\)/);
 });
 
 test("fila de reativação: ordem por entrada na fila; quem não espera mais fica fora", () => {

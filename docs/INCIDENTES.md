@@ -40,6 +40,17 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-22 — Fila de espera da roleta parada: clientes elegíveis não eram entregues
+- **Data:** 2026-10-22
+- **Sintoma:** clientes "na roleta" (fila de espera, guardados com o dono) não saíam para nenhum corretor; última entrega da fila comum em 17/10 11:52.
+- **Área:** Roleta (ROL-2b)
+- **Impacto:** 7 clientes elegíveis (inclusive em atendimento/documentação) parados de 17/10 a 22/10; a fila de reativação (FUN-15l) não foi afetada.
+- **Causa raiz:** `reassignPendingRouletteLeads` pegava só os 25 mais antigos (filtrando status no SQL) e SÓ DEPOIS descartava os em bloqueio de 30 dias da Prospecção (`available_after`). Os 30 primeiros da fila estavam bloqueados até 06–18/11: ocupavam o lote inteiro em toda rodada e ninguém atrás deles era alcançado.
+- **Correção:** decisão do dono ("bloqueados de 30 dias não seguram a fila"): o entregador lê a fila inteira e `planWaitingQueue` monta o lote de 25 sem os bloqueados; eles continuam com o dono e voltam à fila sozinhos quando o bloqueio vence. Lista de Clientes usa a mesma função (posição "Roleta · Nº na fila").
+- **Arquivos/commit:** `lib/pending-roulette-core.mjs`, `lib/lead-distribution.js` — ver `git log` (2026-10-22, "bloqueados de 30 dias")
+- **Prevenção/teste:** `tests/roulette-queue-position.test.mjs` (30 bloqueados na frente + 7 elegíveis atrás → os 7 entregues). Risco residual: link pessoal/canal direto ainda ocupam o lote (hoje 0 na fila).
+- **Status:** Resolvido (conferir saída dos 7 nas rodadas seguintes)
+
 ### 2026-10-22 — Cliente do Marketplace transferido mesmo com o corretor tendo respondido
 - **Data:** 2026-10-22
 - **Sintoma:** conversa do Marketplace recebida pela roleta foi redistribuída para outra corretora, embora o corretor tivesse respondido pelo Chat do Marketplace dentro do prazo.
