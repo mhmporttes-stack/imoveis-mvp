@@ -9,7 +9,7 @@ import { cx } from "./cx";
 // Visual novo (dono, 2026-10-22): principal no azul de destaque (#1B7FB0 no claro, ciano #4FC3E0 com texto
 // azul-noite no escuro), secundário na superfície com borda, controles com raio 12px (rounded-control) e texto forte.
 const VARIANTS = {
-  primary: "bg-accent font-extrabold text-on-accent hover:brightness-110 active:brightness-95 disabled:bg-faint disabled:brightness-100",
+  primary: "bg-accent-strong font-extrabold text-on-accent hover:brightness-110 active:brightness-95 disabled:bg-faint disabled:brightness-100",
   secondary: "border border-line bg-white font-bold text-ink hover:border-accent-line hover:bg-accent-soft disabled:text-faint",
   ghost: "font-bold text-ink hover:bg-navy/[0.06] disabled:text-faint",
   danger: "bg-danger-strong text-white hover:bg-danger disabled:bg-faint",

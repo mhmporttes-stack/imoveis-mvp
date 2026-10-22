@@ -9,7 +9,7 @@ const TONES = {
   success: "bg-success-soft text-success",
   warning: "bg-warning-soft text-warning",
   danger: "bg-danger-soft text-danger",
-  brand: "bg-accent text-on-accent"
+  brand: "bg-accent-strong text-on-accent"
 };
 
 const DOTS = {
@@ -42,7 +42,7 @@ export default function Badge({ tone = "neutral", dot = false, icon: Icon = null
 // Visual novo (dono, 2026-10-22): verde #1FB37A com número escuro (.mm-count em app/globals.css).
 export function CountBadge({ count = 0, max = 99, tone = "success", className = "", label }) {
   if (!count || count <= 0) return null;
-  const toneClass = tone === "danger" ? "bg-danger-strong text-white" : tone === "brand" ? "bg-accent text-on-accent" : "mm-count";
+  const toneClass = tone === "danger" ? "bg-danger-strong text-white" : tone === "brand" ? "bg-accent-strong text-on-accent" : "mm-count";
   return (
     <span
       className={cx("inline-flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-[11px] font-extrabold tabular-nums", toneClass, className)}

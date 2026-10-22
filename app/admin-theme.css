@@ -24,14 +24,18 @@ html.mm-panel:not(.mm-dark) {
   --mm-ink: 14 30 51;
   --mm-ink-2: 44 62 87;
   --mm-muted: 90 107 130;
-  --mm-faint: 107 123 145;
-  --mm-brand: 27 127 176;
+  /* faint = muted no claro (crítica de contraste, 2026-10-22): #6B7B91 dava < 4,5:1 em texto pequeno. */
+  --mm-faint: 90 107 130;
+  /* Azul de marca do painel claro um tom mais fechado (#126A95): link, rótulo e botão sólido antigo (bg-brand + branco)
+     passam AA; o #1B7FB0 (accent) fica para ícones, bordas e marcadores. */
+  --mm-brand: 18 106 149;
   --mm-info: 18 106 149;
   --mm-info-soft: 230 241 248;
   --mm-info-line: 184 214 232;
   --mm-info-strong: 27 127 176;
   --mm-success: 17 132 90;
-  --mm-warning: 168 106 0;
+  /* Âmbar do texto/pílula de alerta mais fechado (#96600A): o #A86A00 do protótipo dava < 4,5:1 sobre o fundo claro. */
+  --mm-warning: 150 96 10;
   --mm-danger: 201 58 51;
   --mm-page: #F3F6FA;
 }
@@ -45,6 +49,7 @@ html.mm-panel body {
 
 html.mm-dark {
   --mm-accent: 79 195 224;
+  --mm-accent-strong: 79 195 224;
   --mm-on-accent: 4 18 31;
   --mm-accent-soft: 15 42 71;
   --mm-accent-line: 36 82 122;
@@ -185,12 +190,12 @@ html.mm-panel .premium-button {
   font-size: 0.9375rem;
 }
 html.mm-panel .premium-button-primary {
-  background-color: rgb(var(--mm-accent, 27 127 176));
+  background-color: rgb(var(--mm-accent-strong, 18 106 149));
   color: rgb(var(--mm-on-accent, 255 255 255));
   box-shadow: none;
 }
 html.mm-panel .premium-button-primary:hover {
-  background-color: rgb(var(--mm-accent, 27 127 176));
+  background-color: rgb(var(--mm-accent-strong, 18 106 149));
   filter: brightness(1.1);
   box-shadow: none;
 }
@@ -211,4 +216,18 @@ html.mm-panel .admin-input {
   html.mm-panel body:has(.admin-topbar) main.md\:pt-14 {
     padding-top: 1.25rem;
   }
+}
+
+/* ===== Visual novo — telas (frente C, 2026-10-22) =====
+   Texto pequeno (≤ 12px) em Manrope: o espaço entre palavras da fonte é estreito e, em tela de densidade 1, palavras
+   pareciam coladas ("Aguardandoreunião"). Um respiro mínimo entre palavras, sem mexer no espaçamento das letras. */
+html.mm-panel :is(.text-xs, .text-2xs, .text-\[9px\], .text-\[10px\], .text-\[10\.5px\], .text-\[11px\], .text-\[12px\]) {
+  word-spacing: 0.06em;
+}
+
+/* Card comum não leva sombra (sistema visual: profundidade só no que flutua). As telas antigas usavam shadow-soft /
+   shadow-premium em painéis parados; no painel elas ficam só com a borda. O que flutua (absolute/fixed/sticky, janelas,
+   menus) mantém a sombra. */
+html.mm-panel main :is(.shadow-soft, .shadow-premium, .shadow-sm):not(.absolute, .fixed, .sticky):not(:where([role="dialog"], dialog, .fixed, .absolute) *) {
+  box-shadow: none;
 }

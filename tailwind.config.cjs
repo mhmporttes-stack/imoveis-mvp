@@ -55,6 +55,9 @@ module.exports = {
         // #4FC3E0 com texto azul-noite. Tokens novos: o site público não usa.
         accent: themed("accent", "#1B7FB0"),
         "on-accent": themed("on-accent", "#FFFFFF"),
+        // Fundo de botão/controle sólido com texto: no claro o azul mais fechado #126A95 (branco por cima passa AA,
+        // 5,9:1 — o #1B7FB0 dá 4,4:1); no escuro é o próprio ciano (app/admin-theme.css). Crítica de 2026-10-22.
+        "accent-strong": themed("accent-strong", "#126A95"),
         "accent-soft": themed("accent-soft", "#E6F1F8"),
         "accent-line": themed("accent-line", "#B8D6E8"),
         "accent-text": themed("accent-text", "#126A95"),
@@ -67,7 +70,9 @@ module.exports = {
         chip: "6px",
         control: "var(--mm-r-control, 10px)",
         card: "var(--mm-r-card, 14px)",
-        panel: "var(--mm-r-panel, 20px)"
+        panel: "var(--mm-r-panel, 20px)",
+        // rounded-3xl (24px) das telas antigas vira o raio de painel (18px) só no painel; fora dele, 24px como sempre.
+        "3xl": "var(--mm-r-panel, 1.5rem)"
       },
       boxShadow: {
         premium: "0 24px 80px rgba(13, 59, 102, 0.10)",
