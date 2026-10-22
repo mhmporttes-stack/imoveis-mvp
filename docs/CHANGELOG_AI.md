@@ -241,6 +241,14 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-22 — Chat Marketplace: atalhos de texto ("/") e "Nosso WhatsApp" oficial (MKT-2f)
+- **Data:** 2026-10-22
+- **Área:** Chat Marketplace / WhatsApp (atalhos) / Banco
+- **Alteração:** atalhos do Chat ganham canal (`whatsapp`/`marketplace`/`both`); no Chat do Marketplace "/" lista só os de texto do canal e cola o texto na caixa, preenchendo [nome]/[anúncio]/[corretor] (nunca envia sozinho, até 2.000 caracteres). Botão "Nosso WhatsApp" cola o link do número OFICIAL com o código do atendimento do cliente (PRES-25), para a conversa no oficial cair com o mesmo cliente/corretor. Gestão dos atalhos ganha o seletor de canal (e abre também pelo Chat do Marketplace, admin/gestor). Chat do WhatsApp deixa de listar/enviar atalhos só do Marketplace.
+- **Motivo:** ideias aprovadas pelo dono na Mesa "Chat do Marketplace + WhatsApp" ("2 sim") e pedido "Enviar o número deve enviar o oficial".
+- **Arquivos afetados:** `lib/chat-shortcut-channel.mjs` (novo), `lib/marketplace-chat-core.mjs`, `lib/whatsapp-chat.js`, `app/api/admin/whatsapp-chat/shortcuts/route.js`, `components/WhatsappChatShortcuts.jsx`, `components/marketplace/MarketplaceChat.jsx`, `app/admin/chat/marketplace/page.jsx`, `supabase/migrations/20261022180000_whatsapp_chat_shortcuts_channel.sql` (NÃO aplicada), `tests/whatsapp-chat-shortcut-channel.test.mjs`; docs `BUSINESS_RULES.md` MKT-2f, `DATABASE.md`, rule `roleta-prospeccao-campanhas.md`.
+- **Risco/observação:** sem a migration tudo continua "Chat do WhatsApp" e escolher outro canal mostra que falta a migration. Nenhum texto de atalho foi cadastrado (o dono cadastra). O texto fixo do "Nosso WhatsApp" ("Pode me chamar também no nosso WhatsApp oficial: …" + "Olá! Vim do Marketplace (anúncio: …).") é editável na caixa. A CONFIRMAR: se o Facebook entrega link `wa.me` no Marketplace sem bloquear. O cliente do Marketplace não tem telefone: quando ele escreve no oficial pelo link, a conversa é ligada pelo código, mas o telefone não é gravado no cadastro (comportamento existente do PRES-25).
+- **Autor:** crm-editor (Claude)
 ### 2026-10-22 — Card do cliente mais baixo: espaçamentos verticais enxugados
 - **Data:** 2026-10-22
 - **Área:** `components/clients/ClientCard.jsx` (só apresentação).

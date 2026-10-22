@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ArrowLeft, Send } from "lucide-react";
+import { ArrowLeft, MessageSquareText, Phone, Send, Settings2 } from "lucide-react";
 import Button from "@/components/ui/Button";
 import Badge from "@/components/ui/Badge";
 import Card from "@/components/ui/Card";
@@ -10,6 +10,8 @@ import MessengerBadge from "@/components/marketplace/MessengerBadge";
 import { useChatAppMode } from "@/components/useChatAppMode";
 import { readViewerData, saveViewerData } from "@/components/chat-view-cache";
 import { MARKETPLACE_LIST_CACHE_PREFIX, MARKETPLACE_THREADS_CACHE_NAME } from "@/components/panel-cache-names";
+import { ManageShortcuts } from "@/components/WhatsappChatShortcuts";
+import { MAX_OUTBOUND_LENGTH, fillMarketplaceShortcut, marketplaceOfficialWhatsappText } from "@/lib/marketplace-chat-core.mjs";
 
 // Chat do Marketplace (MKT-2). A tela só mostra e chama /api/admin/marketplace-chat/**; regra, escopo e roleta ficam
 // no servidor (lib/marketplace-chat.js). As mensagens chegam e saem pela extensão no PC do escritório (~1–2 min).
@@ -98,7 +100,33 @@ export function SettingsCard() {
   );
 }
 
-export default function MarketplaceChat({ canEditSettings = false, canAssign = false, team = [], viewerKey = "" }) {
+// Atalhos de texto (MKT-2f, dono, 2026-10-22): digitar "/" na caixa lista só os atalhos de TEXTO do canal Marketplace (ou
+// "os dois"); escolher COLA o texto na caixa, já preenchido, para editar — nunca envia sozinho.
+const normalizeSearch = (value) => String(value || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+function ShortcutPicker({ query, shortcuts, onPick, onManage }) {
+  const visible = (shortcuts || []).filter((item) => normalizeSearch(item.label).includes(normalizeSearch(query)));
+  return (
+    <div className="absolute bottom-full left-0 right-0 z-30 mb-2 overflow-hidden rounded-card border border-line bg-white shadow-soft">
+      <div className="max-h-64 overflow-y-auto p-1">
+        {shortcuts === null ? <p className="p-3 text-sm text-muted">Carregando atalhos…</p> : null}
+        {shortcuts && !visible.length ? <p className="p-3 text-sm text-muted">{shortcuts.length ? `Nenhum atalho com “${query}”.` : "Nenhum atalho do Marketplace cadastrado."}</p> : null}
+        {visible.map((item) => (
+          <button key={item.id} type="button" onClick={() => onPick(item)} className="flex w-full items-center gap-2 rounded-control px-3 py-2 text-left text-sm hover:bg-info-soft">
+            <MessageSquareText className="h-4 w-4 shrink-0 text-brand" />
+            <span className="truncate font-semibold text-navy">{item.label}</span>
+          </button>
+        ))}
+      </div>
+      {onManage ? (
+        <button type="button" onClick={onManage} className="flex w-full items-center gap-2 border-t border-line px-3 py-2 text-xs font-semibold text-muted hover:bg-mist hover:text-navy">
+          <Settings2 className="h-3.5 w-3.5" /> Gerenciar atalhos
+        </button>
+      ) : null}
+    </div>
+  );
+}
+
+export default function MarketplaceChat({ canEditSettings = false, canAssign = false, canManageShortcuts = false, viewerName = "", team = [], viewerKey = "" }) {
   const [list, setList] = useState(() => readViewerData(viewerKey, `${MARKETPLACE_LIST_CACHE_PREFIX}${listQuery("all", "")}`)?.data || { ready: true, conversations: [], filters: [] });
   const [view, setView] = useState("all");
   const [brokerId, setBrokerId] = useState("");
@@ -107,7 +135,11 @@ export default function MarketplaceChat({ canEditSettings = false, canAssign = f
   const [text, setText] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [shortcuts, setShortcuts] = useState(null);
+  const [managingShortcuts, setManagingShortcuts] = useState(false);
   const endRef = useRef(null);
+  const textRef = useRef(null);
+  const slashQuery = text.startsWith("/") && !text.includes("\n") ? text.slice(1) : null;
   const selectedRef = useRef("");
   const sectionRef = useRef(null);
   // Tela cheia como o Chat do WhatsApp (dono, 2026-10-22: "Remova a opção Sair embaixo, deixe como o Chat: a rolagem
@@ -151,6 +183,34 @@ export default function MarketplaceChat({ canEditSettings = false, canAssign = f
     const timer = setInterval(() => document.visibilityState === "visible" && loadThread(selectedId), THREAD_REFRESH_MS);
     return () => clearInterval(timer);
   }, [selectedId, loadThread]);
+
+  useEffect(() => {
+    if (slashQuery === null || shortcuts !== null) return;
+    callApi("/api/admin/whatsapp-chat/shortcuts?chat=marketplace")
+      .then((data) => setShortcuts(data.shortcuts || []))
+      .catch((loadError) => { setShortcuts([]); setError(loadError.message); });
+  }, [slashQuery, shortcuts]);
+
+  // Cola na caixa (editável) e deixa o cursor no fim. Nunca envia.
+  function pasteIntoComposer(value, { replace = false } = {}) {
+    const next = replace || !text.trim() ? value : `${text.trimEnd()}\n\n${value}`;
+    setText(next);
+    if (next.length > MAX_OUTBOUND_LENGTH) setError(`A mensagem passa de ${MAX_OUTBOUND_LENGTH} caracteres. Encurte antes de enviar.`);
+    requestAnimationFrame(() => {
+      const box = textRef.current;
+      if (box) { box.focus(); box.setSelectionRange(next.length, next.length); }
+    });
+  }
+
+  function pickShortcut(item) {
+    const conversationData = thread?.conversation || {};
+    pasteIntoComposer(fillMarketplaceShortcut(item.body, { clientName: conversationData.contactName, listingTitle: conversationData.listingTitle, brokerName: viewerName }), { replace: true });
+  }
+
+  function pasteOfficialWhatsapp() {
+    const conversationData = thread?.conversation || {};
+    pasteIntoComposer(marketplaceOfficialWhatsappText({ clientId: conversationData.clientId, listingTitle: conversationData.listingTitle }));
+  }
 
   useEffect(() => {
     // Rola só a caixa das mensagens (scrollIntoView mexeria também na moldura fixa da tela cheia).
@@ -299,15 +359,20 @@ export default function MarketplaceChat({ canEditSettings = false, canAssign = f
               ))}
               <div ref={endRef} />
             </div>
-            <form onSubmit={send} className="chat-composer-safe flex shrink-0 gap-2 border-t border-line p-3">
-              <textarea className={`${inputClasses} min-h-touch py-2`} rows={2} maxLength={2000} value={text} onChange={(event) => setText(event.target.value)} placeholder="Escreva a resposta (sai pelo Facebook em ~1–2 min)" />
-              <Button type="submit" loading={busy} disabled={!text.trim()} aria-label="Enviar"><Send className="h-4 w-4" /></Button>
+            <form onSubmit={send} className="chat-composer-safe relative flex shrink-0 gap-2 border-t border-line p-3">
+              {slashQuery !== null ? <ShortcutPicker query={slashQuery} shortcuts={shortcuts} onPick={pickShortcut} onManage={canManageShortcuts ? () => setManagingShortcuts(true) : null} /> : null}
+              {/* "Nosso WhatsApp" (dono, 2026-10-22: "Enviar o número deve enviar o oficial"): cola o link do WhatsApp OFICIAL
+                  com o código do atendimento (a conversa no oficial cai com o mesmo cliente/corretor). Não envia sozinho. */}
+              <Button type="button" variant="ghost" size="icon" className="shrink-0" onClick={pasteOfficialWhatsapp} aria-label="Colar o link do nosso WhatsApp oficial" title="Nosso WhatsApp (oficial)"><Phone className="h-4 w-4" /></Button>
+              <textarea ref={textRef} className={`${inputClasses} min-h-touch py-2`} rows={2} maxLength={MAX_OUTBOUND_LENGTH} value={text} onChange={(event) => setText(event.target.value)} placeholder="Escreva a resposta ou / para atalhos (sai pelo Facebook em ~1–2 min)" />
+              <Button type="submit" loading={busy} disabled={!text.trim() || slashQuery !== null} aria-label="Enviar"><Send className="h-4 w-4" /></Button>
             </form>
           </Card>
         ) : (
           <Card className="hidden items-center justify-center text-sm text-muted md:flex">Escolha uma conversa.</Card>
         )}
       </div>
+      {managingShortcuts ? <ManageShortcuts onClose={() => { setManagingShortcuts(false); setShortcuts(null); }} /> : null}
     </section>
     </>
   );

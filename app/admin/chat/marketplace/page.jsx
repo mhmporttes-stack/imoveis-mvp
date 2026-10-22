@@ -17,7 +17,8 @@ export default async function MarketplaceChatPage() {
   return (
     <main className="bg-mist pt-3 md:pt-6">
       <AdminSectionNav active="marketplace-chat" />
-      <MarketplaceChat canEditSettings={isAdmin} canAssign={canAssign} team={team} viewerKey={chatViewerKey(auth)} />
+      {/* viewerName = perfil efetivo (preenche [corretor] dos atalhos); gestão dos atalhos = admin/gestor (o servidor confere). */}
+      <MarketplaceChat canEditSettings={isAdmin} canAssign={canAssign} canManageShortcuts={canAssign} viewerName={auth.profile?.name || ""} team={team} viewerKey={chatViewerKey(auth)} />
     </main>
   );
 }
