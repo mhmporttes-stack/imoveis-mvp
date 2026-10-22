@@ -3,6 +3,7 @@ import { isOwnerAdminEmail, requireAdminApi } from "@/lib/admin-auth";
 import { checkPublicRateLimit } from "@/lib/rate-limit";
 import {
   answerHenry,
+  claimHenryDevice,
   henryDefaultVoice,
   henryVoiceProvider,
   isHenryVoiceConfigured,
@@ -169,6 +170,16 @@ export async function POST(request) {
       console.warn(`[henry] amostra falhou: ${error?.name === "TimeoutError" ? "timeout" : "erro"}.`);
       return NextResponse.json({ error: "Não consegui tocar a amostra agora." }, { status: 502 });
     }
+  }
+  const deviceId = typeof body?.deviceId === "string" ? body.deviceId.slice(0, 64) : "";
+  // Abriu a cena no celular (toque): reserva a conversa para este aparelho antes de falar.
+  if (body?.mode === "claim") {
+    const allowed = await claimHenryDevice(auth, deviceId).catch(() => true);
+    return NextResponse.json({ ok: true, allowed });
+  }
+  // Outro aparelho está conversando com o Henry agora: este fica calado (o mesmo pedido ouvido pelos dois).
+  if (deviceId && !(await claimHenryDevice(auth, deviceId).catch(() => true))) {
+    return NextResponse.json({ skipped: "other_device" });
   }
   const mode = body?.mode === "report" ? "report" : "question";
   const question = typeof body?.question === "string" ? body.question.trim() : "";

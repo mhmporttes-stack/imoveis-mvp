@@ -99,7 +99,18 @@ export default function HenryVoiceAssistant() {
   const conversationRef = useRef({ active: false, lastAt: 0, historyStart: 0 });
   const abortRef = useRef(null); // pedido em andamento (cancelado ao interromper)
   const webSourceRef = useRef(null); // voz tocando pelo AudioContext (celular)
-  const soundRetryRef = useRef(false); // esperando o toque que libera o som (esse toque não interrompe a fala)
+  const soundRetryRef = useRef(false);
+  const serverVoiceRef = useRef(false); // voz do servidor ativa (ElevenLabs/OpenAI): sem "Deixa eu ver…" na voz do navegador
+  // Id aleatório deste navegador (só para "um aparelho por vez"; nada identifica o aparelho).
+  const deviceIdRef = useRef("");
+  if (!deviceIdRef.current && typeof window !== "undefined") {
+    try {
+      deviceIdRef.current = window.localStorage.getItem("mm-henry-device") || `d${Math.random().toString(36).slice(2, 12)}`;
+      window.localStorage.setItem("mm-henry-device", deviceIdRef.current);
+    } catch {
+      deviceIdRef.current = `d${Math.random().toString(36).slice(2, 12)}`;
+    }
+  } // esperando o toque que libera o som (esse toque não interrompe a fala)
   const requestIdRef = useRef(0);
   const ackTimerRef = useRef(null);
   const lastAckRef = useRef("");
@@ -136,6 +147,7 @@ export default function HenryVoiceAssistant() {
         visionRef.current = data?.vision === true;
         setVision(data?.vision === true);
         if (Number.isFinite(data?.browserRate)) browserRateRef.current = data.browserRate;
+        serverVoiceRef.current = Boolean(data?.provider && data.provider !== "browser");
         setMobileWake(data?.mobileWake === true);
       })
       .catch(() => alive && setEnabled(false))
@@ -520,8 +532,9 @@ export default function HenryVoiceAssistant() {
     setTurns(nextTurns);
     updatePhase("thinking");
     touchConversation();
-    // Demorou mais de ~1,2 s → confirmação curta na voz do navegador (sem IA, sem chamada paga).
-    if (!mutedRef.current) {
+    // Demorou mais de ~1,2 s → confirmação curta na voz do navegador (sem IA, sem chamada paga). Só quando o Henry fala
+    // com a voz do navegador: com a voz natural, uma voz diferente antes da resposta soa estranha (dono, 2026-10-22).
+    if (!mutedRef.current && !serverVoiceRef.current) {
       ackTimerRef.current = window.setTimeout(() => {
         if (requestIdRef.current !== id || phaseRef.current !== "thinking") return;
         const phrase = pickAcknowledgement(lastAckRef.current);
@@ -548,7 +561,7 @@ export default function HenryVoiceAssistant() {
       const response = await fetch("/api/admin/henry", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(image ? { mode, question, history, image, stream: true } : { mode, question, history, stream: true }),
+        body: JSON.stringify(image ? { mode, question, history, image, stream: true, deviceId: deviceIdRef.current } : { mode, question, history, stream: true, deviceId: deviceIdRef.current }),
         signal: controller.signal
       });
       image = null;
@@ -559,6 +572,16 @@ export default function HenryVoiceAssistant() {
       if (!(response.headers.get("content-type") || "").includes("ndjson") || !response.body) {
         const data = await response.json().catch(() => ({}));
         if (requestIdRef.current !== id) return;
+        if (data?.skipped === "other_device") {
+          // Outro aparelho está conversando: este fica calado e sai da conversa.
+          cancelAck();
+          const withoutQuestion = turnsRef.current.slice(0, -1);
+          turnsRef.current = withoutQuestion;
+          setTurns(withoutQuestion);
+          endConversation({ sound: false });
+          updatePhase("idle");
+          return;
+        }
         onReply(data.reply || "", data.navigate);
         enqueueClip({ audio: data.audio, text: data.reply || "" });
         endSpeech();
@@ -603,7 +626,7 @@ export default function HenryVoiceAssistant() {
     } finally {
       if (abortRef.current === controller) abortRef.current = null;
     }
-  }, [abortRequest, beginSpeech, cancelAck, endSpeech, enqueueClip, listenAgain, router, speakBrowser, stopSpeaking, touchConversation, updatePhase]);
+  }, [abortRequest, beginSpeech, cancelAck, endConversation, endSpeech, enqueueClip, listenAgain, router, speakBrowser, stopSpeaking, touchConversation, updatePhase]);
 
   // Botão de câmera da tela cheia = liga/desliga a visão (mesma configuração do cartão em /admin/alexa).
   const toggleVision = useCallback(async () => {
@@ -831,6 +854,8 @@ export default function HenryVoiceAssistant() {
     unlockAudio();
     sessionOpenRef.current = true;
     startListeningRef.current?.();
+    // Reserva a conversa para este aparelho (o computador, que também ouve, fica calado).
+    fetch("/api/admin/henry", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ mode: "claim", deviceId: deviceIdRef.current }) }).catch(() => {});
     startConversation({ sound: true });
     listenAgain();
   }, [listenAgain, startConversation, unlockAudio]);

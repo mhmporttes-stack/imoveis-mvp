@@ -53,6 +53,15 @@ Copie o modelo abaixo (uma entrada por bloco):
 - **Risco/observação:** simulação com valor salva por pessoa continua intocada pelo site. Gerador aberto sobre o rascunho e editado depois pode gravar por cima da automática (autosave) — mesmo risco que o "Refazer" já tinha, não corrigido. Clientes afetados desde 19/10: só 1, já resolvido pelo Refazer.
 - **Autor:** Claude Code
 
+### 2026-10-22 — Henry: um aparelho por vez e sem "Deixa eu ver…" na voz do navegador
+- **Data:** 2026-10-22
+- **Área:** Integrações/Henry
+- **Alteração:** (1) confirmação curta ("Deixa eu ver…") só quando o Henry fala com a voz do navegador; com ElevenLabs/OpenAI fica calado enquanto pensa. (2) Um aparelho por vez: cada navegador manda um id aleatório; quem falou primeiro segura a conversa por 25 s (`decideDeviceClaim`, `lib/henry-voice-conversation.mjs`; registro curto em `crm_settings` `henry_active_device`); o outro aparelho recebe `skipped: other_device` e fica calado; abrir a cena no celular já reserva a conversa.
+- **Motivo:** dono — "fala uma voz primeiro, totalmente diferente, e depois ele inicia pelo computador".
+- **Arquivos afetados:** `components/henry/HenryVoiceAssistant.jsx`, `app/api/admin/henry/route.js`, `lib/henry-voice.js`, `lib/henry-voice-conversation.mjs`, `tests/henry-voice-conversation.test.mjs`.
+- **Risco/observação:** escrita pequena em `crm_settings` a cada pergunta (sem migration). Corrida de milissegundos entre os dois aparelhos ainda pode deixar os dois responderem.
+- **Autor:** Claude Code
+
 ### 2026-10-22 — Henry no iPhone: voz pelo AudioContext e sessão de áudio "playback"
 - **Data:** 2026-10-22
 - **Área:** Integrações/Henry

@@ -180,3 +180,13 @@ test("interrupção: nome no meio da frase misturada com a voz do Henry corta a 
   assert.equal(detectBargeIn("a equipe esta on line", speech).interrupt, false);
   assert.equal(detectBargeIn("vou para a reuniao", "Você vai para a reunião às dez").interrupt, false);
 });
+
+test("um aparelho por vez: quem falou primeiro segura a conversa por 25 s", async () => {
+  const { decideDeviceClaim, DEVICE_HOLD_MS } = await import("../lib/henry-voice-conversation.mjs");
+  const now = 1_000_000;
+  assert.deepEqual(decideDeviceClaim({ current: null, deviceId: "a", now }), { allowed: true, next: { deviceId: "a", at: now } });
+  assert.equal(decideDeviceClaim({ current: { deviceId: "a", at: now - 5000 }, deviceId: "b", now }).allowed, false);
+  assert.equal(decideDeviceClaim({ current: { deviceId: "a", at: now - DEVICE_HOLD_MS - 1 }, deviceId: "b", now }).allowed, true);
+  assert.equal(decideDeviceClaim({ current: { deviceId: "a", at: now - 5000 }, deviceId: "a", now }).allowed, true);
+  assert.equal(decideDeviceClaim({ current: { deviceId: "a", at: now }, deviceId: "", now }).allowed, true);
+});
