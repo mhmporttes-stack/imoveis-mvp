@@ -383,6 +383,17 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-22 — Lista de documentos: "Copiar mídia" e legenda "…para a sua aprovação" (PRES-17/PRES-26)
+- **Data:** 2026-10-22
+- **Área:** Clientes › "Lista" (janela "Enviar lista de documentos") · envio automático PRES-26
+- **Relato investigado antes:** dono, fim da tarde: "quando eu clico em Lista, não está gerando a imagem". Não reproduzido: em produção `/s/<token>/documentos` respondeu 200 `image/png` (imagem correta) para os 3 links mais recentes, inclusive o do cliente em que o dono registrou a lista às 16:37; nenhum commit de 22/10 tocou rota da imagem, render (`lib/simulation-presentation-image*.mjs`), proxy de `/s/`, service worker para `/s/` nem o fluxo do botão (`useClientList`/`DocumentsListDialog`). Depois o dono confirmou que a imagem é gerada. Sem correção de código para isso.
+- **Alteração (pedido do dono):** (1) botão **"Copiar mídia"** na janela quando o envio abre o WhatsApp de fora: copia a imagem da lista (`navigator.clipboard.write` + `ClipboardItem` `image/png` com a Promise do arquivo, sem await antes — Safari/iOS); mostra "Imagem copiada. Cole na conversa do cliente."; sem suporte/recusado cai no "Baixar imagem" (compartilhar no celular, download no computador). (2) Legenda/mensagem pronta: "Segue a lista de documentos para a sua **aprovação**." (era "simulação") — fonte única `buildDocumentsListMessage` (`lib/documents-forecast-core.mjs`), que já alimenta o Chat, o WhatsApp externo e o texto da PRES-26 (intro da lista).
+- **Arquivos afetados:** `components/clients/ClientSheet.jsx`, `components/clients/documentsImageFile.js`, `lib/documents-forecast-core.mjs`, `tests/documents-forecast.test.mjs`, `docs/BUSINESS_RULES.md` (PRES-17, PRES-26).
+- **Banco/rotas/permissões:** nada.
+- **Risco/observação:** a imagem e a página `/s/<token>` levam 5–11 s para responder em produção (404 de token inexistente ~1,4 s); medido agora, sem base anterior para comparar — se o dono voltar a ver "Preparando a imagem…" demorado, investigar a latência (Supabase em us-west-2). Falha pré-existente, não relacionada: `tests/document-received-offline.test.mjs` (teste 5) já falhava antes desta mudança.
+- **Verificação:** `node --test tests/documents-forecast.test.mjs` (42/42, inclui teste novo do ClipboardItem) e testes de apresentação/lista; build.
+- **Autor:** Claude Code
+
 ### 2026-10-22 — Extensão do Marketplace 1.9.4: janela de trabalho própria (sem abrir abas na janela do dono)
 - **Data:** 2026-10-22
 - **Área:** Chat Marketplace / publicação · extensão do Chrome (`ferramentas/marketplace-publicador`)

@@ -679,6 +679,40 @@ test("ficha: decisão Chat × WhatsApp externo por decideCardWhatsapp; a janela 
   assert.match(helper, /sameOriginPath\(link\)/);
 });
 
+test("Copiar mídia (dono, 2026-10-22): ClipboardItem image/png recebe a PROMISE do arquivo; sem suporte cai no baixar", async () => {
+  const sheet = read("components/clients/ClientSheet.jsx");
+  assert.match(sheet, /onClick=\{copyImage\}/);
+  assert.match(sheet, />\s*Copiar mídia\s*</);
+  assert.match(sheet, /Imagem copiada/);
+  // plano B: sem suporte ou recusado → o mesmo "Baixar imagem" (download/compartilhar)
+  assert.match(sheet.slice(sheet.indexOf("async function copyImage")), /^[\s\S]*?canCopyImage\(\)[\s\S]*?await saveImage\(\)/);
+  const savedWindow = globalThis.window;
+  const savedNavigator = Object.getOwnPropertyDescriptor(globalThis, "navigator");
+  try {
+    const written = [];
+    class FakeClipboardItem { constructor(items) { this.items = items; } }
+    globalThis.window = { ClipboardItem: FakeClipboardItem };
+    Object.defineProperty(globalThis, "navigator", { configurable: true, value: { clipboard: { write: async (items) => { written.push(...items); } } } });
+    const helper = await import("../components/clients/documentsImageFile.js");
+    assert.equal(helper.canCopyImage(), true);
+    let resolveFile;
+    const pending = new Promise((resolve) => { resolveFile = resolve; });
+    const copying = helper.copyImageToClipboard(pending);
+    // o item já foi entregue ao clipboard ANTES de o arquivo chegar (gesto preservado no Safari/iOS)
+    await Promise.resolve();
+    assert.equal(written.length, 1);
+    resolveFile(new Blob(["png"], { type: "image/png" }));
+    await copying;
+    assert.ok(written[0].items["image/png"] instanceof Promise);
+    assert.equal((await written[0].items["image/png"]).type, "image/png");
+    globalThis.window = {};
+    assert.equal(helper.canCopyImage(), false);
+  } finally {
+    globalThis.window = savedWindow;
+    if (savedNavigator) Object.defineProperty(globalThis, "navigator", savedNavigator);
+  }
+});
+
 test("ficha: decisão do Chat × externo (decideCardWhatsapp) devolve o link certo e withWhatsappText acrescenta o texto", async () => {
   const { decideCardWhatsapp } = await import("../lib/client-card-whatsapp-core.mjs");
   const message = buildDocumentsListMessage({ fullName: "Maria da Silva" });
@@ -698,7 +732,7 @@ test("mensagem da ficha: legenda curta (sem link), só o primeiro nome; imagem s
   assert.equal(link, `https://www.matheusmachadoimoveis.com.br/s/${TOKEN}/documentos?baixar=1`);
   assert.equal(documentsListImageUrl(TOKEN, "https://www.matheusmachadoimoveis.com.br/"), `https://www.matheusmachadoimoveis.com.br/s/${TOKEN}/documentos`);
   const message = buildDocumentsListMessage({ fullName: "Maria da Silva Souza" });
-  assert.equal(message, "Olá, Maria! Segue a lista de documentos para a sua simulação.");
+  assert.equal(message, "Olá, Maria! Segue a lista de documentos para a sua aprovação.");
   assert.ok(!/Silva|Souza|http/.test(message));
   assert.match(buildDocumentsListMessage({ fullName: "" }), /^Olá! Segue a lista/);
 });
@@ -725,7 +759,7 @@ test("prepareDocumentsList: bloqueia arquivado/não contactar, avisa sem simula�
   assert.equal(first.link, second.link);
   assert.equal(first.link, `https://www.matheusmachadoimoveis.com.br/s/${token}/documentos?baixar=1`);
   assert.equal(first.imageUrl, `https://www.matheusmachadoimoveis.com.br/s/${token}/documentos`);
-  assert.equal(first.message, "Olá, Maria! Segue a lista de documentos para a sua simulação.");
+  assert.equal(first.message, "Olá, Maria! Segue a lista de documentos para a sua aprovação.");
   // todo status que não seja arquivado/não contactar pode receber (a lista não muda o funil)
   for (const status of Object.values(CLIENT_STATUS).filter((value) => !["archived", "do_not_contact"].includes(value))) {
     assert.equal((await prepareDocumentsList({ client: client(status), findSimulation: simulation, ensurePresentation: ensure })).kind, "ok", status);

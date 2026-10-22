@@ -31,7 +31,7 @@ import { AUTO_SIMULATION_REVIEW_ENABLED } from "@/lib/simulation-auto-review-cor
 import AutoReviewTypeVote, { useAutoReviewState } from "@/components/AutoReviewTypeVote";
 import RedoAutoSimulationButton from "@/components/RedoAutoSimulationButton";
 import { AUTO_PRESENTATION_LOCKED_MESSAGE } from "@/lib/simulation-status-lock-core.mjs";
-import { fetchDocumentsImage, saveOrShareImage } from "@/components/clients/documentsImageFile";
+import { canCopyImage, copyImageToClipboard, fetchDocumentsImage, saveOrShareImage } from "@/components/clients/documentsImageFile";
 import { getPropertyPreferenceDetails, getPropertyPreferenceSummary } from "@/lib/property-preference-display";
 import {
   booleanLabel,
@@ -753,8 +753,9 @@ export function DocumentsListDialog({ target, onCancel, onConfirm }) {
   const [imageFile, setImageFile] = useState(null);
   const [imageState, setImageState] = useState("idle"); // idle | loading | ready | error | done
   const [copyState, setCopyState] = useState("idle"); // idle | done | error
+  const [mediaState, setMediaState] = useState("idle"); // idle | done | fallback ("Copiar mídia")
 
-  useEffect(() => { setCopyState("idle"); }, [target]);
+  useEffect(() => { setCopyState("idle"); setMediaState("idle"); }, [target]);
 
   // "Copiar texto" (dono, 2026-10-20): a mesma lista personalizada, em texto, para o corretor colar onde precisar. Copiar
   // não é enviar: nada é registrado na jornada nem muda o status.
@@ -789,6 +790,25 @@ export function DocumentsListDialog({ target, onCancel, onConfirm }) {
       if (result !== "cancelled") setImageState("done");
     } catch {
       setImageState("error");
+    }
+  }
+
+  // "Copiar mídia" (dono, 2026-10-22): copia a imagem da lista para colar no WhatsApp Web/app. Nenhum await antes do
+  // clipboard.write (o Safari/iOS exige o gesto): o arquivo vai como Promise. Sem suporte ou recusado → "Baixar imagem".
+  async function copyImage() {
+    if (!canCopyImage()) {
+      setMediaState("fallback");
+      await saveImage();
+      return;
+    }
+    const pending = imageFile ? Promise.resolve(imageFile) : fetchDocumentsImage(manualLink);
+    try {
+      await copyImageToClipboard(pending);
+      setMediaState("done");
+      if (!imageFile) pending.then((file) => { setImageFile(file); setImageState("ready"); }).catch(() => {});
+    } catch {
+      setMediaState("fallback");
+      await saveImage();
     }
   }
 
@@ -827,10 +847,18 @@ export function DocumentsListDialog({ target, onCancel, onConfirm }) {
           ) : external ? (
             <div className="mt-2 text-xs text-muted" data-documents-list-manual="">
               <p>Sua restrição do WhatsApp está validada: o envio é feito pelo WhatsApp do seu aparelho. O WhatsApp vai abrir só com o texto: o link do WhatsApp não anexa imagem. Baixe a imagem e anexe você mesmo na conversa.</p>
+              <div className="mt-2 flex flex-wrap items-center gap-x-5">
               {/* Nunca <a download>: no app do iPhone ele abre a pré-visualização sem botão de voltar. */}
-              <button type="button" onClick={saveImage} disabled={imageState === "loading"} className="mt-2 inline-flex min-h-touch items-center font-semibold text-navy underline disabled:opacity-60" data-documents-list-image="">
+              <button type="button" onClick={saveImage} disabled={imageState === "loading"} className="inline-flex min-h-touch items-center font-semibold text-navy underline disabled:opacity-60" data-documents-list-image="">
                 {imageState === "loading" ? "Preparando a imagem…" : imageState === "done" ? "Imagem pronta — baixar de novo" : "Baixar imagem da lista"}
               </button>
+              {/* "Copiar mídia" (dono, 2026-10-22): a imagem vai para a área de transferência; é só colar na conversa. */}
+              <button type="button" onClick={copyImage} className="inline-flex min-h-touch items-center font-semibold text-navy underline" data-documents-list-copy-image="">
+                Copiar mídia
+              </button>
+              </div>
+              {mediaState === "done" ? <p role="status" className="mt-1 font-semibold text-success" data-documents-list-image-copied="">Imagem copiada. Cole na conversa do cliente.</p> : null}
+              {mediaState === "fallback" ? <p role="status" className="mt-1 text-ink-2">Este aparelho não deixa copiar imagem: use a imagem baixada (ou compartilhada) e anexe na conversa.</p> : null}
               {imageState === "error" ? <p role="alert" className="mt-1 text-danger">Não foi possível gerar a imagem. Toque para tentar de novo.</p> : null}
             </div>
           ) : (
