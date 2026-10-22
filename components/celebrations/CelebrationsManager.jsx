@@ -157,6 +157,7 @@ export default function CelebrationsManager({ initialTriggers = [], initialTempl
             message={preview.message}
             animation={preview.animation}
             triggerKey={preview.triggerKey}
+            userName={adminName}
             previewMode
             onDismiss={() => setPreview(null)}
           />

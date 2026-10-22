@@ -71,7 +71,7 @@ export default async function MetaDiariaPage() {
         </section>
       ) : (
         <SceneGate>
-          <DailyGoalDashboard initialGoal={goal} renderId={newRenderId()} />
+          <DailyGoalDashboard initialGoal={goal} renderId={newRenderId()} brokerName={auth.profile?.name} brokerPhotoUrl={auth.profile?.photoUrl} />
         </SceneGate>
       )}
     </main>
@@ -125,7 +125,7 @@ async function OwnerMetaDiariaView({ auth, viewer = "owner", ownGoalHidden = fal
             <section className="container-page mb-6">
               <div className="mx-auto max-w-3xl">
                 {ownGoal ? (
-                  <DailyGoalDashboard initialGoal={ownGoal} variant="card" renderId={newRenderId()} />
+                  <DailyGoalDashboard initialGoal={ownGoal} variant="card" renderId={newRenderId()} brokerName={auth.profile?.name} brokerPhotoUrl={auth.profile?.photoUrl} />
                 ) : (
                   <p className="rounded-panel border border-line bg-white p-5 text-center text-sm font-bold text-muted">
                     {ownGoalError || "Não foi possível carregar sua Meta Diária agora."}

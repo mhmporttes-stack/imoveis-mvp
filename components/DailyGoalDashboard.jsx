@@ -4,21 +4,11 @@ import { useState } from "react";
 import { useRevalidateOnReuse } from "@/components/useRevalidateOnReuse";
 import { Check, MessageCircle, Pencil } from "lucide-react";
 import RevealCard from "@/components/motion/RevealCard";
-import AnimatedRing from "@/components/motion/AnimatedRing";
-import AnimatedNumber from "@/components/motion/AnimatedNumber";
+import DailyGoalRing from "@/components/DailyGoalRing";
 import { StaggerContainer, StaggerItem } from "@/components/motion/StaggerReveal";
 import DailyGoalAutoPanel from "@/components/DailyGoalAutoPanel";
 import DailyGoalCompensationNotice from "@/components/DailyGoalCompensationNotice";
 import { PRINTED_LIST_MODE_MESSAGE } from "@/lib/whatsapp-manual-disconnect-core.mjs";
-
-// Vermelho/laranja/verde: exceção semântica só deste indicador — o resto da
-// tela continua usando a identidade azul/navy padrão do CRM. A cor do anel e
-// do percentual acompanha o valor em tempo real durante a animação (0%
-// vermelho, 50% laranja, 100% verde), não só o resultado final.
-const PROGRESS_COLOR_STOPS = ["#dc2626", "#ea580c", "#059669"];
-const PROGRESS_COLOR_POSITIONS = [0, 50, 100];
-
-const RADIUS = 45;
 
 // [REGRA OFICIAL DE NEGÓCIO — dono, 2026-10-16] A cadência termina na 2ª tentativa (a 3ª foi removida): o 2º contato
 // é a última tentativa. O backend ainda devolve `groups.third` (vazio) por compatibilidade; a tela não o mostra.
@@ -30,7 +20,8 @@ const GROUPS = [
 // variant="card": só o cartão-resumo da PRÓPRIA meta (progresso, quantidades, pendências, carteira, grupos,
 // compensação e aviso do WhatsApp) — usado pela gestora no topo da Meta Diária da equipe (T-49). Mesmo cálculo e
 // mesmas regras do corretor (getBrokerDailyGoal); sem lista de contatos e sem painel de automação.
-export default function DailyGoalDashboard({ initialGoal, variant = "full", renderId = "" }) {
+// brokerName/brokerPhotoUrl (opcionais): foto do corretor no centro do anel (visual novo, 2026-10-22; só apresentação).
+export default function DailyGoalDashboard({ initialGoal, variant = "full", renderId = "", brokerName = "", brokerPhotoUrl = "" }) {
   const isCard = variant === "card";
   const [goal, setGoal] = useState(initialGoal);
   const [error, setError] = useState("");
@@ -97,28 +88,7 @@ export default function DailyGoalDashboard({ initialGoal, variant = "full", rend
       <RevealCard className="rounded-[28px] border border-navy/10 bg-white p-6 shadow-soft md:p-8">
         {isCard ? <h2 className="mb-4 text-center text-sm font-black uppercase tracking-[0.14em] text-navy">Minha Meta Diária</h2> : null}
         <div className="flex flex-col items-center gap-3">
-          <div className="relative h-40 w-40">
-            <AnimatedRing
-              percent={goal.percent}
-              radius={RADIUS}
-              colorStops={PROGRESS_COLOR_STOPS}
-              colorStopPositions={PROGRESS_COLOR_POSITIONS}
-              introOvershoot
-              introDuration={3}
-              className="h-full w-full"
-            />
-            <div className="absolute inset-0 flex flex-col items-center justify-center">
-              <AnimatedNumber
-                value={goal.percent}
-                format={(n) => `${Math.round(n)}%`}
-                introOvershoot
-                introDuration={3}
-                colorStops={PROGRESS_COLOR_STOPS}
-                colorStopPositions={PROGRESS_COLOR_POSITIONS}
-                className="text-3xl font-black"
-              />
-            </div>
-          </div>
+          <DailyGoalRing percent={goal.percent} name={brokerName} photoUrl={brokerPhotoUrl} />
           <ul className="w-full max-w-xs space-y-1.5">
             <GoalLine
               label="Prospecção"

@@ -52,6 +52,14 @@ Copie o modelo abaixo (uma entrada por bloco):
 - **Arquivos afetados:** `components/clients/ClientWorkspace.jsx`
 - **Risco/observação:** filtro por corretor continua pelo responsável real (o dono). 218 clientes estavam na fila em 22/10. Testes de clientes passam; build ok.
 - **Autor:** Claude Code
+### 2026-10-22 — Visual novo: cenas (Mensagem do dia, Reconhecimento, anel da Meta, Alertas e Supervisão)
+- **Data:** 2026-10-22
+- **Área:** Painel (apresentação) / Automações / Ranking
+- **Alteração:** cenas do protótipo aprovado pelo dono: Mensagem do dia (logo, "Bom dia, {nome}:" digitado, letras soldadas em azul, boom, data, "Começar o dia"; tocar adianta a animação); Reconhecimento (cena única com foto no anel neon, coroa dourada, confete em canhões/fogos/moedas como variações das 4 animações + combo 200%, chips sem números inventados); anel da Meta Diária com a foto do corretor (sobe a 100% com faísca, pulinho "100%", volta à % real; azul no lugar do vermelho→verde); Importante com faixa vermelha/selo; Informativo entra pela direita com barra de ~5 s; balão da Supervisão com foto, "1 de N", Responder/OK. Cores próprias `--scene-*` com claro/escuro (`html.mm-dark`), `prefers-reduced-motion` em tudo.
+- **Regra do dono:** RAN-9a — o reconhecimento não fecha sozinho, fica até o toque (`docs/BUSINESS_RULES.md`, `.claude/rules/meta-diaria-ranking.md`).
+- **Arquivos afetados:** `components/scenes/*` (novo), `components/DailyMessageExperience.*`, `components/DailyMessageGate.jsx`, `components/celebrations/*` (cenas antigas `Scene100`/`GenericScene` substituídas por `scenes/RecognitionScene.jsx`), `components/DailyGoalRing.jsx` (novo), `components/DailyGoalDashboard.jsx`, `app/admin/meta-diaria/page.jsx` (passa nome/foto do perfil), `components/alerts/AlertCenterGate.jsx`, `components/supervision/SupervisionMessageGate.jsx`, vitrine `app/dev/vitrine` (`?tela=cenas`).
+- **Risco/observação:** nenhuma regra/rota/lib de dados mudou; bloqueio do Importante, cliente que esfriou, saída da Supervisão e lógica de quando a Mensagem do dia aparece iguais. Nome/foto nas cenas globais dependem de `app/admin/layout.jsx` passar `userName`/`userPhotoUrl` a `DailyMessageGate` e `BrokerCelebrationGate` (frente do layout); sem isso a saudação fica "Bom dia!" e o anel mostra as iniciais/símbolo. Saudação usa `greetingForMinutes`/`saoPauloNow` (`lib/alexa-config-core.mjs`, puro). Testes `node --test` sem falha nova (falhas já existentes no main: admin-presence-real-user, chat-reply-preview, client-card-whatsapp-chat, context-budget, official-whatsapp-links, prospecting-opt-out-natural, whatsapp-conversation-per-session, whatsapp-false-connection, whatsapp-service-lease, financial-calculations).
+- **Autor:** Claude Code (designer-crm, frente B do visual novo)
 
 ### 2026-10-22 — Extensão do Marketplace 1.9.0: "Manter acordado"
 - **Data:** 2026-10-22

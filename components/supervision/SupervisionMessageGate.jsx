@@ -4,10 +4,10 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react
 import { AnimatePresence, motion } from "motion/react";
 import { Check, SendHorizontal } from "lucide-react";
 import Avatar from "@/components/Avatar";
-import Button from "@/components/ui/Button";
 import { cx } from "@/components/ui/cx";
 import { usePrefersReducedMotion } from "@/components/motion/usePrefersReducedMotion";
 import { isNewClientSoundEnabled, playNewClientSound } from "@/lib/new-client-sound";
+import scene from "@/components/scenes/scenes.module.css";
 import { formatSupervisionTime, useSupervisionRealtime } from "./useSupervisionRealtime";
 
 const EASE = [0.2, 0, 0, 1];
@@ -175,7 +175,7 @@ export function SupervisionOverlay({ visible, message, position, total, done, on
       {visible ? (
         <motion.div
           key="supervision-overlay"
-          className={cx("fixed inset-x-0 z-[300] flex items-center justify-center px-4 py-4", !box && "inset-y-0")}
+          className={cx(scene.theme, "fixed inset-x-0 z-[300] flex items-center justify-center px-4 py-4", !box && "inset-y-0")}
           style={style}
           role="dialog"
           aria-modal="true"
@@ -187,7 +187,8 @@ export function SupervisionOverlay({ visible, message, position, total, done, on
           transition={{ duration: reduced ? 0 : 0.22, ease: EASE }}
         >
           <div
-            className="absolute inset-0 bg-navy/35 backdrop-blur-[3px]"
+            className="absolute inset-0 backdrop-blur-[3px]"
+            style={{ background: "var(--scene-overlay)" }}
             aria-hidden="true"
             onPointerDown={(event) => { event.preventDefault(); setNudge((value) => value + 1); }}
           />
@@ -291,96 +292,100 @@ function SupervisionCard({ ref, message, position, total, done, nudge, reduced, 
       };
 
   return (
-    <motion.div ref={ref} className="relative flex max-h-full w-full max-w-[400px] flex-col" {...motionProps}>
+    <motion.div ref={ref} className="relative flex max-h-full w-full max-w-[440px] flex-col" {...motionProps}>
       <motion.div
         key={nudge}
         animate={nudge && !reduced ? { scale: [1, 1.018, 1] } : undefined}
         transition={{ duration: 0.28, ease: EASE }}
-        className="relative flex max-h-full min-h-0 flex-col overflow-hidden rounded-panel border border-line bg-white shadow-float"
+        className={`relative flex max-h-full min-h-0 flex-col ${scene.dialogCard}`}
       >
-        <div className="flex shrink-0 items-start gap-3 px-5 pb-3 pt-5">
+        {/* Visual novo (2026-10-22): foto de quem mandou, "1 de 2", balão, Responder / OK. Regras de saída iguais. */}
+        <div className="flex shrink-0 items-center gap-3 px-5 pb-3 pt-5">
           <Avatar name={sender.name} photoUrl={sender.photoUrl} size={44} />
           <div className="min-w-0 flex-1">
-            <p className="text-2xs font-semibold uppercase tracking-[0.08em] text-brand">Mensagem da supervisão</p>
-            <h2 id="supervision-message-title" className="truncate text-[15px] font-semibold text-ink">{sender.name || "Supervisão"}</h2>
+            <h2 id="supervision-message-title" className={`truncate text-[15px] font-extrabold ${scene.title}`}>{sender.name || "Supervisão"}</h2>
+            <p className={`truncate ${scene.note}`}>Mensagem da supervisão · {formatSupervisionTime(message.createdAt)}</p>
           </div>
-          <div className="flex shrink-0 flex-col items-end gap-1 pt-0.5">
-            <span className="text-xs text-muted">{formatSupervisionTime(message.createdAt)}</span>
-            {total > 1 ? (
-              <span className="rounded-chip bg-info-soft px-1.5 py-0.5 text-2xs font-semibold tabular-nums text-info" aria-label={`Mensagem ${position} de ${total}`}>
-                {position} de {total}
-              </span>
-            ) : null}
-          </div>
+          {total > 1 ? (
+            <span className={`shrink-0 tabular-nums ${scene.counter}`} aria-label={`Mensagem ${position} de ${total}`}>
+              {position} de {total}
+            </span>
+          ) : null}
         </div>
 
         <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5">
-          <p className="whitespace-pre-wrap break-words rounded-card bg-mist/70 px-4 py-3 text-[15px] leading-relaxed text-ink">
+          <p className={`whitespace-pre-wrap break-words px-4 py-3 text-[15px] leading-relaxed ${scene.bubble}`}>
             {message.body}
           </p>
         </div>
 
-        <div className="shrink-0 space-y-3 px-5 pb-5 pt-4">
-          <Button ref={okRef} block size="lg" onClick={() => respond("ack")} loading={sending === "ack"} disabled={Boolean(sending) || Boolean(done)}>
-            OK
-          </Button>
-          <form
-            className="flex items-end gap-2 rounded-control border border-line bg-white p-1.5 pl-3 transition-[border-color,box-shadow] duration-150 ease-out-ui focus-within:border-brand/50 focus-within:ring-2 focus-within:ring-brand/15"
-            onSubmit={(event) => { event.preventDefault(); respond("reply"); }}
-          >
-            <label htmlFor={`supervision-reply-${message.id}`} className="sr-only">Responder</label>
-            <textarea
-              id={`supervision-reply-${message.id}`}
-              ref={textareaRef}
-              rows={1}
-              value={reply}
-              maxLength={2000}
-              onChange={(event) => setReply(event.target.value)}
-              onKeyDown={(event) => {
-                if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing) {
-                  event.preventDefault();
-                  respond("reply");
-                }
-              }}
-              placeholder="Responder..."
-              disabled={Boolean(sending) || Boolean(done)}
-              className="min-h-9 flex-1 resize-none bg-transparent py-2 text-base leading-5 text-ink outline-none placeholder:text-faint sm:text-sm"
-            />
-            <Button
+        <form
+          className="shrink-0 px-5 pb-5 pt-3"
+          onSubmit={(event) => { event.preventDefault(); respond("reply"); }}
+        >
+          <label htmlFor={`supervision-reply-${message.id}`} className="sr-only">Responder</label>
+          <textarea
+            id={`supervision-reply-${message.id}`}
+            ref={textareaRef}
+            rows={1}
+            value={reply}
+            maxLength={2000}
+            onChange={(event) => setReply(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing) {
+                event.preventDefault();
+                respond("reply");
+              }
+            }}
+            placeholder="Responder..."
+            disabled={Boolean(sending) || Boolean(done)}
+            className={`block min-h-11 resize-none px-3 py-2.5 text-base leading-5 sm:text-sm ${scene.field}`}
+          />
+          <div className="mt-2.5 flex gap-2">
+            <button
               type="submit"
-              variant={reply.trim() ? "primary" : "secondary"}
-              size="sm"
-              loading={sending === "reply"}
+              className={`flex-1 ${scene.btn} ${scene.btnSecondary}`}
               disabled={Boolean(sending) || Boolean(done) || !reply.trim()}
-              aria-label="Enviar resposta"
-              className="!min-h-9"
+              aria-busy={sending === "reply" || undefined}
             >
-              <SendHorizontal className="h-4 w-4" aria-hidden="true" />
-              <span className="hidden sm:inline">Enviar</span>
-            </Button>
-          </form>
-          {error ? <p className="text-xs font-medium text-danger" role="alert">{error}</p> : null}
-        </div>
+              {sending === "reply" ? <span className={scene.spinner} aria-hidden="true" /> : <SendHorizontal className="h-4 w-4" aria-hidden="true" />}
+              Responder
+            </button>
+            <button
+              ref={okRef}
+              type="button"
+              className={`flex-1 ${scene.btn} ${scene.btnPrimary}`}
+              onClick={() => respond("ack")}
+              disabled={Boolean(sending) || Boolean(done)}
+              aria-busy={sending === "ack" || undefined}
+            >
+              {sending === "ack" ? <span className={scene.spinner} aria-hidden="true" /> : null}
+              OK
+            </button>
+          </div>
+          {error ? <p className="mt-2 text-xs font-medium" style={{ color: "var(--scene-bad)" }} role="alert">{error}</p> : null}
+          <p className={`mt-2.5 text-center ${scene.note}`}>Só sai com OK ou com uma resposta</p>
+        </form>
 
         <AnimatePresence>
           {done ? (
             <motion.div
               key="done"
-              className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-white/95"
+              className={`absolute inset-0 flex flex-col items-center justify-center gap-3 ${scene.doneLayer}`}
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ duration: reduced ? 0 : 0.18, ease: EASE }}
               role="status"
             >
               <motion.span
-                className="flex h-14 w-14 items-center justify-center rounded-full bg-success-strong text-white"
+                className={`flex h-14 w-14 items-center justify-center rounded-full ${scene.doneCheck}`}
                 initial={reduced ? false : { scale: 0.6, opacity: 0 }}
                 animate={{ scale: 1, opacity: 1 }}
                 transition={{ duration: 0.28, ease: [0.34, 1.56, 0.64, 1] }}
               >
                 <Check className="h-7 w-7" strokeWidth={2.5} aria-hidden="true" />
               </motion.span>
-              <p className="text-sm font-semibold text-ink">{done.kind === "ack" ? "Confirmado" : "Resposta enviada"}</p>
+              <p className={`text-sm font-semibold ${scene.title}`}>{done.kind === "ack" ? "Confirmado" : "Resposta enviada"}</p>
             </motion.div>
           ) : null}
         </AnimatePresence>

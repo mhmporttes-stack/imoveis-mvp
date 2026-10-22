@@ -55,11 +55,21 @@ import CooledClientsInbox from "@/components/cooled/CooledClientsInbox";
 import NotificationHistoryButton from "@/components/alerts/NotificationHistoryButton";
 import WhatsappIndividualStatus from "@/components/WhatsappIndividualStatus";
 import GoogleContactsStatus from "@/components/GoogleContactsStatus";
+import Cenas from "./Cenas";
 
 // Cada tela reproduz o <main> da página real (app/admin/...) com o
 // componente real e dados 100% fictícios. Ao criar uma tela nova aqui,
 // espelhe o wrapper da página correspondente.
 const TELAS = {
+  cenas: {
+    // Cenas do visual novo (?variante=mensagem|mensagem-longa|reconhecimento:gatilho:animação|meta).
+    path: "/admin/meta-diaria",
+    titulo: "Cenas (Mensagem do dia, Reconhecimento, anel da Meta)",
+    active: "daily-goal",
+    rotas: metaDiaria.routes,
+    semMenu: true,
+    render: (perfil, variante) => <Cenas variante={variante} />
+  },
   online: {
     path: "/admin/desempenho/online",
     titulo: "Supervisão › Online",
