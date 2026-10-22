@@ -21,7 +21,7 @@ Extensão pessoal do Matheus Machado Corretor de Imóveis. Pega no CRM **só os 
 1. Descompacte o zip novo **por cima da mesma pasta** (substituindo os arquivos).
 2. Em `chrome://extensions`, clique no botão de recarregar (seta circular) do "Publicador Marketplace".
 3. A chave e as opções continuam salvas — não precisa configurar de novo.
-4. **Versão 1.9.0:** confira se o cartão da extensão mostra "1.9.0". Ela pede uma permissão nova ("power", para o computador não dormir) — o Chrome não mostra aviso para essa permissão e a extensão continua ligada. "Manter acordado" já vem ligado.
+4. **Versão 1.9.1:** confira se o cartão da extensão mostra "1.9.1" (1.9.1 só muda a leitura das conversas: avisos do Facebook e o painel "Envie uma resposta rápida" não viram mensagem). Ela pede uma permissão nova ("power", para o computador não dormir) — o Chrome não mostra aviso para essa permissão e a extensão continua ligada. "Manter acordado" já vem ligado.
 
 ## Configurar
 

@@ -121,11 +121,10 @@ test("conversa: direção por h2/link de perfil/role=status, id do Facebook e ho
     ["inbound", "Olá, ainda está disponível?"],
     ["inbound", "Aceita financiamento?"], // sem marcador: herda o anterior
     ["outbound", "Sim! Posso te ligar?"],
-    ["outbound", "Aceita sim."],
-    ["outbound", "Sem id"]
+    ["outbound", "Aceita sim."]
+    // "Sem id" (sem data-message-id) não é mensagem desde a 1.9.1.
   ]);
   assert.equal(rows[0].externalId, "fb:mid.$aaa");
-  assert.equal(rows[4].externalId, "");
   assert.equal(rows[0].at, "2026-10-20T13:00:00.000Z");
   assert.equal(rows[2].at, "2026-10-20T15:55:00.000Z");
   // Geometria só entra quando não há marcador.
@@ -134,7 +133,7 @@ test("conversa: direção por h2/link de perfil/role=status, id do Facebook e ho
   assert.equal(geo[0].direction, "inbound");
   const messages = MP.buildMessages("t1", rows);
   assert.equal(messages[0].externalId, "fb:mid.$aaa");
-  assert.match(messages[4].externalId, /^h:/); // sem data-message-id: hash estável
+  assert.equal(messages.length, 4);
 });
 
 test("conversa: painel do chat, botão de fechar e janela não vira item; merge de janelas por id", () => {
@@ -338,4 +337,30 @@ test("background 1.8.10: clique confiável pelo depurador, aba visível só dura
   assert.match(bg, /withTimeout\(chrome\.debugger\.sendCommand/);
   // Último recurso pelo endereço só lê se a janela aberta tiver o nome do contato (nunca outra conversa).
   assert.match(flow, /state\.found === "painel" \? await readOpenThread/);
+});
+
+// Caso Debora (2026-10-22): aviso "iniciou esta conversa" e painel de respostas rápidas viravam mensagem da cliente.
+test("1.9.1: aviso do sistema e painel \"Envie uma resposta rápida\" não viram mensagem; só data-message-id conta", async () => {
+  const notice = h("div", { "data-virtualized": "false" }, h("div", { role: "article" }, h("div", { dir: "auto" }, "Debora iniciou esta conversa.")));
+  const quick = h("div", {},
+    h("span", {}, "Envie uma resposta rápida"),
+    h("span", {}, "Toque em uma resposta para enviá-la ao comprador."),
+    h("div", { role: "button", tabindex: "0" }, h("span", {}, "Sim, você tem interesse?")),
+    h("div", { role: "button", tabindex: "0" }, h("span", {}, "Informarei você caso haja mudanças."))
+  );
+  const win = chatWindow("Debora Teste", "Casa", [
+    separator("06:30"),
+    notice,
+    inbound("mid.$d1", "Debora Teste", "Olá, ainda está disponível?"),
+    inbound("mid.$d2", "Debora Teste", "Debora iniciou esta conversa."),
+    quick
+  ]);
+  const send = await loadInbox(fakeDocument(h("body", {}, h("div", { role: "main" }), win)));
+  const result = await send({ type: "mp-inbox-read", threadKey: "n1", contactName: "Debora Teste" });
+  assert.equal(result.ok, true, result.error);
+  assert.deepEqual(result.messages.map((m) => [m.externalId, m.direction, m.body]), [["fb:mid.$d1", "inbound", "Olá, ainda está disponível?"]]);
+  for (const text of ["Debora iniciou esta conversa.", "Você iniciou esta conversa.", "Debora marcou o item como vendido", "Debora está aguardando a sua resposta.", "Você pode enviar mensagens para este vendedor", "Debora started this conversation.", "Envie uma resposta rápida"]) {
+    assert.equal(MP.isSystemMessage(text), true, text);
+  }
+  for (const text of ["Sim, você tem interesse?", "Você pode me mandar o endereço?", "Ainda está disponível?"]) assert.equal(MP.isSystemMessage(text), false, text);
 });

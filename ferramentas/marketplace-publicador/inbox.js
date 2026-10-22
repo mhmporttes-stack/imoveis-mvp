@@ -404,7 +404,9 @@
     let currentAt = null;
     const units = [...area.querySelectorAll(MP.inbox.messageRows)];
     const nodes = units.length ? units : [...area.querySelectorAll(MP.inbox.messageText)];
+    const panels = MP.quickReplyPanels(area);
     for (const row of nodes) {
+      if (panels.some((panel) => panel.contains?.(row))) continue;
       const textNode = units.length ? [...row.querySelectorAll(MP.inbox.messageText)].find((node) => node.innerText?.trim()) : row;
       const body = textNode ? String(textNode.innerText || "").trim() : "";
       const rect = (textNode || row).getBoundingClientRect();
@@ -429,11 +431,10 @@
 
   function readRows(scope, area, contactName = "") {
     const log = (scope || document).querySelector(MP.inbox.log);
-    if (log) {
-      const rows = MP.readLogRows(log, { contactName, directionOf: (article) => geometryDirection(article, log), attachmentsOf: bubbleAttachments });
-      if (rows.length) return rows;
-    }
-    return area ? visibleRows(area, contactName) : [];
+    // 1.9.1: com role=log, SÓ ele conta (mensagem = data-message-id). A leitura pela geometria (que pegava o painel de
+    // respostas rápidas e avisos do sistema como mensagem do cliente) fica só para a tela sem role=log.
+    if (log) return MP.readLogRows(log, { contactName, directionOf: (article) => geometryDirection(article, log), attachmentsOf: bubbleAttachments });
+    return area ? visibleRows(area, contactName).filter((row) => !MP.isSystemMessage(row.body)) : [];
   }
 
   async function closeChatWindow(win) {

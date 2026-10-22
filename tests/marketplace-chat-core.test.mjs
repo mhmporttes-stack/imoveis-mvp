@@ -337,3 +337,54 @@ test("renormalização do que já foi gravado: só mensagens lidas do Facebook, 
   assert.match(route, /SUPABASE_CRON_TOKEN_HASH/);
   assert.match(route, /searchParams\.get\("apply"\) === "1"/);
 });
+
+// Caso Debora (2026-10-22): aviso do sistema e sugestão do painel de respostas rápidas gravados como da cliente.
+test("avisos do Facebook e painel de respostas rápidas não são mensagem (sincronização e renormalização)", () => {
+  const now = new Date("2026-10-22T09:00:00-03:00");
+  for (const body of ["Debora iniciou esta conversa.", "Você iniciou esta conversa.", "Debora marcou o item como vendido", "Debora está aguardando a sua resposta.", "Você pode enviar mensagens para este vendedor", "Debora started this conversation.", "Envie uma resposta rápida", "Toque em uma resposta para enviá-la ao comprador."]) {
+    assert.equal(normalizeFacebookMessage({ body, direction: "inbound" }, { now }), null, body);
+  }
+  for (const body of ["Sim, você tem interesse?", "Você pode me mandar o endereço?", "Você pode enviar fotos da cozinha?"]) {
+    assert.ok(normalizeFacebookMessage({ body, direction: "inbound" }, { now }), body);
+  }
+  const [item] = normalizeSyncPayload({ conversations: [{ threadKey: "n2", contactName: "Debora", messages: [
+    { externalId: "h:aviso", direction: "inbound", body: "Debora iniciou esta conversa." },
+    { externalId: "fb:mid.1", direction: "inbound", body: "Pressione Enter, Mensagem enviada 06:30 por Debora: Olá, ainda está disponível?" },
+    { externalId: "h:sugestao", direction: "inbound", body: "Sim, você tem interesse?" }
+  ] }] }, now);
+  assert.deepEqual(item.messages.map((m) => [m.externalId, m.body]), [["fb:mid.1", "Olá, ainda está disponível?"]]);
+  // Sem nenhum id do Facebook (versão muito antiga), nada é descartado por falta de id.
+  const [old] = normalizeSyncPayload({ conversations: [{ threadKey: "n3", messages: [{ externalId: "h:1", direction: "inbound", body: "Oi" }] }] }, now);
+  assert.equal(old.messages.length, 1);
+  const lib = readFileSync(new URL("../lib/marketplace-chat.js", import.meta.url), "utf8");
+  assert.match(lib, /if \(hasFacebookIds && !String\(row\.external_id\)\.startsWith\("fb:"\)\) \{\s*deletes\.push\(row\.id\);/);
+});
+
+// REGRA OFICIAL (dono, 2026-10-22): "eu abrir a conversa não deve marcar como lida".
+test("abrir conversa do Marketplace só marca lida pelo corretor atribuído (ou associado dele); admin/gestor/Roleta não", async () => {
+  const { buildChatScope, marksReadOnOpen } = await import("../lib/whatsapp-chat-scope.mjs");
+  const broker = "11111111-1111-4111-8111-111111111111";
+  const other = "22222222-2222-4222-8222-222222222222";
+  const manager = "33333333-3333-4333-8333-333333333333";
+  const admin = "44444444-4444-4444-8444-444444444444";
+  const associate = "55555555-5555-4555-8555-555555555555";
+  const scopes = {
+    admin: buildChatScope({ generalAdmin: true, profileId: admin }),
+    manager: buildChatScope({ manager: true, profileId: manager, managedUserIds: [broker] }),
+    broker: buildChatScope({ broker: true, profileId: broker }),
+    associate: buildChatScope({ broker: true, profileId: associate, linkedBrokerId: broker })
+  };
+  assert.equal(marksReadOnOpen(scopes.admin, { ownerId: broker, viewerId: admin }), false, "dono olhando");
+  assert.equal(marksReadOnOpen(scopes.manager, { ownerId: broker, viewerId: manager }), false, "gestor olhando");
+  assert.equal(marksReadOnOpen(scopes.broker, { ownerId: broker, viewerId: broker }), true, "corretor atribuído");
+  assert.equal(marksReadOnOpen(scopes.associate, { ownerId: broker, viewerId: associate }), true, "associado do corretor");
+  assert.equal(marksReadOnOpen(scopes.broker, { ownerId: other, viewerId: broker }), false, "conversa de outro");
+  assert.equal(marksReadOnOpen(scopes.admin, { ownerId: null, viewerId: admin }), false, "Roleta");
+  assert.equal(marksReadOnOpen(scopes.broker, { ownerId: null, viewerId: broker }), false, "Roleta");
+  // Alterar conta: perfil efetivo = corretor atribuído → marca.
+  assert.equal(marksReadOnOpen(scopes.broker, { ownerId: broker, viewerId: broker }), true);
+  const lib = readFileSync(new URL("../lib/marketplace-chat.js", import.meta.url), "utf8");
+  const fn = lib.slice(lib.indexOf("export async function getMarketplaceConversation"), lib.indexOf("export async function", lib.indexOf("export async function getMarketplaceConversation") + 10));
+  assert.match(fn, /marksReadOnOpen\(scopeFor\(auth\), \{ ownerId: conversation\.assigned_user_id, viewerId: auth\?\.profile\?\.id \|\| null \}\)/);
+  assert.match(fn, /if \(markRead\) await db\(\)\.from\(CONVERSATIONS\)\.update\(\{ unread_count: 0 \}\)/);
+});

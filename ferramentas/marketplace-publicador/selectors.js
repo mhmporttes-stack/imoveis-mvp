@@ -149,7 +149,18 @@
       // Textos de sistema/faixa do anúncio que não são mensagem do cliente (interface mista pt/en).
       systemTexts: ["Enviado", "Sent", "Entregue", "Delivered", "Digite uma mensagem", "Marketplace", "Mark as pending", "Marcar como pendente", "More options", "Mais opções", "Aa"],
       // Começo de linha de sistema ("Visto por João", "Você enviou uma foto").
-      systemPrefixes: ["Visto por", "Seen by", "Você enviou", "You sent"]
+      systemPrefixes: ["Visto por", "Seen by", "Você enviou", "You sent"],
+      // 1.9.1: avisos do Facebook dentro da conversa (caso Debora, 2026-10-22) — nunca mensagem do cliente. A mesma lista
+      // existe no servidor (SYSTEM_MESSAGE_RE, lib/marketplace-chat-core.mjs) para versões antigas e o já gravado.
+      systemPatterns: [
+        /\biniciou esta conversa\b/i, /\bstarted this (conversation|chat)\b/i,
+        /\bmarcou (.+ )?como (vendido|pendente|disponivel|disponível)\b/i, /\bmarked (.+ )?as (sold|pending|available)\b/i,
+        /\best[aá] aguardando (a )?sua resposta\b/i, /\bis waiting for (your|a) (reply|response)\b/i,
+        /^(voc[eê]|voce) (agora )?pode (enviar|mandar) mensage(m|ns)\b/i, /^you can (now )?send messages\b/i, /^you can now (message|reply)\b/i,
+        /^envie uma resposta r[aá]pida\b/i, /^toque em uma resposta para envi[aá]-la/i, /^send a quick reply\b/i, /^tap a reply to send\b/i
+      ],
+      // Painel de respostas rápidas (título; o bloco inteiro, com as sugestões, é ignorado).
+      quickReplyTitles: ["Envie uma resposta rápida", "Send a quick reply", "Toque em uma resposta para enviá-la ao comprador", "Tap a reply to send it to the buyer"]
     }
   };
 
@@ -289,7 +300,7 @@
   MP.buildMessages = function buildMessages(threadKey, rows) {
     const seen = new Map();
     return rows
-      .filter((row) => (row.body || row.attachments?.length) && !MP.matchesAny(row.body, MP.inbox.systemTexts, true)
+      .filter((row) => (row.body || row.attachments?.length) && !MP.matchesAny(row.body, MP.inbox.systemTexts, true) && !MP.isSystemMessage(row.body)
         && !MP.inbox.systemPrefixes.some((prefix) => MP.normalize(row.body).startsWith(MP.normalize(prefix))))
       .map((row) => {
         const key = `${row.direction}|${MP.normalize(row.body)}`;
@@ -591,7 +602,9 @@
     let currentAt = null;
     let lastDirection = null;
     const units = log?.querySelectorAll?.(`${MP.inbox.article}, ${MP.inbox.messageId}, ${MP.inbox.timeSeparator}`) || [];
+    const panels = MP.quickReplyPanels(log);
     for (const unit of units) {
+      if (panels.some((panel) => panel.contains?.(unit))) continue;
       const article = unit.closest?.(MP.inbox.article) || (unit.matches?.(MP.inbox.messageId) ? unit : null);
       if (!article) {
         if (unit.closest?.(MP.inbox.messageId) || unit.querySelector?.(MP.inbox.messageId)) continue;
@@ -603,6 +616,8 @@
       done.add(article);
       const idNode = article.matches?.(MP.inbox.messageId) ? article : article.querySelector(MP.inbox.messageId);
       const fbId = String(idNode?.getAttribute?.("data-message-id") || "").trim();
+      // 1.9.1: só é mensagem o que tem data-message-id (aviso do sistema, chip e botão do painel não têm).
+      if (!fbId) continue;
       const body = MP.articleText(article);
       const attachments = attachmentsOf(article) || [];
       if (!body && !attachments.length) continue;
@@ -612,6 +627,26 @@
       rows.push({ externalId: fbId ? `fb:${fbId}`.slice(0, 200) : "", direction, body, attachments, at: currentAt });
     }
     return rows;
+  };
+
+  // Painel "Envie uma resposta rápida" (título + botões de sugestão): o menor bloco acima do título que tem botões.
+  MP.quickReplyPanels = function quickReplyPanels(root) {
+    const panels = [];
+    const titles = (MP.inbox.quickReplyTitles || []).map((title) => MP.normalize(title));
+    for (const node of root?.querySelectorAll?.("span, div, h2, h3, [role=\"heading\"]") || []) {
+      const own = [...(node.childNodes || [])].filter((child) => child.nodeType === 3).map((child) => child.textContent).join(" ");
+      const text = MP.normalize(own);
+      if (!text || !titles.some((title) => text.startsWith(title))) continue;
+      let panel = node;
+      for (let level = 0; panel.parentElement && level < 6 && !panel.querySelector?.('[role="button"]'); level += 1) panel = panel.parentElement;
+      if (panel.querySelector?.('[role="button"]') && !panel.querySelector?.(MP.inbox.messageId)) panels.push(panel);
+    }
+    return panels;
+  };
+
+  MP.isSystemMessage = function isSystemMessage(text) {
+    const value = String(text || "").replace(/\s+/g, " ").trim();
+    return Boolean(value) && (MP.inbox.systemPatterns || []).some((pattern) => pattern.test(value));
   };
 
   // Chave da conversa quando o item não tem link: estável por nome + anúncio.

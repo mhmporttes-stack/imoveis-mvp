@@ -39,6 +39,16 @@ Copie o modelo abaixo (uma entrada por bloco):
 ```
 
 ## Registro
+### 2026-10-22 — "Debora iniciou esta conversa." e sugestão de resposta rápida aparecem como mensagem da cliente
+- **Data:** 2026-10-22
+- **Sintoma:** no Chat Marketplace a conversa da Debora mostrava como da cliente o aviso "Debora iniciou esta conversa." e "Sim, você tem interesse?" (22/10 06:33), que ninguém enviou — era uma sugestão do painel "Envie uma resposta rápida". Também: o dono abriu a conversa e o contador de não lidas sumiu.
+- **Área:** Chat Marketplace / extensão
+- **Impacto:** conversas importadas com aviso/painel; contador zerado por quem só olhava.
+- **Causa raiz:** o leitor aceitava `role=article` sem `data-message-id` e, sem linhas no log, caía na leitura por geometria, que pega qualquer texto (painel, chips); `getMarketplaceConversation` zerava `unread_count` para qualquer pessoa que abrisse.
+- **Correção:** só balão com `data-message-id`; painel e avisos ignorados (extensão 1.9.1 e servidor); renormalização apaga o que não tem id do Facebook numa conversa que tem; abrir marca lida só para o corretor atribuído/associado (`marksReadOnOpen`).
+- **Arquivos/commit:** `ferramentas/marketplace-publicador/{selectors,inbox}.js`, `lib/marketplace-chat-core.mjs`, `lib/marketplace-chat.js`, `lib/whatsapp-chat-scope.mjs`
+- **Prevenção/teste:** `tests/marketplace-chat-core.test.mjs`, `ferramentas/marketplace-publicador/tests/estrutura-real.test.js` (strings do caso)
+- **Status:** Resolvido no código; dados antigos dependem do acionamento da rota com `apply=1`
 ### 2026-10-22 — Cliente do Marketplace não troca de corretor quando fica sem resposta
 - **Data:** 2026-10-22
 - **Sintoma:** a redistribuição automática do Chat Marketplace (troca de corretor depois do prazo sem resposta) estava parada sem ninguém saber; a conversa ficava com quem recebeu.

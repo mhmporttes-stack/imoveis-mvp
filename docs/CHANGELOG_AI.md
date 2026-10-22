@@ -250,6 +250,15 @@ Copie o modelo abaixo (uma entrada por bloco):
 - **Risco/observação:** textos, links, tracking e SEO inalterados; `pnpm build` ok; `tests/brand-assets.test.mjs` 4/4. Publicado e conferido no ar. A imagem de cidade não é comprovadamente de Marília (trocar por foto real quando o dono enviar).
 
 ## Registro
+### 2026-10-22 — Chat do Marketplace: avisos do Facebook e respostas rápidas fora; abrir não marca como lida (extensão 1.9.1)
+- **Data:** 2026-10-22
+- **Área:** extensão (`selectors.js`, `inbox.js`), `lib/marketplace-chat-core.mjs`, `lib/marketplace-chat.js` (`getMarketplaceConversation`, `renormalizeMarketplaceMessages`), `lib/whatsapp-chat-scope.mjs` (`marksReadOnOpen`).
+- **Pedido do dono:** "deve trazer as mensagens como no Messenger" (caso Debora: "Debora iniciou esta conversa." e a sugestão "Sim, você tem interesse?" do painel de respostas rápidas como mensagens da cliente) + "eu abrir a conversa não deve marcar como lida".
+- **Alteração:** leitor só conta balão com data-message-id no role=log (sem cair na leitura por geometria quando há role=log), ignora o painel de respostas rápidas e avisos pt/en; servidor descarta os mesmos avisos e, em conversa com id do Facebook, o que não tem id ("h:"), na sincronização e na renormalização. Abrir só zera não lidas para o corretor atribuído/associado (regra do Chat do WhatsApp); admin/gestor/Roleta não.
+- **Verificação:** `tests/marketplace-chat-core.test.mjs` (strings do caso + por perfil), extensão `node --test tests/*.test.js`, `pnpm build`.
+- **Risco/observação:** mensagem que o cliente escreva igual a um aviso ("iniciou esta conversa") seria descartada — padrões estreitos de propósito. Dados antigos: acionar `/api/cron/marketplace-messages-renormalize` (sem `apply=1` só conta).
+- **Autor:** Claude Code (crm-editor)
+
 
 ### 2026-10-22 — MKT-2h: mensagem do cliente no Marketplace não conta (pendência resolvida)
 - **Data:** 2026-10-22
