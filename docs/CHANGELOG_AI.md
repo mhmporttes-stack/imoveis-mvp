@@ -240,6 +240,15 @@ Copie o modelo abaixo (uma entrada por bloco):
 - **Risco/observação:** textos, links, tracking e SEO inalterados; `pnpm build` ok; `tests/brand-assets.test.mjs` 4/4. Publicado e conferido no ar. A imagem de cidade não é comprovadamente de Marília (trocar por foto real quando o dono enviar).
 
 ## Registro
+### 2026-10-22 — WA-19b: decisões do dono (links de campanha bloqueados; arquivado bloqueado fora do Particular automático)
+- **Data:** 2026-10-22
+- **Área:** `lib/whatsapp-private-eligibility-core.mjs` (motivo `link`), `lib/whatsapp-private-eligibility.js` (novo, leitura em lote), `lib/whatsapp-chat.js` (usa a leitura única), `lib/whatsapp-auto-private.js` (exceção WA-26a), `tests/whatsapp-private-eligibility.test.mjs`.
+- **Pedido do dono:** [REGRA OFICIAL DE NEGÓCIO — dono, 2026-10-22] (1) "mantenha" os que já estão em Particular; (2) "link pessoal pode, os outros não"; (3) "não, altere" — arquivado de origem bloqueada não vai sozinho para Particular; (4) "não" — "Adicionar ao CRM" a partir do oficial fica liberado.
+- **Alteração:** campanha com corretor fixo, link patrocinado e rastreado bloqueiam o Particular; os três caminhos da WA-26a pulam card arquivado de origem bloqueada. Nenhum dado alterado. Docs: `.claude/rules/integracoes-externas.md`, `docs/BUSINESS_RULES.md` WA-19b.
+- **Verificação:** `node --test tests/whatsapp-private-eligibility.test.mjs tests/whatsapp-auto-private.test.mjs tests/whatsapp-private-conversations.test.mjs`; `pnpm build`.
+- **Risco/observação:** contato sem card que bate com card arquivado de origem bloqueada fica no Chat sem cliente e fora do Particular (não é ligado ao card arquivado, para não contrariar a WA-13).
+- **Autor:** Claude Code (crm-editor)
+
 
 ### 2026-10-22 — Saída do Marketplace (inclusive fora do CRM) conta no relógio de 3 dias (MKT-2h)
 - **Data:** 2026-10-22

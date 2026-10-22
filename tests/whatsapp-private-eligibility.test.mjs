@@ -32,8 +32,16 @@ test("roleta: link da equipe, link geral, campanha pela roleta, fila do anúncio
   assert.equal(motivoBloqueioParticular({ conversation: personal, client: client({ kind: "roulette_link", destination: "roulette" }) }), "roulette");
   assert.equal(motivoBloqueioParticular({ conversation: personal, client: client({ kind: "site", destination: "roulette" }) }), "roulette");
   assert.equal(motivoBloqueioParticular({ conversation: personal, client: client({ kind: "campaign", destination: "roulette" }) }), "roulette");
+  assert.equal(motivoBloqueioParticular({ conversation: personal, client: client({ kind: "site", destination: "broker" }) }), "roulette");
   assert.equal(motivoBloqueioParticular({ conversation: personal, client: client({ kind: "paid_link", destination: "owner_waiting" }) }), "roulette");
   assert.equal(motivoBloqueioParticular({ conversation: personal, client: client(null, { distribution_type: "round_robin" }) }), "roulette");
+});
+
+test("decisão do dono 2026-10-22: link pessoal pode, os outros não (campanha com corretor fixo, patrocinado, rastreado)", () => {
+  assert.equal(motivoBloqueioParticular({ conversation: personal, client: client({ kind: "campaign", destination: "broker" }) }), "link");
+  assert.equal(motivoBloqueioParticular({ conversation: personal, client: client({ kind: "paid_link", destination: "broker" }) }), "link");
+  assert.equal(motivoBloqueioParticular({ conversation: personal, client: client({ kind: "tracked_link", destination: "broker" }) }), "link");
+  assert.equal(privateBlockedMessage("link"), "Este cliente veio por um link de campanha e não pode ir para conversa particular.");
 });
 
 test("redistribuição depois da entrada não muda a origem: cadastro manual devolvido à roleta continua liberado", () => {
@@ -45,7 +53,7 @@ test("Marketplace: origem do cadastro ou conversa do Marketplace ligada ao clien
   assert.equal(motivoBloqueioParticular({ conversation: personal, client: client({ kind: "manual" }), hasMarketplaceConversation: true }), "marketplace");
 });
 
-test("liberados: sem cliente no WhatsApp pessoal, cadastro manual, contato direto no pessoal, Adicionar ao CRM", () => {
+test("liberados: sem cliente no WhatsApp pessoal, cadastro manual, contato direto no pessoal, Adicionar ao CRM (mesmo do oficial — decisão do dono 2026-10-22)", () => {
   assert.equal(clientePodeSerParticular({ conversation: personal }), true);
   for (const kind of ["manual", "whatsapp_individual", "whatsapp_chat"]) {
     assert.equal(clientePodeSerParticular({ conversation: personal, client: client({ kind, destination: "broker" }), ownerRefs }), true, kind);
@@ -59,8 +67,17 @@ test("mensagem clara por origem", () => {
 
 test("barreira no servidor antes de gravar e botão desligado na tela", () => {
   const chat = read("lib/whatsapp-chat.js");
-  assert.match(chat, /if \(makePrivate\) \{\n    const blockReason = await loadPrivateBlockReason\(conversation\);\n    if \(blockReason\) throw new WhatsappChatError\(privateBlockedMessage\(blockReason\)/);
+  assert.match(chat, /const blockReason = await loadConversationPrivateBlockReason\(conversation\);\n    if \(blockReason\) throw new WhatsappChatError\(privateBlockedMessage\(blockReason\)/);
   assert.match(chat, /privateBlocked: privateBlockReason \? privateBlockedMessage\(privateBlockReason\) : ""/);
   const ui = read("components/WhatsappChat.jsx");
   assert.match(ui, /disabled=\{archiving \|\| \(!conversation\.private && Boolean\(conversation\.privateBlocked\)\)\}/);
+});
+
+test("WA-26a: arquivado de origem bloqueada não vai sozinho para Particular (os três caminhos)", () => {
+  const auto = read("lib/whatsapp-auto-private.js");
+  assert.match(auto, /if \(!archived\.has\(row\.client_id\) \|\| blocked\.has\(row\.client_id\)\) continue;/);
+  assert.match(auto, /!linkedArchived\.has\(row\.client_id\) \|\| blocked\.has\(row\.client_id\)/);
+  assert.match(auto, /if \(row\.private_at \|\| blocked\.has\(rawMatches\.get\(row\.contact_phone\)\)\) continue;/);
+  const loader = read("lib/whatsapp-private-eligibility.js");
+  assert.match(loader, /motivoBloqueioParticular\(\{ client, ownerRefs, hasMarketplaceConversation/);
 });
