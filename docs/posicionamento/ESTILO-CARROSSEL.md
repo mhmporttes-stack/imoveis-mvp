@@ -109,6 +109,9 @@ Quando o dono mandar fotos de um imóvel, usar sempre este modelo. Exemplo: `car
 - **Final:** versão clara, o dono com a chave, "Gostou? Vem conhecer de perto. Me chama no Direct ou no WhatsApp" e o CRECI.
 - **Valor:** só entra se o dono pedir. Nunca inventar número de quartos ou área; perguntar.
 
+## Capa do Marketplace (dono, 2026-10-22)
+A capa publicada no Marketplace é **a mesma capa do Instagram, só que sem a foto do dono** (tirar o `<img src="img/apontando.png">`). Salvar como `carrosseis/<pasta>/capa-marketplace.jpg` junto com o carrossel de todo imóvel novo.
+
 ## Imóvel no CRM (dono, 2026-10-15)
 - **Atualizado pelo dono em 2026-10-15:** todo imóvel de carrossel **vai para o site sempre** (`properties` com `is_published=true`), sem esperar o ok. Valor só entra quando o dono mandar. **Se o dono mudar qualquer coisa no post (texto, foto, ordem, dado), corrigir o carrossel aqui e atualizar o cadastro no site também**, para os dois ficarem iguais.
 - Fluxo antigo (substituído pela linha acima): tratar as fotos, montar o carrossel, o dono manda o valor e as condições (só para o CRM) e dá **ok**; aí cadastrar em `properties` com `is_published=false`.
