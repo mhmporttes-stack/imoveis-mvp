@@ -4,7 +4,7 @@ import { processDueFlowSessions } from "@/lib/whatsapp-flows";
 import { processFormReminders } from "@/lib/whatsapp-form-reminder";
 import { checkWhatsappServiceStalled } from "@/lib/whatsapp-service-stall";
 import { checkFalseConnections } from "@/lib/whatsapp-false-connection";
-import { checkMarketplaceRedistributionStalled } from "@/lib/marketplace-chat";
+import { checkMarketplaceExtensionSignal, checkMarketplaceRedistributionStalled } from "@/lib/marketplace-chat";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -52,6 +52,8 @@ export async function GET(request) {
   const falseConnections = await checkFalseConnections();
   // Redistribuição do Chat do Marketplace sem rodar com sucesso há > 10 min -> alerta aos admins gerais (MKT-2e). Nunca lança.
   const marketplaceRedistribution = await checkMarketplaceRedistributionStalled();
+  // Extensão do Marketplace sem sinal há > 30 min no horário da sincronização -> aviso aos admins; volta -> aviso (MKT-2g). Nunca lança.
+  const marketplaceExtension = await checkMarketplaceExtensionSignal();
   if (flowsError || remindersError) {
     return NextResponse.json({
       error: flowsError ? "Falha ao processar os fluxos." : "Falha ao processar o lembrete do formulário.",
@@ -59,8 +61,9 @@ export async function GET(request) {
       ...(formReminders ? { formReminders } : {}),
       serviceStall,
       falseConnections,
-      marketplaceRedistribution
+      marketplaceRedistribution,
+      marketplaceExtension
     }, { status: 500 });
   }
-  return NextResponse.json({ ok: true, ...flows, formReminders, serviceStall, falseConnections, marketplaceRedistribution });
+  return NextResponse.json({ ok: true, ...flows, formReminders, serviceStall, falseConnections, marketplaceRedistribution, marketplaceExtension });
 }

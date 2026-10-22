@@ -241,6 +241,15 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-22 — Chat Marketplace: sinal de "extensão ativa" e aviso "sem sinal" (MKT-2g)
+- **Data:** 2026-10-22
+- **Área:** Chat Marketplace / Automações (Central de Alertas) / Cron
+- **Alteração:** cada chamada da extensão à sincronização grava o último sinal em `crm_settings` (`marketplace_extension_signal`). O cron `whatsapp-flows` avisa os admins gerais (Central, Importante) quando passam 30 min sem sinal dentro do horário da sincronização (7h–22h), 1 vez por episódio, e avisa a volta (Informativo), fechando o aviso anterior. O Chat do Marketplace mostra "Extensão: última leitura há X min".
+- **Motivo:** ideia aprovada pelo dono na Mesa "Chat do Marketplace + WhatsApp" ("3 sim"): sem isso a extensão parada some em silêncio.
+- **Arquivos afetados:** `lib/marketplace-chat-core.mjs` (`decideExtensionSignal`), `lib/marketplace-chat.js` (`recordMarketplaceExtensionSignal`, `getMarketplaceExtensionSignal`, `checkMarketplaceExtensionSignal`; lista devolve `extension`), `app/api/marketplace/chat/sync/route.js`, `app/api/cron/whatsapp-flows/route.js`, `components/marketplace/MarketplaceChat.jsx`, `tests/marketplace-extension-signal.test.mjs`; docs `BUSINESS_RULES.md` MKT-2g, `DATABASE.md`, rule `roleta-prospeccao-campanhas.md`.
+- **Risco/observação:** sem migration. A extensão não mudou. Push NÃO sai: a política de notificações (2026-10-06) só libera push para os tipos dela — o aviso fica no sino (push precisa de decisão do dono). A janela segue o horário configurado da sincronização (padrão 7–22). Um upsert em `crm_settings` por ciclo da extensão (~2 min).
+- **Autor:** crm-editor (Claude)
+
 ### 2026-10-22 — Chat Marketplace: atalhos de texto ("/") e "Nosso WhatsApp" oficial (MKT-2f)
 - **Data:** 2026-10-22
 - **Área:** Chat Marketplace / WhatsApp (atalhos) / Banco

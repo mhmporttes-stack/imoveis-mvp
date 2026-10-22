@@ -100,6 +100,16 @@ export function SettingsCard() {
   );
 }
 
+// "Extensão: última leitura há X min" (MKT-2g, dono, 2026-10-22): último sinal que a extensão do PC do escritório mandou
+// ao CRM (gravado a cada ciclo dela). Mais de 30 min fica em destaque — o aviso aos admins é do servidor (cron).
+function extensionReadText(lastSyncAt, nowMs) {
+  const at = Date.parse(lastSyncAt || "");
+  if (!Number.isFinite(at)) return { text: "Extensão: nenhuma leitura registrada", stale: true };
+  const minutes = Math.max(0, Math.floor((nowMs - at) / 60000));
+  const ago = minutes < 1 ? "agora" : minutes < 120 ? `há ${minutes} min` : minutes < 48 * 60 ? `há ${Math.floor(minutes / 60)} h` : `em ${time.format(new Date(at))}`;
+  return { text: `Extensão: última leitura ${ago}`, stale: minutes > 30 };
+}
+
 // Atalhos de texto (MKT-2f, dono, 2026-10-22): digitar "/" na caixa lista só os atalhos de TEXTO do canal Marketplace (ou
 // "os dois"); escolher COLA o texto na caixa, já preenchido, para editar — nunca envia sozinho.
 const normalizeSearch = (value) => String(value || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
@@ -284,6 +294,10 @@ export default function MarketplaceChat({ canEditSettings = false, canAssign = f
               </select>
             </div>
           ) : null}
+          {list.extension ? (() => {
+            const read = extensionReadText(list.extension.lastSyncAt, Date.now());
+            return <p className={`shrink-0 border-b border-line px-3 py-1.5 text-xs ${read.stale ? "bg-warning-soft text-warning" : "text-muted"}`}>{read.text}</p>;
+          })() : null}
           {!list.conversations.length ? <p className="shrink-0 p-4 text-sm text-muted">Nenhuma conversa do Marketplace ainda.</p> : null}
           <ul className="min-h-0 flex-1 divide-y divide-line overflow-y-auto overscroll-contain">
             {list.conversations.map((item) => (

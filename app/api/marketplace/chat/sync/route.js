@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { syncMarketplaceConversations } from "@/lib/marketplace-chat";
+import { recordMarketplaceExtensionSignal, syncMarketplaceConversations } from "@/lib/marketplace-chat";
 import { rejectExtensionRequest } from "../extension-auth";
 
 export const dynamic = "force-dynamic";
@@ -10,6 +10,9 @@ export const runtime = "nodejs";
 export async function POST(request) {
   const rejected = await rejectExtensionRequest(request, "marketplace-chat-sync");
   if (rejected) return rejected;
+  // Sinal de "extensão ativa" (MKT-2g): toda chamada autenticada conta, mesmo vazia ou com erro na sincronização. Falha ao
+  // gravar o sinal não impede a sincronização (aparece no log; o cron avisaria "sem sinal").
+  await recordMarketplaceExtensionSignal().catch((error) => console.error("[marketplace-chat] sinal da extensão não gravado:", error?.message || error));
   const body = await request.json().catch(() => null);
   if (!body) return NextResponse.json({ error: "Requisição inválida." }, { status: 400 });
   try {
