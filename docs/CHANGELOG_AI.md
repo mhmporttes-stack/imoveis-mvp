@@ -241,6 +241,14 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-22 — Card do cliente mais baixo: espaçamentos verticais enxugados
+- **Data:** 2026-10-22
+- **Área:** `components/clients/ClientCard.jsx` (só apresentação).
+- **Pedido do dono:** "Deixe tudo mais próximo (falando em altura)".
+- **Alteração:** padding do cabeçalho 12→10px; status/responsável 8→6px acima e chips 28→24px (o seletor invisível segue com 44px de toque); corpo 10→6px acima e 8→4px entre linhas; line-height 20px nas linhas de simulação/contato; chips de tag e botão "Tags" mais baixos (toque por `::after`); espaçador antes do rodapé 12→8px; rodapé py 8→6px; faixa de Prospecção 10→6px. Conteúdo, ações e regras iguais.
+- **Verificação:** testes que citam ClientCard (sem falha nova; as mesmas 4 de `client-card-whatsapp-chat`); `pnpm build`. Sem render (vitrine sem o card; container sem navegador).
+- **Autor:** Claude Code (designer-crm)
+
 ### 2026-10-22 — Card do cliente ainda menor: simulação numa linha, contato/cadastro/tags curtos e rodapé compacto
 - **Data:** 2026-10-22
 - **Área:** `components/clients/ClientCard.jsx`, `components/ui/Menu.jsx` (novo `size="xs"`, aditivo; só usado no card). Só apresentação.

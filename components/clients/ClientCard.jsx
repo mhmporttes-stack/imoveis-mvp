@@ -72,7 +72,7 @@ export default function ClientCard({ client, activities, responsibleName, respon
       aria-busy={busy || undefined}
     >
       {/* Cabeçalho: quem é e em que pé está */}
-      <header className="flex items-start gap-2.5 px-3.5 pt-3 sm:px-4">
+      <header className="flex items-start gap-2.5 px-3.5 pt-2.5 sm:px-4">
         <ResponsibleAvatar responsibleProfile={responsibleProfile} />
         <div className="min-w-0 flex-1">
           <h2 id={`card-${client.id}`} className="flex min-w-0 items-center gap-1.5">
@@ -104,7 +104,7 @@ export default function ClientCard({ client, activities, responsibleName, respon
         </Button>
       </header>
 
-      <div className="flex flex-wrap items-center gap-1.5 px-3.5 pt-2 sm:px-4">
+      <div className="flex flex-wrap items-center gap-1.5 px-3.5 pt-1.5 sm:px-4">
         <StatusControl client={client} name={name} busy={busy} list={list} confirmAction={confirmAction} />
         {showResponsible ? <ResponsibleControl client={client} name={name} responsibleName={responsibleName} busy={busy} list={list} confirmAction={confirmAction} /> : null}
         {urgency && urgency.key !== "stale" ? <Badge tone={urgency.tone} icon={TriangleAlert}>{urgency.label}</Badge> : null}
@@ -117,9 +117,10 @@ export default function ClientCard({ client, activities, responsibleName, respon
       </div>
 
       {/* Corpo: simulação e contato (contato, cadastro e tags na mesma linha) */}
-      <div className="mt-2.5 space-y-2 px-3.5 sm:px-4">
+      {/* Dono, 2026-10-22: "tudo mais próximo (em altura)" — espaçamentos verticais do card enxugados. */}
+      <div className="mt-1.5 space-y-1 px-3.5 sm:px-4">
         <SimulationLine client={client} />
-        <div className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[13px] text-ink-2">
+        <div className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[13px] leading-5 text-ink-2">
           {/* Dono, 2026-10-22: rótulos curtos ("Contato há 6 d") para contato, cadastro e tags caberem numa linha em 360–390px;
               o texto completo fica no title. Preferência de contato vira só o ícone (com title/aria-label). */}
           {lastContact
@@ -141,13 +142,13 @@ export default function ClientCard({ client, activities, responsibleName, respon
       </div>
 
       <ProspectingStrip client={client} busy={busy} list={list} canReturnAssignedProspecting={canReturnAssignedProspecting} />
-      <div className="h-3 shrink-0" aria-hidden="true" />
+      <div className="h-2 shrink-0" aria-hidden="true" />
 
       {/* Ações do dia a dia */}
       {/* WhatsApp segue primário, mas com o mesmo tamanho de Agendar (pedido do
           dono: pesos próximos, sem o botão dominar o card). */}
       {/* Dono, 2026-10-22: botões com metade da altura (24px visíveis); a área de toque segue ≥ 44px pelo ::before (COMPACT_BUTTON). */}
-      <footer className="mt-auto flex flex-wrap items-center gap-2 border-t border-line px-3.5 py-2 sm:px-4">
+      <footer className="mt-auto flex flex-wrap items-center gap-2 border-t border-line px-3.5 py-1.5 sm:px-4">
         {whatsappBlocked ? null : <Button size="sm" className={COMPACT_BUTTON} onClick={() => list.openWhatsApp(client)} disabled={busy}>
           <MessageCircle className="h-3.5 w-3.5" aria-hidden="true" /> WhatsApp
         </Button>}
@@ -232,13 +233,13 @@ function StatusControl({ client, name, busy, list, confirmAction }) {
     if (ok) list.updateClientStatus(client, next);
   }
   return (
-    <span className={cx("relative inline-flex h-7 max-w-full items-center gap-1.5 rounded-chip pl-2 pr-1.5 text-xs font-medium focus-within:ring-2 focus-within:ring-brand focus-within:ring-offset-1", PILL_TONES[tone] || PILL_TONES.neutral)}>
+    <span className={cx("relative inline-flex h-6 max-w-full items-center gap-1.5 rounded-chip pl-2 pr-1.5 text-xs font-medium focus-within:ring-2 focus-within:ring-brand focus-within:ring-offset-1", PILL_TONES[tone] || PILL_TONES.neutral)}>
       <span className={cx("h-1.5 w-1.5 shrink-0 rounded-full", DOT_TONES[tone] || DOT_TONES.neutral)} aria-hidden="true" />
       <span className="truncate">{clientStatusLabel(client.status)}</span>
       <ChevronDown className="h-3.5 w-3.5 shrink-0 opacity-70" aria-hidden="true" />
       <select
         aria-label={`Etapa de ${name}: ${clientStatusLabel(client.status)}. Alterar etapa`}
-        className="absolute inset-0 h-full w-full cursor-pointer opacity-0 disabled:cursor-not-allowed"
+        className="absolute inset-x-0 -top-2.5 h-11 w-full cursor-pointer opacity-0 disabled:cursor-not-allowed"
         value={client.status}
         disabled={busy}
         onChange={(event) => change(event.target.value)}
@@ -276,13 +277,13 @@ function ResponsibleControl({ client, name, responsibleName, busy, list, confirm
     if (ok) list.updateClientResponsibleUser(client, next);
   }
   return (
-    <span className="relative inline-flex h-7 max-w-[13rem] items-center gap-1 rounded-chip border border-line bg-white pl-1.5 pr-1.5 text-xs font-medium text-ink-2 focus-within:ring-2 focus-within:ring-brand focus-within:ring-offset-1 hover:border-navy/25">
+    <span className="relative inline-flex h-6 max-w-[13rem] items-center gap-1 rounded-chip border border-line bg-white pl-1.5 pr-1.5 text-xs font-medium text-ink-2 focus-within:ring-2 focus-within:ring-brand focus-within:ring-offset-1 hover:border-navy/25">
       <UserRound className="h-3.5 w-3.5 shrink-0 text-muted" aria-hidden="true" />
       <span className="truncate">{responsibleName}</span>
       <ChevronDown className="h-3.5 w-3.5 shrink-0 opacity-70" aria-hidden="true" />
       <select
         aria-label={`Responsável por ${name}: ${responsibleName}. Trocar responsável`}
-        className="absolute inset-0 h-full w-full cursor-pointer opacity-0 disabled:cursor-not-allowed"
+        className="absolute inset-x-0 -top-2.5 h-11 w-full cursor-pointer opacity-0 disabled:cursor-not-allowed"
         value={value}
         disabled={busy}
         onChange={(event) => change(event.target.value)}
@@ -373,8 +374,8 @@ function SimulationLine({ client }) {
   if (client.completed && client.summary) {
     const components = client.summary.components || [];
     return (
-      <p className="flex min-w-0 flex-wrap items-baseline gap-x-1.5 text-[13px] text-ink-2">
-        <span>Poder de compra <span className="ml-1 text-base font-bold tracking-[-0.01em] text-navy tabular-nums">{formatMoneyBR(client.summary.purchasePower)}</span></span>
+      <p className="flex min-w-0 flex-wrap items-baseline gap-x-1.5 text-[13px] leading-5 text-ink-2">
+        <span>Poder de compra <span className="ml-1 text-base font-bold leading-5 tracking-[-0.01em] text-navy tabular-nums">{formatMoneyBR(client.summary.purchasePower)}</span></span>
         {components.length ? <DetailText>{components.join(" · ")}</DetailText> : null}
       </p>
     );
@@ -383,8 +384,8 @@ function SimulationLine({ client }) {
   const automatic = client.summary?.automatic;
   if (automatic) {
     return (
-      <p className="flex min-w-0 flex-wrap items-baseline gap-x-1.5 text-[13px] text-ink-2">
-        <span>Poder de compra <span className="ml-1 text-base font-bold tracking-[-0.01em] text-navy tabular-nums">{formatMoneyBR(automatic.purchasePower)}</span></span>
+      <p className="flex min-w-0 flex-wrap items-baseline gap-x-1.5 text-[13px] leading-5 text-ink-2">
+        <span>Poder de compra <span className="ml-1 text-base font-bold leading-5 tracking-[-0.01em] text-navy tabular-nums">{formatMoneyBR(automatic.purchasePower)}</span></span>
         <DetailText>{[automatic.firstInstallment > 0 ? `Parcela ${formatMoneyBR(automatic.firstInstallment)}` : "", "estimativa automática"].filter(Boolean).join(" · ")}</DetailText>
       </p>
     );
@@ -398,7 +399,7 @@ function SimulationLine({ client }) {
     Number(registration.availablePurchaseResource) > 0 ? `Recurso ${formatCurrency(registration.availablePurchaseResource)}` : ""
   ].filter(Boolean) : [];
   return (
-    <p className="flex min-w-0 flex-wrap items-baseline gap-x-1.5 text-[13px]">
+    <p className="flex min-w-0 flex-wrap items-baseline gap-x-1.5 text-[13px] leading-5">
       <span className={cx("font-medium", awaiting ? "text-warning" : "text-ink-2")}>{awaiting ? "Simulação a fazer" : "Simulação ainda não realizada"}</span>
       {details.length ? <DetailText>{details.join(" · ")}</DetailText> : null}
     </p>
@@ -481,13 +482,13 @@ function TagsLine({ tags, onEdit }) {
     <>
       <span aria-hidden="true" className="text-faint">·</span>
       {visible.map((tag) => (
-        <span key={tag.id} className="inline-flex max-w-[11rem] items-center gap-1.5 rounded-full border border-line px-2 py-0.5 text-xs font-medium text-ink">
+        <span key={tag.id} className="inline-flex max-w-[11rem] items-center gap-1.5 rounded-full border border-line px-2 py-0 text-xs font-medium leading-[18px] text-ink">
           <span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: tag.color || "#0D4F8B" }} aria-hidden="true" />
           <span className="truncate">{tag.name}</span>
         </span>
       ))}
       {tags.length > MAX_TAGS ? <span className="text-xs font-medium text-muted">+{tags.length - MAX_TAGS}</span> : null}
-      <button type="button" onClick={onEdit} className="inline-flex h-7 items-center gap-1 rounded-full px-2 text-xs font-semibold text-brand hover:bg-info-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand">
+      <button type="button" onClick={onEdit} className="relative inline-flex h-5 items-center gap-1 rounded-full px-2 after:absolute after:inset-x-0 after:-inset-y-3 after:content-[''] text-xs font-semibold text-brand hover:bg-info-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand">
         <TagIcon className="h-3.5 w-3.5" aria-hidden="true" /> Tags
       </button>
     </>
@@ -503,7 +504,7 @@ function ProspectingStrip({ client, busy, list, canReturnAssignedProspecting }) 
   const canReturn = canReturnAssignedProspecting && registration.prospectingAssignedByUserId;
   if (!pending && !awaitingReturn && !(client.status === CLIENT_STATUS.IN_SERVICE && canReturn)) return null;
   return (
-    <div className="mx-3.5 mt-2.5 flex flex-wrap items-center gap-1.5 rounded-control bg-info-soft px-2.5 py-1.5 sm:mx-4">
+    <div className="mx-3.5 mt-1.5 flex flex-wrap items-center gap-1.5 rounded-control bg-info-soft px-2.5 py-1.5 sm:mx-4">
       <span className="mr-auto text-xs font-semibold text-info">Prospecção</span>
       {pending ? <Button size="sm" disabled={busy} onClick={() => list.handleProspectingAction(client, "prospect")}>Prospectar</Button> : null}
       {pending || awaitingReturn ? <Button size="sm" variant="secondary" disabled={busy} onClick={() => list.handleProspectingAction(client, "in_service")}>Em atendimento</Button> : null}
