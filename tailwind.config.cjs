@@ -49,13 +49,25 @@ module.exports = {
         warning: themedTone("warning", { DEFAULT: "#B54708", soft: "#FFFAEB", line: "#FEDF89", strong: "#DC6803" }),
         danger: themedTone("danger", { DEFAULT: "#B42318", soft: "#FEF3F2", line: "#FECDCA", strong: "#D92D20" }),
         info: themedTone("info", { DEFAULT: "#175CD3", soft: "#EFF8FF", line: "#B2DDFF", strong: "#1769D1" }),
-        neutral: { ...themedScale("neutral", defaultColors.neutral), ...themedTone("neutral", { DEFAULT: "#475467", soft: "#F2F4F7", line: "#E4E7EC", strong: "#344054" }) }
+        neutral: { ...themedScale("neutral", defaultColors.neutral), ...themedTone("neutral", { DEFAULT: "#475467", soft: "#F2F4F7", line: "#E4E7EC", strong: "#344054" }) },
+        // Visual novo do painel (dono, 2026-10-22): azul de destaque sólido (botão principal, aba ativa) e o texto
+        // sobre ele. No claro é o azul #1B7FB0 com texto branco; no escuro (app/admin-theme.css) vira o ciano
+        // #4FC3E0 com texto azul-noite. Tokens novos: o site público não usa.
+        accent: themed("accent", "#1B7FB0"),
+        "on-accent": themed("on-accent", "#FFFFFF"),
+        "accent-soft": themed("accent-soft", "#E6F1F8"),
+        "accent-line": themed("accent-line", "#B8D6E8"),
+        "accent-text": themed("accent-text", "#126A95"),
+        surface: themed("surf", "#FFFFFF"),
+        "surface-2": themed("surf-2", "#F6F8FB")
       },
+      // Raios por variável (visual novo do painel, 2026-10-22): o painel usa 12/16/18px (html.mm-panel em
+      // app/admin-theme.css); fora dele vale o fallback de sempre (site público igual).
       borderRadius: {
         chip: "6px",
-        control: "10px",
-        card: "14px",
-        panel: "20px"
+        control: "var(--mm-r-control, 10px)",
+        card: "var(--mm-r-card, 14px)",
+        panel: "var(--mm-r-panel, 20px)"
       },
       boxShadow: {
         premium: "0 24px 80px rgba(13, 59, 102, 0.10)",

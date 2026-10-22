@@ -7,15 +7,18 @@
 export const ADMIN_THEME_STORAGE_KEY = "mm-admin-theme";
 export const ADMIN_THEME_DARK_CLASS = "mm-dark";
 export const ADMIN_THEME_EVENT = "mm-admin-theme-change";
+// Visual novo do painel (dono, 2026-10-22): html.mm-panel liga os tokens do painel (paleta clara nova, raios
+// 12/16/18px — app/admin-theme.css) só nas rotas do painel; o site público nunca recebe a classe.
+export const ADMIN_PANEL_CLASS = "mm-panel";
 // Cor da barra do sistema (PWA): a do modo claro é a mesma de app/layout.jsx (viewport.themeColor).
-export const ADMIN_THEME_COLORS = { light: "#031D3A", dark: "#0C1827" };
+export const ADMIN_THEME_COLORS = { light: "#031D3A", dark: "#07111F" };
 
 export function isThemedPath(pathname = "") {
   return /^\/(admin|chat-app|dev)(\/|$)/.test(pathname || "");
 }
 
 // Roda antes da pintura (app/layout.jsx): sem isso a tela piscaria branca ao abrir o app no escuro.
-export const ADMIN_THEME_BOOT_SCRIPT = `try{if(/^\\/(admin|chat-app|dev)(\\/|$)/.test(location.pathname)&&localStorage.getItem("${ADMIN_THEME_STORAGE_KEY}")==="dark"){document.documentElement.classList.add("${ADMIN_THEME_DARK_CLASS}");var m=document.querySelector('meta[name="theme-color"]');if(m)m.setAttribute("content","${ADMIN_THEME_COLORS.dark}")}}catch(e){}`;
+export const ADMIN_THEME_BOOT_SCRIPT = `try{if(/^\\/(admin|chat-app|dev)(\\/|$)/.test(location.pathname))document.documentElement.classList.add("${ADMIN_PANEL_CLASS}");if(/^\\/(admin|chat-app|dev)(\\/|$)/.test(location.pathname)&&localStorage.getItem("${ADMIN_THEME_STORAGE_KEY}")==="dark"){document.documentElement.classList.add("${ADMIN_THEME_DARK_CLASS}");var m=document.querySelector('meta[name="theme-color"]');if(m)m.setAttribute("content","${ADMIN_THEME_COLORS.dark}")}}catch(e){}`;
 
 export function readStoredAdminTheme() {
   try {
@@ -30,7 +33,9 @@ export function readStoredAdminTheme() {
 export function applyAdminTheme(theme, pathname = typeof window === "undefined" ? "" : window.location.pathname) {
   if (typeof document === "undefined") return;
   const root = document.documentElement;
-  const dark = theme === "dark" && isThemedPath(pathname);
+  const panel = isThemedPath(pathname);
+  root.classList.toggle(ADMIN_PANEL_CLASS, panel);
+  const dark = theme === "dark" && panel;
   if (root.classList.contains(ADMIN_THEME_DARK_CLASS) === dark) return;
   root.classList.add("mm-theme-switching");
   root.classList.toggle(ADMIN_THEME_DARK_CLASS, dark);
