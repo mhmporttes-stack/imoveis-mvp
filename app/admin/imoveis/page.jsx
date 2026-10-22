@@ -18,9 +18,9 @@ export default async function ImoveisConsultaPage() {
   return <main className="min-h-screen bg-mist py-10 sm:py-14">
     <AdminSectionNav active="properties-catalog" />
     <section className="container-page mb-6 mt-6">
-      <p className="text-xs font-black uppercase tracking-[0.18em] text-brand">Cadastros</p>
-      <h1 className="mt-1 text-3xl font-black text-navy">Imóveis</h1>
-      <p className="mt-1 text-sm font-semibold text-muted">Todos os imóveis cadastrados no CRM, inclusive os que não estão no site.</p>
+      {/* Título no cabeçalho do painel (visual novo): aqui só para leitor de tela. */}
+      <h1 className="sr-only">Imóveis</h1>
+      <p className="text-sm text-muted">Todos os imóveis cadastrados no CRM, inclusive os que não estão no site.</p>
     </section>
     <section className="container-page grid gap-5 md:grid-cols-2 xl:grid-cols-3">
       {properties.map((property) => <article key={property.id} className="min-w-0 overflow-hidden rounded-2xl border border-line bg-white shadow-soft">

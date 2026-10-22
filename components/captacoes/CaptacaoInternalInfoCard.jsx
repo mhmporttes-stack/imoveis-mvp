@@ -69,7 +69,7 @@ export default function CaptacaoInternalInfoCard({ captacaoId, initial }) {
   const whatsappUrl = getCaptacaoWhatsApp(data.ownerPhone);
 
   return (
-    <article className="rounded-[28px] border border-amber-200 bg-amber-50/40 p-6 shadow-soft">
+    <article className="rounded-panel border border-amber-200 bg-amber-50/40 p-6 shadow-soft">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <p className="inline-flex items-center gap-2 text-sm font-black uppercase tracking-[0.18em] text-amber-800">

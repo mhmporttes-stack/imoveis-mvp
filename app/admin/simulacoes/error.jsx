@@ -12,7 +12,7 @@ export default function AdminSimulationsError({ error, reset }) {
 
   return (
     <main className="bg-mist py-14">
-      <section className="container-page rounded-[28px] border border-red-200 bg-white p-8 shadow-soft">
+      <section className="container-page rounded-panel border border-red-200 bg-white p-8 shadow-soft">
         <p className="text-sm font-black uppercase tracking-[0.18em] text-red-700">
           Erro ao abrir gerador
         </p>

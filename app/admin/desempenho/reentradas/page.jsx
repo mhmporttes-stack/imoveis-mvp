@@ -2,6 +2,7 @@ import Link from "next/link";
 import AdminSectionNav from "@/components/AdminSectionNav";
 import { requireBrokerManagementPage } from "@/lib/admin-auth";
 import { getAdReentryReport } from "@/lib/ad-reentries";
+import { tabClasses } from "@/components/ui/Tabs";
 
 export const dynamic = "force-dynamic";
 
@@ -31,13 +32,13 @@ export default async function AdReentriesPage({ searchParams }) {
       <AdminSectionNav active="reentries" />
       <div className="container-page space-y-6">
         <header className="space-y-2">
-          <h1 className="text-2xl font-black text-navy">Reentradas por anúncio</h1>
-          <p className="max-w-2xl text-sm font-semibold text-muted">
+          <h1 className="sr-only">Reentradas por anúncio</h1>
+          <p className="max-w-2xl text-sm text-muted">
             Clientes que já estavam no CRM e voltaram a preencher o formulário por um anúncio. Cada um aparece com o corretor que o atendia na época.
           </p>
-          <nav className="flex gap-2 text-xs font-bold" aria-label="Período">
+          <nav className="mm-noscroll flex gap-1.5 overflow-x-auto py-1" aria-label="Período">
             {PERIODS.map((period) => (
-              <Link key={period} href={`/admin/desempenho/reentradas?dias=${period}`} className={`rounded-full border px-4 py-2 ${period === days ? "border-brand bg-brand text-white" : "border-brand/20 bg-white text-brand"}`}>
+              <Link key={period} href={`/admin/desempenho/reentradas?dias=${period}`} className={tabClasses(period === days)}>
                 {period} dias
               </Link>
             ))}

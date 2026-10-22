@@ -210,7 +210,7 @@ export function ManageShortcuts({ onClose }) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-navy/50 p-4" onPointerDown={(event) => event.target === event.currentTarget && onClose()}>
-      <div className="max-h-[88dvh] w-full max-w-lg overflow-y-auto rounded-[28px] border border-line bg-white p-6 shadow-soft">
+      <div className="max-h-[88dvh] w-full max-w-lg overflow-y-auto rounded-panel border border-line bg-white p-6 shadow-soft">
         <div className="mb-4 flex items-center justify-between">
           <h3 className="text-xl font-black text-navy">Atalhos do Chat</h3>
           <button type="button" onClick={onClose} aria-label="Fechar" className="rounded-full p-2 text-muted hover:bg-mist"><X className="h-5 w-5" /></button>

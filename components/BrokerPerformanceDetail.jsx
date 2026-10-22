@@ -78,7 +78,7 @@ export default function BrokerPerformanceDetail({ brokerId, brokerName, initialO
 
   return (
     <section className="container-page space-y-6">
-      <div className="rounded-[28px] border border-navy/10 bg-white p-5 shadow-soft md:p-7">
+      <div className="rounded-panel border border-navy/10 bg-white p-5 shadow-soft md:p-7">
         <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
           <div>
             <p className="text-xs font-extrabold uppercase tracking-[0.35em] text-brand">{brokerName}</p>
@@ -142,7 +142,7 @@ export default function BrokerPerformanceDetail({ brokerId, brokerName, initialO
 
           if (!item.href) {
             return (
-              <div key={item.key} className="rounded-[22px] border border-navy/10 bg-white p-4 shadow-soft">
+              <div key={item.key} className="rounded-panel border border-navy/10 bg-white p-4 shadow-soft">
                 {content}
               </div>
             );
@@ -152,7 +152,7 @@ export default function BrokerPerformanceDetail({ brokerId, brokerName, initialO
             <Link
               key={item.key}
               href={item.href(brokerId)}
-              className="rounded-[22px] border border-navy/10 bg-white p-4 shadow-soft transition hover:-translate-y-0.5 hover:shadow-md"
+              className="rounded-panel border border-navy/10 bg-white p-4 shadow-soft transition hover:-translate-y-0.5 hover:shadow-md"
             >
               {content}
             </Link>
@@ -161,7 +161,7 @@ export default function BrokerPerformanceDetail({ brokerId, brokerName, initialO
       </div>
 
       {broker && (
-        <article className="rounded-[28px] border border-navy/10 bg-white p-5 shadow-soft md:p-7">
+        <article className="rounded-panel border border-navy/10 bg-white p-5 shadow-soft md:p-7">
           <p className="text-xs font-extrabold uppercase tracking-[0.35em] text-brand">Pontuação</p>
           <h3 className="mt-2 text-2xl font-extrabold text-navy">De onde vieram os {formatInteger(broker.points)} pontos</h3>
 
@@ -194,7 +194,7 @@ export default function BrokerPerformanceDetail({ brokerId, brokerName, initialO
         </article>
       )}
 
-      <article className="rounded-[28px] border border-navy/10 bg-white p-5 shadow-soft md:p-7">
+      <article className="rounded-panel border border-navy/10 bg-white p-5 shadow-soft md:p-7">
         <p className="text-xs font-extrabold uppercase tracking-[0.35em] text-brand">Funil individual</p>
         <h3 className="mt-2 text-2xl font-extrabold text-navy">Atendimento → Simulação → Documentação → Aprovação → Aprovado → Reunião → Venda</h3>
 

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { AlertTriangle, Cake, CalendarClock, CalendarDays, CheckCircle2, ChevronLeft, ChevronRight, Clock, MessageCircle, Plus, UserRound, X } from "lucide-react";
 import { toWhatsAppDigits } from "@/lib/phone-utils";
 import { ConfirmReceiptModal, RescheduleReceiptModal } from "@/components/ReceiptActionModals";
+import { tabClasses } from "@/components/ui/Tabs";
 
 const WEEK_DAYS = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
 
@@ -181,19 +182,19 @@ export default function ActivityCalendar({ pendingOnly = false }) {
 
   return (
     <section className="container-page pb-14">
-      <div className="rounded-[28px] border border-line bg-white p-5 shadow-soft md:p-8">
+      <div className="rounded-panel border border-line bg-white p-5 shadow-soft md:p-8">
         <div className="flex flex-col gap-4 border-b border-line pb-5 md:flex-row md:items-center md:justify-between">
           <div>
             <p className="text-xs font-black uppercase tracking-[0.28em] text-brand">Agenda dos corretores</p>
             <h2 className="mt-2 text-3xl font-black text-navy md:text-4xl">{pendingOnly ? "Atividades pendentes" : formatMonthTitle(visibleMonth)}</h2>
             {canViewTeam ? (
-              <div className="mt-3 inline-flex rounded-full border border-line bg-mist p-1" role="group" aria-label="Quais atividades mostrar">
+              <div className="mt-3 inline-flex gap-1.5" role="group" aria-label="Quais atividades mostrar">
                 {[{ key: "team", label: "Equipe" }, { key: "own", label: "Minhas" }].map((option) => (
                   <button
                     key={option.key}
                     type="button"
                     aria-pressed={scope === option.key}
-                    className={`rounded-full px-4 py-1.5 text-sm font-black transition ${scope === option.key ? "bg-navy text-white" : "text-navy hover:text-brand"}`}
+                    className={tabClasses(scope === option.key)}
                     onClick={() => setScope(option.key)}
                   >
                     {option.label}
@@ -261,7 +262,7 @@ export default function ActivityCalendar({ pendingOnly = false }) {
             </div>
           </div> : null}
 
-          <aside className="rounded-[24px] border border-line bg-[#f8fbff] p-5">
+          <aside className="rounded-panel border border-line bg-[#f8fbff] p-5">
             <div className="flex items-center gap-3">
               <span className="grid h-11 w-11 place-items-center rounded-full bg-brand/10 text-brand">
                 <CalendarDays size={22} />
@@ -470,7 +471,7 @@ function ActivityModal({ activity, onClose }) {
 
   return (
     <div className="fixed inset-0 z-50 grid place-items-center bg-navy/70 p-4" role="dialog" aria-modal="true" onMouseDown={onClose}>
-      <div className="w-full max-w-2xl rounded-[28px] bg-white p-6 shadow-2xl md:p-8" onMouseDown={(event) => event.stopPropagation()}>
+      <div className="w-full max-w-2xl rounded-panel bg-white p-6 shadow-2xl md:p-8" onMouseDown={(event) => event.stopPropagation()}>
         <div className="flex items-start justify-between gap-4">
           <div>
             <p className="text-xs font-black uppercase tracking-[0.24em] text-brand">{activity.isBirthday ? "Aniversário" : "Atividade agendada"}</p>
@@ -583,7 +584,7 @@ function CreateActivityModal({ clients, date, users, onClose, onCreated }) {
     finally { setSaving(false); }
   }
 
-  return <div className="fixed inset-0 z-50 grid place-items-center bg-navy/70 p-4" role="dialog" aria-modal="true" onMouseDown={onClose}><form className="w-full max-w-2xl rounded-[28px] bg-white p-6 shadow-2xl md:p-8" onSubmit={submit} onMouseDown={(event) => event.stopPropagation()}>
+  return <div className="fixed inset-0 z-50 grid place-items-center bg-navy/70 p-4" role="dialog" aria-modal="true" onMouseDown={onClose}><form className="w-full max-w-2xl rounded-panel bg-white p-6 shadow-2xl md:p-8" onSubmit={submit} onMouseDown={(event) => event.stopPropagation()}>
     <div className="flex items-center justify-between gap-4"><h3 className="text-2xl font-black text-navy">Agendar atividade</h3><button className="icon-button" onClick={onClose} type="button" aria-label="Fechar"><X size={20} /></button></div>
     {error ? <p className="mt-4 rounded-2xl border border-red-100 bg-red-50 px-4 py-3 text-sm font-bold text-red-700">{error}</p> : null}
     <div className="mt-5 grid gap-4 sm:grid-cols-2">
@@ -629,7 +630,7 @@ function RescheduleActivityModal({
 
   return (
     <div className="fixed inset-0 z-50 grid place-items-center bg-navy/70 p-4" role="dialog" aria-modal="true" onMouseDown={onClose}>
-      <form className="w-full max-w-xl rounded-[28px] bg-white p-6 shadow-2xl md:p-8" onSubmit={onSubmit} onMouseDown={(event) => event.stopPropagation()}>
+      <form className="w-full max-w-xl rounded-panel bg-white p-6 shadow-2xl md:p-8" onSubmit={onSubmit} onMouseDown={(event) => event.stopPropagation()}>
         <div className="flex items-start justify-between gap-4">
           <div>
             <p className="text-xs font-black uppercase tracking-[0.24em] text-brand">Reagendar atividade</p>

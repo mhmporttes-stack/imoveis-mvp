@@ -13,7 +13,7 @@ export default async function AdminCalendarPage({ searchParams }) {
   const pendingOnly = (await searchParams)?.pending === "1";
 
   return (
-    <main className="min-h-screen bg-[#f4f7fb] py-14">
+    <main className="min-h-screen bg-mist py-14">
       <AdminSectionNav active="calendar" />
       <ActivityCalendar pendingOnly={pendingOnly} />
     </main>

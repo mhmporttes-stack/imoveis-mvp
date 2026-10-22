@@ -23,7 +23,13 @@ export default function JourneySettings({ initial }) {
   }
   const labels = { public_name: "Nome público", title: "Título da mensagem", subtitle: "Subtítulo", body: "Mensagem", notification: "Mensagem de aviso no WhatsApp" };
   const globals = { brand: "Nome da experiência", celebration_title: "Título da celebração", celebration_subtitle: "Subtítulo da celebração", greeting: "Saudação após 24 horas", greeting_subtitle: "Subtítulo após 24 horas", progress_label: "Rótulo do progresso", contact: "Mensagem para o corretor", closing_quote: "Frase / versículo de encerramento", closing_author: "Referência / autor do encerramento" };
+  // Visual novo (2026-10-22): a tela vira um painel "título + nota"; campos, botões e textos são os mesmos.
   return <section className="container-page pb-10">
+    <div className="rounded-panel border border-line bg-white p-4 sm:p-5">
+    <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
+      <h2 className="text-[15px] font-extrabold text-ink">Mensagem por etapa</h2>
+      <span className="text-xs text-muted">o que o cliente vê na página “Minha Jornada” em cada status</span>
+    </div>
     <div className="mb-6 flex flex-wrap items-end gap-4 border-b border-line pb-5">
       <label className="min-w-0 flex-1 text-sm font-bold">Status interno<select className="mt-2 w-full rounded-lg border border-line bg-white p-3" value={status} onChange={e => setStatus(e.target.value)}>{Object.keys(settings.statuses).map(key => <option key={key} value={key}>{CLIENT_STATUS_META[key]?.label || key}</option>)}</select></label>
       <button type="button" className="premium-button-secondary" onClick={() => setPreview(true)}><Eye size={18} />Pré-visualizar como cliente</button>
@@ -35,7 +41,8 @@ export default function JourneySettings({ initial }) {
       <label className="flex items-center gap-2 text-sm font-bold"><input type="checkbox" checked={item.progress === null} onChange={e => update("progress", e.target.checked ? null : 0)} />Manter o progresso já conquistado</label>
       {Object.entries(labels).map(([key, label]) => <label key={key} className={`min-w-0 text-sm font-bold ${["body", "notification"].includes(key) ? "md:col-span-2" : ""}`}>{label}{["body", "notification"].includes(key) ? <textarea rows={5} className="mt-2 w-full rounded-lg border border-line p-3 font-normal" value={item[key]} onChange={e => update(key, e.target.value)} /> : <input className="mt-2 w-full rounded-lg border border-line p-3 font-normal" value={item[key]} onChange={e => update(key, e.target.value)} />}</label>)}
     </div>
-    <details className="mt-8 border-t border-line pt-4"><summary className="cursor-pointer font-bold">Textos gerais da experiência</summary><div className="mt-4 grid gap-4 md:grid-cols-2">{Object.entries(globals).map(([key, label]) => <label key={key} className="text-sm font-bold">{label}<textarea rows={3} className="mt-2 w-full rounded-lg border border-line p-3 font-normal" value={settings.copy[key]} onChange={e => setSettings(s => ({ ...s, copy: { ...s.copy, [key]: e.target.value } }))} /></label>)}</div></details>
+    <details className="mt-6 border-t border-line pt-4"><summary className="flex min-h-touch cursor-pointer items-center font-bold text-ink">Textos gerais da experiência</summary><div className="mt-4 grid gap-4 md:grid-cols-2">{Object.entries(globals).map(([key, label]) => <label key={key} className="text-sm font-bold">{label}<textarea rows={3} className="mt-2 w-full rounded-lg border border-line p-3 font-normal" value={settings.copy[key]} onChange={e => setSettings(s => ({ ...s, copy: { ...s.copy, [key]: e.target.value } }))} /></label>)}</div></details>
+    </div>
     {preview ? <div className="fixed inset-0 z-[100] overflow-auto bg-white" role="dialog" aria-modal="true" aria-label="Pré-visualização"><button type="button" className="fixed right-3 top-3 z-10 rounded-full border border-line bg-white p-3" aria-label="Fechar pré-visualização" onClick={() => setPreview(false)}><X /></button><ClientJourney preview data={publicJourneyDTO({ full_name: "João", client_code: "#C1001" }, { progress: item.progress ?? 65, previous_progress: Math.max(0, (item.progress ?? 65) - 20), changed_at: new Date().toISOString() }, item, "11999999999", settings.copy)} /></div> : null}
   </section>;
 }

@@ -65,7 +65,7 @@ export default function RegistrationDetails({ registration }) {
           </DetailsBlock>
         </>
       ) : (
-        <section className="rounded-[28px] border border-dashed border-line bg-white p-6 shadow-soft sm:p-8">
+        <section className="rounded-panel border border-dashed border-line bg-white p-6 shadow-soft sm:p-8">
           <p className="text-lg font-black text-navy">O cliente ainda não preencheu os dados da simulação.</p>
         </section>
       )}
@@ -104,7 +104,7 @@ function PropertyPreferencesBlock({ preferences }) {
 
 function DetailsBlock({ children, title }) {
   return (
-    <section className="rounded-[28px] border border-line bg-white p-6 shadow-soft sm:p-8">
+    <section className="rounded-panel border border-line bg-white p-6 shadow-soft sm:p-8">
       <h2 className="text-2xl font-black text-navy">{title}</h2>
       <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
         {children}

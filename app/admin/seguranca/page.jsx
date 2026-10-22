@@ -26,9 +26,8 @@ export default async function AdminSecurityPage() {
     <main className="bg-mist py-14">
       <section className="container-page">
         <div className="mx-auto w-full max-w-[640px]">
-          <p className="text-sm font-black uppercase tracking-[0.18em] text-brand">Minha conta</p>
-          <h1 className="mt-2 text-3xl font-black leading-tight text-navy">Segurança da conta</h1>
-          <p className="mt-3 leading-7 text-muted">Conta: {realUser.email}</p>
+          <h1 className="sr-only">Segurança da conta</h1>
+          <p className="text-sm text-muted">Conta: <span className="font-semibold text-ink">{realUser.email}</span></p>
           {auth.accountSwitchMode ? (
             <p className="mt-4 rounded-2xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-900">
               Você está em “Alterar conta”. Esta configuração vale para a SUA conta, não para a conta selecionada.

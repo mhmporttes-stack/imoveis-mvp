@@ -27,7 +27,7 @@ export default function CrmNotificationsList({ initialNotifications = [] }) {
 
   if (!notifications.length) {
     return (
-      <section className="container-page rounded-[28px] border border-line bg-white p-10 text-center shadow-soft">
+      <section className="container-page rounded-panel border border-line bg-white p-10 text-center shadow-soft">
         <Bell className="mx-auto h-8 w-8 text-brand" aria-hidden="true" />
         <p className="mt-4 text-xl font-black text-navy">Nenhuma notificação.</p>
       </section>

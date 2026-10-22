@@ -10,7 +10,8 @@ import { coverImage, propertyCity } from "@/lib/format";
 // "Construtora a confirmar"; só foto, nome, local/situação e o VALOR no canto direito. "Aprovar e publicar" pergunta
 // se o site mostra o imóvel com ou sem os valores (hidePrice — o site público some com preço/entrada).
 // Botões pequenos do rodapé do card (dono, 2026-10-15: "bem menores").
-const SMALL_BTN = "inline-flex h-8 items-center rounded-full border bg-white px-3 text-xs font-bold transition hover:shadow-soft";
+// Visual novo (2026-10-22): botões de controle (36px visíveis, toque de 44px pelo ::before), cantos de 12px.
+const SMALL_BTN = "relative inline-flex h-9 items-center rounded-control border bg-white px-3.5 text-[13px] font-bold transition-colors hover:bg-accent-soft before:absolute before:inset-x-0 before:-inset-y-1 before:content-['']";
 
 export default function AdminPropertyList({ properties }) {
   const router = useRouter();
@@ -63,7 +64,7 @@ export default function AdminPropertyList({ properties }) {
                 <p className="mt-1 text-sm text-muted">
                   {property.code ? <span className="font-bold text-navy">COD{property.code} · </span> : null}
                   {place ? `${place} · ` : ""}
-                  <span className={property.isPublished ? "font-bold text-emerald-700" : "font-bold text-amber-700"}>{situation}</span>
+                  <span className={property.isPublished ? "font-bold text-success" : "font-bold text-warning"}>{situation}</span>
                 </p>
                 <p className="mt-1 text-base font-extrabold text-navy sm:hidden">{property.price || "Sem valor"}</p>
               </div>
@@ -77,15 +78,15 @@ export default function AdminPropertyList({ properties }) {
               {/* Regras de entrada só existem para empreendimento (dono, 2026-10-15). */}
               {property.isDevelopment ? <Link className={`${SMALL_BTN} border-line text-navy`} href={`/admin/empreendimentos/${property.id}?aba=regras`}>Regras de entrada</Link> : null}
               {property.isPublished ? (
-                <button type="button" className={`${SMALL_BTN} border-amber-200 text-amber-700`} onClick={() => unpublish(property)}>
+                <button type="button" className={`${SMALL_BTN} border-warning-line text-warning`} onClick={() => unpublish(property)}>
                   Reprovar (tirar do site)
                 </button>
               ) : (
-                <button type="button" className={`${SMALL_BTN} border-emerald-200 text-emerald-700`} onClick={() => setPublishTarget(property)}>
+                <button type="button" className={`${SMALL_BTN} border-success-line text-success`} onClick={() => setPublishTarget(property)}>
                   Aprovar e publicar
                 </button>
               )}
-              <button type="button" className={`${SMALL_BTN} border-red-200 text-red-700`} onClick={() => removeProperty(property)}>
+              <button type="button" className={`${SMALL_BTN} border-danger-line text-danger`} onClick={() => removeProperty(property)}>
                 Excluir
               </button>
             </div>

@@ -74,7 +74,7 @@ export default function AdminCaptacoesList({ captacoes = [] }) {
 
   return (
     <section className="container-page grid gap-5">
-      <div className="rounded-[28px] border border-line bg-white p-5 shadow-soft md:p-6">
+      <div className="rounded-panel border border-line bg-white p-5 shadow-soft md:p-6">
         <div className="grid gap-4 lg:grid-cols-[1fr_260px_220px]">
           <label className="relative">
             <Search className="pointer-events-none absolute left-5 top-1/2 h-5 w-5 -translate-y-1/2 text-brand" aria-hidden="true" />
@@ -142,7 +142,7 @@ export default function AdminCaptacoesList({ captacoes = [] }) {
       {filtered.length ? (
         <div className="grid gap-4">
           {filtered.map((captacao) => (
-            <article key={captacao.id} className="rounded-[24px] border border-line bg-white p-5 shadow-soft">
+            <article key={captacao.id} className="rounded-panel border border-line bg-white p-5 shadow-soft">
               <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-start">
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-2">
@@ -204,7 +204,7 @@ export default function AdminCaptacoesList({ captacoes = [] }) {
           ))}
         </div>
       ) : (
-        <div className="rounded-[28px] border border-line bg-white p-12 text-center shadow-soft">
+        <div className="rounded-panel border border-line bg-white p-12 text-center shadow-soft">
           <h2 className="text-2xl font-black text-navy">Nenhuma captação encontrada</h2>
           <p className="mt-3 text-muted">Quando um proprietário enviar um imóvel, ele aparecerá aqui.</p>
         </div>

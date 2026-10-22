@@ -5,6 +5,7 @@ import { AlertTriangle, ChevronDown, SlidersHorizontal } from "lucide-react";
 import Badge from "@/components/ui/Badge";
 import Button from "@/components/ui/Button";
 import { cx } from "@/components/ui/cx";
+import { tabClasses } from "@/components/ui/Tabs";
 
 // Peças de interface da área Vendas / Comissões do Financeiro (só layout; nenhuma regra ou conta aqui —
 // os números chegam prontos de AdminFinancialDashboard). Reutiliza os componentes de components/ui.
@@ -13,7 +14,7 @@ import { cx } from "@/components/ui/cx";
 
 export function SectionTabs({ tabs, active, onChange, label = "Seções do Financeiro" }) {
   return (
-    <div role="tablist" aria-label={label} className="-mx-4 flex gap-1 overflow-x-auto border-b border-line px-4 sm:mx-0 sm:px-0">
+    <div role="tablist" aria-label={label} className="mm-noscroll -mx-4 flex gap-1.5 overflow-x-auto px-4 py-1 sm:mx-0 sm:px-0">
       {tabs.map((tab) => {
         const Icon = tab.icon;
         const selected = active === tab.key;
@@ -24,11 +25,7 @@ export function SectionTabs({ tabs, active, onChange, label = "Seções do Finan
             role="tab"
             aria-selected={selected}
             onClick={() => onChange(tab.key)}
-            className={cx(
-              "-mb-px inline-flex min-h-touch shrink-0 items-center gap-2 border-b-2 px-3.5 text-sm font-semibold transition-colors duration-150 ease-out-ui",
-              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2",
-              selected ? "border-brand text-navy" : "border-transparent text-muted hover:text-navy"
-            )}
+            className={cx(tabClasses(selected), "gap-2")}
           >
             {Icon ? <Icon className="h-4 w-4" aria-hidden="true" /> : null}
             {tab.label}

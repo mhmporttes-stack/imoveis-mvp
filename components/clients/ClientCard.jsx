@@ -41,7 +41,7 @@ import { OFFLINE_ACTION_LABEL, OFFLINE_CONFIRM_DESCRIPTION, OFFLINE_CONFIRM_TITL
 // progresso, histórico).
 const MAX_TAGS = 4;
 // Botão compacto do rodapé: 24px visíveis, área de toque de 44px pelo ::before (sem mudar o layout).
-const COMPACT_BUTTON = "relative !min-h-0 h-6 !gap-1 rounded-control px-2.5 text-[13px] before:absolute before:inset-x-0 before:-inset-y-2.5 before:content-['']";
+const COMPACT_BUTTON = "relative !min-h-0 h-6 min-w-0 shrink !gap-1 rounded-control px-2 text-[13px] sm:px-2.5 before:absolute before:inset-x-0 before:-inset-y-2.5 before:content-['']";
 
 // "há 6 dias" → "há 6 d" (só exibição; o texto completo vai no title).
 function shortAgo(text) {
@@ -151,7 +151,9 @@ export default function ClientCard({ client, activities, responsibleName, respon
       {/* WhatsApp segue primário, mas com o mesmo tamanho de Agendar (pedido do
           dono: pesos próximos, sem o botão dominar o card). */}
       {/* Dono, 2026-10-22: botões com metade da altura (24px visíveis); a área de toque segue ≥ 44px pelo ::before (COMPACT_BUTTON). */}
-      <footer className="mt-auto flex flex-wrap items-center gap-2 border-t border-line px-3.5 py-1.5 sm:px-4">
+      {/* Uma linha só (crítica de 2026-10-22): no celular o "…" caía sozinho numa linha extra — agora os botões ficam mais
+          justos (gap e respiro menores abaixo de sm) e o "…" nunca quebra. */}
+      <footer className="mt-auto flex flex-nowrap items-center gap-1.5 border-t border-line px-3.5 py-1.5 sm:gap-2 sm:px-4">
         {whatsappBlocked ? null : <Button size="sm" className={COMPACT_BUTTON} onClick={() => list.openWhatsApp(client)} disabled={busy}>
           <MessageCircle className="h-3.5 w-3.5" aria-hidden="true" /> WhatsApp
         </Button>}
@@ -172,7 +174,7 @@ export default function ClientCard({ client, activities, responsibleName, respon
           label={`Mais ações para ${name}`}
           trigger={<MoreHorizontal className="h-4 w-4" aria-hidden="true" />}
           size="xs"
-          className="ml-auto"
+          className="ml-auto shrink-0"
           items={[
             { label: "Documentação", icon: FileText, onSelect: () => onOpen("documents"), hidden: !registration.id },
             { label: OFFLINE_ACTION_LABEL, icon: FileText, hidden: !client.documentsOffline || Boolean(offline.receivedAt) || busy, onSelect: offline.mark },

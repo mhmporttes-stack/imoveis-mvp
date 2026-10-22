@@ -35,12 +35,15 @@ const CARD_GRID = "grid w-full min-w-0 grid-cols-[auto_minmax(0,1fr)] content-st
 const LABEL = "block truncate pr-6 text-[9.5px] min-[390px]:text-[10px] font-black uppercase leading-4 tracking-normal min-[390px]:tracking-wide [grid-area:label] lg:self-end lg:pr-12 lg:text-[11px]";
 const PHOTO = "relative z-10 shrink-0 [grid-area:photo]";
 const TEXT = "relative z-10 min-w-0 leading-tight [grid-area:text] lg:self-start";
-const NAME = "block truncate text-sm font-extrabold text-navy lg:max-w-[calc(100%-2.75rem)] lg:text-lg";
+const NAME = "block truncate text-sm font-extrabold text-ink lg:max-w-[calc(100%-2.75rem)] lg:text-[17px]";
 // Foto: 42px no celular, tamanho original no desktop (o Avatar usa estilo inline; !important ganha dele).
-const PHOTO_WEEKLY = "border-2 !border-[#DBA735] shadow-sm max-lg:!h-[42px] max-lg:!w-[42px] max-lg:!text-[15px]";
-const PHOTO_DAILY = "border-2 !border-[#A9C8EC] max-lg:!h-[42px] max-lg:!w-[42px] max-lg:!text-[15px]";
-const WEEKLY_CARD = "relative overflow-hidden rounded-2xl border border-[#E9CB73] bg-[#FFF9E9] px-2.5 py-2 text-left shadow-[0_3px_18px_rgba(203,159,59,0.14)] transition hover:bg-[#FFF4D8] lg:rounded-3xl lg:px-3.5 lg:py-3";
-const DAILY_CARD = "relative overflow-hidden rounded-2xl border border-[#C9DDF6] bg-[#F8FBFF] px-2.5 py-2 text-left shadow-[0_2px_12px_rgba(37,99,172,0.07)] transition hover:bg-[#EDF6FF] lg:rounded-3xl lg:px-3.5 lg:py-3";
+// Visual novo (dono, 2026-10-22): cards na superfície do painel com borda dourada (semana) ou azul (dia), brilho que
+// passa devagar, anel pulsando em volta da foto e a coroa ♛ dourada flutuando (app/globals.css: .mm-crown etc.).
+const PHOTO_WEEKLY = "border-2 !border-[#F2C66D] max-lg:!h-[42px] max-lg:!w-[42px] max-lg:!text-[15px]";
+const PHOTO_DAILY = "border-2 !border-accent max-lg:!h-[42px] max-lg:!w-[42px] max-lg:!text-[15px]";
+const CARD_BASE = "mm-champion relative overflow-hidden rounded-card border bg-white px-2.5 py-2 text-left transition duration-200 hover:-translate-y-0.5 hover:shadow-float motion-reduce:transition-none motion-reduce:hover:translate-y-0 lg:px-4 lg:py-3";
+const WEEKLY_CARD = `${CARD_BASE} mm-champion-weekly border-[#F0D9A6]`;
+const DAILY_CARD = `${CARD_BASE} mm-champion-daily border-accent-line`;
 
 export default function TopRankingBadge({ weeklyIndicator = null, dailyIndicator = null }) {
   const [data, setData] = useState(null);
@@ -91,21 +94,22 @@ export default function TopRankingBadge({ weeklyIndicator = null, dailyIndicator
   const showMyRank = Boolean(daily && !data.isMeTop1 && data.myRank);
 
   return (
-    <div className={`grid w-full grid-cols-2 gap-2 py-2 lg:items-stretch lg:py-2.5 ${showMyRank
-      ? "max-w-5xl lg:grid-cols-[1.3fr_1fr_0.9fr]"
-      : "max-w-3xl lg:grid-cols-[1.3fr_1fr]"}`}>
+    <div className={`grid w-full grid-cols-2 gap-2 pb-1 pt-2 lg:items-stretch lg:gap-3 ${showMyRank
+      ? "lg:grid-cols-[1fr_1fr_0.8fr]"
+      : "lg:grid-cols-2"}`}>
       <div className="relative flex min-w-0">
         <SceneTransitionLink href="/admin/meta-diaria" direction="forward" title="Ver desempenho" className={`${WEEKLY_CARD} ${CARD_GRID}`}>
-          <Laurel className="-left-2 bottom-0 max-lg:hidden" />
-          <Laurel className="-right-2 bottom-0 -scale-x-100 max-lg:hidden" />
-          <span className={`${LABEL} text-[#9B6419]`}>👑 {weekly ? weeklyChampionTitle(weekly.gender) : "Campeão da Semana"}</span>
+          <span aria-hidden="true" className="mm-scan" />
+          <span className={`${LABEL} text-warning`}>{weekly ? weeklyChampionTitle(weekly.gender) : "Campeão da Semana"}</span>
           {weekly ? (
             <>
-              <span className={PHOTO}><Avatar name={weekly.name} photoUrl={weekly.photoUrl} size={64} className={PHOTO_WEEKLY} /></span>
+              <span className={`${PHOTO} mm-pulse-ring mm-pulse-gold rounded-full`}>
+                <Avatar name={weekly.name} photoUrl={weekly.photoUrl} size={58} className={PHOTO_WEEKLY} />
+                <span aria-hidden="true" className="mm-crown absolute -right-1 -top-2 text-sm leading-none lg:-right-1.5 lg:-top-3 lg:text-lg">♛</span>
+              </span>
               <span className={TEXT}>
-                <span className={NAME}>{weekly.name}</span>
-                <span className="block truncate text-xs font-extrabold text-[#B77C17] lg:text-base">{formatPoints(weekly.points)} pontos</span>
-                <span className="block truncate text-[10px] font-medium text-slate-600 lg:text-xs">Semana anterior</span>
+                <PersonName name={weekly.name} />
+                <span className="block truncate text-xs font-medium text-muted lg:text-[13px]"><b className="text-[13px] font-extrabold text-warning lg:text-[15px]">{formatPoints(weekly.points)} pontos</b><span className="max-lg:hidden"> semana anterior</span></span>
               </span>
             </>
           ) : (
@@ -116,13 +120,17 @@ export default function TopRankingBadge({ weeklyIndicator = null, dailyIndicator
       </div>
       <div className="relative flex min-w-0">
         <SceneTransitionLink href="/admin/meta-diaria" direction="forward" title="Ver desempenho" className={`${DAILY_CARD} ${CARD_GRID}`}>
-          <span className={`${LABEL} text-[#2370BC] max-lg:!pr-[4.25rem] lg:!pr-[6.5rem]`}>🥇 Melhor do Dia</span>
+          <span aria-hidden="true" className="mm-scan" />
+          <span className={`${LABEL} text-accent-text max-lg:!pr-[4.25rem] lg:!pr-[6.5rem]`}>Melhor do Dia</span>
           {daily ? (
             <>
-              <span className={PHOTO}><Avatar name={daily.name} photoUrl={daily.photoUrl} size={58} className={PHOTO_DAILY} /></span>
+              <span className={`${PHOTO} mm-pulse-ring rounded-full`}>
+                <Avatar name={daily.name} photoUrl={daily.photoUrl} size={58} className={PHOTO_DAILY} />
+                <span aria-hidden="true" className="mm-float absolute -right-1 -top-2 text-sm leading-none text-accent lg:-right-1.5 lg:-top-3 lg:text-lg">✦</span>
+              </span>
               <span className={TEXT}>
-                <span className={NAME}>{daily.name}</span>
-                <span className="block truncate text-xs font-extrabold text-[#2370BC] lg:text-base">{formatPoints(daily.points)} pontos <span className="font-medium text-slate-500">hoje</span></span>
+                <PersonName name={daily.name} />
+                <span className="block truncate text-xs font-medium text-muted lg:text-[13px]"><b className="text-[13px] font-extrabold text-accent-text lg:text-[15px]">{formatPoints(daily.points)} pontos</b><span className="max-lg:hidden"> hoje</span></span>
               </span>
             </>
           ) : (
@@ -132,49 +140,47 @@ export default function TopRankingBadge({ weeklyIndicator = null, dailyIndicator
         {dailyIndicator ? <span className={`${INDICATOR_POSITION} ${DAILY_TOP}`}>{dailyIndicator}</span> : null}
       </div>
       {showMyRank ? (
-        <div className="col-span-2 flex min-w-0 items-center gap-2 rounded-2xl border border-slate-200 bg-white px-3 py-1.5 text-navy shadow-[0_2px_10px_rgba(13,59,102,0.06)] lg:col-span-1 lg:rounded-3xl lg:px-3.5 lg:py-2.5">
+        <div className="col-span-2 flex min-w-0 items-center gap-2 rounded-card border border-line bg-white px-3 py-1.5 text-ink lg:col-span-1 lg:px-3.5 lg:py-2.5">
           <RankingIcon />
-          <span className="shrink-0 text-xs font-bold text-slate-600">Sua posição hoje:</span>
-          <span className="rounded-full bg-[#E2F0FF] px-2.5 py-1 text-sm font-black text-[#176BC4]">{data.myRank}º</span>
-          <span className="min-w-0 truncate text-sm font-extrabold text-navy">{formatPoints(data.myPoints)} pts</span>
+          <span className="shrink-0 text-xs font-bold text-muted">Sua posição hoje:</span>
+          <span className="rounded-full bg-accent-soft px-2.5 py-1 text-sm font-black text-accent-text">{data.myRank}º</span>
+          <span className="min-w-0 truncate text-sm font-extrabold text-ink">{formatPoints(data.myPoints)} pts</span>
         </div>
       ) : null}
     </div>
   );
 }
 
+// Celular (crítica de 2026-10-22): só o primeiro nome, para nada ser cortado no card de meia largura; o nome
+// completo continua no computador e no leitor de tela.
+function PersonName({ name = "" }) {
+  const first = String(name).trim().split(/\s+/)[0] || name;
+  return (
+    <span className={NAME} title={name}>
+      <span className="lg:hidden" aria-hidden="true">{first}</span>
+      <span className="max-lg:sr-only">{name}</span>
+    </span>
+  );
+}
+
 // Card sem dado (ex.: dia ainda sem pontos): mesmo tamanho do card preenchido,
 // com um círculo tracejado no lugar da foto — nunca um ícone solto na tela.
 function EmptyState({ tone, text }) {
-  const ring = tone === "weekly" ? "border-[#DBA735]/60" : "border-[#A9C8EC]";
+  const ring = tone === "weekly" ? "border-[#F2C66D]/70" : "border-accent-line";
   return (
     <>
       <span className={PHOTO}>
         <span aria-hidden="true" className={`block h-[42px] w-[42px] rounded-full border-2 border-dashed ${ring} lg:h-[58px] lg:w-[58px]`} />
       </span>
       <span className={TEXT}>
-        <span className="block text-xs font-bold leading-snug text-slate-500 lg:text-sm">{text}</span>
+        <span className="block text-xs font-bold leading-snug text-muted lg:text-sm">{text}</span>
       </span>
     </>
   );
 }
 
-function Laurel({ className }) {
-  return (
-    <svg aria-hidden="true" viewBox="0 0 42 80" className={`pointer-events-none absolute h-20 w-11 fill-[#D9AB41] opacity-25 ${className}`}>
-      <path d="M29 75C10 59 7 31 24 7" fill="none" stroke="#D9AB41" strokeWidth="2" />
-      <ellipse cx="14" cy="57" rx="4" ry="9" transform="rotate(-40 14 57)" />
-      <ellipse cx="27" cy="59" rx="4" ry="8" transform="rotate(35 27 59)" />
-      <ellipse cx="11" cy="39" rx="4" ry="8" transform="rotate(-25 11 39)" />
-      <ellipse cx="23" cy="40" rx="4" ry="8" transform="rotate(32 23 40)" />
-      <ellipse cx="16" cy="22" rx="4" ry="8" transform="rotate(-15 16 22)" />
-      <ellipse cx="28" cy="22" rx="4" ry="8" transform="rotate(35 28 22)" />
-    </svg>
-  );
-}
-
 function RankingIcon() {
-  return <svg aria-hidden="true" viewBox="0 0 24 24" className="h-5 w-5 shrink-0 fill-none stroke-[#2370BC] stroke-2"><rect x="3" y="14" width="4" height="7" rx="1" /><rect x="10" y="9" width="4" height="12" rx="1" /><rect x="17" y="4" width="4" height="17" rx="1" /></svg>;
+  return <svg aria-hidden="true" viewBox="0 0 24 24" className="h-5 w-5 shrink-0 fill-none stroke-accent stroke-2"><rect x="3" y="14" width="4" height="7" rx="1" /><rect x="10" y="9" width="4" height="12" rx="1" /><rect x="17" y="4" width="4" height="17" rx="1" /></svg>;
 }
 
 function formatPoints(value) {

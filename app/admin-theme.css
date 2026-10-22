@@ -5,6 +5,63 @@
    texto claro azulado (contraste AA ou mais); azul de marca clareado para link/realce e mantido forte nos
    botões sólidos; cores de estado em versão clara sobre fundo tingido. */
 
+/* ===== Visual novo do painel (dono, 2026-10-22, protótipo aprovado) =====
+   html.mm-panel só existe nas rotas do painel (components/admin-theme.js): o site público fica exatamente como era.
+   Claro: fundo #F3F6FA · superfície branca · borda #DCE4EE · texto #0E1E33 → #6B7B91 · destaque #1B7FB0.
+   Escuro: os mesmos tokens em app/admin-theme-auto.css (gerado) + os ajustes de destaque abaixo.
+   Raios: controles 12px · cards 16px · painéis 18px (tailwind.config.cjs lê as variáveis). */
+html.mm-panel {
+  --mm-r-control: 12px;
+  --mm-r-card: 16px;
+  --mm-r-panel: 18px;
+  --mm-r-sheet: 22px;
+  --mm-shell-sidebar: 76px;
+}
+html.mm-panel:not(.mm-dark) {
+  --mm-mist: 243 246 250;
+  --mm-line: 220 228 238;
+  --mm-navy: 14 42 71;
+  --mm-ink: 14 30 51;
+  --mm-ink-2: 44 62 87;
+  --mm-muted: 90 107 130;
+  /* faint = muted no claro (crítica de contraste, 2026-10-22): #6B7B91 dava < 4,5:1 em texto pequeno. */
+  --mm-faint: 90 107 130;
+  /* Azul de marca do painel claro um tom mais fechado (#126A95): link, rótulo e botão sólido antigo (bg-brand + branco)
+     passam AA; o #1B7FB0 (accent) fica para ícones, bordas e marcadores. */
+  --mm-brand: 18 106 149;
+  --mm-info: 18 106 149;
+  --mm-info-soft: 230 241 248;
+  --mm-info-line: 184 214 232;
+  --mm-info-strong: 27 127 176;
+  --mm-success: 17 132 90;
+  /* Âmbar do texto/pílula de alerta mais fechado (#96600A): o #A86A00 do protótipo dava < 4,5:1 sobre o fundo claro. */
+  --mm-warning: 150 96 10;
+  /* Âmbar do protótipo (warnSoft #FFF4DB) no lugar do laranja: ponto/anel forte em dourado, nunca laranja de destaque. */
+  --mm-warning-soft: 255 244 219;
+  --mm-warning-line: 240 217 166;
+  --mm-warning-strong: 201 134 22;
+  --mm-danger: 201 58 51;
+  --mm-page: #F3F6FA;
+}
+html.mm-panel,
+html.mm-panel body {
+  background: rgb(var(--mm-mist, 243 246 250));
+}
+html.mm-panel body {
+  color: rgb(var(--mm-ink));
+}
+
+html.mm-dark {
+  --mm-accent: 79 195 224;
+  --mm-accent-strong: 79 195 224;
+  --mm-on-accent: 4 18 31;
+  --mm-accent-soft: 15 42 71;
+  --mm-accent-line: 36 82 122;
+  --mm-accent-text: 127 216 236;
+  --mm-surf: 13 27 46;
+  --mm-surf-2: 11 24 40;
+}
+
 html.mm-dark {
   color-scheme: dark;
   background: var(--mm-page);
@@ -23,7 +80,7 @@ html.mm-theme-switching *::after {
 }
 
 html.mm-dark ::selection {
-  background: #2f74d0;
+  background: #1c6e9a;
   color: #ffffff;
 }
 
@@ -34,15 +91,15 @@ html.mm-dark ::selection {
 :where(html.mm-dark) .shadow-sm { box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3); }
 
 /* Classes de globals.css montadas com @apply (as cores ficam copiadas nelas, não nas utilidades). */
-html.mm-dark .premium-button-primary { background-color: #24578f; color: #fff; }
-html.mm-dark .premium-button-primary:hover { background-color: #1d4a7c; }
+html.mm-dark .premium-button-primary { background-color: #4fc3e0; color: #04121f; }
+html.mm-dark .premium-button-primary:hover { background-color: #7fd8ec; }
 html.mm-dark .premium-button-secondary,
 html.mm-dark .client-action-button,
 html.mm-dark .premium-card,
 html.mm-dark .admin-input {
   background-color: var(--mm-surface);
 }
-html.mm-dark .client-action-button:hover { background-color: #173457; }
+html.mm-dark .client-action-button:hover { background-color: #0f2a47; }
 html.mm-dark .admin-logout-button { border-color: rgb(var(--mm-line)); }
 
 /* Campos nativos sem classe de fundo (select/date) seguem o esquema escuro; o autofill do Chrome não fica amarelo-claro. */
@@ -50,7 +107,7 @@ html.mm-dark input:-webkit-autofill,
 html.mm-dark textarea:-webkit-autofill,
 html.mm-dark select:-webkit-autofill {
   -webkit-text-fill-color: #dce5ef;
-  -webkit-box-shadow: 0 0 0 1000px #16283d inset;
+  -webkit-box-shadow: 0 0 0 1000px #0b1828 inset;
 }
 
 /* Sheet e confirmação (components/ui): camada elevada, um degrau acima da superfície. */
@@ -65,16 +122,16 @@ html.mm-dark .ui-confirm::backdrop,
 html.mm-dark .crm-alert-dialog::backdrop {
   background: rgba(2, 7, 14, 0.62);
 }
-html.mm-dark .ui-sheet-handle { background: #3a4f69; }
-html.mm-dark .ui-sheet :where(.bg-white) { background-color: #1a2d44; }
+html.mm-dark .ui-sheet-handle { background: #24426a; }
+html.mm-dark .ui-sheet :where(.bg-white) { background-color: #13263f; }
 @media (max-width: 767px) {
   html.mm-dark .ui-sheet-full.ui-sheet-auto,
   html.mm-dark .ui-sheet-right {
     border-top-color: var(--mm-surface-raised);
   }
 }
-html.mm-dark .ui-progress { background: rgba(125, 179, 248, 0.14); }
-html.mm-dark .ui-progress::after { background: #7db3f8; }
+html.mm-dark .ui-progress { background: rgba(79, 195, 224, 0.14); }
+html.mm-dark .ui-progress::after { background: #4fc3e0; }
 
 /* Apps "Chat"/"Financeiro" da tela inicial: a faixa do relógio acompanha o fundo. */
 html.mm-dark[data-mm-app="chat"].chat-app-mode body,
@@ -82,38 +139,170 @@ html.mm-dark[data-mm-app="financeiro"] body {
   border-top-color: var(--mm-page);
   background: var(--mm-page);
 }
-html.mm-dark[data-mm-app="chat"] .chat-composer-safe { background: #16263a; }
+html.mm-dark[data-mm-app="chat"] .chat-composer-safe { background: #0d1b2e; }
 
 /* Chat (components/WhatsappChat.jsx): papel de parede e bolhas no padrão escuro do WhatsApp, em azul da marca.
    O papel de parede vem em style inline — por isso o !important. */
 html.mm-dark [data-chat-wallpaper] {
-  background-color: #0a1521 !important;
+  background-color: #0a1626 !important;
   background-image: none !important;
 }
 :where(html.mm-dark) .bg-\[\#D9FDD3\],
 :where(html.mm-dark) .bg-\[\#d9fdd3\] {
-  background-color: #154536;
+  background-color: #1c5b85;
 }
 :where(html.mm-dark) .bg-\[\#F6F5F3\],
 :where(html.mm-dark) .bg-\[\#F0F2F5\] {
-  background-color: #16263a;
+  background-color: #16283f;
 }
 
 /* Barra inferior e cabeçalho do ranking: superfície sólida, borda sutil. */
-html.mm-dark .admin-bottom-nav { background-color: rgb(18 34 54 / 0.96); }
-html.mm-dark .admin-ranking-header { background-color: var(--mm-surface); }
+html.mm-dark .admin-bottom-nav { background-color: rgb(10 22 38 / 0.92); }
 
 /* Gráficos e anéis em SVG com cor fixa no atributo (trilho do anel da Meta, grade do Desempenho, linha do zero
    do Financeiro): propriedade CSS vence o atributo de apresentação. */
 html.mm-dark :is(circle, line, path)[stroke="#E5EAF1" i],
 html.mm-dark :is(circle, line, path)[stroke="#e7eef8" i],
 html.mm-dark :is(circle, line, path)[stroke="#E2E8F0" i] {
-  stroke: #24384f;
+  stroke: #172c47;
 }
-html.mm-dark line[stroke="#B8C4D6" i] { stroke: #3a4f69; }
+html.mm-dark line[stroke="#B8C4D6" i] { stroke: #24426a; }
 html.mm-dark circle[stroke="#fff" i] { stroke: var(--mm-surface); }
 
 /* Scrollbar no desktop. */
 html.mm-dark * {
-  scrollbar-color: #33475e transparent;
+  scrollbar-color: #24426a transparent;
+}
+
+/* Sheet / confirmação no visual novo (painel): cantos de 22px, véu azul-noite, alça clara. */
+html.mm-panel .ui-sheet::backdrop,
+html.mm-panel .ui-confirm::backdrop {
+  background: rgba(3, 10, 20, 0.55);
+}
+html.mm-panel .ui-sheet-handle {
+  width: 40px;
+  margin-left: -20px;
+  background: rgb(var(--mm-line));
+}
+
+/* Classes antigas montadas com @apply (app/globals.css), no visual novo do painel: botão principal no azul de destaque,
+   cantos de 12px (controles) e 16px (cards), sem sombra em card comum. O site público continua com o desenho antigo. */
+html.mm-panel :is(.premium-button, .premium-button-primary, .premium-button-secondary) {
+  gap: 0.5rem;
+  min-height: 44px;
+  border-radius: var(--mm-r-control);
+  padding-inline: 1.25rem;
+  font-size: 0.9375rem;
+}
+html.mm-panel .premium-button-primary {
+  background-color: rgb(var(--mm-accent-strong, 18 106 149));
+  color: rgb(var(--mm-on-accent, 255 255 255));
+  box-shadow: none;
+}
+html.mm-panel .premium-button-primary:hover {
+  background-color: rgb(var(--mm-accent-strong, 18 106 149));
+  filter: brightness(1.1);
+  box-shadow: none;
+}
+html.mm-panel .premium-button-secondary {
+  border-color: rgb(var(--mm-line));
+}
+html.mm-panel .premium-card {
+  border-radius: var(--mm-r-card);
+  box-shadow: none;
+}
+html.mm-panel .admin-input {
+  min-height: 48px;
+  border-radius: var(--mm-r-control);
+}
+
+/* Telas que abriam com 56px de respiro no computador (main md:pt-14): o cabeçalho do painel já dá o respiro. */
+@media (min-width: 768px) {
+  html.mm-panel body:has(.admin-topbar) main.md\:pt-14 {
+    padding-top: 1.25rem;
+  }
+}
+
+/* ===== Visual novo — telas (frente C, 2026-10-22) =====
+   Texto pequeno (≤ 12px) em Manrope: o espaço entre palavras da fonte é estreito e, em tela de densidade 1, palavras
+   pareciam coladas ("Aguardandoreunião"). Um respiro mínimo entre palavras, sem mexer no espaçamento das letras. */
+html.mm-panel :is(.text-xs, .text-2xs, .text-\[9px\], .text-\[10px\], .text-\[10\.5px\], .text-\[11px\], .text-\[12px\]) {
+  word-spacing: 0.06em;
+}
+
+/* Card comum não leva sombra (sistema visual: profundidade só no que flutua). As telas antigas usavam shadow-soft /
+   shadow-premium em painéis parados; no painel elas ficam só com a borda. O que flutua (absolute/fixed/sticky, janelas,
+   menus) mantém a sombra. */
+html.mm-panel main :is(.shadow-soft, .shadow-premium, .shadow-sm):not(.absolute, .fixed, .sticky):not(:where([role="dialog"], dialog, .fixed, .absolute) *) {
+  box-shadow: none;
+}
+
+/* Escala de títulos do visual novo nas telas antigas (protótipo: título da tela 24px no cabeçalho, título de painel
+   16–20px). Muitas telas abriam blocos com um título de 30–48px que competia com o cabeçalho do painel; aqui eles
+   descem para a escala nova, só no painel. A apresentação ao cliente (CSS próprio) não usa estas classes. */
+html.mm-panel main h2:is(.text-2xl, .text-3xl, .text-4xl, .text-5xl, .text-\[28px\], .text-\[26px\]) {
+  font-size: 1.25rem;
+  line-height: 1.3;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+}
+@media (min-width: 768px) {
+  html.mm-panel main h2:is(.text-3xl, .text-4xl, .text-5xl, .text-\[28px\], .text-\[26px\]) {
+    font-size: 1.375rem;
+  }
+}
+html.mm-panel main h3:is(.text-2xl, .text-3xl, .text-4xl) {
+  font-size: 1.125rem;
+  line-height: 1.35;
+  font-weight: 800;
+  letter-spacing: -0.005em;
+}
+html.mm-panel main h1:is(.text-3xl, .text-4xl, .text-5xl) {
+  font-size: 1.5rem;
+  line-height: 1.25;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+}
+/* Rótulo de seção em caixa alta (o "kicker" do protótipo): 11px, forte, espaçamento de 0,1em — as telas antigas
+   variavam de 0,14em a 0,3em e 12–14px. */
+html.mm-panel main .uppercase:is(.tracking-\[0\.12em\], .tracking-\[0\.14em\], .tracking-\[0\.15em\], .tracking-\[0\.16em\], .tracking-\[0\.18em\], .tracking-\[0\.2em\], .tracking-\[0\.22em\], .tracking-\[0\.24em\], .tracking-\[0\.25em\], .tracking-\[0\.28em\], .tracking-\[0\.3em\], .tracking-\[0\.35em\], .tracking-widest) {
+  font-size: 11px;
+  line-height: 16px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+}
+
+/* Campos das telas antigas: cantos de controle (12px) e foco no azul de destaque, iguais aos componentes novos. */
+html.mm-panel main :is(input, select, textarea):is(.rounded, .rounded-md, .rounded-lg, .rounded-xl, .rounded-2xl):not([type="checkbox"], [type="radio"], [type="range"]) {
+  border-radius: var(--mm-r-control);
+}
+html.mm-panel main :is(input, select, textarea).border:not([type="checkbox"], [type="radio"], [type="range"]):focus-visible {
+  border-color: rgb(var(--mm-accent, 27 127 176));
+  outline: 2px solid rgb(var(--mm-accent, 27 127 176) / 0.25);
+  outline-offset: 0;
+}
+/* Botões antigos (premium-button) sem o "pulo" ao passar o mouse — o visual novo só muda a cor. */
+html.mm-panel :is(.premium-button, .premium-button-primary, .premium-button-secondary):hover {
+  transform: none;
+}
+
+/* Telas que abriam com 40–56px de respiro em cima (main py-10/py-14): o cabeçalho do painel e o ranking já dão o
+   respiro, então o conteúdo começa logo abaixo (como no protótipo). O respiro de baixo continua. */
+html.mm-panel body:has(.admin-topbar) main:is(.py-8, .py-10, .py-12, .py-14, .sm\:py-14) {
+  padding-top: 0.75rem;
+}
+@media (min-width: 768px) {
+  html.mm-panel body:has(.admin-topbar) main:is(.py-8, .py-10, .py-12, .py-14, .sm\:py-14) {
+    padding-top: 1.25rem;
+  }
+}
+
+/* Botão sólido antigo (bg-navy / bg-brand com texto branco) vira o botão principal do visual novo: azul de destaque
+   com o texto certo para cada tema. Só botões e links — selos/contadores azul-marinho continuam como estão. */
+html.mm-panel main :is(button, a, label):is(.bg-navy, .bg-brand).text-white:not(:disabled) {
+  background-color: rgb(var(--mm-accent-strong, 18 106 149));
+  color: rgb(var(--mm-on-accent, 255 255 255));
+}
+html.mm-panel main :is(button, a, label):is(.bg-navy, .bg-brand).text-white:not(:disabled):hover {
+  filter: brightness(1.1);
 }

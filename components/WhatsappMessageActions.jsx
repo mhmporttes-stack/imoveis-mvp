@@ -262,7 +262,7 @@ function MessageFocusOverlay({ target, onClose, onReply, onReact, onEdit, onDele
       <div ref={stackRef} role="menu" aria-label="Ações da mensagem" className="absolute flex max-w-[calc(100%-16px)] select-none flex-col gap-2 [-webkit-touch-callout:none]"
         style={{ top: top ?? -9999, ...side }} onClick={(event) => event.stopPropagation()}>
         {message.canReact ? (
-          <div className="flex max-w-full flex-col rounded-[28px] bg-white/95 p-1 shadow-xl">
+          <div className="flex max-w-full flex-col rounded-panel bg-white/95 p-1 shadow-xl">
             <div className="flex items-center gap-0.5" role="group" aria-label="Reagir">
               {REACTION_EMOJIS.map((emoji) => (
                 <button key={emoji} type="button" disabled={busy} onClick={() => react(emoji)} aria-label={`Reagir com ${emoji}`} aria-pressed={teamReaction === emoji}

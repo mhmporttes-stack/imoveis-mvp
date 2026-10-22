@@ -19,6 +19,7 @@ const BrokerHistoryPanel = dynamic(() => import("@/components/DailyGoalAdmin").t
 import SupervisionChatDock, { SupervisionChatButton, useSupervisionInbox } from "@/components/supervision/SupervisionChatDock";
 // Compensação da janela por restrição VALIDADA (PRO-14): mesmo componente/texto da tela do corretor.
 import DailyGoalCompensationNotice from "@/components/DailyGoalCompensationNotice";
+import Kpi from "@/components/ui/Kpi";
 
 const PERIODS = [
   { value: "today", label: "Hoje" },
@@ -32,7 +33,8 @@ const CIRCUMFERENCE = 2 * Math.PI * RADIUS;
 
 function progressColor(percent) {
   if (percent >= 100) return { stroke: "#059669", text: "text-emerald-600" };
-  if (percent >= 50) return { stroke: "#ea580c", text: "text-orange-600" };
+  // Visual novo (2026-10-22): sem laranja de destaque — meio do caminho no âmbar/dourado do tema.
+  if (percent >= 50) return { stroke: "#C98616", text: "text-warning" };
   return { stroke: "#dc2626", text: "text-red-600" };
 }
 
@@ -135,7 +137,7 @@ export default function TeamDailyPerformance({ initialOverview, initialError = "
           </div>
 
           {!overview.brokers.length ? (
-            <p className="rounded-[24px] border border-line bg-white p-8 text-center font-bold text-muted shadow-soft">
+            <p className="rounded-panel border border-line bg-white p-8 text-center font-bold text-muted shadow-soft">
               Nenhum corretor ativo com Meta Diária no período selecionado.
             </p>
           ) : null}
@@ -175,17 +177,14 @@ function TeamSummary({ summary }) {
     { label: "Simulações", value: summary.simulacoes }
   ];
 
+  // Visual novo (2026-10-22): indicadores em cards (components/ui/Kpi). Celular: "Meta da equipe" (ponto focal) ocupa a
+  // linha toda e os outros quatro formam uma grade 2×2 — sem a quinta caixa sozinha e meio vazia.
   return (
-    // Celular: "Meta da equipe" (ponto focal) ocupa a linha toda e os outros
-    // quatro formam uma grade 2×2 — sem a quinta caixa sozinha e meio vazia.
-    <div className="grid grid-cols-2 gap-2 rounded-[24px] border border-navy/10 bg-white p-3 shadow-soft sm:grid-cols-3 sm:gap-2.5 sm:p-5 lg:grid-cols-5">
+    <section aria-label="Indicadores da equipe" className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 sm:gap-3 lg:grid-cols-5">
       {items.map((item, index) => (
-        <div key={item.label} className={`rounded-2xl bg-mist/40 px-3 py-2 text-center sm:py-3 ${index === 0 ? "col-span-2 sm:col-span-1" : ""}`}>
-          <p className="text-[11px] font-extrabold uppercase tracking-[0.08em] text-muted">{item.label}</p>
-          <p className="mt-0.5 text-xl font-black tabular-nums text-navy sm:mt-1">{item.value}</p>
-        </div>
+        <Kpi key={item.label} label={item.label} value={item.value} tone={index === 0 ? "accent" : "default"} className={index === 0 ? "col-span-2 sm:col-span-1" : ""} />
       ))}
-    </div>
+    </section>
   );
 }
 
@@ -369,7 +368,7 @@ function BrokerCard({ broker, presenceStatus, automation, restriction, onRestric
       onKeyDown={(event) => {
         if (event.key === "Enter" || event.key === " ") { event.preventDefault(); onClick(); }
       }}
-      className="cursor-pointer rounded-[22px] border border-line bg-white p-5 text-left shadow-[0_12px_30px_rgba(13,59,102,0.06)] transition hover:-translate-y-0.5 hover:border-brand/40"
+      className="cursor-pointer rounded-panel border border-line bg-white p-5 text-left shadow-[0_12px_30px_rgba(13,59,102,0.06)] transition hover:-translate-y-0.5 hover:border-brand/40"
     >
       <div className="flex items-center gap-3">
         <Avatar name={broker.name} photoUrl={broker.photoUrl} size={44} />
@@ -532,7 +531,7 @@ function BrokerDetailDrawer({ brokerId, period, automation, restriction, onRestr
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-navy/40 backdrop-blur-sm sm:items-center" onClick={onClose}>
       <div
-        className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-t-[28px] bg-white p-6 shadow-2xl sm:rounded-[28px]"
+        className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-t-[28px] bg-white p-6 shadow-2xl sm:rounded-panel"
         onClick={(event) => event.stopPropagation()}
       >
         <div className="mb-4 flex items-center justify-between">

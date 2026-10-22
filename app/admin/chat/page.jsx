@@ -23,7 +23,7 @@ export default async function ChatPage({ searchParams }) {
     return (
       <main className="min-h-screen bg-mist py-14">
         <AdminSectionNav active="chat" />
-        <section className="container-page mx-auto mt-8 max-w-xl rounded-[28px] border border-line bg-white p-8 text-center shadow-soft">
+        <section className="container-page mx-auto mt-8 max-w-xl rounded-panel border border-line bg-white p-8 text-center shadow-soft">
           <h1 className="text-2xl font-black text-navy">Chat temporariamente desativado</h1>
           <p className="mt-3 text-base font-semibold leading-7 text-muted">Por enquanto, envie e responda as mensagens dos clientes pelo WhatsApp do seu celular. Avisaremos quando o Chat voltar.</p>
         </section>

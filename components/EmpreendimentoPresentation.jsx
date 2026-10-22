@@ -116,7 +116,7 @@ export default function EmpreendimentoPresentation({ simulation, properties }) {
         </label>
       </div>
 
-      {selected ? <article className="overflow-hidden rounded-[28px] border border-line bg-white shadow-soft">
+      {selected ? <article className="overflow-hidden rounded-panel border border-line bg-white shadow-soft">
         <div className="grid lg:grid-cols-[360px_1fr]">
           <div className="relative min-h-64 bg-slate-100">
             <img className="h-full min-h-64 w-full object-cover" src={images[imageIndex] || coverImage(selected)} alt={`${selected.name} - imagem ${imageIndex + 1}`} />

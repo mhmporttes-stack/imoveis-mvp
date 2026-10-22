@@ -2,12 +2,8 @@
 
 import Link from "next/link";
 import { useEffect, useId, useRef, useState } from "react";
-import { Calculator, CalendarDays, ChevronLeft, ChevronRight, Inbox, Link2, MessageCircle, Search, SlidersHorizontal, Target, TriangleAlert, UserRoundPlus, UserSearch, X } from "lucide-react";
-import NotificationHistoryButton from "@/components/alerts/NotificationHistoryButton";
-import CooledClientsInbox from "@/components/cooled/CooledClientsInbox";
-import MarketplaceChatShortcut from "@/components/marketplace/MarketplaceChatShortcut";
+import { Calculator, ChevronLeft, ChevronRight, Inbox, Link2, Search, SlidersHorizontal, Target, TriangleAlert, UserRoundPlus, UserSearch, X } from "lucide-react";
 import SceneTransitionLink from "@/components/motion/SceneTransitionLink";
-import { CountBadge } from "@/components/ui/Badge";
 import Button from "@/components/ui/Button";
 import { useConfirm } from "@/components/ui/ConfirmDialog";
 import EmptyState from "@/components/ui/EmptyState";
@@ -17,8 +13,6 @@ import { SkeletonList } from "@/components/ui/Skeleton";
 import { useToast } from "@/components/ui/Toast";
 import { cx } from "@/components/ui/cx";
 import { SHORTCUT_ICON_BUTTON } from "@/components/ui/shortcut-icon";
-import { useCrmBadgeCounts } from "@/components/useCrmBadgeCounts";
-import { useChatHidden } from "@/components/WhatsappAccessProvider";
 import { CLIENT_STATUS, CLIENT_STATUS_FILTER_GROUPS, CLIENT_STATUS_META } from "@/lib/client-status";
 import { formatMoneyBR } from "@/lib/simulation-list-utils";
 import ClientCard from "./ClientCard";
@@ -26,6 +20,7 @@ import ClientSheet, { DocumentsListDialog } from "./ClientSheet";
 import ProspectingRepliesPanel from "./ProspectingRepliesPanel";
 import { PAGE_SIZE_OPTIONS, datePresetRange, formatDateRangeLabel } from "./client-format";
 import { useClientList } from "./useClientList";
+import { tabClasses } from "@/components/ui/Tabs";
 
 // Lista de clientes (/admin/simulacoes) — redesenho do Designer CRM,
 // aprovado pelo dono em 2026-10-01. Toda a lógica vive em useClientList.
@@ -33,22 +28,13 @@ import { useClientList } from "./useClientList";
 //   funil · 3) os cards dos clientes (ClientCard), com o que se usa no dia a
 //   dia · 4) a ficha do cliente numa gaveta para o secundário.
 export default function ClientWorkspace(props) {
-  const { canManageResponsibleUsers = false, canReturnAssignedProspecting = false, isOwner = false, brokerSimulationLink = "", showCooledInbox = false, showNotifications = false } = props;
-  // No computador, "Clientes que esfriaram" e "Notificações" ficam nos atalhos do topo desta tela (dono, 2026-10-16); o
-  // marcador abaixo esconde as cópias do cartão "Melhor do Dia" (só md+; no celular continuam lá, pois estes atalhos não existem).
-  const movedShortcuts = showCooledInbox || showNotifications;
-  useEffect(() => {
-    if (!movedShortcuts) return undefined;
-    document.body.dataset.shortcutsMoved = "true";
-    return () => { delete document.body.dataset.shortcutsMoved; };
-  }, [movedShortcuts]);
+  const { canManageResponsibleUsers = false, canReturnAssignedProspecting = false, isOwner = false, brokerSimulationLink = "" } = props;
+  // "Clientes que esfriaram" e "Notificações" ficam no cabeçalho do painel (AdminTopBar, todas as telas) desde a crítica do
+  // visual novo (2026-10-22); as props showCooledInbox/showNotifications continuam aceitas, sem uso aqui.
   const [notify, toastElement] = useToast();
   const [confirmAction, confirmElement] = useConfirm();
   const [openClientId, setOpenClientId] = useState("");
   const list = useClientList({ ...props, notify, confirmAction, pinClientId: openClientId });
-  const badgeCounts = useCrmBadgeCounts();
-  // Modo lista impressa (PRO-15, 2026-10-15): sem atalho do Chat enquanto o WhatsApp estiver desconectado.
-  const chatHidden = useChatHidden();
   const [openFocus, setOpenFocus] = useState("");
   const openFicha = (clientId, focus = "") => {
     setOpenFocus(focus);
@@ -91,22 +77,19 @@ export default function ClientWorkspace(props) {
 
   return (
     <section ref={topRef} className="container-page scroll-mt-4 pb-6" aria-labelledby="clientes-titulo">
-      {/* 1. Cabeçalho */}
-      {/* Celular (dono, 2026-10-12): sem o cabeçalho — título só para leitor de tela; "Novo cliente" e "Prospecção" ficam no
-          menu "Mais" e "Meu link" ao lado da busca. A contagem total já aparece em "Todos" no funil. Desktop inalterado. */}
+      {/* 1. Barra da tela (visual novo, crítica de 2026-10-22): o título "Lista de clientes" já está no cabeçalho do painel,
+          então o "Clientes" daqui fica só para leitor de tela; a contagem vira texto à esquerda e as ações à direita.
+          Celular (dono, 2026-10-12): sem esta barra — "Novo cliente" e "Prospecção" no "Mais", "Meu link" ao lado da busca. */}
       <header className="max-sm:block sm:flex sm:flex-wrap sm:items-center sm:justify-between sm:gap-x-4 sm:gap-y-3">
-        {/* Contagem na mesma linha do título (dono, 2026-10-12: economizar espaço). */}
         <div className="flex min-w-0 items-baseline gap-2 max-sm:sr-only">
-          <h1 id="clientes-titulo" className="text-[28px] font-semibold uppercase leading-[34px] tracking-[0.01em] text-navy">Clientes</h1>
-          {/* Só o número (dono, 2026-10-12); o texto completo fica para leitor de tela. */}
-          <p className="truncate text-sm text-ink-2 tabular-nums" aria-label={`${list.total} ${list.total === 1 ? "cliente" : "clientes"}${anyFilter ? " neste filtro" : ""}`}>
-            {list.total}
+          <h1 id="clientes-titulo" className="sr-only">Clientes</h1>
+          <p className="truncate text-sm font-semibold text-ink-2 tabular-nums" aria-label={`${list.total} ${list.total === 1 ? "cliente" : "clientes"}${anyFilter ? " neste filtro" : ""}`}>
+            {list.total} {list.total === 1 ? "cliente" : "clientes"}{anyFilter ? <span className="font-normal text-muted"> neste filtro</span> : null}
           </p>
         </div>
         <div className="flex items-center gap-2 max-sm:hidden">
-          {/* Atalhos para Meta Diária, Chat e Agenda: no desktop o menu do topo
-              não mostra os subitens do grupo CRM/Clientes; no celular eles
-              estão na barra inferior. */}
+          {/* Atalhos da tela (computador): Meta Diária e Simulador Caixa. Chat, Marketplace, Agenda, Notificações e
+              "Clientes que esfriaram" (com contadores) ficam no cabeçalho do painel — aqui seriam repetidos. */}
           <nav aria-label="Atalhos" className="mr-1 hidden items-center gap-1 md:flex">
             <SceneTransitionLink href="/admin/meta-diaria" direction="forward" aria-label="Meta Diária" title="Meta Diária" className={SHORTCUT}>
               <Target className="h-5 w-5" aria-hidden="true" />
@@ -115,20 +98,6 @@ export default function ClientWorkspace(props) {
             <Link href="/admin/simulador-caixa" aria-label="Simulador Caixa" title="Simulador Caixa" className={SHORTCUT}>
               <Calculator className="h-5 w-5" aria-hidden="true" />
             </Link>
-            {chatHidden ? null : (
-              <Link href="/admin/chat" aria-label={`Chat${badgeCounts.chat ? ` (${badgeCounts.chat} não lidas)` : ""}`} title="Chat" className={SHORTCUT}>
-                <MessageCircle className="h-5 w-5" aria-hidden="true" />
-                <CountBadge count={badgeCounts.chat} className="absolute -right-1 -top-1 ring-2 ring-mist" label={`${badgeCounts.chat} mensagens não lidas`} />
-              </Link>
-            )}
-            {/* Chat Marketplace (dono, 2026-10-21): todos os perfis; à direita do Chat; contador do menu "Chat Marketplace". */}
-            <MarketplaceChatShortcut />
-            <Link href="/admin/calendario" aria-label={`Agenda${badgeCounts.agenda ? ` (${badgeCounts.agenda} pendentes)` : ""}`} title="Agenda" className={SHORTCUT}>
-              <CalendarDays className="h-5 w-5" aria-hidden="true" />
-              <CountBadge count={badgeCounts.agenda} className="absolute -right-1 -top-1 ring-2 ring-mist" label={`${badgeCounts.agenda} atividades pendentes`} />
-            </Link>
-            {showCooledInbox ? <CooledClientsInbox align="end" variant="shortcut" /> : null}
-            {showNotifications ? <NotificationHistoryButton align="end" variant="shortcut" /> : null}
           </nav>
           {brokerSimulationLink ? (
             <Button variant="ghost" size="md" onClick={list.copyBrokerSimulationLink} className="hidden sm:inline-flex">
@@ -178,7 +147,7 @@ export default function ClientWorkspace(props) {
             <input
               type="search"
               className={cx(inputClasses, "pl-9 pr-9")}
-              placeholder="Buscar nome ou telefone"
+              placeholder="Buscar cliente"
               value={list.searchInput}
               onChange={(event) => list.setSearchInput(event.target.value)}
             />
@@ -384,13 +353,10 @@ function PipelineStrip({ list }) {
                 type="button"
                 aria-pressed={active}
                 onClick={() => list.updateFilters({ status: active ? "all" : status })}
-                className={cx(
-                  "inline-flex h-8 shrink-0 items-center gap-1.5 rounded-full border px-3 text-[13px] font-medium transition-colors",
-                  active ? "border-navy bg-navy text-white" : "border-line bg-white text-ink hover:border-navy/25"
-                )}
+                className={cx(tabClasses(active, "sm"), "gap-1.5")}
               >
                 {CLIENT_STATUS_META[status]?.label || status}
-                <span className={cx("tabular-nums", active ? "text-white/80" : "text-muted")}>{counters.byStatus?.[status] || 0}</span>
+                <span className={cx("tabular-nums", active ? "text-accent-text" : "text-muted")}>{counters.byStatus?.[status] || 0}</span>
               </button>
             );
           })}

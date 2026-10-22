@@ -25,6 +25,7 @@ import { getWhatsappMasterDisplaySettings, getWhatsappMasterEnvironmentStatus, l
 import { listWhatsappAutomationReplies } from "@/lib/whatsapp-automation-replies";
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { tabClasses } from "@/components/ui/Tabs";
 
 export const dynamic = "force-dynamic";
 
@@ -137,9 +138,9 @@ const SUBMENU_ITEMS = [
 
 function AutomationSubmenu({ active }) {
   return (
-    <nav className="container-page mb-4 flex flex-wrap justify-center gap-1.5 rounded-xl border border-navy/[0.07] bg-white p-1 shadow-[0_1px_2px_rgba(13,59,102,0.04)]">
+    <nav aria-label="Automações" className="container-page mm-noscroll mb-4 flex gap-1.5 overflow-x-auto py-1">
       {SUBMENU_ITEMS.map((item) => (
-        <Link key={item.key} href={item.href} className={`rounded-[10px] px-4 py-1.5 text-center text-[13px] font-black ${active === item.key ? "bg-navy text-white" : "text-navy"}`}>
+        <Link key={item.key} href={item.href} aria-current={active === item.key ? "page" : undefined} className={tabClasses(active === item.key)}>
           {item.label}
         </Link>
       ))}

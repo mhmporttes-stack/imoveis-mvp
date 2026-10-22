@@ -48,7 +48,7 @@ export default async function AdminRegistrationDetailsPage({ params }) {
 function RegistrationDetailsError({ error }) {
   return (
     <main className="bg-mist py-14">
-      <section className="container-page rounded-[28px] border border-red-200 bg-white p-8 shadow-soft">
+      <section className="container-page rounded-panel border border-red-200 bg-white p-8 shadow-soft">
         <p className="text-sm font-black uppercase tracking-[0.18em] text-red-700">Erro ao abrir cadastro</p>
         <h1 className="mt-3 text-4xl font-black text-navy">Não foi possível carregar este cadastro.</h1>
         <p className="mt-4 rounded-2xl border border-red-100 bg-red-50 px-5 py-4 font-bold text-red-800">{error}</p>

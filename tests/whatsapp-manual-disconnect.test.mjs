@@ -134,7 +134,8 @@ test("barreiras ligadas: guard central das APIs, página do Chat, app Chat, Pros
   // Lista de documentos: sem Chat no modo lista impressa (não cai no oficial/individual nem abre o aparelho sem restrição validada).
   assert.match(source("app/api/admin/clients/[id]/lista-documentos/route.js"), /reason: printedListMode \? "printed_list_mode"/);
   assert.match(source("components/clients/ClientSheet.jsx"), /reason === "printed_list_mode"/);
-  for (const file of ["app/admin/layout.jsx", "components/AdminSectionNav.jsx"]) assert.match(source(file), /readChatHiddenForNav/);
+  // Menu lateral no layout desde o visual novo (2026-10-22): o AdminSectionNav não monta mais menu nem lê o modo.
+  assert.match(source("app/admin/layout.jsx"), /readChatHiddenForNav/);
   assert.match(PRINTED_LIST_MODE_MESSAGE, /modo lista impressa — peça sua lista à gestão\.$/);
 });
 

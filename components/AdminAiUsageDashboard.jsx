@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { CheckCircle2, XCircle } from "lucide-react";
+import { tabClasses } from "@/components/ui/Tabs";
 
 const PERIODS = [
   { value: "today", label: "Hoje" },
@@ -36,14 +37,15 @@ export default function AdminAiUsageDashboard({ initialEntries, usdBrlRate = 5.3
 
   return (
     <section className="container-page space-y-6">
-      <div className="rounded-[28px] border border-line bg-white p-6 shadow-soft">
-        <div className="flex flex-wrap items-center gap-2">
+      <div className="rounded-panel border border-line bg-white p-6 shadow-soft">
+        <div className="flex flex-wrap items-center gap-1.5" role="group" aria-label="Período">
           {PERIODS.map((option) => (
             <button
               key={option.value}
               type="button"
               onClick={() => setPeriod(option.value)}
-              className={`rounded-full px-4 py-2 text-sm font-black ${period === option.value ? "bg-navy text-white" : "border border-line text-navy hover:bg-brand/10"}`}
+              aria-pressed={period === option.value}
+              className={tabClasses(period === option.value)}
             >
               {option.label}
             </button>
@@ -61,7 +63,7 @@ export default function AdminAiUsageDashboard({ initialEntries, usdBrlRate = 5.3
         </p>
       </div>
 
-      <div className="overflow-x-auto rounded-[28px] border border-line bg-white shadow-soft">
+      <div className="overflow-x-auto rounded-panel border border-line bg-white shadow-soft">
         <table className="w-full min-w-[720px] text-sm">
           <thead>
             <tr className="border-b border-line text-left text-xs font-black uppercase tracking-wide text-muted">

@@ -353,7 +353,7 @@ export default function ClientJourneyActions({ registration, canManage, responsi
 
       {open ? createPortal(
         <dialog ref={openAsModal} className="fixed inset-0 z-[100] m-0 flex h-full w-full max-w-none max-h-none items-center justify-center border-0 bg-navy/60 p-3 sm:p-4" aria-label="Jornada e histórico" onClose={() => setOpen(false)} onMouseDown={(event) => { if (event.target === event.currentTarget) setOpen(false); }}>
-          <div className="flex max-h-[92svh] w-full max-w-3xl flex-col overflow-hidden rounded-[24px] bg-white shadow-2xl sm:max-h-[88svh] sm:rounded-[28px]" onMouseDown={(event) => event.stopPropagation()}>
+          <div className="flex max-h-[92svh] w-full max-w-3xl flex-col overflow-hidden rounded-panel bg-white shadow-2xl sm:max-h-[88svh] sm:rounded-panel" onMouseDown={(event) => event.stopPropagation()}>
             {/* Cabeçalho fixo: resumo do cliente */}
             <div className="shrink-0 border-b border-line bg-white p-5 sm:p-6">
               <div className="flex items-start justify-between gap-3">

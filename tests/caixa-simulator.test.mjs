@@ -92,7 +92,7 @@ test("menu: Simulador Caixa para todos os perfis, com ícone no celular", async 
   const menu = read("components/AdminMenu.jsx");
   assert.match(menu, /href: "\/admin\/simulador-caixa", label: "Simulador Caixa", key: "caixa-simulator"/);
   assert.match(menu, /CAIXA_SIMULATOR_GROUPS = new Set\(\["crm", "clientes"\]\)/);
-  assert.match(read("components/AdminBottomNav.jsx"), /"caixa-simulator": Calculator/);
+  assert.match(read("components/admin-nav-icons.js"), /"caixa-simulator": Calculator/);
 });
 
 test("página e API com guard; API recalcula no servidor; não cria cliente nem envia", () => {

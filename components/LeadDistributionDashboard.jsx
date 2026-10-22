@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { ArrowDown, ArrowUp, Check, Copy, Pause, Play, UsersRound } from "lucide-react";
+import Kpi from "@/components/ui/Kpi";
 
 export default function LeadDistributionDashboard({ initialData }) {
   const [brokers, setBrokers] = useState(initialData?.brokers || []);
@@ -71,12 +72,12 @@ export default function LeadDistributionDashboard({ initialData }) {
       <Metric label="Próximo corretor" value={nextBroker?.name || "Nenhum"} text />
     </div>
     {error ? <p className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 font-bold text-red-700">{error}</p> : null}
-    <div className="rounded-[24px] border border-line bg-white p-5 shadow-soft">
+    <div className="rounded-panel border border-line bg-white p-5 shadow-soft">
       <div className="flex items-center gap-3"><UsersRound className="h-6 w-6 text-brand" /><div><h2 className="text-xl font-black text-navy">Ordem da fila</h2><p className="text-sm font-bold text-muted">Só quem está online recebe lead, na ordem da fila. Quem está offline é pulado e mantém o lugar; quem recebe vai para o fim.</p></div></div>
       <div className="mt-5 space-y-2">{queue.map((broker, index) => <BrokerRow broker={broker} index={index} key={broker.id} onMove={move} onToggle={toggle} saving={savingId === broker.id} total={queue.length} />)}{!queue.length ? <Empty text="Nenhum corretor participa da roleta." /> : null}</div>
     </div>
-    <div className="rounded-[24px] border border-line bg-white p-5 shadow-soft"><h2 className="text-xl font-black text-navy">Fora da fila</h2><div className="mt-5 space-y-2">{outside.map((broker) => <BrokerRow broker={broker} key={broker.id} onToggle={toggle} saving={savingId === broker.id} />)}{!outside.length ? <Empty text="Todos os corretores estão na fila." /> : null}</div></div>
-    <div className="rounded-[24px] border border-line bg-white p-5 shadow-soft">
+    <div className="rounded-panel border border-line bg-white p-5 shadow-soft"><h2 className="text-xl font-black text-navy">Fora da fila</h2><div className="mt-5 space-y-2">{outside.map((broker) => <BrokerRow broker={broker} key={broker.id} onToggle={toggle} saving={savingId === broker.id} />)}{!outside.length ? <Empty text="Todos os corretores estão na fila." /> : null}</div></div>
+    <div className="rounded-panel border border-line bg-white p-5 shadow-soft">
       <h2 className="text-xl font-black text-navy">Histórico da roleta</h2>
       <div className="mt-4 divide-y divide-line">
         {history.map((item) => <HistoryRow item={item} key={item.id} />)}
@@ -101,7 +102,8 @@ function PresenceBadge({ presence }) {
   return <span className={`rounded-full px-2 py-0.5 text-[10px] font-black uppercase tracking-wide ${config.className}`}>{config.label}</span>;
 }
 function IconButton({ children, disabled, label, onClick }) { return <button aria-label={label} className="icon-button disabled:opacity-30" disabled={disabled} onClick={onClick} title={label} type="button">{children}</button>; }
-function Metric({ label, value, text }) { return <div className="rounded-[22px] border border-line bg-white p-5 shadow-soft"><p className={`${text ? "truncate text-xl" : "text-3xl"} font-black text-navy`}>{value}</p><p className="mt-1 text-sm font-bold text-muted">{label}</p></div>; }
+// Visual novo (2026-10-22): indicador no padrão único components/ui/Kpi (rótulo em cima, número, nota).
+function Metric({ label, value, text }) { return <Kpi label={label} value={text ? <span className="block truncate text-xl">{value}</span> : value} />; }
 function Empty({ text }) { return <p className="rounded-2xl bg-mist/50 p-5 text-center font-bold text-muted">{text}</p>; }
 function roleLabel(role) { return role === "associate" ? "Associado" : role === "admin" ? "Administrador" : role === "manager" ? "Gestor" : "Corretor"; }
 

@@ -44,7 +44,7 @@ export default async function CampaignClientsPage({ params }) {
         </Link>
 
         {error ? (
-          <article className="rounded-[28px] border border-red-200 bg-white p-8 shadow-soft">
+          <article className="rounded-panel border border-red-200 bg-white p-8 shadow-soft">
             <p className="text-sm font-black uppercase tracking-[0.18em] text-red-700">Erro</p>
             <p className="mt-4 rounded-2xl border border-red-100 bg-red-50 px-5 py-4 font-bold text-red-800">{error}</p>
           </article>
@@ -58,7 +58,7 @@ export default async function CampaignClientsPage({ params }) {
             </div>
 
             {statusBreakdown.length ? (
-              <article className="rounded-[28px] border border-line bg-white p-6 shadow-soft">
+              <article className="rounded-panel border border-line bg-white p-6 shadow-soft">
                 <p className="text-sm font-black uppercase tracking-[0.18em] text-brand">Funil deste link</p>
                 <h2 className="mt-2 text-2xl font-black text-navy">Onde os clientes estão hoje</h2>
                 <p className="mt-2 text-sm font-bold text-muted">
@@ -80,7 +80,7 @@ export default async function CampaignClientsPage({ params }) {
               <Link
                 key={client.originId}
                 href={`/admin/cadastros/${client.id}`}
-                className="flex flex-col gap-2 rounded-[24px] border border-line bg-white p-5 shadow-soft transition hover:-translate-y-0.5 hover:border-brand hover:shadow-lg sm:flex-row sm:items-center sm:justify-between"
+                className="flex flex-col gap-2 rounded-panel border border-line bg-white p-5 shadow-soft transition hover:-translate-y-0.5 hover:border-brand hover:shadow-lg sm:flex-row sm:items-center sm:justify-between"
               >
                 <div className="min-w-0">
                   <h3 className="truncate text-xl font-black text-navy">{client.fullName || "Sem nome"}</h3>
@@ -96,7 +96,7 @@ export default async function CampaignClientsPage({ params }) {
             ))}
 
             {!clients.length ? (
-              <article className="rounded-[28px] border border-line bg-white p-8 text-center font-black text-navy shadow-soft">
+              <article className="rounded-panel border border-line bg-white p-8 text-center font-black text-navy shadow-soft">
                 Nenhum cadastro chegou por este link ainda.
               </article>
             ) : null}

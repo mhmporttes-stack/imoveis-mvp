@@ -13,6 +13,7 @@ import { cx } from "@/components/ui/cx";
 import ManualAdminNews from "@/components/manual/ManualAdminNews";
 import { AudienceChecks, BeforeAfter, StatusPill, audienceText, formatDateTime, useManualApi } from "@/components/manual/manual-admin-parts";
 import { approvalState, moveId } from "@/lib/manual-ui-core.mjs";
+import { tabClasses } from "@/components/ui/Tabs";
 
 const bySort = (a, b) => (a.sort_order || 0) - (b.sort_order || 0) || String(a.title).localeCompare(String(b.title), "pt-BR");
 
@@ -79,21 +80,18 @@ export default function ManualAdmin({ initial, isOwner = false, ownerViewingAsOt
         </p>
       ) : null}
 
-      <nav aria-label="Áreas da administração" className="flex gap-1 overflow-x-auto border-b border-line">
+      <nav aria-label="Áreas da administração" className="mm-noscroll flex gap-1.5 overflow-x-auto py-1">
         {[{ key: "content", label: "Conteúdo", Icon: BookOpen }, { key: "queue", label: "Aprovação", Icon: ShieldCheck, count: queueCount }, { key: "news", label: "Novidades", Icon: Megaphone }].map(({ key, label, Icon, count }) => (
           <button
             key={key}
             type="button"
             onClick={() => setTab(key)}
             aria-current={tab === key ? "page" : undefined}
-            className={cx(
-              "-mb-px inline-flex min-h-touch shrink-0 items-center gap-1.5 border-b-2 px-2.5 text-sm sm:gap-2 sm:px-3 font-semibold transition-colors duration-150 ease-out-ui focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand motion-reduce:transition-none",
-              tab === key ? "border-brand text-navy" : "border-transparent text-muted hover:text-navy"
-            )}
+            className={cx(tabClasses(tab === key), "gap-1.5 sm:gap-2")}
           >
             <Icon className="h-4 w-4" aria-hidden="true" />
             {label}
-            {count ? <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-brand px-1.5 text-2xs font-semibold text-white">{count}</span> : null}
+            {count ? <span className="mm-count inline-flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-[11px] font-extrabold">{count}</span> : null}
           </button>
         ))}
       </nav>

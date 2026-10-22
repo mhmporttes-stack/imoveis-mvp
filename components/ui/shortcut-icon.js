@@ -14,7 +14,12 @@ export const SHORTCUT_ICON = "h-5 w-5";
 export const SHORTCUT_BADGE = "absolute -right-1 -top-1 ring-2 ring-mist";
 export const SHORTCUT_BADGE_COMPACT = "absolute -right-1.5 -top-1.5 ring-2 ring-white";
 
+// "topbar" (visual novo, crítica de 2026-10-22): no cabeçalho do painel, ao lado de Chat/Marketplace/Agenda — mesma caixa
+// de 44px com borda dos outros atalhos do cabeçalho (components/AdminTopBar.jsx). Fonte única do sino e de "esfriados".
+export const SHORTCUT_ICON_BUTTON_TOPBAR = "relative inline-flex h-touch w-touch shrink-0 items-center justify-center rounded-control border border-line bg-white text-ink transition-colors hover:border-accent-line hover:bg-accent-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent";
+
 export function shortcutIconClasses(variant = "compact") {
+  if (variant === "topbar") return { button: SHORTCUT_ICON_BUTTON_TOPBAR, icon: SHORTCUT_ICON, badge: "absolute -right-1.5 -top-1.5 ring-2 ring-mist" };
   return variant === "shortcut"
     ? { button: SHORTCUT_ICON_BUTTON, icon: SHORTCUT_ICON, badge: SHORTCUT_BADGE }
     : { button: SHORTCUT_ICON_BUTTON_COMPACT, icon: SHORTCUT_ICON, badge: SHORTCUT_BADGE_COMPACT };

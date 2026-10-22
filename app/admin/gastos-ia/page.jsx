@@ -27,7 +27,7 @@ export default async function AdminAiUsagePage() {
       <AdminSectionNav active="ai-usage" />
 
       {error ? (
-        <section className="container-page rounded-[28px] border border-red-200 bg-white p-8 shadow-soft">
+        <section className="container-page rounded-panel border border-red-200 bg-white p-8 shadow-soft">
           <p className="text-sm font-black uppercase tracking-[0.18em] text-red-700">Erro ao carregar extrato</p>
           <p className="mt-4 rounded-2xl border border-red-100 bg-red-50 px-5 py-4 font-bold text-red-800">{error}</p>
         </section>
