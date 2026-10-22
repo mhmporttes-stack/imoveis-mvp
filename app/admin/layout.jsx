@@ -83,16 +83,25 @@ export default async function AdminLayout({ children }) {
           ) : null}
           {/* Título/subtítulo da tela, busca, atalhos, sol/lua, Online e "Visualizar como corretor" (só admin geral real,
               fora do "Alterar conta"). O respiro do iPhone (safe-area) fica no próprio cabeçalho. */}
-          <AdminTopBar {...navFlags(auth, whatsappBlocked, chatHidden)} canViewAs={!auth.accountSwitchMode && isGeneralAdminProfile(auth.realProfile || auth.profile)} />
+          <AdminTopBar
+            {...navFlags(auth, whatsappBlocked, chatHidden)}
+            canViewAs={!auth.accountSwitchMode && isGeneralAdminProfile(auth.realProfile || auth.profile)}
+            extraShortcuts={auth.accountSwitchMode ? null : (
+              <>
+                {isOwnerAdminEmail(auth.user?.email) || isManagerProfile(auth.profile) ? <CooledClientsInbox align="end" variant="topbar" /> : null}
+                <NotificationHistoryButton align="end" variant="topbar" />
+              </>
+            )}
+          />
           {/* Campeão da semana / Melhor do dia em todas as telas, menos o Chat (app/globals.css esconde no Chat).
               Os indicadores de integração ficam DENTRO dos cards do ranking
               (WhatsApp no Campeão da Semana, Google Contacts no Melhor do
-              Dia) — ver TopRankingBadge. WhatsApp é fixo em toda aba (pedido do dono, 2026-09-30:
+              Dia) — ver TopRankingBadge. Sino e "esfriados" foram para o cabeçalho (crítica do visual novo, 2026-10-22). WhatsApp é fixo em toda aba (pedido do dono, 2026-09-30:
               corretor não percebia o próprio WhatsApp cair). */}
           <header className="admin-ranking-header container-page flex flex-wrap items-center gap-2">
             <TopRankingBadge
               weeklyIndicator={whatsappBlocked ? null : <WhatsappIndividualStatus align="end" />}
-              dailyIndicator={<>{auth.ok && !auth.accountSwitchMode && (isOwnerAdminEmail(auth.user?.email) || isManagerProfile(auth.profile)) ? <span data-top-moved-indicator="true" className="contents"><CooledClientsInbox align="end" /></span> : null}{auth.ok && !auth.accountSwitchMode ? <span data-top-moved-indicator="true" className="contents"><NotificationHistoryButton align="end" /></span> : null}<GoogleContactsStatus align="end" /></>}
+              dailyIndicator={<GoogleContactsStatus align="end" />}
             />
           </header>
         </div>

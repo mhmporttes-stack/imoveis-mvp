@@ -41,7 +41,9 @@ const DESTINATIONS = {
   marketplaceChat: { key: "marketplace-chat", href: "/admin/chat/marketplace", label: "Chat Marketplace", shortLabel: "Market", mediumLabel: "Marketplace", Icon: MarketplaceChatIcon, match: (path) => path.startsWith("/admin/chat/marketplace") },
   agenda: { key: "calendar", href: "/admin/calendario", label: "Agenda", Icon: CalendarDays, match: (path) => path.startsWith("/admin/calendario") },
   online: { key: "online", href: "/admin/desempenho/online", label: "Online", Icon: UserCheck, match: (path) => path.startsWith("/admin/desempenho/online") },
-  performance: { key: "performance", href: "/admin/desempenho", label: "Desempenho", Icon: BarChart3, match: (path) => (path.startsWith("/admin/desempenho") && !path.startsWith("/admin/desempenho/online")) || path.startsWith("/admin/relatorio-diario") }
+  // Rótulo curto "Ranking" na barra (crítica de 2026-10-22: "Desempenho" cortava em 390px com 6 colunas); o nome
+  // completo continua para leitor de tela e no menu/cabeçalho.
+  performance: { key: "performance", href: "/admin/desempenho", label: "Desempenho", shortLabel: "Ranking", mediumLabel: "Ranking", Icon: BarChart3, match: (path) => (path.startsWith("/admin/desempenho") && !path.startsWith("/admin/desempenho/online")) || path.startsWith("/admin/relatorio-diario") }
 };
 
 // Administrador geral (dono, 2026-10-13): "Online" no lugar da Meta Diária na barra; a Meta Diária vai para o "Mais".
@@ -219,7 +221,7 @@ export default function AdminBottomNav({ isAdmin = false, isBroker = false, isAs
                   className={cx(
                     "relative flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 text-[10px] font-semibold leading-4 tracking-normal",
                     "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent",
-                    active ? "text-accent" : "text-muted"
+                    active ? "text-accent-text" : "text-muted"
                   )}
                 >
                   <span className={cx(NAV_PILL, "transition-colors duration-150", active && "admin-nav-current")}>
@@ -248,7 +250,7 @@ export default function AdminBottomNav({ isAdmin = false, isBroker = false, isAs
               className={cx(
                 "flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 text-[10px] font-semibold leading-4 tracking-normal",
                 "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent",
-                !activeKey || moreOpen ? "text-accent" : "text-muted"
+                !activeKey || moreOpen ? "text-accent-text" : "text-muted"
               )}
             >
               <span className={NAV_PILL}>
@@ -277,14 +279,14 @@ function MenuTile({ href, label, Icon, current = false, count = 0, fullPage = fa
       href={href}
       aria-current={current ? "page" : undefined}
       className={cx(
-        "relative flex h-full min-h-[76px] flex-col items-center justify-center gap-1.5 rounded-[14px] border px-1.5 py-3 text-center text-[11px] font-bold leading-[1.2] text-ink",
+        "relative flex h-full min-h-[76px] flex-col items-center justify-center gap-1.5 rounded-[14px] border px-1 py-3 text-center text-[10.5px] font-bold leading-[1.2] text-ink",
         "transition-[background-color,transform] duration-150 ease-out-ui active:scale-[0.97] motion-reduce:transition-none",
         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent",
         current ? "border-accent-line bg-accent-soft" : "border-line bg-surface-2 hover:bg-accent-soft"
       )}
     >
       <Icon className="h-[22px] w-[22px] shrink-0 text-accent" strokeWidth={1.9} aria-hidden="true" />
-      <span className="max-w-full break-words">{label}</span>
+      <span lang="pt-BR" className="max-w-full hyphens-auto">{label}</span>
       {/* Badge preso ao canto do próprio item: não disputa largura com o nome. */}
       <CountBadge count={count} label={`${count} ${label}`} className="absolute right-1.5 top-1.5" />
     </TileLink>

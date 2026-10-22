@@ -914,11 +914,6 @@ body:has([data-home-hero]) .site-header {
   border-bottom-color: transparent;
 }
 
-/* Clientes (computador): "Clientes que esfriaram" e "Notificações" passam para os atalhos do topo da tela; as cópias do cartão Melhor do Dia
-   somem só a partir de md e só enquanto a tela de Clientes está aberta (ClientWorkspace marca o body). */
-@media (min-width: 768px) {
-  body[data-shortcuts-moved="true"] [data-top-moved-indicator] { display: none; }
-}
 
 /* ===== Casca do painel — visual novo (dono, 2026-10-22) =====
    Menu lateral do computador (components/AdminMenu.jsx), cabeçalho (components/AdminTopBar.jsx), contadores verdes e

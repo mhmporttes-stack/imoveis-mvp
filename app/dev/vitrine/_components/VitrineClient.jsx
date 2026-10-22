@@ -80,7 +80,7 @@ const TELAS = {
       <>
         <div className="mm-app-hide">
           <header className="admin-ranking-header flex min-h-12 flex-wrap items-center justify-center gap-2 border-b border-line bg-white px-3 pt-[env(safe-area-inset-top)] sm:min-h-14 sm:px-6">
-            <TopRankingBadge weeklyIndicator={<WhatsappIndividualStatus align="end" />} dailyIndicator={<><CooledClientsInbox align="end" /><NotificationHistoryButton align="end" /><GoogleContactsStatus align="end" /></>} />
+            <TopRankingBadge weeklyIndicator={<WhatsappIndividualStatus align="end" />} dailyIndicator={<GoogleContactsStatus align="end" />} />
           </header>
         </div>
         <main className="bg-mist pb-14 pt-3 md:pt-14">
@@ -314,10 +314,10 @@ export default function VitrineClient({ tela, perfil, estado, limpo, fonte, vari
         <>
           <AdminMenu {...PERFIS[perfilValido]} currentPath={atual.path || ""} user={{ name: "Matheus Demo", photoUrl: "", roleLabel: PAPEIS[perfilValido] }} />
           <div className="mm-app-hide">
-            <AdminTopBar {...PERFIS[perfilValido]} currentPath={atual.path || ""} canViewAs={perfilValido === "admin"} />
+            <AdminTopBar {...PERFIS[perfilValido]} currentPath={atual.path || ""} canViewAs={perfilValido === "admin"} extraShortcuts={<>{perfilValido === "admin" || perfilValido === "gestor" ? <CooledClientsInbox align="end" variant="topbar" /> : null}<NotificationHistoryButton align="end" variant="topbar" /></>} />
             {atual.path?.startsWith("/admin/chat") ? null : (
               <header className="admin-ranking-header container-page flex flex-wrap items-center gap-2">
-                <TopRankingBadge weeklyIndicator={<WhatsappIndividualStatus align="end" />} dailyIndicator={<><NotificationHistoryButton align="end" /><GoogleContactsStatus align="end" /></>} />
+                <TopRankingBadge weeklyIndicator={<WhatsappIndividualStatus align="end" />} dailyIndicator={<GoogleContactsStatus align="end" />} />
               </header>
             )}
           </div>

@@ -106,6 +106,12 @@ export default function OnlinePresenceBoard({ initialPresence, initialError = ""
           <h3 id="online-equipe" className="text-[15px] font-extrabold text-ink">Presença no CRM</h3>
           <span className="text-xs text-muted">toque nos ícones para ver o histórico</span>
         </div>
+        {/* Legenda das cores do WhatsApp (o ícone amarelo é o número ocioso da ROL-2e). */}
+        <ul aria-label="Legenda do WhatsApp" className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-muted">
+          <li className="inline-flex items-center gap-1.5"><WhatsappGlyph className="h-3.5 w-3.5 text-success" /> conectado</li>
+          <li className="inline-flex items-center gap-1.5"><WhatsappGlyph className="h-3.5 w-3.5 text-warning" /> ocioso (4 h sem mensagens)</li>
+          <li className="inline-flex items-center gap-1.5"><WhatsappGlyph className="h-3.5 w-3.5 text-danger" /> desconectado</li>
+        </ul>
 
         <div className="mt-4 grid gap-3 [grid-template-columns:repeat(auto-fill,minmax(min(100%,300px),1fr))]">
           {!members.length ? (
@@ -139,7 +145,9 @@ export default function OnlinePresenceBoard({ initialPresence, initialError = ""
   );
 }
 
-// Indicadores do topo (visual novo): contagem dos cards abaixo, pelo mesmo status do card.
+// Indicadores do topo (visual novo): contagem dos cards abaixo, pelo mesmo status do card. A nota de cada um só usa
+// o que /api/admin/presence já traz (Wi-Fi da imobiliária, ausência marcada, WhatsApp) — nenhum número novo.
+// No celular: faixa compacta de 4 numa linha (sem notas); do sm em diante, cards com a nota.
 function PresenceKpis({ members }) {
   const counts = { online: 0, disconnected: 0, away: 0, offline: 0 };
   for (const member of members) {
@@ -147,18 +155,22 @@ function PresenceKpis({ members }) {
     const key = Object.keys(STATUS_META).find((name) => STATUS_META[name] === meta) || "offline";
     counts[key] += 1;
   }
+  const onWifi = members.filter((member) => member.office?.here).length;
+  const markedAbsent = members.filter((member) => member.office?.absence).length;
+  const officeRule = members.some((member) => member.office?.ruleEnabled);
   const items = [
-    { key: "online", label: "Online", tone: "text-success" },
-    { key: "disconnected", label: "Desconectado", tone: "text-danger" },
-    { key: "away", label: "Ausente", tone: "text-warning" },
-    { key: "offline", label: "Offline", tone: "text-muted" }
+    { key: "online", label: "Online", tone: "text-success", note: officeRule ? `${onWifi} na imobiliária agora (Wi-Fi)` : "interagiu nos últimos 5 min" },
+    { key: "disconnected", label: "Desconectado", tone: "text-danger", note: "on-line sem WhatsApp conectado" },
+    { key: "away", label: "Ausente", tone: "text-warning", note: "5 min ou mais sem interagir no CRM" },
+    { key: "offline", label: "Offline", tone: "text-muted", note: markedAbsent ? `${markedAbsent} marcado${markedAbsent === 1 ? "" : "s"} como ausente` : "fora do CRM" }
   ];
   return (
-    <section aria-label="Indicadores da equipe" className="grid grid-cols-2 gap-3 md:grid-cols-4">
+    <section aria-label="Indicadores da equipe" className="grid grid-cols-4 gap-2 sm:gap-3">
       {items.map((item) => (
-        <div key={item.key} className="rounded-card border border-line bg-white p-4">
-          <p className="text-xs font-semibold text-muted">{item.label}</p>
-          <p className={`mt-1 text-2xl font-extrabold tabular-nums ${item.tone}`}>{counts[item.key]}</p>
+        <div key={item.key} className="min-w-0 rounded-card border border-line bg-white px-1 py-2.5 text-center sm:p-4 sm:text-left">
+          <p className="text-[10px] font-medium leading-4 text-muted [overflow-wrap:anywhere] sm:text-xs sm:font-semibold">{item.label}</p>
+          <p className={`mt-0.5 text-xl font-extrabold tabular-nums sm:mt-1 sm:text-2xl ${item.tone}`}>{counts[item.key]}</p>
+          <p className="mt-1 hidden text-[11px] leading-4 text-muted sm:block">{item.note}</p>
         </div>
       ))}
     </section>
@@ -574,7 +586,7 @@ function OfficeDetail({ member, onReleased, onChanged }) {
             {office.absence.markedByName ? ` (marcado por ${firstName(office.absence.markedByName)})` : ""}{office.ruleEnabled ? ": fora da roleta." : "."}
             {office.wifiDetectedWhileAbsent ? <span className="mt-0.5 block text-xs text-muted">O Wi-Fi da imobiliária está detectando o aparelho, mas não conta como presença.</span> : null}
           </p>
-          <button type="button" onClick={() => absenceAction("clear-absent")} disabled={Boolean(busy)} className="rounded-full border border-line bg-white px-3 py-1.5 text-xs font-bold text-ink disabled:opacity-60">
+          <button type="button" onClick={() => absenceAction("clear-absent")} disabled={Boolean(busy)} className="inline-flex min-h-touch items-center rounded-full border border-line bg-white px-4 text-xs font-bold text-ink hover:border-accent-line disabled:opacity-60">
             {busy === "clear" ? "Desfazendo…" : "Desfazer"}
           </button>
         </div>
@@ -585,16 +597,16 @@ function OfficeDetail({ member, onReleased, onChanged }) {
   const absentButtons = (
     <div className="mt-2 flex flex-wrap items-center gap-2 border-t border-line pt-2">
       <p className="w-full text-xs font-semibold text-ink-2">Marcar ausente (não conta presença mesmo com o Wi-Fi):</p>
-      <button type="button" onClick={() => absenceAction("mark-absent", todayKey)} disabled={Boolean(busy)} className="rounded-full border border-line bg-white px-3 py-1.5 text-xs font-bold text-ink disabled:opacity-60">
+      <button type="button" onClick={() => absenceAction("mark-absent", todayKey)} disabled={Boolean(busy)} className="inline-flex min-h-touch items-center rounded-full border border-line bg-white px-4 text-xs font-bold text-ink hover:border-accent-line disabled:opacity-60">
         {busy === todayKey ? "Salvando…" : "Hoje"}
       </button>
       {sundayKey !== todayKey ? (
-        <button type="button" onClick={() => absenceAction("mark-absent", sundayKey)} disabled={Boolean(busy)} className="rounded-full border border-line bg-white px-3 py-1.5 text-xs font-bold text-ink disabled:opacity-60">
+        <button type="button" onClick={() => absenceAction("mark-absent", sundayKey)} disabled={Boolean(busy)} className="inline-flex min-h-touch items-center rounded-full border border-line bg-white px-4 text-xs font-bold text-ink hover:border-accent-line disabled:opacity-60">
           {busy === sundayKey ? "Salvando…" : "Até domingo"}
         </button>
       ) : null}
-      <input type="date" value={absentDate} min={todayKey} onChange={(event) => setAbsentDate(event.target.value)} aria-label="Ausente até a data" className="rounded-full border border-line bg-white px-3 py-1 text-xs font-bold text-ink" />
-      <button type="button" onClick={() => absenceAction("mark-absent", absentDate)} disabled={Boolean(busy) || !absentDate} className="rounded-full border border-line bg-white px-3 py-1.5 text-xs font-bold text-ink disabled:opacity-60">
+      <input type="date" value={absentDate} min={todayKey} onChange={(event) => setAbsentDate(event.target.value)} aria-label="Ausente até a data" className="min-h-touch rounded-full border border-line bg-white px-3 text-xs font-bold text-ink" />
+      <button type="button" onClick={() => absenceAction("mark-absent", absentDate)} disabled={Boolean(busy) || !absentDate} className="inline-flex min-h-touch items-center rounded-full border border-line bg-white px-4 text-xs font-bold text-ink hover:border-accent-line disabled:opacity-60">
         {busy && busy === absentDate ? "Salvando…" : "Até a data"}
       </button>
     </div>
@@ -626,10 +638,10 @@ function OfficeDetail({ member, onReleased, onChanged }) {
   // hoje) e a pessoa ainda não registrou a de hoje: dono/gestora marcam sem esperar a chegada anterior vencer.
   const manualButtons = (
     <div className="flex flex-wrap gap-2">
-      <button type="button" onClick={() => release("arrived")} disabled={Boolean(busy)} className="rounded-full border border-line bg-white px-3 py-1.5 text-xs font-bold text-ink disabled:opacity-60">
+      <button type="button" onClick={() => release("arrived")} disabled={Boolean(busy)} className="inline-flex min-h-touch items-center rounded-full border border-line bg-white px-4 text-xs font-bold text-ink hover:border-accent-line disabled:opacity-60">
         {busy === "arrived" ? "Salvando…" : "Chegou e não conectou"}
       </button>
-      <button type="button" onClick={() => release("external")} disabled={Boolean(busy)} className="rounded-full bg-accent px-3 py-1.5 text-xs font-bold text-on-accent disabled:opacity-60">
+      <button type="button" onClick={() => release("external")} disabled={Boolean(busy)} className="inline-flex min-h-touch items-center rounded-full bg-accent-strong px-4 text-xs font-bold text-on-accent hover:brightness-110 disabled:opacity-60">
         {busy === "external" ? "Liberando…" : "Liberar hoje"}
       </button>
     </div>
@@ -716,7 +728,7 @@ function OfficeNetworkPanel() {
             type="button"
             disabled={busy}
             onClick={() => act({ action: "set-enabled", enabled: !panel.enabled })}
-            className={`rounded-full px-4 py-2 text-sm font-bold disabled:opacity-60 ${panel.enabled ? "border border-line bg-white text-ink" : "bg-accent text-on-accent"}`}
+            className={`rounded-full px-4 py-2 text-sm font-bold disabled:opacity-60 ${panel.enabled ? "border border-line bg-white text-ink" : "bg-accent-strong text-on-accent"}`}
           >
             {panel.enabled ? "Desligar regra" : "Ligar regra"}
           </button>
@@ -729,7 +741,7 @@ function OfficeNetworkPanel() {
           {panel.currentMatches ? "este aparelho está na rede da imobiliária" : "este aparelho não está numa rede cadastrada"}
         </p>
         {!panel.currentMatches ? (
-          <button type="button" disabled={busy} onClick={() => act({ action: "mark-network" })} className="rounded-full bg-accent px-3 py-1.5 text-xs font-bold text-on-accent disabled:opacity-60">
+          <button type="button" disabled={busy} onClick={() => act({ action: "mark-network" })} className="inline-flex min-h-touch items-center rounded-full bg-accent-strong px-4 text-xs font-bold text-on-accent hover:brightness-110 disabled:opacity-60">
             Esta é a rede da imobiliária
           </button>
         ) : null}
@@ -797,13 +809,14 @@ function DeviceButton({ device, online = false, open, onClick }) {
   );
 }
 
-// WhatsApp do corretor: verde = número conectado (um ícone por número, com o Nº embaixo); laranja = ocioso (ROL-2e);
+// WhatsApp do corretor: verde = número conectado (um ícone por número, com o Nº embaixo); amarelo do tema = ocioso
+// (ROL-2e: 4 h sem mensagens; o estado é o mesmo, só a cor saiu do laranja para o token warn);
 // vermelho = desconectado (visual novo, dono, 2026-10-22).
 function WhatsappStatusButton({ icon, open, onClick }) {
   const idle = icon.connected && icon.state === "idle";
   const name = icon.slot === 2 ? "Número 2" : "Número 1";
-  const label = !icon.connected ? "WhatsApp desconectado" : idle ? `WhatsApp ${name} sem mensagens há 4 h (fora da roleta, reconectar)` : `WhatsApp ${name} conectado`;
-  const tone = !icon.connected ? "text-danger" : idle ? "text-orange-500" : "text-success";
+  const label = !icon.connected ? "WhatsApp desconectado" : idle ? `WhatsApp ${name}: ocioso (4 h sem mensagens) — fora da roleta, reconectar` : `WhatsApp ${name} conectado`;
+  const tone = !icon.connected ? "text-danger" : idle ? "text-warning" : "text-success";
   return (
     <button
       type="button"

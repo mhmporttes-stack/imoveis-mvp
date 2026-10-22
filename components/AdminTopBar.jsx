@@ -62,7 +62,10 @@ export default function AdminTopBar({
   whatsappBlocked = false,
   chatHidden: chatHiddenProp = false,
   canViewAs = false,
-  currentPath = ""
+  currentPath = "",
+  // Sino (Notificações) e "Clientes que esfriaram", montados pelo layout com as condições de perfil de sempre. Ficam aqui,
+  // em todas as telas e também no celular — antes moravam dentro do card "Melhor do dia" e se repetiam na tela de Clientes.
+  extraShortcuts = null
 }) {
   const chatHidden = useLiveChatHidden(chatHiddenProp);
   const routerPath = usePathname() || "";
@@ -115,13 +118,14 @@ export default function AdminTopBar({
 
   return (
     <div className="admin-topbar container-page flex flex-wrap items-center gap-x-3 gap-y-2 pb-1 pt-[calc(env(safe-area-inset-top)+14px)] md:pt-[calc(env(safe-area-inset-top)+20px)]">
-      <div className="min-w-0 flex-[1_1_220px]">
+      <div className="min-w-0 flex-[1_1_220px] md:min-w-[200px]">
         {crumb ? <p className="truncate text-xs text-muted max-md:hidden">{crumb}</p> : null}
         <p className="truncate text-xl font-extrabold leading-tight tracking-[-0.01em] text-ink md:text-2xl">{title}</p>
-        {subtitle ? <p className="mt-0.5 truncate text-[13px] text-muted max-sm:hidden">{subtitle}</p> : null}
+        {/* Subtítulo nunca cortado (crítica de 2026-10-22): quebra em 2 linhas se a busca e os atalhos apertarem. */}
+        {subtitle ? <p className="mt-0.5 text-pretty text-[13px] leading-snug text-muted max-sm:hidden">{subtitle}</p> : null}
       </div>
 
-      <form role="search" onSubmit={submitSearch} className="hidden min-h-touch max-w-[380px] flex-[1_1_240px] items-center gap-2 rounded-control border border-line bg-white px-3.5 text-muted focus-within:border-accent lg:flex">
+      <form role="search" onSubmit={submitSearch} className="hidden min-h-touch min-w-[180px] max-w-[380px] flex-[0_1_340px] items-center gap-2 rounded-control border border-line bg-white px-3.5 text-muted focus-within:border-accent lg:flex">
         <Search className="h-[18px] w-[18px] shrink-0" strokeWidth={1.9} aria-hidden="true" />
         <label className="sr-only" htmlFor="admin-topbar-search">Buscar cliente</label>
         <input
@@ -167,12 +171,14 @@ export default function AdminTopBar({
         ) : null}
       </nav>
 
+      {extraShortcuts ? <div className="flex shrink-0 items-center gap-2">{extraShortcuts}</div> : null}
+
       {canViewAs ? (
         <Link
           href="/admin/corretores?tab=account"
           title="Visualizar como corretor (Alterar conta)"
           aria-label="Visualizar como corretor (Alterar conta)"
-          className="inline-flex min-h-touch min-w-touch shrink-0 items-center justify-center gap-2 rounded-control border border-accent bg-accent-soft px-3 text-[13px] font-extrabold text-ink transition-colors hover:bg-accent hover:text-on-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+          className="inline-flex min-h-touch min-w-touch shrink-0 items-center justify-center gap-2 rounded-control border border-accent bg-accent-soft px-3 text-[13px] font-extrabold text-ink transition-colors hover:bg-accent-strong hover:text-on-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
         >
           <Eye className="h-[18px] w-[18px]" strokeWidth={1.9} aria-hidden="true" />
           <span className="max-xl:hidden">Visualizar como corretor</span>

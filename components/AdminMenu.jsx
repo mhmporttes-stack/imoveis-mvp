@@ -384,7 +384,7 @@ export default function AdminMenu({ isAdmin = false, isBroker = false, isAssocia
                         href={item.href}
                         {...(item.key === "daily-goal" ? { direction: "forward" } : {})}
                         aria-current={isCurrent ? "page" : undefined}
-                        title={open ? undefined : item.label}
+                        title={item.label}
                         className={cx(
                           "relative mb-0.5 flex min-h-[42px] items-center gap-3 rounded-control border px-[13px] text-sm",
                           "transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent",

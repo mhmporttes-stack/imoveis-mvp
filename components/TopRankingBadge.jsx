@@ -100,7 +100,7 @@ export default function TopRankingBadge({ weeklyIndicator = null, dailyIndicator
       <div className="relative flex min-w-0">
         <SceneTransitionLink href="/admin/meta-diaria" direction="forward" title="Ver desempenho" className={`${WEEKLY_CARD} ${CARD_GRID}`}>
           <span aria-hidden="true" className="mm-scan" />
-          <span className={`${LABEL} text-[#A86A00]`}>{weekly ? weeklyChampionTitle(weekly.gender) : "Campeão da Semana"}</span>
+          <span className={`${LABEL} text-warning`}>{weekly ? weeklyChampionTitle(weekly.gender) : "Campeão da Semana"}</span>
           {weekly ? (
             <>
               <span className={`${PHOTO} mm-pulse-ring mm-pulse-gold rounded-full`}>
@@ -108,8 +108,8 @@ export default function TopRankingBadge({ weeklyIndicator = null, dailyIndicator
                 <span aria-hidden="true" className="mm-crown absolute -right-1 -top-2 text-sm leading-none lg:-right-1.5 lg:-top-3 lg:text-lg">♛</span>
               </span>
               <span className={TEXT}>
-                <span className={NAME}>{weekly.name}</span>
-                <span className="block truncate text-xs font-medium text-muted lg:text-[13px]"><b className="text-[13px] font-extrabold text-[#A86A00] lg:text-[15px]">{formatPoints(weekly.points)} pontos</b> semana anterior</span>
+                <PersonName name={weekly.name} />
+                <span className="block truncate text-xs font-medium text-muted lg:text-[13px]"><b className="text-[13px] font-extrabold text-warning lg:text-[15px]">{formatPoints(weekly.points)} pontos</b><span className="max-lg:hidden"> semana anterior</span></span>
               </span>
             </>
           ) : (
@@ -121,7 +121,7 @@ export default function TopRankingBadge({ weeklyIndicator = null, dailyIndicator
       <div className="relative flex min-w-0">
         <SceneTransitionLink href="/admin/meta-diaria" direction="forward" title="Ver desempenho" className={`${DAILY_CARD} ${CARD_GRID}`}>
           <span aria-hidden="true" className="mm-scan" />
-          <span className={`${LABEL} text-accent max-lg:!pr-[4.25rem] lg:!pr-[6.5rem]`}>Melhor do Dia</span>
+          <span className={`${LABEL} text-accent-text max-lg:!pr-[4.25rem] lg:!pr-[6.5rem]`}>Melhor do Dia</span>
           {daily ? (
             <>
               <span className={`${PHOTO} mm-pulse-ring rounded-full`}>
@@ -129,8 +129,8 @@ export default function TopRankingBadge({ weeklyIndicator = null, dailyIndicator
                 <span aria-hidden="true" className="mm-float absolute -right-1 -top-2 text-sm leading-none text-accent lg:-right-1.5 lg:-top-3 lg:text-lg">✦</span>
               </span>
               <span className={TEXT}>
-                <span className={NAME}>{daily.name}</span>
-                <span className="block truncate text-xs font-medium text-muted lg:text-[13px]"><b className="text-[13px] font-extrabold text-accent lg:text-[15px]">{formatPoints(daily.points)} pontos</b> hoje</span>
+                <PersonName name={daily.name} />
+                <span className="block truncate text-xs font-medium text-muted lg:text-[13px]"><b className="text-[13px] font-extrabold text-accent-text lg:text-[15px]">{formatPoints(daily.points)} pontos</b><span className="max-lg:hidden"> hoje</span></span>
               </span>
             </>
           ) : (
@@ -148,6 +148,18 @@ export default function TopRankingBadge({ weeklyIndicator = null, dailyIndicator
         </div>
       ) : null}
     </div>
+  );
+}
+
+// Celular (crítica de 2026-10-22): só o primeiro nome, para nada ser cortado no card de meia largura; o nome
+// completo continua no computador e no leitor de tela.
+function PersonName({ name = "" }) {
+  const first = String(name).trim().split(/\s+/)[0] || name;
+  return (
+    <span className={NAME} title={name}>
+      <span className="lg:hidden" aria-hidden="true">{first}</span>
+      <span className="max-lg:sr-only">{name}</span>
+    </span>
   );
 }
 

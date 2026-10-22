@@ -3,8 +3,6 @@
 import Link from "next/link";
 import { useEffect, useId, useRef, useState } from "react";
 import { Calculator, ChevronLeft, ChevronRight, Inbox, Link2, Search, SlidersHorizontal, Target, TriangleAlert, UserRoundPlus, UserSearch, X } from "lucide-react";
-import NotificationHistoryButton from "@/components/alerts/NotificationHistoryButton";
-import CooledClientsInbox from "@/components/cooled/CooledClientsInbox";
 import SceneTransitionLink from "@/components/motion/SceneTransitionLink";
 import Button from "@/components/ui/Button";
 import { useConfirm } from "@/components/ui/ConfirmDialog";
@@ -29,15 +27,9 @@ import { useClientList } from "./useClientList";
 //   funil · 3) os cards dos clientes (ClientCard), com o que se usa no dia a
 //   dia · 4) a ficha do cliente numa gaveta para o secundário.
 export default function ClientWorkspace(props) {
-  const { canManageResponsibleUsers = false, canReturnAssignedProspecting = false, isOwner = false, brokerSimulationLink = "", showCooledInbox = false, showNotifications = false } = props;
-  // No computador, "Clientes que esfriaram" e "Notificações" ficam nos atalhos do topo desta tela (dono, 2026-10-16); o
-  // marcador abaixo esconde as cópias do cartão "Melhor do Dia" (só md+; no celular continuam lá, pois estes atalhos não existem).
-  const movedShortcuts = showCooledInbox || showNotifications;
-  useEffect(() => {
-    if (!movedShortcuts) return undefined;
-    document.body.dataset.shortcutsMoved = "true";
-    return () => { delete document.body.dataset.shortcutsMoved; };
-  }, [movedShortcuts]);
+  const { canManageResponsibleUsers = false, canReturnAssignedProspecting = false, isOwner = false, brokerSimulationLink = "" } = props;
+  // "Clientes que esfriaram" e "Notificações" ficam no cabeçalho do painel (AdminTopBar, todas as telas) desde a crítica do
+  // visual novo (2026-10-22); as props showCooledInbox/showNotifications continuam aceitas, sem uso aqui.
   const [notify, toastElement] = useToast();
   const [confirmAction, confirmElement] = useConfirm();
   const [openClientId, setOpenClientId] = useState("");
@@ -80,20 +72,19 @@ export default function ClientWorkspace(props) {
 
   return (
     <section ref={topRef} className="container-page scroll-mt-4 pb-6" aria-labelledby="clientes-titulo">
-      {/* 1. Cabeçalho */}
-      {/* Celular (dono, 2026-10-12): sem o cabeçalho — título só para leitor de tela; "Novo cliente" e "Prospecção" ficam no
-          menu "Mais" e "Meu link" ao lado da busca. A contagem total já aparece em "Todos" no funil. Desktop inalterado. */}
+      {/* 1. Barra da tela (visual novo, crítica de 2026-10-22): o título "Lista de clientes" já está no cabeçalho do painel,
+          então o "Clientes" daqui fica só para leitor de tela; a contagem vira texto à esquerda e as ações à direita.
+          Celular (dono, 2026-10-12): sem esta barra — "Novo cliente" e "Prospecção" no "Mais", "Meu link" ao lado da busca. */}
       <header className="max-sm:block sm:flex sm:flex-wrap sm:items-center sm:justify-between sm:gap-x-4 sm:gap-y-3">
-        {/* Contagem na mesma linha do título (dono, 2026-10-12: economizar espaço). */}
         <div className="flex min-w-0 items-baseline gap-2 max-sm:sr-only">
-          <h1 id="clientes-titulo" className="text-[28px] font-semibold uppercase leading-[34px] tracking-[0.01em] text-navy">Clientes</h1>
-          {/* Só o número (dono, 2026-10-12); o texto completo fica para leitor de tela. */}
-          <p className="truncate text-sm text-ink-2 tabular-nums" aria-label={`${list.total} ${list.total === 1 ? "cliente" : "clientes"}${anyFilter ? " neste filtro" : ""}`}>
-            {list.total}
+          <h1 id="clientes-titulo" className="sr-only">Clientes</h1>
+          <p className="truncate text-sm font-semibold text-ink-2 tabular-nums" aria-label={`${list.total} ${list.total === 1 ? "cliente" : "clientes"}${anyFilter ? " neste filtro" : ""}`}>
+            {list.total} {list.total === 1 ? "cliente" : "clientes"}{anyFilter ? <span className="font-normal text-muted"> neste filtro</span> : null}
           </p>
         </div>
         <div className="flex items-center gap-2 max-sm:hidden">
-          {/* Atalhos da tela (computador): Meta Diária, Simulador Caixa, Clientes que esfriaram e Notificações. */}
+          {/* Atalhos da tela (computador): Meta Diária e Simulador Caixa. Chat, Marketplace, Agenda, Notificações e
+              "Clientes que esfriaram" (com contadores) ficam no cabeçalho do painel — aqui seriam repetidos. */}
           <nav aria-label="Atalhos" className="mr-1 hidden items-center gap-1 md:flex">
             <SceneTransitionLink href="/admin/meta-diaria" direction="forward" aria-label="Meta Diária" title="Meta Diária" className={SHORTCUT}>
               <Target className="h-5 w-5" aria-hidden="true" />
@@ -102,10 +93,6 @@ export default function ClientWorkspace(props) {
             <Link href="/admin/simulador-caixa" aria-label="Simulador Caixa" title="Simulador Caixa" className={SHORTCUT}>
               <Calculator className="h-5 w-5" aria-hidden="true" />
             </Link>
-            {/* Chat, Chat Marketplace e Agenda (com os contadores) ficam no cabeçalho do painel (AdminTopBar) desde o
-                visual novo (dono, 2026-10-22) — aqui seriam repetidos lado a lado. */}
-            {showCooledInbox ? <CooledClientsInbox align="end" variant="shortcut" /> : null}
-            {showNotifications ? <NotificationHistoryButton align="end" variant="shortcut" /> : null}
           </nav>
           {brokerSimulationLink ? (
             <Button variant="ghost" size="md" onClick={list.copyBrokerSimulationLink} className="hidden sm:inline-flex">
@@ -155,7 +142,7 @@ export default function ClientWorkspace(props) {
             <input
               type="search"
               className={cx(inputClasses, "pl-9 pr-9")}
-              placeholder="Buscar nome ou telefone"
+              placeholder="Buscar cliente"
               value={list.searchInput}
               onChange={(event) => list.setSearchInput(event.target.value)}
             />
