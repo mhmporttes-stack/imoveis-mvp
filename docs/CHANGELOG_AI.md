@@ -44,6 +44,15 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 
 
+### 2026-10-22 — Painel: botão "Expandir para a tela toda" / "Largura padrão"
+- **Data:** 2026-10-22
+- **Área:** Frontend/Painel
+- **Alteração:** botão no cabeçalho do painel (só computador, ≥ 768px) que alterna o conteúdo entre a largura padrão (limite de 1360px) e as bordas da tela. Preferência por aparelho (localStorage `mm-admin-wide`, classe `html.mm-wide` aplicada antes da pintura). Só apresentação.
+- **Motivo:** pedido do dono ("quero a opção de expandir para os limites da tela ou deixar padrão").
+- **Arquivos afetados:** `components/AdminWidthToggle.jsx`, `components/AdminTopBar.jsx`, `components/admin-theme.js`, `app/admin-theme.css`
+- **Risco/observação:** só vale com `html.mm-panel` (painel); site público e celular não mudam.
+- **Autor:** Claude Code
+
 ### 2026-10-22 — Card do cliente na fila da roleta mostra "Roleta"
 - **Data:** 2026-10-22
 - **Área:** Clientes

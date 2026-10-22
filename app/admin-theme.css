@@ -316,3 +316,12 @@ html.mm-panel .client-action-button {
 html.mm-panel .client-action-button:hover {
   transform: none;
 }
+
+/* Largura do painel (dono, 2026-10-22): com html.mm-wide o conteúdo vai até as bordas da tela (só ≥ 768px;
+   no celular nada muda). Botão: components/AdminWidthToggle.jsx. */
+@media (min-width: 768px) {
+  html.mm-panel.mm-wide .container-page {
+    width: calc(100% - 32px);
+    max-width: none;
+  }
+}

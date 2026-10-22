@@ -17,8 +17,14 @@ export function isThemedPath(pathname = "") {
   return /^\/(admin|chat-app|dev)(\/|$)/.test(pathname || "");
 }
 
+// Largura do painel (dono, 2026-10-22: "quero a opção de expandir para os limites da tela ou deixar padrão"):
+// html.mm-wide tira o limite de largura do conteúdo (app/admin-theme.css). Preferência por aparelho, como o tema.
+export const ADMIN_WIDE_STORAGE_KEY = "mm-admin-wide";
+export const ADMIN_WIDE_CLASS = "mm-wide";
+export const ADMIN_WIDE_EVENT = "mm-admin-wide-change";
+
 // Roda antes da pintura (app/layout.jsx): sem isso a tela piscaria branca ao abrir o app no escuro.
-export const ADMIN_THEME_BOOT_SCRIPT = `try{if(/^\\/(admin|chat-app|dev)(\\/|$)/.test(location.pathname))document.documentElement.classList.add("${ADMIN_PANEL_CLASS}");if(/^\\/(admin|chat-app|dev)(\\/|$)/.test(location.pathname)&&localStorage.getItem("${ADMIN_THEME_STORAGE_KEY}")==="dark"){document.documentElement.classList.add("${ADMIN_THEME_DARK_CLASS}");var m=document.querySelector('meta[name="theme-color"]');if(m)m.setAttribute("content","${ADMIN_THEME_COLORS.dark}")}}catch(e){}`;
+export const ADMIN_THEME_BOOT_SCRIPT = `try{if(/^\\/(admin|chat-app|dev)(\\/|$)/.test(location.pathname))document.documentElement.classList.add("${ADMIN_PANEL_CLASS}");if(localStorage.getItem("${ADMIN_WIDE_STORAGE_KEY}")==="1")document.documentElement.classList.add("${ADMIN_WIDE_CLASS}");if(/^\\/(admin|chat-app|dev)(\\/|$)/.test(location.pathname)&&localStorage.getItem("${ADMIN_THEME_STORAGE_KEY}")==="dark"){document.documentElement.classList.add("${ADMIN_THEME_DARK_CLASS}");var m=document.querySelector('meta[name="theme-color"]');if(m)m.setAttribute("content","${ADMIN_THEME_COLORS.dark}")}}catch(e){}`;
 
 export function readStoredAdminTheme() {
   try {
@@ -54,4 +60,23 @@ export function setAdminTheme(theme) {
   }
   applyAdminTheme(next);
   window.dispatchEvent(new CustomEvent(ADMIN_THEME_EVENT, { detail: next }));
+}
+
+export function readStoredAdminWide() {
+  try {
+    return window.localStorage.getItem(ADMIN_WIDE_STORAGE_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
+export function setAdminWide(wide) {
+  try {
+    if (wide) window.localStorage.setItem(ADMIN_WIDE_STORAGE_KEY, "1");
+    else window.localStorage.removeItem(ADMIN_WIDE_STORAGE_KEY);
+  } catch {
+    // Armazenamento bloqueado: vale só até recarregar.
+  }
+  if (typeof document !== "undefined") document.documentElement.classList.toggle(ADMIN_WIDE_CLASS, Boolean(wide));
+  window.dispatchEvent(new CustomEvent(ADMIN_WIDE_EVENT, { detail: Boolean(wide) }));
 }

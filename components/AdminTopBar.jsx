@@ -5,6 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { CalendarDays, Eye, ListTodo, MessageCircle, Search } from "lucide-react";
 import AdminThemeToggle from "@/components/AdminThemeToggle";
+import AdminWidthToggle from "@/components/AdminWidthToggle";
 import { CrmBreakdown, activeKeyForPath, findActiveMenuItem, getAdminMenuGroups } from "@/components/AdminMenu";
 import { useAcademyMenuEnabled } from "@/components/AcademyMenuContext";
 import { useLiveChatHidden } from "@/components/WhatsappAccessProvider";
@@ -207,6 +208,7 @@ export default function AdminTopBar({
         </Link>
       ) : null}
 
+      <AdminWidthToggle />
       <AdminThemeToggle variant="icon" />
 
       {(() => {
