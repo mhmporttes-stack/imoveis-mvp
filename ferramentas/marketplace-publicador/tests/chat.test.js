@@ -58,7 +58,7 @@ test("1.8.7: background — trava em chatLock com finally, envio incremental, li
   const popup = readFileSync(new URL("../popup.html", import.meta.url), "utf8");
   assert.match(popup, /id="unlock"[^>]*>Destravar sincronização</);
   const manifest = JSON.parse(readFileSync(new URL("../manifest.json", import.meta.url), "utf8"));
-  assert.equal(manifest.version, "1.9.2");
+  assert.equal(manifest.version, "1.9.3");
 });
 
 test("lê só conversas que mudaram, no máximo 5 por rodada", () => {
