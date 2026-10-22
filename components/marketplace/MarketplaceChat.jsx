@@ -104,7 +104,8 @@ export function SettingsCard() {
 // ao CRM (gravado a cada ciclo dela). Mais de 30 min fica em destaque — o aviso aos admins é do servidor (cron).
 function extensionReadText(lastSyncAt, nowMs) {
   const at = Date.parse(lastSyncAt || "");
-  if (!Number.isFinite(at)) return { text: "Extensão: nenhuma leitura registrada", stale: true };
+  // Sem nenhuma leitura registrada não mostra nada (dono, 2026-10-22: "remova esse aviso de nenhuma leitura registrada").
+  if (!Number.isFinite(at)) return null;
   const minutes = Math.max(0, Math.floor((nowMs - at) / 60000));
   const ago = minutes < 1 ? "agora" : minutes < 120 ? `há ${minutes} min` : minutes < 48 * 60 ? `há ${Math.floor(minutes / 60)} h` : `em ${time.format(new Date(at))}`;
   return { text: `Extensão: última leitura ${ago}`, stale: minutes > 30 };
@@ -296,6 +297,7 @@ export default function MarketplaceChat({ canEditSettings = false, canAssign = f
           ) : null}
           {list.extension ? (() => {
             const read = extensionReadText(list.extension.lastSyncAt, Date.now());
+            if (!read) return null;
             return <p className={`shrink-0 border-b border-line px-3 py-1.5 text-xs ${read.stale ? "bg-warning-soft text-warning" : "text-muted"}`}>{read.text}</p>;
           })() : null}
           {!list.conversations.length ? <p className="shrink-0 p-4 text-sm text-muted">Nenhuma conversa do Marketplace ainda.</p> : null}
