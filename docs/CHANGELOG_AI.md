@@ -251,6 +251,15 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-22 — Push no celular para "extensão do Marketplace sem sinal" (MKT-2g)
+- **Data:** 2026-10-22
+- **Área:** Notificações / Chat Marketplace
+- **Alteração:** novo tipo `marketplace_extension_silent` na política de notificações; a Central de Alertas passa a decidir o push por uma lista fechada (`ALERT_PUSH_KINDS`/`alertPushKind`: `whatsapp_connection` + `marketplace_extension_silent`). O aviso "sem sinal" declara o `push_kind`; o aviso de volta fica só no sino.
+- **Motivo:** decisão do dono (REGRA OFICIAL, 2026-10-22): o aviso também deve chegar por push aos admins gerais.
+- **Arquivos afetados:** `lib/notification-policy-core.mjs`, `lib/crm-alerts.js`, `lib/marketplace-chat.js`, `tests/notification-policy.test.mjs`, `tests/whatsapp-stability-alerts.test.mjs`; docs `BUSINESS_RULES.md` (MKT-2g, AUT-9), rules `automacoes-notificacoes.md`, `roleta-prospeccao-campanhas.md`.
+- **Risco/observação:** 1 push por episódio (a entrega é deduplicada por episódio e o push só sai na criação); se a definição `marketplace_extension_silent` estiver como Informativo, não há push. Sem migration (alertas não passam pelo gatilho `crm_notifications_policy`). A volta sem push foi escolha técnica (evita 2 pushes por queda) — pode ser ligada se o dono quiser.
+- **Autor:** crm-editor (Claude)
+
 ### 2026-10-22 — Mensagem interna no Chat do Marketplace (MKT-2i)
 - **Data:** 2026-10-22
 - **Área:** Chat Marketplace / Permissões / Banco
