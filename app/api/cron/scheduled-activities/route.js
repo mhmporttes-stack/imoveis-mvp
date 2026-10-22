@@ -157,6 +157,18 @@ export async function GET(request) {
       cooledReactivation = { error: reactivationError?.message || "Falha na fila de reativação." };
     }
 
+    // Chat do Marketplace (MKT-2e, dono 2026-10-22): fila de espera + troca de corretor quando a conversa da roleta fica
+    // sem resposta no prazo da roleta. Antes só rodava quando a extensão sincronizava. Grava o sinal do job (monitorado
+    // pelo cron whatsapp-flows); nunca derruba o resto do cron.
+    let marketplaceRedistribution = null;
+    try {
+      const { runMarketplaceRedistributionJob } = await import("@/lib/marketplace-chat");
+      marketplaceRedistribution = await runMarketplaceRedistributionJob();
+    } catch (marketplaceError) {
+      console.error("Falha na redistribuição do Chat do Marketplace.", marketplaceError);
+      marketplaceRedistribution = { error: marketplaceError?.message || "Falha na redistribuição do Marketplace." };
+    }
+
     // Rede de segurança da regra "nenhum cliente sem responsável": pega
     // qualquer registro que tenha ficado com responsible_user_id nulo por
     // qualquer caminho (não só o de exclusão de corretor, já tratado na hora)
@@ -211,6 +223,7 @@ export async function GET(request) {
       sponsoredLeads,
       pendingRouletteAssignment,
       cooledReactivation,
+      marketplaceRedistribution,
       orphanReassignment,
       captacaoUploadCleanup,
       cooledClients

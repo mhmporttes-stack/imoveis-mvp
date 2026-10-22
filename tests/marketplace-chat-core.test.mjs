@@ -2,7 +2,10 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import {
-  MAX_REDISTRIBUTIONS,
+  ASSIGNMENT_SOURCE,
+  REDISTRIBUTION_STALL_MS,
+  decideRedistributionStall,
+  roundRobinCycleComplete,
   evaluateOutboxGate,
   findOutboundEcho,
   matchListing,
@@ -68,16 +71,61 @@ test("liga a conversa ao anúncio do CRM pelo link do item ou pelo título", () 
   assert.equal(matchListing({ listingTitle: "Outro" }, listings), null);
 });
 
-test("roleta: sem resposta de ninguém em 10 min → redistribui; respondeu ou já girou 3x → não", () => {
-  const base = { assigned_user_id: "u1", assigned_at: ago(11), redistributions: 0, client_id: null, last_human_reply_at: null };
-  assert.equal(shouldRedistribute(base, now), true);
-  assert.equal(shouldRedistribute({ ...base, assigned_at: ago(5) }, now), false);
-  assert.equal(shouldRedistribute({ ...base, last_human_reply_at: ago(8) }, now), false);
-  assert.equal(shouldRedistribute({ ...base, last_human_reply_at: ago(20) }, now), true, "resposta antiga (de antes de receber) não segura");
-  // Desde 2026-10-20 toda conversa distribuída já tem cliente: o cliente vai junto na redistribuição.
-  assert.equal(shouldRedistribute({ ...base, client_id: "c1" }, now), true);
-  assert.equal(shouldRedistribute({ ...base, redistributions: MAX_REDISTRIBUTIONS }, now), false);
-  assert.equal(shouldRedistribute({ ...base, assigned_user_id: null }, now), false);
+test("MKT-2e prazo vencido: só conversa da roleta, prazo da regra da roleta, resposta enviada segura", () => {
+  const deadlineMs = 10 * 60000; // vem do banco (REDISTRIBUIÇÃO DE LEADS); aqui só um valor de teste
+  const base = { assigned_user_id: "u1", assigned_at: ago(11), assignment_source: ASSIGNMENT_SOURCE.ROULETTE, client_id: "c1", last_human_reply_at: null };
+  assert.equal(shouldRedistribute(base, now, { deadlineMs }), true, "prazo vencido sem resposta → troca (cliente vai junto)");
+  assert.equal(shouldRedistribute({ ...base, assigned_at: ago(5) }, now, { deadlineMs }), false, "dentro do prazo");
+  assert.equal(shouldRedistribute(base, now, { deadlineMs: 15 * 60000 }), false, "prazo maior na regra = espera mais");
+  assert.equal(shouldRedistribute(base, now, { deadlineMs: null }), false, "regra da roleta desligada = ninguém troca");
+  assert.equal(shouldRedistribute({ ...base, last_human_reply_at: ago(8) }, now, { deadlineMs }), false, "respondeu depois de receber");
+  assert.equal(shouldRedistribute({ ...base, last_human_reply_at: ago(20) }, now, { deadlineMs }), true, "resposta de antes de receber não segura");
+  assert.equal(shouldRedistribute(base, now, { deadlineMs, pendingReplySince: ago(3) }), false, "resposta escrita, ainda na fila de saída");
+  assert.equal(shouldRedistribute(base, now, { deadlineMs, pendingReplySince: ago(30) }), true, "fila de saída de antes de receber não segura");
+  assert.equal(shouldRedistribute({ ...base, assigned_user_id: null }, now, { deadlineMs }), false);
+  assert.equal(shouldRedistribute({ ...base, redistributions: 7 }, now, { deadlineMs }), true, "sem teto fixo: vale a trava da volta completa");
+});
+
+test("MKT-2e 1ª carga, transferência manual e quem respondeu assumiu ficam fora do prazo", () => {
+  const deadlineMs = 10 * 60000;
+  const base = { assigned_user_id: "u1", assigned_at: ago(60), last_human_reply_at: null };
+  for (const source of [ASSIGNMENT_SOURCE.FIRST_LOAD, ASSIGNMENT_SOURCE.MANUAL, ASSIGNMENT_SOURCE.REPLY, ASSIGNMENT_SOURCE.ROULETTE_STALLED, null, undefined]) {
+    assert.equal(shouldRedistribute({ ...base, assignment_source: source }, now, { deadlineMs }), false, String(source));
+  }
+});
+
+test("MKT-2e trava da volta completa (igual à roleta) e monitoramento do job", () => {
+  assert.equal(roundRobinCycleComplete({ recentHops: 4, poolSize: 4 }), true);
+  assert.equal(roundRobinCycleComplete({ recentHops: 3, poolSize: 4 }), false);
+  assert.equal(roundRobinCycleComplete({ recentHops: 9, poolSize: 0 }), false);
+  const t = now.getTime();
+  assert.equal(decideRedistributionStall(null, t).stalled, false, "sem registro: nada a medir");
+  assert.equal(decideRedistributionStall({ last_ok_at: ago(4) }, t).stalled, false);
+  const stalled = decideRedistributionStall({ last_ok_at: ago(30), last_error: "boom" }, t);
+  assert.equal(stalled.stalled, true);
+  assert.equal(stalled.minutes, 30);
+  assert.equal(stalled.lastError, "boom");
+  assert.equal(stalled.dedupeKey, decideRedistributionStall({ last_ok_at: ago(30) }, t + 60000).dedupeKey, "mesmo episódio = mesmo alerta");
+  assert.equal(decideRedistributionStall({ first_seen_at: ago(REDISTRIBUTION_STALL_MS / 60000 + 1), last_ok_at: null }, t).stalled, true, "nunca teve sucesso");
+});
+
+test("MKT-2e no servidor: sem elegível → fila de espera, nunca volta a quem perdeu; prazo da regra da roleta; cron chama", () => {
+  const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
+  const lib = read("lib/marketplace-chat.js");
+  const overdue = lib.slice(lib.indexOf("async function redistributeOverdue"), lib.indexOf("// Fila de espera e prazo sem resposta"));
+  assert.match(overdue, /getRouletteRedistributionDeadlineMs\(\)/, "prazo = fonte única da roleta");
+  assert.match(overdue, /\.eq\("assignment_source", ASSIGNMENT_SOURCE\.ROULETTE\)/);
+  assert.doesNotMatch(overdue, /\.is\("client_id", null\)/, "a causa de estar parada: conversa com cliente era ignorada");
+  assert.match(overdue, /excludedBrokerId: conversation\.assigned_user_id/);
+  assert.match(overdue, /else if \(await moveConversationToWaiting\(conversation, now\)\)/, "ninguém liberado → fila de espera");
+  const queue = lib.slice(lib.indexOf("export async function processMarketplaceDistribution"), lib.indexOf("// --- Monitoramento do job"));
+  assert.match(queue, /excludedBrokerId: conversation\.lost_by_user_id/, "fila não devolve a quem perdeu");
+  assert.ok(queue.indexOf("lost_by_user_id") < queue.indexOf("routeNewConversation"), "quem perdeu pelo prazo não passa pela 1ª carga");
+  const reply = lib.slice(lib.indexOf("export async function queueMarketplaceReply"), lib.indexOf("export async function assignMarketplaceConversation"));
+  assert.doesNotMatch(reply, /last_human_reply_at:/, "pôr na fila não é resposta enviada");
+  assert.match(read("app/api/cron/scheduled-activities/route.js"), /runMarketplaceRedistributionJob/);
+  assert.match(read("app/api/cron/whatsapp-flows/route.js"), /checkMarketplaceRedistributionStalled/);
+  assert.match(read("lib/crm-automations.js"), /export async function getRouletteRedistributionDeadlineMs/);
 });
 
 test("fila de saída: desligado, um por vez e limite por hora", () => {
@@ -149,7 +197,7 @@ test("conversa distribuída vira cliente só com o nome (dono, 2026-10-20): banc
   assert.match(lib, /addSystemTagToClient\(registration\.id, MARKETPLACE_TAG/);
   assert.match(lib, /notification_type: "new_client"/);
   assert.match(lib, /markClientOnHumanMessage\(conversation\.client_id/);
-  assert.match(lib, /responsible_user_id: brokerId/, "redistribuição leva o cliente junto");
+  assert.match(lib, /if \(clientId\) await moveClientTo\(clientId, brokerId\)/, "redistribuição leva o cliente junto (mesmo caminho da roleta)");
 });
 
 test("1ª carga (REGRA OFICIAL — dono, 2026-10-21): hoje → Eduardo, ontem → Jennyfer, anteriores não importa", () => {

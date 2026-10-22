@@ -4,6 +4,7 @@ import { processDueFlowSessions } from "@/lib/whatsapp-flows";
 import { processFormReminders } from "@/lib/whatsapp-form-reminder";
 import { checkWhatsappServiceStalled } from "@/lib/whatsapp-service-stall";
 import { checkFalseConnections } from "@/lib/whatsapp-false-connection";
+import { checkMarketplaceRedistributionStalled } from "@/lib/marketplace-chat";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -49,14 +50,17 @@ export async function GET(request) {
   const serviceStall = await checkWhatsappServiceStalled();
   // Número "conectado" que não recebe (quedas 500/428 em loop ou silêncio em horário comercial): marca, avisa e pinta a tela. Nunca lança.
   const falseConnections = await checkFalseConnections();
+  // Redistribuição do Chat do Marketplace sem rodar com sucesso há > 10 min -> alerta aos admins gerais (MKT-2e). Nunca lança.
+  const marketplaceRedistribution = await checkMarketplaceRedistributionStalled();
   if (flowsError || remindersError) {
     return NextResponse.json({
       error: flowsError ? "Falha ao processar os fluxos." : "Falha ao processar o lembrete do formulário.",
       ...(flows || {}),
       ...(formReminders ? { formReminders } : {}),
       serviceStall,
-      falseConnections
+      falseConnections,
+      marketplaceRedistribution
     }, { status: 500 });
   }
-  return NextResponse.json({ ok: true, ...flows, formReminders, serviceStall, falseConnections });
+  return NextResponse.json({ ok: true, ...flows, formReminders, serviceStall, falseConnections, marketplaceRedistribution });
 }

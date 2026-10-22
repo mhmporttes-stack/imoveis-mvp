@@ -39,6 +39,16 @@ Copie o modelo abaixo (uma entrada por bloco):
 ```
 
 ## Registro
+### 2026-10-22 — Cliente do Marketplace não troca de corretor quando fica sem resposta
+- **Data:** 2026-10-22
+- **Sintoma:** a redistribuição automática do Chat Marketplace (troca de corretor depois do prazo sem resposta) estava parada sem ninguém saber; a conversa ficava com quem recebeu.
+- **Área:** Chat Marketplace / Roleta
+- **Impacto:** toda conversa do Marketplace entregue pela roleta desde 20/10 (nenhuma redistribuída).
+- **Causa raiz:** (1) a busca das conversas vencidas filtrava `client_id is null` (`processMarketplaceDistribution`, desde c803db8), mas desde 36e145c toda conversa distribuída vira cliente na hora — a condição nunca era verdadeira; (2) a checagem só rodava dentro da sincronização da extensão (sem cron), então com a extensão fechada nada rodava; (3) erros de gravação da conversa eram ignorados (`update` sem checar `error`). Nenhum log/alerta acusava. Confirmação por consulta em produção não feita nesta sessão (sem acesso ao banco daqui) — diagnóstico pelo código.
+- **Correção:** MKT-2e: filtro por origem da atribuição (`assignment_source = roulette`), prazo da regra "REDISTRIBUIÇÃO DE LEADS", job no cron `scheduled-activities`, sinal do job + alerta Importante aos admins quando fica > 10 min sem sucesso, gravações que lançam erro.
+- **Arquivos/commit:** `lib/marketplace-chat.js`, `lib/marketplace-chat-core.mjs`, `lib/crm-automations.js`, `app/api/cron/scheduled-activities/route.js`, `app/api/cron/whatsapp-flows/route.js`, `supabase/migrations/20261022150000_marketplace_assignment_source.sql`
+- **Prevenção/teste:** `tests/marketplace-chat-core.test.mjs` (prazo vencido, sem elegível → fila, 1ª carga fora, trava contra o filtro `client_id`); monitoramento `checkMarketplaceRedistributionStalled`.
+- **Status:** Resolvido no código; depende de aplicar a migration 20261022150000 (até lá o job acusa erro e o alerta aparece).
 ### 2026-10-21 — Conversa do Marketplace com "Pressione Enter, Mensagem enviada … por …" e foto do cliente como anexo
 - **Data:** 2026-10-21
 - **Sintoma:** no Chat Marketplace (Rafael/Tânia) cada mensagem aparecia como "Pressione Enter, Mensagem enviada 10:18 por Você: …", mensagens nossas como do cliente, a foto de perfil como anexo, balões vazios "por Rafael", "Rafael está aguardando a sua resposta." como mensagem do cliente e mensagens de 28/09 depois das de hoje. Também: conversas gravadas sem mensagem (upsert batia num índice único parcial, 42P10 — corrigido em 7b4b373).
