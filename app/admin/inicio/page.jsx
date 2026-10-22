@@ -1,7 +1,9 @@
 import { Suspense } from "react";
 import { requireAdminPage } from "@/lib/admin-auth";
 import { getPainelInicio, getPainelInicioMes } from "@/lib/painel-inicio";
-import PainelInicio, { InicioFunil, InicioFunilCarregando, InicioFunilErro, InicioKpisMes, InicioKpisMesCarregando } from "@/components/inicio/PainelInicio";
+import { getPainelInicioDono } from "@/lib/painel-inicio-dono";
+import { isGeneralAdminAuth } from "@/lib/admin-profiles";
+import PainelInicio, { InicioAssistente, InicioDono, InicioDonoCarregando, InicioFunil, InicioFunilCarregando, InicioFunilErro, InicioKpisMes, InicioKpisMesCarregando } from "@/components/inicio/PainelInicio";
 
 export const dynamic = "force-dynamic";
 
@@ -27,10 +29,28 @@ async function MonthFunnel({ monthPromise }) {
   return ok ? <InicioFunil month={month} /> : <InicioFunilErro />;
 }
 
+// Início do dono (INI-5): equipe + atenções (consultas pesadas) — uma carga, compartilhada pelo resumo e pelo detalhe.
+function loadOwner(auth, data) {
+  return getPainelInicioDono(auth, data).catch((error) => {
+    console.error("Início: falha ao carregar a visão do dono:", error?.message || error);
+    return null;
+  });
+}
+
+async function OwnerSummary({ ownerPromise, data }) {
+  const owner = await ownerPromise;
+  return <InicioAssistente assistant={data.assistant} chatAvailable={data.chatAvailable} showActions={false} text={owner?.text ?? null} />;
+}
+
+async function OwnerDetail({ ownerPromise }) {
+  return <InicioDono owner={await ownerPromise} />;
+}
+
 export default async function InicioPage() {
   const auth = await requireAdminPage();
   const monthPromise = loadMonth(auth);
   const data = await getPainelInicio(auth);
+  const ownerPromise = isGeneralAdminAuth(auth) ? loadOwner(auth, data) : null;
 
   return (
     <main className="min-h-screen bg-mist pb-14 pt-3 md:pt-6">
@@ -38,6 +58,12 @@ export default async function InicioPage() {
         data={data}
         monthKpis={<Suspense fallback={<InicioKpisMesCarregando />}><MonthKpis monthPromise={monthPromise} /></Suspense>}
         funnel={<Suspense fallback={<InicioFunilCarregando />}><MonthFunnel monthPromise={monthPromise} /></Suspense>}
+        ownerSummary={ownerPromise ? (
+          <Suspense fallback={<InicioAssistente assistant={data.assistant} chatAvailable={data.chatAvailable} showActions={false} />}>
+            <OwnerSummary ownerPromise={ownerPromise} data={data} />
+          </Suspense>
+        ) : null}
+        ownerDetail={ownerPromise ? <Suspense fallback={<InicioDonoCarregando />}><OwnerDetail ownerPromise={ownerPromise} /></Suspense> : null}
       />
     </main>
   );

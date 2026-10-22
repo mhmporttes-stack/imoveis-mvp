@@ -98,6 +98,7 @@ test("entrada da fala vem do retorno de getPainelInicio (fonte única do Início
     overdue: 0
   };
   assert.deepEqual(briefingInputFromInicio(inicio, { minutesOfDay: 500 }), {
+    owner: null,
     minutesOfDay: 500,
     arrivalCovered: false,
     leads: { total: 2, ad: 2, marketplace: 0, other: 0 },
@@ -169,4 +170,24 @@ test("fiação: servidor dispara a fala depois da resposta; rotas com guard; gat
   assert.match(service, /claimSpeakingSlot\(settings\)/);
   assert.match(service, /getPainelInicio\(auth\)/);
   assert.doesNotMatch(read("components/FirstAccessGate.jsx"), /api\/admin\/alexa|speakAlexa/);
+});
+
+test("dono (INI-5): fala usa a equipe e as atenções do mesmo resumo do Início", () => {
+  const owner = {
+    rows: [{ presence: "online" }, { presence: "offline" }, { presence: "online" }],
+    attentions: [
+      { tone: "danger", text: "Ninguém apto na roleta e 2 clientes esperando na fila." },
+      { tone: "warning", text: "2 simulações automáticas a conferir." },
+      { tone: "muted", text: "Não foi possível conferir agora: alertas." }
+    ]
+  };
+  const input = briefingInputFromInicio({ kpis: { leadsToday: { total: 2, ad: 2, marketplace: 0, other: 0 }, toReview: 2 }, awaitingReply: 0, overdue: 1 }, { minutesOfDay: MORNING, owner });
+  assert.deepEqual(input.owner, { online: 2, team: 3, attentions: [owner.attentions[0].text, owner.attentions[1].text] });
+  const text = composeFirstAccessBriefing({ ...input, invocation: "central" });
+  assert.equal(
+    text,
+    "Bom dia, Machado. Hoje entraram 2 leads, todos de anúncio. Equipe: 2 de 3 on-line. 2 atenções para você. Ninguém apto na roleta e 2 clientes esperando na fila. Também: 2 simulações automáticas a conferir. Há 1 atividade atrasada. Quer os detalhes? É só dizer: Alexa, abrir central."
+  );
+  assert.ok(text.length <= BRIEFING_MAX_LENGTH);
+  assert.equal(containsSensitiveContent(text), false);
 });

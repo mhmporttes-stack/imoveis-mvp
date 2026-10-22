@@ -1,12 +1,13 @@
 import Link from "next/link";
-import { CalendarDays, ChevronRight, ClipboardCheck, FileClock, MessageCircle, Timer, TrendingUp, UserRoundPlus, Users } from "lucide-react";
+import { AlertTriangle, CalendarDays, ChevronRight, ClipboardCheck, FileClock, MessageCircle, Timer, TrendingUp, UserRoundPlus, Users } from "lucide-react";
 import Card from "@/components/ui/Card";
 import Kpi, { KpiGrid } from "@/components/ui/Kpi";
 import Skeleton from "@/components/ui/Skeleton";
+import Badge from "@/components/ui/Badge";
 import { CountBadge } from "@/components/ui/Badge";
 import { buttonClasses } from "@/components/ui/Button";
 import { crmPendingItems } from "@/components/crm-pending-items";
-import { formatDurationSeconds, leadOriginHint } from "@/lib/painel-inicio-core.mjs";
+import { formatDurationSeconds, formatWaitMinutes, leadOriginHint } from "@/lib/painel-inicio-core.mjs";
 
 // Tela "Início" (dono, 2026-10-22 — INI-1): só apresentação. Os números chegam prontos de lib/painel-inicio.js
 // (servidor, no escopo do perfil); nada é calculado aqui. Componentes sem estado: servem à página real
@@ -18,7 +19,9 @@ function count(value) {
   return value === null || value === undefined ? UNAVAILABLE : String(value);
 }
 
-export function InicioAssistente({ assistant, chatAvailable = true }) {
+// showActions = false no admin geral (dono, 2026-10-22, INI-5): sem "Abrir conversas" e "Agenda" no resumo (os atalhos do
+// cabeçalho continuam). `text` substitui a frase (resumo do dono, que chega por streaming).
+export function InicioAssistente({ assistant, chatAvailable = true, showActions = true, text = null }) {
   const chatHref = assistant?.urgent?.clientId ? `/admin/chat?client=${encodeURIComponent(assistant.urgent.clientId)}` : "/admin/chat";
   return (
     <section
@@ -34,9 +37,9 @@ export function InicioAssistente({ assistant, chatAvailable = true }) {
         </span>
         <div className="min-w-0 flex-[1_1_280px]">
           <p className="text-xs font-extrabold uppercase tracking-[0.08em] text-accent-text">Resumo do dia</p>
-          <p className="mt-1 text-pretty text-[15px] leading-relaxed text-ink sm:text-base">{assistant?.text}</p>
+          <p className="mt-1 text-pretty text-[15px] leading-relaxed text-ink sm:text-base">{text ?? assistant?.text}</p>
         </div>
-        <div className="flex w-full flex-wrap gap-2 sm:w-auto">
+        {showActions ? <div className="flex w-full flex-wrap gap-2 sm:w-auto">
           {chatAvailable ? (
             <Link href={chatHref} className={buttonClasses({ variant: "primary", className: "max-sm:flex-1" })}>
               <MessageCircle className="h-4 w-4" aria-hidden="true" />
@@ -47,7 +50,7 @@ export function InicioAssistente({ assistant, chatAvailable = true }) {
             <CalendarDays className="h-4 w-4" aria-hidden="true" />
             Agenda
           </Link>
-        </div>
+        </div> : null}
       </div>
     </section>
   );
@@ -180,14 +183,133 @@ export function InicioFunilErro() {
   );
 }
 
+// --- Início do DONO (INI-5, 2026-10-22): atenções e equipe. Números prontos de lib/painel-inicio-dono.js. ------------
+const ATTENTION_TONE = { danger: "text-danger", warning: "text-warning", muted: "text-faint" };
+
+export function InicioAtencoes({ attentions = [] }) {
+  return (
+    <Card title="Atenções" note={attentions.some((item) => item.tone !== "muted") ? "o que pede a sua decisão" : "tudo em ordem"}>
+      {attentions.length ? (
+        <ul className="-mx-2">
+          {attentions.map((item) => {
+            const body = (
+              <>
+                <AlertTriangle size={18} className={`mt-0.5 shrink-0 ${ATTENTION_TONE[item.tone] || "text-muted"}`} aria-hidden="true" />
+                <span className="min-w-0 flex-1 text-pretty">{item.text}</span>
+                {item.href ? <ChevronRight className="mt-0.5 h-4 w-4 shrink-0 text-faint" aria-hidden="true" /> : null}
+              </>
+            );
+            return (
+              <li key={item.key}>
+                {item.href ? (
+                  <Link href={item.href} className="flex min-h-touch items-start gap-3 rounded-control px-2 py-2 text-sm font-semibold text-ink hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent">{body}</Link>
+                ) : (
+                  <div className="flex min-h-touch items-start gap-3 px-2 py-2 text-sm text-muted">{body}</div>
+                )}
+              </li>
+            );
+          })}
+        </ul>
+      ) : (
+        <p className="text-sm text-muted">Nenhuma atenção pendente agora.</p>
+      )}
+    </Card>
+  );
+}
+
+const PRESENCE_BADGE = { online: ["success", "On-line"], away: ["warning", "Ausente"], offline: ["neutral", "Off-line"] };
+const WHATSAPP_BADGE = { active: ["success", "WhatsApp ativo"], idle: ["warning", "WhatsApp ocioso"], off: ["danger", "WhatsApp desconectado"] };
+
+function show(value, render) {
+  return value === null || value === undefined ? UNAVAILABLE : render(value);
+}
+
+export function InicioEquipe({ rows = [], metaAvailable = true }) {
+  return (
+    <Card title="Equipe agora" note={metaAvailable ? "meta, presença, WhatsApp e o que está parado" : "meta do dia indisponível agora"}>
+      {rows.length ? (
+        <ul className="divide-y divide-line">
+          {rows.map((row) => {
+            const [presenceTone, presenceLabel] = PRESENCE_BADGE[row.presence] || [];
+            const [whatsappTone, whatsappLabel] = WHATSAPP_BADGE[row.whatsapp] || [];
+            const wait = row.oldest ? formatWaitMinutes(row.oldest.waitingMinutes) : "";
+            return (
+              <li key={row.id} className="py-3 first:pt-0 last:pb-0">
+                <div className="flex flex-wrap items-center gap-2">
+                  <Link href={`/admin/desempenho/corretor/${encodeURIComponent(row.id)}`} className="min-w-0 truncate text-sm font-extrabold text-ink hover:text-accent-text">{row.name}</Link>
+                  {presenceLabel ? <Badge tone={presenceTone} dot>{presenceLabel}</Badge> : null}
+                  {whatsappLabel ? <Badge tone={whatsappTone} dot>{whatsappLabel}</Badge> : null}
+                  {row.inRoulette ? <Badge tone="info">Na roleta</Badge> : null}
+                </div>
+                <dl className="mt-1.5 grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-muted sm:grid-cols-4">
+                  <div><dt className="inline">Meta hoje: </dt><dd className="inline font-bold tabular-nums text-ink">{show(row.metaPercent, (value) => `${value}%`)}</dd></div>
+                  <div><dt className="inline">Pendentes: </dt><dd className="inline font-bold tabular-nums text-ink">{row.pending ? `${row.pending.done}/${row.pending.total}` : UNAVAILABLE}</dd></div>
+                  <div><dt className="inline">Aguardando resposta: </dt><dd className="inline font-bold tabular-nums text-ink">{show(row.awaiting, String)}</dd></div>
+                  <div><dt className="inline">Atrasadas: </dt><dd className="inline font-bold tabular-nums text-ink">{show(row.overdue, String)}</dd></div>
+                </dl>
+                {row.oldest?.name ? (
+                  <p className="mt-1 text-xs text-muted">
+                    Mais antigo:{" "}
+                    {row.oldest.clientId ? (
+                      <Link href={`/admin/chat?client=${encodeURIComponent(row.oldest.clientId)}`} className="font-semibold text-accent-text">{row.oldest.name}</Link>
+                    ) : <span className="font-semibold text-ink">{row.oldest.name}</span>}
+                    {wait ? ` · espera há ${wait}` : ""}
+                  </p>
+                ) : null}
+              </li>
+            );
+          })}
+        </ul>
+      ) : (
+        <p className="text-sm text-muted">Nenhuma pessoa ativa na equipe.</p>
+      )}
+      <p className="mt-3 text-[11px] leading-4 text-faint">Meta e pendentes = Meta Diária da equipe; presença e WhatsApp = Desempenho › Online.</p>
+    </Card>
+  );
+}
+
+export function InicioDonoCarregando() {
+  return (
+    <div className="grid gap-4 sm:gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.6fr)]">
+      {["Atenções", "Equipe agora"].map((title) => (
+        <Card key={title} title={title} note="carregando…">
+          <div role="status" aria-live="polite" className="space-y-3">
+            <span className="sr-only">Carregando…</span>
+            {Array.from({ length: 4 }, (_, index) => <Skeleton key={index} className="h-5 w-full" />)}
+          </div>
+        </Card>
+      ))}
+    </div>
+  );
+}
+
+export function InicioDono({ owner }) {
+  if (!owner) {
+    return (
+      <Card title="Atenções e equipe" note="indisponível agora">
+        <p className="text-sm text-muted">Não foi possível carregar a visão da equipe agora. Tente recarregar a página.</p>
+      </Card>
+    );
+  }
+  return (
+    <div className="grid gap-4 sm:gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.6fr)]">
+      <InicioAtencoes attentions={owner.attentions} />
+      <InicioEquipe rows={owner.rows} metaAvailable={owner.metaAvailable} />
+    </div>
+  );
+}
+
 // Composição da tela — a mesma na página real (app/admin/inicio/page.jsx, com o mês chegando por streaming) e na
 // vitrine. `monthKpis` e `funnel` são os blocos do mês já prontos (ou o carregando).
-export default function PainelInicio({ data, monthKpis = null, funnel = null }) {
+// Admin geral (INI-5): `ownerSummary` substitui o resumo (sem botões) e `ownerDetail` (Atenções + Equipe) entra logo abaixo
+// dos indicadores — os dois chegam por streaming na página real.
+export default function PainelInicio({ data, monthKpis = null, funnel = null, ownerSummary = null, ownerDetail = null }) {
   return (
     <div className="container-page space-y-4 sm:space-y-5">
       <h1 className="sr-only">Início</h1>
-      <InicioAssistente assistant={data.assistant} chatAvailable={data.chatAvailable} />
+      {ownerSummary || <InicioAssistente assistant={data.assistant} chatAvailable={data.chatAvailable} />}
       <InicioIndicadores kpis={data.kpis} month={monthKpis} />
+      {ownerDetail}
       <div className="grid gap-4 sm:gap-5 lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
         {funnel}
         <InicioPendencias pending={data.pending} chatAvailable={data.chatAvailable} />

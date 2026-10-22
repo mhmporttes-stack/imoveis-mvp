@@ -114,7 +114,7 @@ test("Início: primeiro item do menu de todos os perfis, ícone de casa, página
 test("Início reaproveita as fontes existentes (nenhuma definição nova)", () => {
   const lib = read("lib/painel-inicio.js");
   assert.match(lib, /getCrmPendingCounts\(auth\)/);
-  assert.match(lib, /getChatSummary\(auth, \{ includeOldestAwaiting: true \}\)/);
+  assert.match(lib, /getChatSummary\(auth, \{ includeOldestAwaiting: true, byBroker: isGeneralAdminAuth\(auth\) \}\)/);
   assert.match(lib, /getChatResponseTimes\(auth/);
   assert.match(lib, /getPerformanceOverview\(\{ period: OVERVIEW_PERIODS\.THIS_MONTH/);
   assert.match(lib, /CLIENT_STATUS\.AUTO_SIMULATION/);

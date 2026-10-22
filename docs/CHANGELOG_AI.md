@@ -313,6 +313,17 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-22 — Início do dono: equipe, "Atenções" e resumo mais completo (INI-5)
+- **Data:** 2026-10-22
+- **Área:** Início · Alexa · Chat (leitura) · Agenda (leitura) · Marketplace (leitura)
+- **Alteração:** só no admin geral, o Início ganhou "Atenções" (roleta sem ninguém apto/fila, WhatsApp desconectado/ocioso de quem está na roleta, clientes esfriados aguardando decisão, alertas Importantes, extensão do Marketplace sem sinal, respostas falhas do Marketplace, corretor abaixo de 50% da meta a partir das 16h, simulações a conferir — cada uma com link) e "Equipe agora" (meta e pendentes do dia, presença, WhatsApp, aguardando resposta + mais antigo, atrasadas, por pessoa); o resumo do dono foi reescrito e perdeu os botões "Abrir conversas"/"Agenda". A fala do bom dia da Alexa usa esse mesmo resumo. Gestora/corretor/associado sem mudança.
+- **Motivo:** pedido do dono ("No resumo do dia, no MEU perfil de dono, eu quero algo mais completo...").
+- **Arquivos afetados:** `lib/painel-inicio-dono.js` + `lib/painel-inicio-dono-core.mjs` (novos), `lib/painel-inicio.js` (`awaitingByBroker` no admin), `lib/whatsapp-chat.js` (`getChatSummary({ byBroker })`, lê também `assigned_user_id`), `lib/crm-pending-counts.js` (filtros da agenda atrasada compartilhados + `countOverdueActivitiesByResponsible`, sem mudar o contador), `lib/marketplace-chat.js` (`getMarketplaceAttention`, só leitura), `lib/alexa-bom-dia(.js|-core.mjs)`, `components/inicio/PainelInicio.jsx`, `app/admin/inicio/page.jsx`, `tests/painel-inicio-dono.test.mjs` (novo), `tests/painel-inicio.test.mjs`, `tests/alexa-bom-dia.test.mjs`.
+- **Docs:** `BUSINESS_RULES.md` INI-5.
+- **Risco/observação:** sem migration e sem escrita nova; a visão do dono chega por streaming (a meta da equipe é a consulta pesada da Meta Diária; `/admin/inicio` já é "só rota" no pré-carregamento). Limiares a confirmar com o dono (16h, 8h–20h, 24 h). Vitrine sem fixture da visão do dono (revisão visual pendente com o `designer-crm`).
+- **Verificação:** `node --test tests/painel-inicio-dono.test.mjs tests/painel-inicio.test.mjs tests/alexa-bom-dia.test.mjs` (32/32); suíte completa sem falha nova; `pnpm build`. Sem dado real: o container não tem o painel logado.
+- **Autor:** Claude Code
+
 ### 2026-10-22 — Primeiro acesso do dia do dono: abre o Início e a Alexa dá o bom dia (INI-4)
 - **Data:** 2026-10-22
 - **Área:** Alexa · Início · Banco · Permissões
