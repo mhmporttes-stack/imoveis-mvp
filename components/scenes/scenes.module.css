@@ -228,8 +228,62 @@
 .doneLayer { background: color-mix(in srgb, var(--scene-surface) 95%, transparent); }
 .doneCheck { background: var(--scene-good); color: #FFFFFF; }
 
+/* ---------- Entrada em sequência com quique (Desempenho, 2026-10-22) ----------
+   Contêiner com sceneStaggerProps() (useSceneInView.js) + itens com .item/.itemBar/.lineRise/.pop e --i (posição).
+   data-scene: wait = escondido esperando entrar na tela; play = toca; still = sem movimento (aparece direto).
+   Só transform/opacity/clip-path; fill "backwards": ao terminar o item volta ao estilo normal (hover etc. seguem valendo
+   e nenhum transform fica preso — docs/INCIDENTES.md, 2026-10-12). Tempos próprios por cena (--scene-step/--scene-dur),
+   independentes de --mm-motion-*. */
+.stagger { --scene-step: 120ms; --scene-dur: 600ms; --scene-rise: 14px; --scene-hop: 6px; --scene-ease: cubic-bezier(0.2, 0.8, 0.2, 1); }
+.stagger[data-scene="wait"] .item,
+.stagger[data-scene="wait"] .itemBar,
+.stagger[data-scene="wait"] .lineRise,
+.stagger[data-scene="wait"] .pop { opacity: 0; }
+.stagger[data-scene="play"] .item {
+  animation: sceneRiseHop var(--scene-dur) var(--scene-ease) calc(var(--i, 0) * var(--scene-step)) backwards;
+}
+/* Barra do funil: cresce da esquerda (cortina) enquanto a linha sobe com o quique. */
+.stagger[data-scene="play"] .itemBar {
+  animation:
+    sceneRiseHop var(--scene-dur) var(--scene-ease) calc(var(--i, 0) * var(--scene-step)) backwards,
+    sceneWipe calc(var(--scene-dur) * 0.9) cubic-bezier(0.16, 1, 0.3, 1) calc(var(--i, 0) * var(--scene-step)) backwards;
+}
+/* Linha de gráfico (SVG): sobe a partir da base do gráfico (--origin) com o mesmo quique. */
+.lineRise { transform-box: view-box; transform-origin: var(--origin, 0 100%); }
+.stagger[data-scene="play"] .lineRise {
+  animation: sceneGrowUp var(--scene-dur) var(--scene-ease) calc(var(--i, 0) * var(--scene-step)) backwards;
+}
+/* Detalhe que aparece no fim da linha (seta de variação): logo depois que a linha termina de entrar. */
+.stagger[data-scene="play"] .pop {
+  animation: scenePillIn 0.45s cubic-bezier(0.3, 1.6, 0.5, 1) calc(var(--i, 0) * var(--scene-step) + var(--scene-dur) * 0.8) backwards;
+}
+@keyframes sceneRiseHop {
+  0% { opacity: 0; transform: translateY(var(--scene-rise)); }
+  45% { opacity: 1; transform: translateY(calc(var(--scene-hop) * -1)); }
+  68% { transform: translateY(0); }
+  84% { transform: translateY(calc(var(--scene-hop) * -0.35)); }
+  100% { opacity: 1; transform: none; }
+}
+@keyframes sceneWipe {
+  from { clip-path: inset(0 100% 0 0); }
+  to { clip-path: inset(0 0 0 0); }
+}
+@keyframes sceneGrowUp {
+  0% { opacity: 0; transform: scaleY(0); }
+  50% { opacity: 1; transform: scaleY(1.08); }
+  72% { transform: scaleY(0.97); }
+  86% { transform: scaleY(1.02); }
+  100% { opacity: 1; transform: none; }
+}
+/* Variação no fim de cada linha do histórico: verde subiu, vermelho caiu (com seta — não depende só da cor). */
+.delta { display: inline-flex; align-items: center; gap: 2px; font-weight: 800; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.deltaUp { color: var(--scene-good); }
+.deltaDown { color: var(--scene-bad); }
+.deltaFlat { color: var(--scene-muted); }
+
 @media (prefers-reduced-motion: reduce) {
   .letter, .boom, .metaHop, .metaPill, .metaPill100.on, .toastBar { animation: none !important; }
   .letter { opacity: 1; }
   .toastBar { display: none; }
+  .stagger .item, .stagger .itemBar, .stagger .lineRise, .stagger .pop { animation: none !important; opacity: 1 !important; }
 }
