@@ -6,6 +6,7 @@ import {
   claimHenryDevice,
   getHenryNarration,
   henryNarrationVoiceKey,
+  readHenryDayTurns,
   synthesizeHenryShort,
   henryDefaultVoice,
   henryVoiceProvider,
@@ -45,7 +46,7 @@ export async function GET(request) {
   const auth = await requireHenryOwner(request);
   if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status });
   try {
-    const { enabled, vision, mobileWake, style } = await readHenrySettings();
+    const [{ enabled, vision, webSearch, mobileWake, style }, dayTurns] = await Promise.all([readHenrySettings(), readHenryDayTurns().catch(() => [])]);
     const provider = henryVoiceProvider();
     // Lista de vozes da ElevenLabs só para o cartão de configurações (?vozes=1); o ícone do canto não precisa dela.
     // Junto, o saldo de caracteres (GET /v1/user/subscription). 401/403 viram frase clara de permissão na tela.
@@ -70,7 +71,9 @@ export async function GET(request) {
     return NextResponse.json({
       enabled,
       vision,
+      webSearch,
       mobileWake,
+      dayTurns: enabled ? dayTurns : [], // memória do dia: a tela cheia mostra a conversa de hoje (só texto)
       serverVoice: isHenryVoiceConfigured(),
       provider,
       providerLabel: HENRY_PROVIDER_LABELS[provider],
@@ -99,12 +102,13 @@ export async function PUT(request) {
   if (typeof body?.enabled === "boolean") patch.enabled = body.enabled;
   if (typeof body?.vision === "boolean") patch.vision = body.vision;
   if (typeof body?.mobileWake === "boolean") patch.mobileWake = body.mobileWake;
+  if (typeof body?.webSearch === "boolean") patch.webSearch = body.webSearch;
   if (body?.style !== undefined) {
     const parsed = parseHenryStylePatch(body.style);
     if (!parsed.ok) return NextResponse.json({ error: parsed.error }, { status: 400 });
     patch.style = parsed.patch;
   }
-  if (!Object.keys(patch).length) return NextResponse.json({ error: "Informe enabled, vision e/ou style." }, { status: 400 });
+  if (!Object.keys(patch).length) return NextResponse.json({ error: "Informe enabled, vision, webSearch e/ou style." }, { status: 400 });
   try {
     const saved = await setHenrySettings(auth, patch);
     return NextResponse.json({ ...saved, browserRate: henryBrowserRate(saved.style) });
@@ -146,7 +150,7 @@ function answerStream(auth, request, style) {
           }
         });
         const navigate = answer.navigate ? { path: answer.navigate.path, label: answer.navigate.label } : null;
-        send({ reply: answer.reply, navigate, detail: answer.detail || null });
+        send({ reply: answer.reply, navigate, detail: answer.detail || null, ...(answer.memoryCleared ? { memoryCleared: true } : {}) });
         const parts = splitForSpeech(answer.reply);
         const audios = parts.map((text, index) => synthesizeHenrySpeech(auth, text, style, { previousText: parts[index - 1] || "", nextText: parts[index + 1] || "" }));
         for (let index = 0; index < parts.length; index += 1) {
@@ -256,7 +260,7 @@ export async function POST(request) {
 
   try {
     // Aparelho, configuração e limite de taxa ao mesmo tempo (eram três idas ao banco em fila).
-    const [allowedDevice, { enabled, vision, style }, allowedRate] = await Promise.all([
+    const [allowedDevice, { enabled, vision, webSearch, style }, allowedRate] = await Promise.all([
       deviceId ? claimHenryDevice(auth, deviceId).catch(() => true) : true,
       readHenrySettings(),
       checkPublicRateLimit(`henry:${auth.profile?.id}`, { windowSeconds: 60, maxAttempts: 20 })
@@ -268,11 +272,11 @@ export async function POST(request) {
     const image = shouldUseHenryImage({ vision, mode, question }) ? parseHenryImage(body?.image) : null;
     // Modo conversa: `stream` = linhas (NDJSON) abertas na hora: progresso/narração enquanto pensa, depois o texto e a voz
     // em partes (1ª frase primeiro). Mesmo texto, mesma barreira (safeHenryReply já aplicada).
-    if (body?.stream === true && body?.voice !== false) return answerStream(auth, { mode, question, history: body?.history, image, vision }, style);
-    const answer = await answerHenry(auth, { mode, question, history: body?.history, image, style, vision });
+    if (body?.stream === true && body?.voice !== false) return answerStream(auth, { mode, question, history: body?.history, image, vision, webSearch }, style);
+    const answer = await answerHenry(auth, { mode, question, history: body?.history, image, style, vision, webSearch });
     const navigate = answer.navigate ? { path: answer.navigate.path, label: answer.navigate.label } : null;
     const audio = body?.voice === false ? null : await synthesizeHenrySpeech(auth, answer.reply, style);
-    return NextResponse.json({ reply: answer.reply, navigate, detail: answer.detail || null, audio });
+    return NextResponse.json({ reply: answer.reply, navigate, detail: answer.detail || null, memoryCleared: answer.memoryCleared === true, audio });
   } catch (error) {
     console.warn(`[henry] pergunta falhou: ${error?.status ? error.message : error?.name === "TimeoutError" ? "timeout" : "erro"}.`);
     return NextResponse.json({ error: error?.status ? error.message : "Não consegui responder agora. Tente de novo." }, { status: error?.status || 502 });

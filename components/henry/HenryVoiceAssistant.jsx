@@ -32,6 +32,7 @@ import {
 } from "@/lib/henry-voice-conversation.mjs";
 import { pickBestBrowserVoice, pronounceForSpeech, splitSentences } from "@/lib/henry-voice-providers.mjs";
 import { pickWaitPhrase, rememberPhrase, shouldNarrate } from "@/lib/henry-voice-narration.mjs";
+import { HENRY_LISTEN_PROMPTS, pickVariant, rememberVariant } from "@/lib/henry-voice-persona.mjs";
 import HenryVoiceView from "./HenryVoiceView";
 import { captureWebcamFrame } from "./webcam-capture";
 
@@ -156,6 +157,15 @@ export default function HenryVoiceAssistant() {
   const recentPhrasesRef = useRef([]);
   const narratingTextRef = useRef("");
   const [scene, setScene] = useState({ topic: "geral", label: "", brokers: [] });
+  // "Pode falar…" variado (sorteado a cada vez que ele passa a esperar a pergunta, sem repetir os últimos 5).
+  const [listenPrompt, setListenPrompt] = useState(HENRY_LISTEN_PROMPTS[0]);
+  const listenPromptsRef = useRef([]);
+  useEffect(() => {
+    if (phase !== "armed") return;
+    const next = pickVariant(HENRY_LISTEN_PROMPTS, listenPromptsRef.current);
+    listenPromptsRef.current = rememberVariant(listenPromptsRef.current, next);
+    setListenPrompt(next);
+  }, [phase]);
 
   const updatePhase = useCallback((value) => {
     phaseRef.current = value;
@@ -190,6 +200,12 @@ export default function HenryVoiceAssistant() {
         setVision(data?.vision === true);
         if (Number.isFinite(data?.browserRate)) browserRateRef.current = data.browserRate;
         narrationKeyRef.current = typeof data?.narrationKey === "string" ? data.narrationKey : "";
+        // Memória do dia (REGRA OFICIAL, dono 2026-10-22): a conversa de hoje volta ao abrir/recarregar (só texto).
+        if (Array.isArray(data?.dayTurns) && data.dayTurns.length && !turnsRef.current.length) {
+          const restored = data.dayTurns.filter((turn) => turn && typeof turn.text === "string").map((turn) => ({ role: turn.role === "assistant" ? "assistant" : "user", text: turn.text }));
+          turnsRef.current = restored;
+          setTurns(restored);
+        }
         setMobileWake(data?.mobileWake === true);
       })
       .catch(() => alive && setEnabled(false))
@@ -627,6 +643,18 @@ export default function HenryVoiceAssistant() {
     if (!queue.playing) playNextRef.current();
   }, []);
 
+  // Despedida na voz do Henry ("obrigado, Henry"): do mesmo cache das frases de espera, sem repetir as últimas 5. Sem voz
+  // do servidor: só o som de fim (nunca a voz do navegador).
+  const sayGoodbye = useCallback(() => {
+    const byes = narrationRef.current.phrases.filter((phrase) => phrase.topics?.includes("bye"));
+    if (!byes.length || mutedRef.current) return;
+    const choice = pickWaitPhrase({ topic: "bye", recentIds: recentPhrasesRef.current, phrases: byes });
+    if (!choice?.audio?.base64) return;
+    recentPhrasesRef.current = rememberPhrase(recentPhrasesRef.current, choice.id);
+    speechQueueRef.current = { clips: [{ audio: choice.audio, text: choice.text, narration: true }], playing: false, done: true };
+    playNextRef.current();
+  }, []);
+
   // --- Cena de busca e narração ------------------------------------------------------------------------------------
   // Evento de progresso do servidor → assunto da cena, legenda e cards de corretor (até 3; o achado ganha os números).
   const applyProgress = useCallback((message) => {
@@ -660,9 +688,10 @@ export default function HenryVoiceAssistant() {
       const queue = speechQueueRef.current;
       const { phrases } = narrationRef.current;
       const name = wait.names.find((item) => !recentPhrasesRef.current.includes(item.id));
-      const hasAudio = Boolean(name) || phrases.length > 0;
+      const waits = phrases.filter((phrase) => !phrase.topics?.includes("bye")); // despedidas só no fim da conversa
+      const hasAudio = Boolean(name) || waits.length > 0;
       if (!shouldNarrate({ now: Date.now(), startedAt: wait.startedAt, lastNarrationAt: wait.lastAt, playing: queue.playing, replied: wait.replied || wait.id !== requestIdRef.current, hasAudio })) return;
-      const choice = name || pickWaitPhrase({ topic: wait.topic, recentIds: recentPhrasesRef.current });
+      const choice = name || pickWaitPhrase({ topic: wait.topic, recentIds: recentPhrasesRef.current, phrases: waits });
       if (!choice?.audio?.base64) return;
       waitRef.current = { ...wait, lastAt: Date.now(), names: name ? wait.names.filter((item) => item !== name) : wait.names };
       recentPhrasesRef.current = rememberPhrase(recentPhrasesRef.current, choice.id);
@@ -692,6 +721,12 @@ export default function HenryVoiceAssistant() {
     waitRef.current = { id, startedAt: Date.now(), replied: false, topic: mode === "report" ? "relatorio" : "geral", lastAt: 0, names: [] };
     setScene({ topic: mode === "report" ? "relatorio" : "geral", label: "", brokers: [] });
     touchConversation();
+    // "Esquece a conversa de hoje": a tela também começa do zero.
+    const clearTurns = () => {
+      turnsRef.current = [];
+      conversationRef.current = { ...conversationRef.current, historyStart: 0 };
+      setTurns([]);
+    };
     const onReply = (reply, navigate, detail = null) => {
       if (waitRef.current.id === id) waitRef.current = { ...waitRef.current, replied: true };
       const withReply = [...turnsRef.current, detail ? { role: "assistant", text: reply, detail } : { role: "assistant", text: reply }];
@@ -732,6 +767,7 @@ export default function HenryVoiceAssistant() {
           updatePhase("idle");
           return;
         }
+        if (data.memoryCleared) clearTurns();
         onReply(data.reply || "", data.navigate, data.detail || null);
         enqueueClip({ audio: data.audio, text: data.reply || "" });
         endSpeech();
@@ -761,7 +797,10 @@ export default function HenryVoiceAssistant() {
           } catch {
             continue;
           }
-          if (typeof message?.reply === "string") onReply(message.reply, message.navigate, message.detail || null);
+          if (typeof message?.reply === "string") {
+            if (message.memoryCleared) clearTurns();
+            onReply(message.reply, message.navigate, message.detail || null);
+          }
           else if (typeof message?.text === "string") enqueueClip({ audio: message.audio, text: message.text });
           else if (message?.done) endSpeech();
           else if (typeof message?.progress === "string") applyProgress(message);
@@ -965,6 +1004,7 @@ export default function HenryVoiceAssistant() {
     if (conversation.active && isConversationEnd(text) && !isEchoOf(text, spoken)) {
       interrupt();
       endConversation();
+      sayGoodbye();
       return true;
     }
     if (phaseRef.current === "speaking" || phaseRef.current === "thinking") {
@@ -1017,7 +1057,7 @@ export default function HenryVoiceAssistant() {
       return true;
     }
     return false;
-  }, [currentSpeech, endConversation, interrupt, listenAgain, startConversation]);
+  }, [currentSpeech, endConversation, interrupt, listenAgain, sayGoodbye, startConversation]);
 
   // Fim do modo conversa por silêncio (~40 s sem troca; nunca no meio de uma resposta).
   useEffect(() => {
@@ -1291,7 +1331,7 @@ export default function HenryVoiceAssistant() {
             : phase === "armed"
               ? inConversation
                 ? "Em conversa — pode falar sem dizer o nome (“obrigado, Henry” encerra)"
-                : "Pode falar…"
+                : listenPrompt
               : micState === "listening"
                 ? heard.text && Date.now() - heard.at < 8000 ? heard.accepted ? `Ouvi: “${heard.text}”` : `Ouvi: “${heard.text}” (diga “Henry” antes)` : expanded ? "Ouvindo — pode falar" : "Ouvindo — diga “Henry”"
                 : listenMode === "tap"

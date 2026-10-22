@@ -74,12 +74,12 @@ test("continuação sem o nome: aceita pergunta curta, recusa ruído, parada e e
   assert.equal(isEchoOf("deixa eu ver", "Deixa eu ver…"), true);
 });
 
-test("memória: só as trocas do modo conversa atual, no máximo ~6", () => {
-  assert.equal(HENRY_HISTORY_TURNS, 12);
+test("memória da página: no máximo ~8 trocas (a memória do dia no servidor manda)", () => {
+  assert.equal(HENRY_HISTORY_TURNS, 16);
   const turns = Array.from({ length: 20 }, (_, index) => ({ role: index % 2 ? "assistant" : "user", text: `t${index}` }));
   const history = conversationHistory(turns, 0);
-  assert.equal(history.length, 12);
-  assert.equal(history[0].text, "t8");
+  assert.equal(history.length, 16);
+  assert.equal(history[0].text, "t4");
   assert.deepEqual(conversationHistory(turns, 18).map((turn) => turn.text), ["t18", "t19"]);
   assert.deepEqual(conversationHistory(turns, 20), []); // zerada ao sair do modo conversa
   // O servidor também corta (mesmo limite) e alterna os papéis.

@@ -392,6 +392,14 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-22 — Henry assistente pessoal: jeito de amigo, vocabulário variado, memória do dia, lembretes e pesquisa na internet
+- **Pedidos do dono:** "ele é meu assistente pessoal… dê acesso a navegador para ele pesquisar"; "formal demais… como se ele fosse um amigo batendo um papo"; "ele fala sempre a mesma coisa"; "deixar a memória dele no dia".
+- **O que mudou:** prompt novo (fixo com cache + variável com data/hora de Brasília, lembretes, resumo do dia, aberturas proibidas e dica sorteada); tom padrão "Amigo (descontraído)" (voz ElevenLabs mais expressiva); relatório do dia reescrito pelo modelo com trava de números e reserva sorteada (sem "Segue o relatório"); bancos de 20+ frases (aberturas, "pode falar", despedidas na voz dele); memória do dia em `crm_settings` `henry_day_memory` (volta ao abrir/recarregar; "esquece a conversa de hoje"); lembretes `henry_notes`; pesquisa na internet (`web_search_20250305`, 3 buscas, fontes na tela, custo `henry_web_search`, liga/desliga no cartão — nasce ligada).
+- **Custo:** busca US$ 0,01 cada (+ tokens dos resultados, ~US$ 0,001 no Haiku); relatório do dia +1 chamada curta (~US$ 0,0003); despedidas somam ~460 caracteres ao cache de frases por voz.
+- **Docs:** `docs/BUSINESS_RULES.md` HENRY-1/HENRY-3, `.claude/rules/integracoes-externas.md`.
+- **Arquivos:** `lib/henry-voice-persona.mjs`, `lib/henry-memory-core.mjs`, `lib/henry-voice.js`, `lib/henry-voice-core.mjs`, `lib/henry-voice-style.mjs`, `lib/henry-voice-providers.mjs`, `lib/henry-voice-narration.mjs`, `app/api/admin/henry/route.js`, `components/henry/*`, testes `tests/henry-persona.test.mjs` e ajustes nos demais.
+- **Risco/observação:** Haiku 5.5 não aceita `temperature` (a variação vem do prompt). Suporte do Haiku 5.5 à pesquisa e liberação na organização não testados em produção. Quem já salvou outro tom (ex.: Profissional) continua nele — trocar na tela.
+
 ### 2026-10-22 — Henry minimizado: o nome no parcial vale, janela de conversa de 40 s e reconhecimento estável
 - **Pedido do dono:** "o Henry minimizado não está funcionando direito. Mesmo com o microfone ligado, ele interage como se estivesse escutando, mas não responde."
 - **O que mudou:** parcial com "Henry" arma o trecho (a final sem o nome vale); o reconhecimento só é recriado quando liga/desliga (handlers por ref); janela de conversa ~40 s (era 20 s) depois de qualquer pergunta, também no computador; minimizado mostra o que foi ignorado. Regra da escuta mantida (HENRY-1, "Modo conversa"; janela agora ~40 s).

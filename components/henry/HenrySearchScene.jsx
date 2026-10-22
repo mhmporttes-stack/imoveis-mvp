@@ -66,7 +66,8 @@ function seeded(seed) {
 
 const STAGES = ["Prospecção", "Atendimento", "Simulação", "Documentação", "Aprovação", "Aprovados", "Reunião", "Venda"];
 const STATUS = ["Em atendimento", "Simulação enviada", "Aguardando documentação", "Aguardando aprovação", "Tentando contato"];
-const TOPIC_SEED = { geral: 11, relatorio: 23, funil: 37, ranking: 41, clientes: 53, corretor: 67, meta: 79, whatsapp: 97 };
+const TOPIC_SEED = { geral: 11, relatorio: 23, funil: 37, ranking: 41, clientes: 53, corretor: 67, meta: 79, whatsapp: 97, internet: 101 };
+const SITES = ["noticias", "clima", "portal", "guia", "mapa", "jornal", "consulta", "agenda"];
 
 // Linhas de "painel" por assunto (fictícias: contagens, barras e rótulos genéricos; nenhum nome real).
 function linesFor(topic, column, random) {
@@ -80,6 +81,7 @@ function linesFor(topic, column, random) {
     else if (kind === "ranking" || kind === "corretor") lines.push({ text: `${(index % 9) + 1}º  ●●●●`, value: `${n * 2} pts`, bar: pct });
     else if (kind === "clientes") lines.push({ text: `Cliente ••••  ${STATUS[(index + column) % STATUS.length]}`, value: `${Math.round(random() * 12)}d`, bar: null });
     else if (kind === "meta") lines.push({ text: `Meta ${bar}`, value: `${pct}%`, bar: null });
+    else if (kind === "internet") lines.push({ text: `▤  www.${SITES[(index + column) % SITES.length]}••••.com.br`, value: `${Math.round(random() * 9) + 1} min`, bar: pct });
     else if (kind === "whatsapp") lines.push({ text: `Número ${(index % 2) + 1}  ●  ${random() > 0.2 ? "conectado" : "reconectando"}`, value: "", bar: null });
     else lines.push({ text: `Registro ${1000 + Math.round(random() * 8999)}`, value: String(n), bar: pct });
   }
@@ -284,7 +286,13 @@ export function HenryDetailPanel({ detail, mobile = false }) {
             <ul className="space-y-0.5">
               {(section.rows || []).map((row, rowIndex) => (
                 <li key={rowIndex} className="flex items-baseline gap-2 text-[12px] leading-snug text-white/85">
-                  <span className="min-w-0 flex-1 truncate">{row.label}</span>
+                  {row.href && /^https:\/\//.test(row.href) ? (
+                    <a href={row.href} target="_blank" rel="noopener noreferrer" className="min-w-0 flex-1 truncate underline decoration-white/30 underline-offset-2 hover:text-white">
+                      {row.label}
+                    </a>
+                  ) : (
+                    <span className={`min-w-0 flex-1 ${row.value ? "truncate" : ""}`}>{row.label}</span>
+                  )}
                   <span className="font-bold tabular-nums text-white">{row.value}</span>
                   {row.note ? <span className="text-[11px] text-white/50">{row.note}</span> : null}
                 </li>

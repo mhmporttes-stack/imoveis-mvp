@@ -25,6 +25,7 @@ export default function HenrySettingsCard() {
             enabled: Boolean(data?.enabled),
             vision: data?.vision === true,
             mobileWake: data?.mobileWake === true,
+            webSearch: data?.webSearch !== false,
             serverVoice: Boolean(data?.serverVoice),
             provider: data?.provider || "browser",
             providerLabel: data?.providerLabel || "voz do navegador",
@@ -55,7 +56,7 @@ export default function HenrySettingsCard() {
       });
       const data = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(data?.error || "Não foi possível salvar.");
-      setState((current) => ({ ...current, enabled: data.enabled, vision: data.vision, mobileWake: data.mobileWake === true }));
+      setState((current) => ({ ...current, enabled: data.enabled, vision: data.vision, mobileWake: data.mobileWake === true, webSearch: data.webSearch !== false }));
       window.location.reload(); // o ícone do canto lê a configuração ao montar
     } catch (saveError) {
       setError(saveError?.message || "Não foi possível salvar.");
@@ -71,7 +72,8 @@ export default function HenrySettingsCard() {
           <p className="text-base font-black text-navy">Assistente de voz Henry (computador e celular)</p>
           <p className="mt-1 text-sm text-muted">
             Ícone no canto do painel, só para você. No computador, diga “bom dia, Henry” para o relatório do dia ou “Henry, …” com a pergunta. No
-            celular, toque no Henry e fale. Só consulta — não envia nem altera nada. Alt+B deixa no mudo. O navegador pede o microfone uma vez.
+            celular, toque no Henry e fale. É seu assistente pessoal: conversa, pesquisa, anota lembretes (“Henry, lembre que…”) e guarda a
+            conversa do dia. No CRM só consulta — não envia nem altera nada. Alt+B deixa no mudo. O navegador pede o microfone uma vez.
             {state.serverVoice ? "" : " Voz do servidor não configurada: o Henry fala com a voz do navegador."}
           </p>
         </div>
@@ -99,6 +101,23 @@ export default function HenrySettingsCard() {
           className={`rounded-control px-5 py-2.5 text-sm font-bold disabled:opacity-60 ${state.vision ? "border border-line text-navy" : "bg-navy text-white"}`}
         >
           {state.vision ? "Desligar a visão" : "Ligar a visão"}
+        </button>
+      </div>
+      <div className="mt-5 flex flex-wrap items-center justify-between gap-4 border-t border-line pt-5">
+        <div className="max-w-2xl">
+          <p className="text-sm font-black text-navy">Pesquisa na internet</p>
+          <p className="mt-1 text-sm text-muted">
+            Ligada: quando você pede (“Henry, pesquisa…”) ou quando a pergunta é sobre algo atual (notícia, clima, cotação, endereço), ele busca na
+            internet — no máximo 3 buscas por pergunta, cerca de US$ 0,01 cada. As fontes aparecem na tela; ele não lê links em voz alta.
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={() => save("webSearch")}
+          disabled={Boolean(saving) || !state.enabled}
+          className={`rounded-control px-5 py-2.5 text-sm font-bold disabled:opacity-60 ${state.webSearch ? "border border-line text-navy" : "bg-navy text-white"}`}
+        >
+          {state.webSearch ? "Desligar a pesquisa" : "Ligar a pesquisa"}
         </button>
       </div>
       <div className="mt-5 flex flex-wrap items-center justify-between gap-4 border-t border-line pt-5">
