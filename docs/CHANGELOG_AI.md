@@ -44,6 +44,15 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 
 
+### 2026-10-22 — Henry: cena de busca redesenhada (HUD em camadas, fases e corretores em arco)
+- **Data:** 2026-10-22
+- **Área:** Henry (apresentação)
+- **Alteração:** a cena atrás do anel virou um ambiente em camadas: grade em perspectiva, partículas puxadas das bordas para o anel (canvas leve), painéis holográficos em perspectiva com cartões do assunto (funil, ranking, clientes, relatório, meta, WhatsApp; web = páginas folheando) e varredura de luz. Fases: entrada (desfocado → nítido), busca (destaque passa de cartão em cartão), achou (um cartão vem à frente e é absorvido pelo anel, que pulsa) e saída. Corretor: carrossel de silhuetas com mira travando → card premium (borda dourado/ciano, foto, primeiro nome, 1–2 números contando, posição se vier) ligado ao anel por feixe curvo com partículas; até 3 em arco à direita (celular: abaixo do anel).
+- **Motivo:** dono: "a cena ficou muito pobre, quero algo bem mais elaborado".
+- **Arquivos afetados:** `components/henry/HenrySearchScene.jsx`, `components/henry/HenrySearchScene.module.css` (novo), `components/henry/HenryVoiceView.jsx` (passa `orbSize`/`hasBrokers`), vitrine `app/dev/vitrine/henry/page.dev.jsx` + `_components/HenryDemo.jsx` (`?cena=achou`, `?cena=corretor&n=1..3`, `assunto=internet`). Grande parte entrou por engano no commit 7c13cb4 (outro agente); este commit completa.
+- **Risco/observação:** números da cena são FICTÍCIOS, mudam a cada passo enquanto busca e desfocam no "achou" (nunca param legíveis como se fossem resposta). Aba oculta pausa CSS, relógio e canvas; reduced-motion = versão parada. Selo de posição só aparece se o evento trouxer `broker.position` (hoje o servidor não manda e o `HenryVoiceAssistant` não repassa) — A CONFIRMAR com o dono. Vista na vitrine em 1280×800 e 390×844; celular de tela baixa (≤ 667 px) com transcrição longa pode encostar nos cards de corretor.
+- **Autor:** Claude Code (designer-crm)
+
 ### 2026-10-22 — SIM-AUTO: rascunho vazio não bloqueia mais a simulação automática do site
 - **Data:** 2026-10-22
 - **Área:** Clientes / SIM-AUTO

@@ -388,3 +388,9 @@
   .beamDraw { stroke-dashoffset: 0; }
   .scan, .scanBeamV { display: none; }
 }
+
+/* Honestidade: no "achou" os números de enfeite do cartão escolhido desfocam — nunca ficam parados, legíveis, como se
+   fossem a resposta (a resposta real vem na fala e no detalhe). */
+.scene[data-phase="found"] .card[data-chosen="1"] .bigNumber,
+.scene[data-phase="found"] .card[data-chosen="1"] .rowValue,
+.scene[data-phase="found"] .card[data-chosen="1"] .headValue { filter: blur(4px); opacity: 0.55; transition: filter 200ms ease-out, opacity 200ms ease-out; }
