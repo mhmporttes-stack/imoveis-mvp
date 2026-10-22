@@ -121,5 +121,5 @@ test("como tratar o dono: saudação do relatório, amostra e elogio (regras do 
   const prompt = buildComplimentPrompt([], { address: "chefe" });
   assert.match(prompt, /Ele é o "chefe", mas NÃO diga o nome/);
   assert.match(prompt, /NUNCA comente corpo/);
-  assert.match(buildComplimentPrompt([]), /Chame-o de "Matheus"/);
+  assert.match(buildComplimentPrompt([]), /Ele é o "Matheus", mas NÃO diga o nome/);
 });
