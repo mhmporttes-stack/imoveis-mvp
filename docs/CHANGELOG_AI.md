@@ -392,6 +392,18 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-22 — Estratégia com amortização: gráfico desenha por tempo, bolinha nas duas linhas e "N anos a menos" centralizado (PRES-27)
+- **Data:** 2026-10-22
+- **Área:** Apresentação pública `/s/<token>` › folha "Estratégia com amortização" › gráfico "PROJEÇÃO DE QUITAÇÃO" (só apresentação/animação)
+- **Pedido do dono (print do iPhone):** "A cena na apresentação está muito rápida, o gráfico está subindo muito rápido, o texto não está centralizado. A bolinha tem que aparecer quando bate lá em cima, tanto no dourado quanto no vermelho. Ela sobe a linha normal e quando chega lá em cima aparece a bolinha, com um efeito de pulo."
+- **Causa:** o desenho era guiado pela rolagem (`animation-timeline` do próprio gráfico, faixas entry 0–80/20–100/85–100) e terminava assim que o gráfico entrava na tela; só a dourada tinha bolinha; o texto ficava no meio do vão no topo com fonte fixa e encostava na vermelha (o texto é mais largo que o vão).
+- **Alteração:** (1) o bloco continua subindo ao rolar (`stReveal`), mas o desenho é POR TEMPO e só começa com o gráfico ≥ 60% visível (`IntersectionObserver`, uma vez; sem ele, ao abrir a folha) — até lá as animações ficam pausadas (`data-play`): dourada 2,6 s e vermelha 3,6 s (ease-in-out, juntas), área dourada depois da dourada; (2) bolinha no topo no fim de CADA linha (dourada e vermelha `#F0716A` com brilho), cada uma quando a sua linha chega, com pulo (escala 0 → 1,35 → 0,9 → 1 e −8 px, 600 ms, `transform-box: fill-box`); (3) "N anos a menos" aparece depois das duas bolinhas, centralizado (`translate(-50%, -50%)`) na área dourada: ponto pedido (x no meio do vão no topo, y no meio entre o topo e a vermelha) com folga ≥ 12 px de cada linha medida nas linhas DESENHADAS (`getPointAtLength`); não cabendo, fonte 13 → 12 → 11 px, depois em duas linhas ("N anos" / "a menos") e, por fim, o ponto da área com mais espaço livre (`placeGap`, refeito ao mudar a largura). (4) `prefers-reduced-motion`: tudo pronto, sem animação.
+- **Observação:** com o caso típico (13 anos a menos em 35) a folga de 12 px só cabe com o texto em duas linhas a 11 px em 390 px; em 320 px nem assim — fica no ponto de maior folga (~6 px), sem encostar nas linhas.
+- **Arquivos afetados:** `components/presentation/StrategyBalanceChart.jsx`, `components/presentation/presentation.module.css`, `tests/strategy-sheet-layout.test.mjs`, `docs/BUSINESS_RULES.md` (PRES-27).
+- **Banco/rotas/permissões/PDF/números:** nada (números continuam do motor `compareStrategy`).
+- **Verificação:** `node --test tests/strategy-sheet-layout.test.mjs` (10/10) e demais testes da apresentação/estratégia; build; vitrine `app/dev/vitrine/apresentacao?cena=5` em 390 e 320 px (Chromium/Playwright), inclusive movimento reduzido.
+- **Autor:** Claude Code
+
 ### 2026-10-22 — Lista de documentos: "Copiar mídia" e legenda "…para a sua aprovação" (PRES-17/PRES-26)
 - **Data:** 2026-10-22
 - **Área:** Clientes › "Lista" (janela "Enviar lista de documentos") · envio automático PRES-26

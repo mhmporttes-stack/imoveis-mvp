@@ -921,12 +921,13 @@ a.fcSubmit { text-decoration: none; }
 .stHighlight span { color: rgba(255, 255, 255, 0.88); }
 /* Gráfico "Projeção de quitação" (visual aprovado pelo dono em 2026-10-22, com o ajuste do mesmo dia): de baixo para cima
    (quanto já foi quitado), SEM amortização em vermelho e COM amortização em dourado, curvas suaves, área dourada entre elas,
-   bolinha dourada quando a dourada bate no topo e "N anos a menos" entre as linhas. As linhas se desenham conforme a folha
-   rola e TERMINAM quando o gráfico entra inteiro na tela (linha do tempo do próprio gráfico: --stplot); sem esse recurso no
-   navegador, por tempo. Textos em HTML (≥ 12px) sobre o SVG (quadro 340×170, escala uniforme). */
+   uma bolinha no topo no fim de CADA linha e "N anos a menos" centralizado na área dourada. Ajuste do dono (2026-10-22):
+   o desenho é por TEMPO e só começa quando o gráfico está ≥ 60% visível (data-play, posto pelo IntersectionObserver do
+   StrategyBalanceChart); até lá as animações ficam pausadas no 1º quadro. Textos em HTML (≥ 11px; 13px quando cabe) sobre
+   o SVG (quadro 340×170, escala uniforme). */
 .stChart { margin: 0 0 calc(var(--u) * 22); }
 .stSrOnly { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
-.stPlotWrap { position: relative; display: grid; grid-template-columns: minmax(0, 1fr); margin-top: calc(var(--u) * 6); view-timeline-name: --stplot; }
+.stPlotWrap { position: relative; display: grid; grid-template-columns: minmax(0, 1fr); margin-top: calc(var(--u) * 6); }
 .stPlot { min-width: 0; }
 .stPlotSvg { display: block; width: 100%; height: auto; overflow: visible; }
 .stGridTop { stroke: #13253B; stroke-width: 1; stroke-dasharray: 3 4; }
@@ -937,23 +938,27 @@ a.fcSubmit { text-decoration: none; }
 .stPathSem { stroke: #F0716A; stroke-width: 2.5; }
 .stPathCom { stroke: #E8B85C; stroke-width: 3.5; filter: drop-shadow(0 0 6px rgba(232, 184, 92, 0.45)); }
 .stDot { fill: #F3DCA6; stroke: #E8B85C; stroke-width: 2; transform-box: fill-box; transform-origin: center; filter: drop-shadow(0 0 10px #E8B85C); }
+.stDotSem { fill: #F9B9B4; stroke: #F0716A; filter: drop-shadow(0 0 9px #F0716A); }
 .stGap { position: absolute; z-index: 1; margin: 0; transform: translate(-50%, -50%); font-size: 13px; line-height: 1.1; font-weight: 800; white-space: nowrap; color: #F6DFA8; text-shadow: 0 1px 6px rgba(7, 17, 31, 0.9); pointer-events: none; }
+.stGap[data-two-lines] { display: flex; flex-direction: column; align-items: center; text-align: center; }
 .stXAxis { display: flex; justify-content: space-between; margin-top: 4px; font-size: 12px; line-height: 1.2; font-variant-numeric: tabular-nums; color: #9DB0C8; }
-/* desenho: pathLength=1 → o traço vai de 0 a 1. Fallback por tempo (abre a folha e desenha); com animation-timeline,
-   guiado pela rolagem: vermelha de entry 0% a 80%, dourada de 20% a 100%, bolinha e textos de 85% a 100% */
-.stDraw { stroke-dasharray: 1; stroke-dashoffset: 0; animation: stDraw 2s cubic-bezier(0.4, 0, 0.2, 1) 0.3s both; }
-.stDrawCom { animation-delay: 1.2s; }
-.stBand, .stGap { animation: stFadeIn 0.8s ease 2.6s both; }
-.stDot { animation: stPopIn 0.5s cubic-bezier(0.3, 1.6, 0.5, 1) 2.4s both; }
-@supports (animation-timeline: view()) {
-  .stDraw { animation: stDraw linear both; animation-timeline: --stplot; animation-range: entry 0% entry 80%; }
-  .stDrawCom { animation-range: entry 20% entry 100%; }
-  .stBand, .stGap { animation: stFadeIn linear both; animation-timeline: --stplot; animation-range: entry 85% entry 100%; }
-  .stDot { animation: stPopIn linear both; animation-timeline: --stplot; animation-range: entry 85% entry 100%; }
-}
+/* desenho: pathLength=1 → o traço vai de 0 a 1, por tempo. Dourada 2,6 s e vermelha 3,6 s (vai até os 35 anos), juntas;
+   área dourada depois da dourada; bolinha de cada linha quando ela chega ao topo (pulo de ~600 ms); texto depois das duas */
+.stDraw { stroke-dasharray: 1; stroke-dashoffset: 0; animation: stDraw 3.6s cubic-bezier(0.45, 0, 0.55, 1) both paused; }
+.stDrawCom { animation-duration: 2.6s; }
+.stBand { animation: stFadeIn 0.9s ease 2.6s both paused; }
+.stDot { animation: stDotJump 0.6s ease-out 2.6s both paused; }
+.stDotSem { animation-delay: 3.6s; }
+.stGap { animation: stFadeIn 0.6s ease 4.25s both paused; }
+.stPlotWrap[data-play] .stDraw, .stPlotWrap[data-play] .stBand, .stPlotWrap[data-play] .stDot, .stPlotWrap[data-play] .stGap { animation-play-state: running; }
 @keyframes stDraw { from { stroke-dashoffset: 1; } to { stroke-dashoffset: 0; } }
 @keyframes stFadeIn { from { opacity: 0; } to { opacity: 1; } }
-@keyframes stPopIn { 0% { opacity: 0; transform: scale(0); } 70% { opacity: 1; transform: scale(1.4); } 100% { opacity: 1; transform: scale(1); } }
+@keyframes stDotJump {
+  0% { opacity: 0; transform: translateY(0) scale(0); }
+  40% { opacity: 1; transform: translateY(-8px) scale(1.35); }
+  70% { transform: translateY(0) scale(0.9); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
+}
 @media (prefers-reduced-motion: reduce) { .stDraw, .stBand, .stDot, .stGap { animation: none; } }
 .stLegend { display: flex; flex-wrap: wrap; gap: calc(var(--u) * 6) calc(var(--u) * 14); margin: calc(var(--u) * 10) 0 0; padding: 0; list-style: none; font-size: 12px; line-height: 1.35; color: #9DB0C8; }
 .stLegend li { display: inline-flex; align-items: center; gap: 7px; min-width: 0; }

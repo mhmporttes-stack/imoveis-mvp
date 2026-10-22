@@ -92,24 +92,36 @@ test("gráfico (dono, 2026-10-22): sem amortização vermelho, com amortização
   assert.match(chart, /<p className=\{styles\.stSrOnly\}>\{summary\}<\/p>/, "resumo para leitor de tela");
 });
 
-test("gráfico (dono, 2026-10-22): de baixo para cima, curvas suaves a cada 24 meses, bolinha no topo e 'N anos a menos' entre as linhas", () => {
+test("gráfico (dono, 2026-10-22): de baixo para cima, curvas suaves a cada 24 meses, bolinha no topo de cada linha e 'N anos a menos' centralizado", () => {
   const chart = read("components/presentation/StrategyBalanceChart.jsx");
   assert.match(chart, /const toPaid = \(\[month, balance\]\) => \[month, start - balance\]/, "eixo = valor quitado (financiado − saldo do motor)");
   assert.match(chart, /const SAMPLE_EVERY = 24;/);
   assert.match(chart, /function smooth\(points\)/, "Catmull-Rom → Bézier");
   assert.match(chart, /pathLength="1"/);
   assert.match(chart, /<circle cx=\{f1\(comEnd\[0\]\)\} cy=\{TOP\}/, "bolinha quando a dourada bate no topo");
-  assert.match(chart, /const midX = withStrategy \? \(comEnd\[0\] \+ W\) \/ 2/, "x no meio entre o fim da dourada e o fim do gráfico");
-  assert.match(chart, /\(TOP \+ semYAt\(midX\)\) \/ 2/, "y no meio entre o topo e a linha vermelha");
+  assert.match(chart, /<circle cx=\{f1\(semEnd\[0\]\)\} cy=\{TOP\}[^>]*styles\.stDotSem/, "bolinha vermelha quando a vermelha bate no topo (dono, 2026-10-22)");
+  assert.match(chart, /const specX = \(comEndX \+ W\) \/ 2;/, "x no meio do vão no topo (fim da dourada → fim da vermelha)");
+  assert.match(chart, /const specY = \(TOP \+ \(yAt\(sem, specX\) \?\? BASE\)\) \/ 2;/, "y no meio entre o topo e a linha vermelha");
+  assert.match(chart, /const GAP_CLEAR = 12;/, "folga mínima de 12 px de cada linha");
+  assert.match(chart, /const GAP_FONTS = \[13, 12, 11\];/, "fonte um pouco menor se não couber");
+  assert.match(rule(".stGap"), /translate\(-50%, -50%\)/, "texto centralizado no ponto calculado");
   assert.match(chart, /yearsLessText\(sem\.months, com\.months\)/);
   assert.match(chart, /Área dourada = tempo que você ganha/);
   assert.match(chart, /Sem amortização \(\{formatRoundedYears\(sem\.months\)\}\)/);
-  // desenho guiado pela rolagem TERMINA quando o gráfico entra inteiro na tela; fallback por tempo
-  assert.match(rule(".stPlotWrap"), /view-timeline-name:\s*--stplot/);
-  assert.match(css, /\.stDraw \{ animation: stDraw linear both; animation-timeline: --stplot; animation-range: entry 0% entry 80%; \}/);
-  assert.match(css, /\.stDrawCom \{ animation-range: entry 20% entry 100%; \}/);
-  assert.match(css, /\.stDot \{ animation: stPopIn linear both; animation-timeline: --stplot; animation-range: entry 85% entry 100%; \}/);
-  assert.match(css, /\.stDraw \{ stroke-dasharray: 1; stroke-dashoffset: 0; animation: stDraw 2s/, "fallback por tempo");
+  // ritmo (dono, 2026-10-22: "muito rápido"): desenho POR TEMPO, só com o gráfico ≥ 60% visível (IntersectionObserver, uma vez)
+  assert.match(chart, /new IntersectionObserver\(/);
+  assert.match(chart, /threshold: \[0\.6\]/);
+  assert.match(chart, /typeof IntersectionObserver === "undefined"\) \{\s*setPlay\(true\)/, "sem IntersectionObserver: começa ao abrir a folha");
+  assert.doesNotMatch(css, /animation-timeline: --stplot|view-timeline-name: --stplot/, "desenho não é mais guiado pela rolagem");
+  assert.match(css, /\.stDraw \{ stroke-dasharray: 1; stroke-dashoffset: 0; animation: stDraw 3\.6s [^;]*both paused; \}/, "vermelha ~3,6 s");
+  assert.match(css, /\.stDrawCom \{ animation-duration: 2\.6s; \}/, "dourada ~2,6 s");
+  assert.match(css, /\.stBand \{ animation: stFadeIn [\d.]+s ease 2\.6s both paused; \}/, "área depois da dourada");
+  assert.match(css, /\.stDot \{ animation: stDotJump 0\.6s ease-out 2\.6s both paused; \}/);
+  assert.match(css, /\.stDotSem \{ animation-delay: 3\.6s; \}/);
+  assert.match(css, /\.stGap \{ animation: stFadeIn [\d.]+s ease 4\.2\d?s both paused; \}/, "texto depois das duas bolinhas");
+  assert.match(css, /\.stPlotWrap\[data-play\] \.stDraw[^{]*\{ animation-play-state: running; \}/);
+  assert.match(css, /@keyframes stDotJump \{[\s\S]*?translateY\(-8px\) scale\(1\.35\)[\s\S]*?scale\(0\.9\)[\s\S]*?scale\(1\)/, "efeito de pulo");
+  assert.match(rule(".stDot"), /transform-box:\s*fill-box;\s*transform-origin:\s*center/);
   // pontas só com os anos arredondados; PDF continua com a mesma regra
   assert.match(chart, /formatRoundedYears\(/);
   const pdf = read("lib/payment-strategy-pdf.mjs");
