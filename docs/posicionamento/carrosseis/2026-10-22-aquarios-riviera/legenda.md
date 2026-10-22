@@ -8,7 +8,7 @@ Dados enviados pelo dono: Jardim Aquários Riviera; terreno 180 m²; área const
 
 **No site desde 2026-10-22:** `properties` id `81c9a85b-ba77-4a64-83db-120edca47664`, publicado, contato salvo. Fotos provisórias no GitHub (commit fe0a619). Página: https://www.matheusmachadoimoveis.com.br/empreendimentos/81c9a85b-ba77-4a64-83db-120edca47664
 
-Instagram: envio feito em 2026-10-22, mas a ferramenta não confirmou (tempo esgotado); conferir com o dono antes de reenviar.
+Instagram: 1º envio (2026-10-22) não apareceu segundo o dono; 2º envio também deu tempo esgotado — conferir com o dono antes de qualquer novo envio.
 
 ## Legenda
 
