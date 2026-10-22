@@ -85,7 +85,7 @@ export default function AutomationRulesManager({ initialRules = [], users = [], 
 
   return (
     <section className="container-page space-y-5">
-      <div className="grid gap-3 sm:grid-cols-3">
+      <div className="grid grid-cols-3 gap-2 sm:gap-3">
         <Metric label="Total de regras" value={totals.all} />
         <Metric label="Ativas" value={totals.active} tone="active" />
         <Metric label="Inativas" value={totals.inactive} />

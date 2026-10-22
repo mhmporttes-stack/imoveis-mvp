@@ -306,3 +306,13 @@ html.mm-panel main :is(button, a, label):is(.bg-navy, .bg-brand).text-white:not(
 html.mm-panel main :is(button, a, label):is(.bg-navy, .bg-brand).text-white:not(:disabled):hover {
   filter: brightness(1.1);
 }
+
+/* Botão de ação antigo (client-action-button): no painel, alvo de 44×44 mesmo só com ícone (lápis/lixeira) e
+   cantos de controle; sem o pulo ao passar o mouse. */
+html.mm-panel .client-action-button {
+  min-width: 44px;
+  border-radius: var(--mm-r-control);
+}
+html.mm-panel .client-action-button:hover {
+  transform: none;
+}

@@ -35,10 +35,11 @@ export function WhatsappStateChip({ sessionStatus, restriction, small = false })
   const open = restriction ? { validation_status: restriction.validationStatus } : null;
   const badge = resolveWhatsappBadge({ sessionStatus, openRestriction: open });
   const Icon = ICONS[badge.icon] || Clock;
-  const size = small ? "text-[9px]" : "text-[10px]";
+  // Mínimo de 11px (crítica do visual novo, 2026-10-22): 9–10px ficava ilegível nos cards da equipe.
+  const size = "text-[11px]";
   return (
     <span title={badge.label} className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 font-black ${size} ${TONES[badge.tone] || TONES.amber}`}>
-      <Icon aria-hidden="true" className={small ? "h-2.5 w-2.5" : "h-3 w-3"} />{badge.short}
+      <Icon aria-hidden="true" className="h-3 w-3" />{badge.short}
     </span>
   );
 }

@@ -445,7 +445,8 @@ function rouletteConditions(member) {
   return { ok: lines.every((line) => line.ok), lines };
 }
 
-const ICON_BUTTON = "relative grid h-[38px] w-[38px] place-items-center rounded-[11px] border bg-surface-2 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent";
+// 38px visíveis; a área de toque chega a 44×44 pelo ::before (crítica de 2026-10-22).
+const ICON_BUTTON = "relative grid h-[38px] w-[38px] place-items-center rounded-[11px] border bg-surface-2 transition-colors before:absolute before:-inset-[3px] before:content-[''] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent";
 const iconTone = (open) => (open ? "border-accent shadow-[0_0_0_3px_rgb(var(--mm-accent,27_127_176)/0.15)]" : "border-line hover:border-accent-line");
 
 function MemberRow({ member, goalPercent = null, onOfficeReleased, onOfficeChanged }) {

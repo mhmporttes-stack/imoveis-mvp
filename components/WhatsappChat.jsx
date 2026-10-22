@@ -65,6 +65,7 @@ import { parseWhatsappText, stripWhatsappFormatting } from "@/lib/whatsapp-forma
 import { OFFICIAL_WHATSAPP_DIGITS } from "@/lib/official-whatsapp.mjs";
 import { SIMULATION_FIRST_DONE_MESSAGE } from "@/lib/simulation-first-core.mjs";
 import { OLDER_HISTORY_MAX_ROUNDS, OLDER_HISTORY_POLL_MS, OLDER_HISTORY_ROUND_GAP_MS, OLDER_HISTORY_WAIT_MS, olderHistoryMessage, planNextRound, roundPhase } from "@/lib/whatsapp-older-history-core.mjs";
+import { tabClasses } from "@/components/ui/Tabs";
 
 // Desempenho (2026-10-12): partes que só aparecem depois de um toque (abas Visão geral/Campanhas/Corretores, Guia de
 // Atendimento, Documentos do cliente) são baixadas sob demanda — a lista de conversas abre sem esperar esse código.
@@ -770,9 +771,8 @@ function ConversationList({ className, conversations, error, filter, filterLabel
               type="button"
               onClick={() => onFilter(item.key)}
               aria-pressed={filter === item.key || (item.key === "private" && isPrivateFilter(filter))}
-              className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-extrabold transition ${
-                filter === item.key || (item.key === "private" && isPrivateFilter(filter)) ? "bg-[#D9FDD3] text-[#0A5C30]" : "bg-[#F0F2F5] text-[#54656F] hover:bg-[#E4E7EA] hover:text-[#111B21]"
-              }`}
+              // Filtro ativo com o desenho de aba ativa do painel (azul), não o verde do WhatsApp (crítica de 2026-10-22).
+              className={tabClasses(filter === item.key || (item.key === "private" && isPrivateFilter(filter)), "sm")}
             >
               {filterLabels[item.key] || item.label}
             </button>
@@ -784,7 +784,7 @@ function ConversationList({ className, conversations, error, filter, filterLabel
           <div className="flex gap-1.5">
             {[{ key: "private", label: "Todas" }, { key: "private_unseen", label: "Não lidas" }, ...(canSeeArchived ? [{ key: "private_groups", label: "Grupos" }] : [])].map((item) => (
               <button key={item.key} type="button" onClick={() => onFilter(item.key)} aria-pressed={filter === item.key}
-                className={`rounded-full border px-3 py-1 text-xs font-extrabold transition ${filter === item.key ? "border-[#0A7D41] bg-white text-[#0A5C30]" : "border-transparent bg-[#F0F2F5] text-[#54656F] hover:text-[#111B21]"}`}>
+                className={tabClasses(filter === item.key, "sm")}>
                 {item.label}
               </button>
             ))}
