@@ -3,6 +3,8 @@
 import { useEffect } from "react";
 import AdminBottomNav from "@/components/AdminBottomNav";
 import AdminMenu from "@/components/AdminMenu";
+import AdminTopBar from "@/components/AdminTopBar";
+import AdminScrollReveal from "@/components/motion/AdminScrollReveal";
 import ClientWorkspace from "@/components/clients/ClientWorkspace";
 import DailyGoalDashboard from "@/components/DailyGoalDashboard";
 import DailyGoalCompensationNotice from "@/components/DailyGoalCompensationNotice";
@@ -266,6 +268,8 @@ const TELAS = {
   }
 };
 
+const PAPEIS = { admin: "Administrador geral", gestor: "Gestor", corretor: "Corretor", associado: "Associado" };
+
 const PERFIS = {
   admin: { isAdmin: true },
   gestor: { isManager: true },
@@ -280,7 +284,7 @@ export default function VitrineClient({ tela, perfil, estado, limpo, fonte, vari
 
   // Instalado durante o render (antes dos efeitos dos filhos dispararem
   // o primeiro fetch). Idempotente.
-  installMockFetch([...(atual?.rotas || []), ...comum.routes], estado);
+  installMockFetch([...(atual?.rotas || []), ...rankingTopo.routes, ...comum.routes], estado);
 
   useEffect(() => {
     document.body.classList.add("admin-scroll-fix");
@@ -305,14 +309,22 @@ export default function VitrineClient({ tela, perfil, estado, limpo, fonte, vari
   return (
     <>
       {!limpo ? <BarraDev tela={tela} perfil={perfilValido} estado={estado} fonte={fonteValida} /> : null}
+      {/* Casca do painel como em app/admin/layout.jsx (visual novo, 2026-10-22): menu lateral, cabeçalho e ranking. */}
       {!atual.semMenu ? (
-        <div className="bg-mist pt-6">
-          <div className="container-page">
-            <AdminMenu active={atual.active} {...PERFIS[perfilValido]} />
+        <>
+          <AdminMenu {...PERFIS[perfilValido]} currentPath={atual.path || ""} user={{ name: "Matheus Demo", photoUrl: "", roleLabel: PAPEIS[perfilValido] }} />
+          <div className="mm-app-hide">
+            <AdminTopBar {...PERFIS[perfilValido]} currentPath={atual.path || ""} canViewAs={perfilValido === "admin"} />
+            {atual.path?.startsWith("/admin/chat") ? null : (
+              <header className="admin-ranking-header container-page flex flex-wrap items-center gap-2">
+                <TopRankingBadge weeklyIndicator={<WhatsappIndividualStatus align="end" />} dailyIndicator={<><NotificationHistoryButton align="end" /><GoogleContactsStatus align="end" /></>} />
+              </header>
+            )}
           </div>
-        </div>
+        </>
       ) : null}
-      {atual.render(perfilValido, variante)}
+      <div id="vitrine-root">{atual.render(perfilValido, variante)}</div>
+      {atual.path?.startsWith("/admin/chat") ? null : <AdminScrollReveal rootId="vitrine-root" />}
       <AdminBottomNav {...PERFIS[perfilValido]} currentPath={atual.path || ""} />
     </>
   );
