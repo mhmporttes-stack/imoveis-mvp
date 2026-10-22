@@ -57,8 +57,8 @@ export default async function AdminLayout({ children }) {
       {auth.ok ? <NewClientSoundListener userId={auth.profile?.id} /> : null}
       {/* App "Financeiro" da tela inicial: sem mensagens/celebrações/alertas do painel por cima (só o Financeiro). */}
       <HideInFinanceiroApp>
-      {auth.ok ? <DailyMessageGate userId={auth.profile?.id} /> : null}
-      {auth.ok ? <BrokerCelebrationGate userId={auth.profile?.id} /> : null}
+      {auth.ok ? <DailyMessageGate userId={auth.profile?.id} userName={auth.profile?.name || ""} /> : null}
+      {auth.ok ? <BrokerCelebrationGate userId={auth.profile?.id} userName={auth.profile?.name || ""} userPhotoUrl={auth.profile?.photoUrl || ""} /> : null}
       {auth.ok && !auth.accountSwitchMode ? <SupervisionMessageGate userId={auth.profile?.id} /> : null}
       {/* Central de Alertas (Informativo/Importante) — fora de "Alterar conta", como a Supervisão. */}
       {auth.ok && !auth.accountSwitchMode ? <AlertCenterGate userId={auth.profile?.id} /> : null}
