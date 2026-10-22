@@ -229,3 +229,37 @@ test("narração só na voz do Henry: provedor principal, nunca a voz do navegad
   assert.match(client, /queue\.playing && queue\.narrating/); // a resposta espera a frase atual terminar
   assert.match(client, /sessionStorage/);
 });
+
+// --- "Quando eu pergunto uma informação, ele passa outras" (dono, 2026-10-22) ------------------------------------------
+test("pergunta sobre UM indicador: só ele vai ao modelo e à voz; prompt manda responder só o perguntado", async () => {
+  const { HENRY_BROKER_METRIC_IDS } = await import("../lib/henry-reports-core.mjs");
+  const range = resolveHenryPeriod({ periodo: "hoje" }, TODAY);
+  const report = buildHenryBrokerReport({ broker: { id: "b2", name: "Gabriel" }, range, overview: { ...overview, team: [{ ...overview.team[1], name: "Gabriel" }] }, teamGoal, metric: "atendimentos" });
+  assert.equal(report.spoken, "Gabriel teve 20 atendimentos hoje.");
+  assert.deepEqual(Object.keys(report.facts), ["corretor", "periodo", "atendimentos"]);
+  assert.doesNotMatch(report.spoken, /simula|venda|aprova/);
+  assert.deepEqual(report.stats, [{ label: "atendimentos", value: "20" }]);
+  assert.ok(report.detail.sections[0].rows.length > 5); // o detalhe completo continua na tela
+  assert.match(buildHenryBrokerReport({ broker: { id: "b2", name: "Gabriel" }, range, overview, teamGoal, metric: "ranking" }).spoken, /2º no ranking/);
+  assert.ok(HENRY_BROKER_METRIC_IDS.includes("vendas"));
+  const lib = readFileSync(new URL("../lib/henry-voice.js", import.meta.url), "utf8");
+  assert.match(lib, /metrica: \{ type: "string", enum: HENRY_BROKER_METRIC_IDS/);
+  assert.match(lib, /metric: String\(input\?\.metrica \|\| ""\)/);
+  const { buildHenryStaticPrompt } = await import("../lib/henry-voice-persona.mjs");
+  const prompt = buildHenryStaticPrompt();
+  assert.match(prompt, /Responda SÓ o que foi perguntado, em 1 frase/);
+  assert.match(prompt, /Não liste outros indicadores, a não ser que ele peça "detalhes" ou "resumo"/);
+  assert.match(prompt, /Quer que eu veja as simulações dele também\?/);
+});
+
+test("selo de posição no card: só com ranking/pontos (ou resumo) e quando o corretor está no ranking", () => {
+  const range = resolveHenryPeriod({ periodo: "este_mes" }, TODAY);
+  assert.equal(buildHenryBrokerReport({ broker: { id: "b2", name: "Bruno" }, range, overview, teamGoal, metric: "pontos" }).position, 2);
+  assert.equal(buildHenryBrokerReport({ broker: { id: "b2", name: "Bruno" }, range, overview, teamGoal }).position, 2);
+  assert.equal("position" in buildHenryBrokerReport({ broker: { id: "b2", name: "Bruno" }, range, overview, teamGoal, metric: "atendimentos" }), false);
+  assert.equal("position" in buildHenryBrokerReport({ broker: { id: "x", name: "Zé" }, range, overview, teamGoal, metric: "pontos" }), false);
+  const lib = readFileSync(new URL("../lib/henry-voice.js", import.meta.url), "utf8");
+  assert.match(lib, /\.\.\.\(Number\.isInteger\(position\) && position > 0 \? \{ position \} : \{\}\)/);
+  const client = readFileSync(new URL("../components/henry/HenryVoiceAssistant.jsx", import.meta.url), "utf8");
+  assert.match(client, /broker\.position > 0 \? \{ position: broker\.position \} : \{\}/);
+});

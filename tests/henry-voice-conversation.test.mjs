@@ -318,3 +318,30 @@ test("janela de conversa: ~40 s depois de qualquer resposta; reconhecimento não
   const view = readFileSync(new URL("../components/henry/HenryVoiceView.jsx", import.meta.url), "utf8");
   assert.match(view, /heardHint \|\| status/); // minimizado mostra o que foi ignorado
 });
+
+// --- "Quando eu falo, ele não para de falar" (dono, 2026-10-22) ----------------------------------------------------------
+import { detectSpeechBargeIn, micVoiceSustained, speechOverlap } from "../lib/henry-voice-conversation.mjs";
+
+test("qualquer fala do dono interrompe (3+ palavras, não eco); eco da própria voz não; nome e 'para' continuam", () => {
+  const speaking = "Hoje entraram 4 leads e a equipe está em 72 por cento da meta.";
+  assert.equal(detectSpeechBargeIn("entraram 4 leads e a equipe", speaking).interrupt, false); // eco
+  assert.equal(detectSpeechBargeIn("ok", speaking).interrupt, false); // curto
+  assert.equal(detectSpeechBargeIn("hum hum hum", speaking).interrupt, false); // ruído
+  const partial = detectSpeechBargeIn("e as vendas de ontem", speaking);
+  assert.equal(partial.interrupt, true);
+  assert.equal(partial.kind, "speech");
+  const final = detectSpeechBargeIn("e as vendas de ontem?", speaking, { final: true });
+  assert.deepEqual(final, { interrupt: true, kind: "question", question: "e as vendas de ontem?" });
+  assert.equal(detectSpeechBargeIn("Henry", speaking).interrupt, true); // nome
+  assert.equal(detectSpeechBargeIn("para", speaking).interrupt, true); // parada
+  assert.ok(speechOverlap("a equipe está em", speaking) >= 0.4);
+  // Medidor: voz sustentada por ~300 ms.
+  let state = micVoiceSustained({ level: 0.3, since: 0, now: 1000 });
+  assert.equal(state.sustained, false);
+  state = micVoiceSustained({ level: 0.3, since: state.since, now: 1300 });
+  assert.equal(state.sustained, true);
+  assert.deepEqual(micVoiceSustained({ level: 0.01, since: 1000, now: 1400 }), { sustained: false, since: 0 });
+  const src = readFileSync(new URL("../components/henry/HenryVoiceAssistant.jsx", import.meta.url), "utf8");
+  assert.match(src, /detectSpeechBargeIn\(text, currentSpeech\(\), \{ final: true \}\)/);
+  assert.match(src, /phaseRef\.current === "speaking" && desktopRef\.current && detectSpeechBargeIn/); // celular: tocar para interromper
+});

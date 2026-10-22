@@ -401,6 +401,12 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-22 — Henry responde só o que foi perguntado e para de falar quando o dono fala
+- **Pedidos do dono:** "quando eu pergunto uma informação, ele passa outras que não são relevantes"; "quando eu falo, ele não para de falar".
+- **O que mudou:** prompt "responda SÓ o que foi perguntado, em 1 frase" (relatórios continuam completos); `consultar_corretor` com `metrica` (o modelo recebe só aquele número; o detalhe completo segue na tela). Enquanto ele fala (computador), qualquer frase do dono com 3+ palavras e menos de 40% de sobreposição com a fala dele interrompe e vira a nova pergunta (`detectSpeechBargeIn`), confirmada pelo medidor do microfone (~300 ms); nome e "para" continuam; celular segue tocar para interromper. Card do corretor recebe `position` (selo do ranking) quando a pergunta envolve ranking/pontos.
+- **Docs:** `docs/BUSINESS_RULES.md` HENRY-1 (Interrupção).
+- **Arquivos:** `lib/henry-voice-conversation.mjs`, `lib/henry-reports-core.mjs`, `lib/henry-voice.js`, `lib/henry-voice-persona.mjs`, `components/henry/HenryVoiceAssistant.jsx`, testes.
+
 ### 2026-10-22 — Henry: navegação guiada (minimiza, cursor mostra o caminho), ficha de cliente por voz e ícone que dobra minimizado
 - **Pedido do dono:** "dobre de tamanho, mesmo minimizado"; "quando ele for abrir uma tela… ou um card de cliente, quero que ele minimize"; "mostrar um mouse diferente simulando ele clicando".
 - **O que mudou:** ícone cresce já ao ouvir o nome no parcial (e gravando); toda navegação minimiza e passa pelo cursor do Henry (menu → clique → tela → card → clique); ferramenta `abrir_cliente` (vários = pergunta qual); aceite de sugestão ("sim/abre/pode"); atributos `data-henry-target` no menu lateral e na barra inferior e `data-henry-client-id` no card; `ClientWorkspace` abre a ficha pelo evento `mm:henry-open-client`.

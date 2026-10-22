@@ -24,6 +24,8 @@ import {
   silentWavDataUri,
   conversationHistory,
   detectBargeIn,
+  detectSpeechBargeIn,
+  micVoiceSustained,
   henryCaption as captionFor,
   isConversationEnd,
   isConversationExpired,
@@ -680,7 +682,9 @@ export default function HenryVoiceAssistant() {
           firstName: String(broker.firstName || "").slice(0, 30),
           photoUrl: typeof broker.photoUrl === "string" && /^https:\/\//.test(broker.photoUrl) ? broker.photoUrl : "",
           stats: Array.isArray(broker.stats) ? broker.stats.slice(0, 2).map((stat) => ({ label: String(stat?.label || ""), value: String(stat?.value || "") })) : [],
-          found: message.progress === "corretor_achado"
+          found: message.progress === "corretor_achado",
+          // Selo de posição no ranking do período (só vem quando a pergunta envolve ranking/pontos).
+          ...(Number.isInteger(broker.position) && broker.position > 0 ? { position: broker.position } : {})
         };
         const others = brokers.filter((item) => item.id !== card.id);
         const previous = brokers.find((item) => item.id === card.id);
@@ -1023,7 +1027,9 @@ export default function HenryVoiceAssistant() {
       return true;
     }
     if (phaseRef.current === "speaking" || phaseRef.current === "thinking") {
-      const barge = detectBargeIn(text, currentSpeech());
+      // Falando (computador): qualquer frase dele que não seja eco interrompe e vira a nova pergunta; pensando: só o nome
+      // e as palavras de parada.
+      const barge = phaseRef.current === "speaking" && desktopRef.current ? detectSpeechBargeIn(text, currentSpeech(), { final: true }) : detectBargeIn(text, currentSpeech());
       if (!barge.interrupt) return false;
       interrupt();
       startConversation();
@@ -1084,6 +1090,24 @@ export default function HenryVoiceAssistant() {
     }, 1000);
     return () => window.clearInterval(timer);
   }, [inConversation, endConversation]);
+
+  // Medidor do microfone enquanto ele fala (computador): voz do dono por ~300 ms confirma a interrupção por fala.
+  const micLoudRef = useRef(false);
+  useEffect(() => {
+    if (phase !== "speaking" || !desktop) {
+      micLoudRef.current = false;
+      return undefined;
+    }
+    let since = 0;
+    const timer = window.setInterval(() => {
+      const analyser = micAnalyserRef.current;
+      if (!analyser || !meterBuffer) return;
+      const state = micVoiceSustained({ level: levelFrom(analyser, meterBuffer), since });
+      since = state.since;
+      micLoudRef.current = state.sustained;
+    }, 50);
+    return () => window.clearInterval(timer);
+  }, [phase, desktop]);
 
   // --- Escuta contínua --------------------------------------------------------------------------------------------
   // Handlers por ref: o reconhecimento NÃO é recriado quando a identidade de uma função muda (recriar aborta a sessão e
@@ -1169,6 +1193,8 @@ export default function HenryVoiceAssistant() {
         }
         if ((phaseRef.current === "speaking" || phaseRef.current === "thinking") && detectBargeIn(text, handlers.currentSpeech()).interrupt) {
           handlers.interrupt(); // resultado parcial: corta na hora; a frase final decide se já tem pergunta
+        } else if (phaseRef.current === "speaking" && desktopRef.current && detectSpeechBargeIn(text, handlers.currentSpeech()).interrupt && (!micAnalyserRef.current || micLoudRef.current)) {
+          handlers.interrupt(); // ele começou a falar por cima (3+ palavras que não são eco, voz confirmada no microfone)
         }
       }
       if (interim.text) {
