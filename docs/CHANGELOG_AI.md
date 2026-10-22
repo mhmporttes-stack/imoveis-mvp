@@ -251,6 +251,14 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-22 — MKT-2h: mensagem do cliente no Marketplace não conta (pendência resolvida)
+- **Data:** 2026-10-22
+- **Área:** Clientes (último atendimento) / Docs
+- **Alteração:** a pendência da entrada "Saída do Marketplace (inclusive fora do CRM) conta no relógio de 3 dias (MKT-2h)" virou REGRA OFICIAL: mensagem do cliente no Marketplace sem resposta nossa NÃO conta no relógio de 3 dias. Só documentação — o código já faz isso (`marketplaceReplyTimes`).
+- **Motivo:** decisão do dono, 2026-10-22.
+- **Arquivos afetados:** `docs/BUSINESS_RULES.md` (MKT-2h, FUN-15f), rules `meta-diaria-ranking.md`, `roleta-prospeccao-campanhas.md`.
+- **Autor:** crm-editor (Claude)
+
 ### 2026-10-22 — Push no celular para "extensão do Marketplace sem sinal" (MKT-2g)
 - **Data:** 2026-10-22
 - **Área:** Notificações / Chat Marketplace
