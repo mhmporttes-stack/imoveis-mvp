@@ -2,8 +2,12 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import {
+  ELEVENLABS_CALL_MODEL,
   ELEVENLABS_DEFAULT_MODEL,
   ELEVENLABS_SPEED,
+  HENRY_CALL_VOICE_SETTINGS,
+  callSpeechText,
+  elevenLabsModelFor,
   ELEVENLABS_STT_PERMISSION_MESSAGE,
   HENRY_AUDIO_MAX_BASE64,
   checkHenryAudio,
@@ -37,6 +41,30 @@ test("escolha do provedor: ElevenLabs → OpenAI → navegador", () => {
   assert.deepEqual(henryProviderChain({ elevenLabsKey: "x", openAiKey: "y" }), ["elevenlabs", "openai"]); // falhou → OpenAI
   assert.deepEqual(henryProviderChain({ elevenLabsKey: "x" }), ["elevenlabs"]);
   assert.deepEqual(henryProviderChain({}), []); // sem chave → navegador
+});
+
+test("chamado do aviso (dono, 2026-10-23): modelo expressivo, mais lento, pausa no '…' e sem herdar a velocidade da tela", () => {
+  const { url, body } = buildElevenLabsSpeechRequest({ text: "Patrão… tá aí?", voiceId: VOICE, modelId: "eleven_flash_v2_5", style: { speed: "rapido", tone: "executivo" }, previousText: "x", nextText: "y", profile: "call" });
+  assert.equal(url, `https://api.elevenlabs.io/v1/text-to-speech/${VOICE}/stream?output_format=mp3_44100_128`);
+  assert.equal(body.model_id, "eleven_multilingual_v2");
+  assert.equal(ELEVENLABS_CALL_MODEL, "eleven_multilingual_v2");
+  assert.equal(body.language_code, undefined); // multilingual_v2 não aceita language_code
+  assert.equal(body.text, 'Patrão <break time="0.3s"/> tá aí?');
+  assert.deepEqual(body.voice_settings, { stability: 0.35, similarity_boost: 0.85, style: 0.4, use_speaker_boost: true, speed: 0.85 });
+  assert.ok(HENRY_CALL_VOICE_SETTINGS.speed >= 0.7 && HENRY_CALL_VOICE_SETTINGS.speed < 1); // faixa documentada 0,7–1,2
+  assert.ok(HENRY_CALL_VOICE_SETTINGS.stability >= 0.3 && HENRY_CALL_VOICE_SETTINGS.stability <= 0.4);
+  assert.equal(body.previous_text, undefined);
+  assert.equal(body.next_text, undefined);
+  assert.equal(callSpeechText("Ô, chefe... tá por aí?"), 'Ô, chefe <break time="0.3s"/> tá por aí?');
+  assert.equal(callSpeechText("Ô, patrão?"), "Ô, patrão?");
+  assert.equal(elevenLabsModelFor({ modelId: "eleven_flash_v2_5", profile: "call" }), "eleven_multilingual_v2");
+  assert.equal(elevenLabsModelFor({ modelId: "" }), ELEVENLABS_DEFAULT_MODEL);
+  assert.ok(estimateElevenLabsCostUsd("Ô, patrão?", ELEVENLABS_CALL_MODEL) > estimateElevenLabsCostUsd("Ô, patrão?", ELEVENLABS_DEFAULT_MODEL));
+  // Fala normal: inalterada (velocidade da tela, modelo configurado, sem pausa inserida).
+  const normal = buildElevenLabsSpeechRequest({ text: "Patrão… tá aí?", voiceId: VOICE, style: { speed: "calmo" } });
+  assert.equal(normal.body.model_id, ELEVENLABS_DEFAULT_MODEL);
+  assert.equal(normal.body.voice_settings.speed, ELEVENLABS_SPEED.calmo);
+  assert.equal(normal.body.text, "Patrão… tá aí?");
 });
 
 test("pedido à ElevenLabs: streaming, modelo de menor latência, voz natural e velocidade", () => {

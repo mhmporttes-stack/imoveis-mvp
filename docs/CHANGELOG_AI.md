@@ -410,6 +410,15 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-23 — Henry: chamado do aviso mais lento e com tom de pergunta (HENRY-1)
+- **Data:** 2026-10-23
+- **Área:** Henry (voz) / ElevenLabs
+- **Alteração:** vocativos do aviso trocados por frases de 2+ palavras com pergunta ("Ô, patrão?", "Patrão… tá aí?", "Chefe? Tá me ouvindo?", "Meu patrão, tem um minutinho?", "Ô, chefe… tá por aí?", "Mestre? Tá na escuta?", "Chefe… tem um segundinho?", "Ô, mestre… tá aí?"). Só o vocativo usa o perfil de voz "call": `eleven_multilingual_v2`, speed 0,85, stability 0,35, style 0,4, "…" → `<break time="0.3s"/>`. Demais falas inalteradas (modelo do env e velocidade da tela).
+- **Motivo:** dono: "a chamada, por exemplo 'patrão?', está muito rápida e não está com tom de pergunta".
+- **Arquivos afetados:** `lib/henry-voice-providers.mjs` (`ELEVENLABS_CALL_MODEL`, `HENRY_CALL_VOICE_SETTINGS`, `callSpeechText`, `elevenLabsModelFor`, `profile` em `buildElevenLabsSpeechRequest`), `lib/henry-voice.js` (`synthesizeHenryShort`/`synthesizeHenrySpeech` com `profile`), `lib/henry-voice-client-alerts-core.mjs` (`HENRY_ALERT_VOCATIVES`, `isHenryAlertCall`), `lib/henry-voice-client-alerts.js`, `tests/henry-voice-providers.test.mjs`, `tests/henry-client-alerts.test.mjs`; `docs/BUSINESS_RULES.md` HENRY-1.
+- **Risco/observação:** sem chave da ElevenLabs aqui: nenhuma amostra gerada, só o pedido HTTP validado em teste — ouvir no aparelho (**A CONFIRMAR**). Chamado custa o dobro por caractere (multilingual), mas sai do cache (gerado uma vez por voz). Áudios antigos em cache não são reaproveitados (textos novos). Se a conta não tiver o `eleven_multilingual_v2`, a ElevenLabs recusa (falha em `ai_usage_log`) e o chamado sai pela voz de reserva do aparelho, como qualquer frase curta (`primaryOnly`).
+- **Autor:** Claude Code (crm-editor)
+
 ### 2026-10-23 — Simulação automática: lembrete "ficou alguma dúvida?" 20 min depois do envio (SIM-AUTO-ENVIO-b)
 - **Data:** 2026-10-23
 - **Área:** WhatsApp / simulação automática / linha do tempo
