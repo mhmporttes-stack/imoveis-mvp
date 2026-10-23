@@ -73,7 +73,7 @@ export async function GET(request) {
   const auth = await requireHenryOwner(request);
   if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status });
   try {
-    const [{ enabled, vision, webSearch, mobileWake, clientAlerts, style }, dayTurns] = await Promise.all([readHenrySettings(), readHenryDayTurns().catch(() => [])]);
+    const [{ enabled, vision, webSearch, mobileWake, clientAlerts, teamArrivals, style }, dayTurns] = await Promise.all([readHenrySettings(), readHenryDayTurns().catch(() => [])]);
     const provider = henryVoiceProvider();
     // Lista de vozes da ElevenLabs só para o cartão de configurações (?vozes=1); o ícone do canto não precisa dela.
     // Junto, o saldo de caracteres (GET /v1/user/subscription). 401/403 viram frase clara de permissão na tela.
@@ -106,6 +106,7 @@ export async function GET(request) {
       webSearch,
       mobileWake,
       clientAlerts,
+      teamArrivals,
       dayTurns: enabled ? dayTurns : [], // memória do dia: a tela cheia mostra a conversa de hoje (só texto)
       serverVoice: isHenryVoiceConfigured(),
       provider,
@@ -137,6 +138,7 @@ export async function PUT(request) {
   if (typeof body?.mobileWake === "boolean") patch.mobileWake = body.mobileWake;
   if (typeof body?.webSearch === "boolean") patch.webSearch = body.webSearch;
   if (typeof body?.clientAlerts === "boolean") patch.clientAlerts = body.clientAlerts;
+  if (typeof body?.teamArrivals === "boolean") patch.teamArrivals = body.teamArrivals;
   if (body?.style !== undefined) {
     const parsed = parseHenryStylePatch(body.style);
     if (!parsed.ok) return NextResponse.json({ error: parsed.error }, { status: 400 });
@@ -253,11 +255,12 @@ export async function POST(request) {
   //   { action: "phrase", text } → { audio } (só frases da lista fechada do aviso).
   if (body?.mode === "client_alerts") {
     try {
-      const { enabled, clientAlerts, style } = await readHenrySettings();
-      if (!enabled || !clientAlerts) return NextResponse.json({ disabled: true, events: [] });
+      const { enabled, clientAlerts, teamArrivals, style } = await readHenrySettings();
+      if (!enabled || (!clientAlerts && !teamArrivals)) return NextResponse.json({ disabled: true, events: [] });
+      const kinds = { clients: clientAlerts, arrivals: teamArrivals };
       const voice = body?.voice !== false;
       if (body?.action === "poll") {
-        const result = await pollHenryClientAlerts(auth, { since: typeof body?.since === "string" ? body.since : "", seen: body?.seen, deviceId, call: typeof body?.call === "string" ? body.call : "", style, voice });
+        const result = await pollHenryClientAlerts(auth, { since: typeof body?.since === "string" ? body.since : "", seen: body?.seen, deviceId, call: typeof body?.call === "string" ? body.call : "", style, voice, ...kinds });
         return NextResponse.json(result);
       }
       if (!(await checkPublicRateLimit(`henry:${auth.profile?.id}`, { windowSeconds: 60, maxAttempts: 20 }))) {
@@ -265,7 +268,8 @@ export async function POST(request) {
       }
       if (body?.action === "speak") {
         const clientIds = (Array.isArray(body?.clientIds) ? body.clientIds : []).filter((id) => isHenryClientId(id)).slice(0, 20);
-        return NextResponse.json(await speakHenryClientAlerts(auth, { clientIds, recent: body?.recent && typeof body.recent === "object" ? body.recent : null, away: body?.away === true, style, voice }));
+        const userIds = (Array.isArray(body?.userIds) ? body.userIds : []).filter((id) => isHenryClientId(id)).slice(0, 20); // id de usuário: mesmo formato uuid
+        return NextResponse.json(await speakHenryClientAlerts(auth, { clientIds, userIds, ...kinds, recent: body?.recent && typeof body.recent === "object" ? body.recent : null, away: body?.away === true, style, voice }));
       }
       if (body?.action === "phrase") {
         return NextResponse.json({ audio: voice ? await henryAlertPhraseAudio(auth, typeof body?.text === "string" ? body.text : "", style) : null });

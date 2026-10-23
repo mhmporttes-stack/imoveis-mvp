@@ -410,6 +410,15 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-23 — Henry avisa a chegada da equipe na imobiliária ("Meu patrão?")
+- **Data:** 2026-10-23
+- **Área:** Henry / Presença na imobiliária (ROL-2f, só leitura)
+- **Alteração:** novo tipo de aviso no fluxo "chama com vocativo → espera → informa": 1ª chegada do dia pelo Wi-Fi da imobiliária (linha `source = 'wifi'` de `office_presence_checkins`) de gestora/corretor/associado ativos, sem "Liberar hoje", ausentes nem o dono. 6 variantes + resumo de várias chegadas, gênero pelo `admin_users.gender`; cliente vem antes da chegada no mesmo aviso; vocativo novo "Meu patrão?"; liga/desliga "Avisar chegada da equipe" (`henry_voice_assistant.teamArrivals`, nasce ligado). Docs: `BUSINESS_RULES.md` HENRY-1, rule `integracoes-externas.md`.
+- **Motivo:** pedido do dono (2026-10-23): "quando um corretor chegar na imobiliária ele segue a mesma regra de aviso".
+- **Arquivos afetados:** `lib/henry-voice-client-alerts-core.mjs`, `lib/henry-voice-client-alerts.js`, `lib/henry-voice.js`, `app/api/admin/henry/route.js` (`userIds` no `speak`), `components/henry/HenryVoiceAssistant.jsx`, `components/henry/HenrySettingsCard.jsx`, `tests/henry-client-alerts.test.mjs`.
+- **Risco/observação:** sem migration e sem escrita. A consulta por `first_seen_at` não tem índice próprio (tabela pequena: 1 linha por pessoa por dia). Liberado à mão e depois chegou pelo Wi-Fi no mesmo dia não avisa (a linha do dia fica `manual`) — A CONFIRMAR com o dono se deve avisar.
+- **Autor:** Claude Code (crm-editor)
+
 ### 2026-10-23 — App de desktop do dono (Windows) para o Henry sempre ligado — fase 1
 - **Data:** 2026-10-23
 - **Área:** Henry / ferramenta fora da Vercel

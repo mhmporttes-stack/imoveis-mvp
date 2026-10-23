@@ -291,7 +291,7 @@ export default function HenryVoiceAssistant() {
           setTurns(restored);
         }
         setMobileWake(data?.mobileWake === true);
-        setAlertsOn(data?.clientAlerts !== false);
+        setAlertsOn(data?.clientAlerts !== false || data?.teamArrivals !== false);
       })
       .catch(() => alive && setEnabled(false))
       .finally(() => alive && setReady(true));
@@ -1323,7 +1323,7 @@ export default function HenryVoiceAssistant() {
       const response = await fetch("/api/admin/henry", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ mode: "client_alerts", action: "speak", clientIds: pending.map((item) => item.clientId), recent: store.recent || null, away: store.away === true, voice: !mutedRef.current })
+        body: JSON.stringify({ mode: "client_alerts", action: "speak", clientIds: pending.filter((item) => item.clientId).map((item) => item.clientId), userIds: pending.filter((item) => item.kind === "arrival" && item.userId).map((item) => item.userId), recent: store.recent || null, away: store.away === true, voice: !mutedRef.current })
       });
       data = await response.json().catch(() => null);
       if (!response.ok) data = null;

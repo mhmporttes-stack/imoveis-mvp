@@ -207,3 +207,100 @@ test("pendentes não repetem e vistos expiram em 30 min", () => {
   assert.deepEqual(seen.map((item) => item.key), ["a:1", "b:2"]);
   assert.equal(seq("x")(), "x");
 });
+
+// --- Chegada da equipe na imobiliária (dono, 2026-10-23) ----------------------------------------------------------------
+import { buildArrivalEvents, henryTeamArrivalsFromSetting, HENRY_ALERT_ARRIVAL, HENRY_ALERT_ARRIVAL_SUMMARY, alertEventKey as arrivalKey } from "../lib/henry-voice-client-alerts-core.mjs";
+
+const OWNER = "owner-id";
+const TEAM = new Map([
+  ["u-bruna", { id: "u-bruna", name: "Bruna Lima", gender: "female", role: "broker", status: "active" }],
+  ["u-gabriel", { id: "u-gabriel", name: "Gabriel Souza", gender: "male", role: "associate", status: "active" }],
+  ["u-gestora", { id: "u-gestora", name: "Ana Paula", gender: "female", role: "manager", status: "active" }],
+  ["u-sem", { id: "u-sem", name: "Alex Rocha", gender: null, role: "broker", status: "active" }],
+  ["u-inativo", { id: "u-inativo", name: "Luis", gender: "male", role: "broker", status: "inactive" }],
+  [OWNER, { id: OWNER, name: "Matheus Machado", gender: "male", role: "admin", status: "active" }]
+]);
+const checkin = (user_id, source = "wifi", first = "2026-10-23T11:30:00.000Z") => ({ user_id, source, checkin_date: "2026-10-23", first_seen_at: first, valid_until: "2026-10-24T12:00:00.000Z" });
+
+test("chegada: só a 1ª pelo Wi-Fi de usuário ativo da equipe; manual, ausente, inativo e o dono ficam fora", () => {
+  const absences = new Map([["u-gestora", [{ markedAt: "2026-10-23T10:00:00.000Z", absentUntil: "2026-10-24T03:00:00.000Z" }]]]);
+  const events = buildArrivalEvents({
+    checkins: [checkin("u-bruna"), checkin("u-bruna", "wifi", "2026-10-23T14:00:00.000Z"), checkin("u-gabriel", "manual"), checkin("u-gestora"), checkin("u-inativo"), checkin(OWNER), checkin("u-x")],
+    users: TEAM,
+    absences,
+    ownerId: OWNER,
+    now: NOW
+  });
+  assert.deepEqual(events.map((event) => event.userId), ["u-bruna"]);
+  assert.equal(events[0].at, "2026-10-23T11:30:00.000Z");
+  assert.equal(arrivalKey(events[0]), "arrival:u-bruna:2026-10-23");
+  // ausência que já acabou mas anulava a chegada daquele período também derruba
+  const past = new Map([["u-bruna", [{ markedAt: "2026-10-23T11:00:00.000Z", absentUntil: "2026-10-23T12:00:00.000Z" }]]]);
+  assert.equal(buildArrivalEvents({ checkins: [checkin("u-bruna")], users: TEAM, absences: past, ownerId: OWNER, now: NOW }).length, 0);
+});
+
+test("chegada: liga/desliga nasce ligado; vocativo novo 'Meu patrão?' e resposta 'meu patrão' = pode falar", () => {
+  assert.equal(henryTeamArrivalsFromSetting({}), true);
+  assert.equal(henryTeamArrivalsFromSetting({ teamArrivals: false }), false);
+  assert.ok(HENRY_ALERT_VOCATIVES.includes("Meu patrão?"));
+  assert.ok(isHenryAlertPhrase("Meu patrão?"));
+  assert.equal(classifyAlertAnswer("meu patrão?"), "yes");
+  let recent = [];
+  let last = "";
+  for (let i = 0; i < 40; i += 1) {
+    const picked = pickAlertPhrase("vocative", recent, Math.random);
+    assert.notEqual(picked.text, last);
+    last = picked.text;
+    recent = picked.recent;
+  }
+});
+
+const arrival = (userId) => ({ kind: "arrival", userId, name: TEAM.get(userId).name, gender: TEAM.get(userId).gender, at: "2026-10-23T11:30:00.000Z" });
+
+test("chegada: 5+ variantes, gênero pelo cadastro (não pelo nome), primeiro nome, sem repetir seguido", () => {
+  assert.ok(HENRY_ALERT_ARRIVAL.length >= 5);
+  const female = HENRY_ALERT_ARRIVAL.map((model) => composeHenryClientAlert([arrival("u-bruna")], { users: TEAM, ownerId: OWNER, random: () => 0, recent: { arrival: HENRY_ALERT_ARRIVAL.filter((m) => m.id !== model.id).map((m) => m.id) } }).text);
+  for (const text of female) {
+    assert.match(text, /a Bruna|A Bruna/);
+    assert.doesNotMatch(text, /Lima|o Bruna/);
+    assert.match(text, /imobiliária/);
+    assert.ok(isSafeToSpeak(text));
+  }
+  assert.ok(female.includes("Só pra avisar que a Bruna acabou de chegar na imobiliária."));
+  assert.ok(female.includes("A Bruna chegou aí na imobiliária agora."));
+  const male = composeHenryClientAlert([arrival("u-gabriel")], { users: TEAM, ownerId: OWNER, random: () => 0, recent: { arrival: ["a1", "a2", "a4", "a5", "a6"] } }).text;
+  assert.equal(male, "Chegou o Gabriel na imobiliária.");
+  // gênero vem do cadastro: nome "feminino" marcado como male vira "o"
+  const forced = composeHenryClientAlert([{ ...arrival("u-bruna"), gender: "male" }], { ownerId: OWNER, random: () => 0, recent: { arrival: ["a1", "a2", "a4", "a5", "a6"] } }).text;
+  assert.equal(forced, "Chegou o Bruna na imobiliária.");
+  const neutral = composeHenryClientAlert([arrival("u-sem")], { ownerId: OWNER, random: () => 0, recent: { arrival: ["a1", "a2", "a3", "a4", "a6"] } }).text;
+  assert.equal(neutral, "Chegou Alex, que já está na imobiliária.");
+  let recent;
+  let previous = "";
+  for (let i = 0; i < 20; i += 1) {
+    const result = composeHenryClientAlert([arrival("u-bruna")], { ownerId: OWNER, recent });
+    assert.notEqual(result.text, previous);
+    previous = result.text;
+    recent = result.recent;
+  }
+});
+
+test("chegada: várias juntas viram um resumo; cliente vem antes da chegada no mesmo aviso", () => {
+  assert.ok(HENRY_ALERT_ARRIVAL_SUMMARY.length >= 3);
+  const both = composeHenryClientAlert([arrival("u-bruna"), arrival("u-gabriel")], { ownerId: OWNER, random: () => 0 }).text;
+  assert.equal(both, "Chegaram a Bruna e o Gabriel na imobiliária.");
+  const many = ["u-bruna", "u-gabriel", "u-gestora", "u-sem", "u-bruna"].map(arrival).map((event, index) => ({ ...event, userId: `${event.userId}-${index}` }));
+  assert.match(composeHenryClientAlert(many, { ownerId: OWNER, random: () => 0 }).text, /e mais 1 da equipe na imobiliária\.$/);
+  const client = { clientId: "c1", clientName: "Fernanda Alves", receiverId: "u-gabriel", kind: "new", path: ["u-gabriel"], at: "2026-10-23T11:40:00.000Z", waitingMinutes: 0 };
+  const mixed = composeHenryClientAlert([arrival("u-bruna"), client], { users: TEAM, ownerId: OWNER, random: () => 0 }).text;
+  assert.ok(mixed.indexOf("Fernanda") < mixed.indexOf("imobiliária"));
+  assert.match(mixed, /Ah, e .*a Bruna.*imobiliária\.$/);
+  assert.ok(isSafeToSpeak(mixed));
+  const away = composeHenryClientAlert([arrival("u-bruna")], { ownerId: OWNER, away: true, random: () => 0 }).text;
+  assert.match(away, /^Enquanto você estava fora: Só pra avisar que a Bruna/);
+});
+
+test("chegada: pendente da chegada é guardado e não colide com o de cliente", () => {
+  const merged = mergeAlertPending([{ key: "c1:u1", clientId: "c1", at: "x" }], [{ key: "arrival:u-bruna:2026-10-23", userId: "u-bruna", kind: "arrival", at: "x" }, { key: "arrival:bad", kind: "arrival" }]);
+  assert.deepEqual(merged.map((item) => item.key), ["c1:u1", "arrival:u-bruna:2026-10-23"]);
+});

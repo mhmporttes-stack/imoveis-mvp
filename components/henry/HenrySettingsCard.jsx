@@ -28,6 +28,7 @@ export default function HenrySettingsCard() {
             mobileWake: data?.mobileWake === true,
             webSearch: data?.webSearch !== false,
             clientAlerts: data?.clientAlerts !== false,
+            teamArrivals: data?.teamArrivals !== false,
             serverVoice: Boolean(data?.serverVoice),
             provider: data?.provider || "browser",
             providerLabel: data?.providerLabel || "voz do navegador",
@@ -59,7 +60,7 @@ export default function HenrySettingsCard() {
       });
       const data = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(data?.error || "Não foi possível salvar.");
-      setState((current) => ({ ...current, enabled: data.enabled, vision: data.vision, mobileWake: data.mobileWake === true, webSearch: data.webSearch !== false, clientAlerts: data.clientAlerts !== false }));
+      setState((current) => ({ ...current, enabled: data.enabled, vision: data.vision, mobileWake: data.mobileWake === true, webSearch: data.webSearch !== false, clientAlerts: data.clientAlerts !== false, teamArrivals: data.teamArrivals !== false }));
       window.location.reload(); // o ícone do canto lê a configuração ao montar
     } catch (saveError) {
       setError(saveError?.message || "Não foi possível salvar.");
@@ -153,6 +154,7 @@ export default function HenrySettingsCard() {
           elevenSubscriptionError={state.elevenSubscriptionError}
           onSaved={(style) => setState((current) => ({ ...current, style }))}
           extra={
+            <>
             <div className="mt-4 flex flex-wrap items-center justify-between gap-4 rounded-control border border-line p-4">
               <div className="max-w-xl">
                 <p className="text-sm font-black text-navy">Avisar clientes novos e transferidos</p>
@@ -171,6 +173,24 @@ export default function HenrySettingsCard() {
                 {state.clientAlerts ? "Desligar os avisos" : "Ligar os avisos"}
               </button>
             </div>
+            <div className="mt-4 flex flex-wrap items-center justify-between gap-4 rounded-control border border-line p-4">
+              <div className="max-w-xl">
+                <p className="text-sm font-black text-navy">Avisar chegada da equipe</p>
+                <p className="mt-1 text-sm text-muted">
+                  Quando alguém da equipe chega na imobiliária pela primeira vez no dia (o Wi-Fi de lá detecta), o Henry chama do mesmo jeito e, depois da
+                  sua resposta, conta quem chegou. “Liberar hoje” e quem está marcado como ausente não contam. Mesmas regras: 7h às 22h, fora do mudo.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => save("teamArrivals")}
+                disabled={Boolean(saving) || !state.enabled}
+                className={`rounded-control px-5 py-2.5 text-sm font-bold disabled:opacity-60 ${state.teamArrivals ? "border border-line text-navy" : "bg-navy text-white"}`}
+              >
+                {state.teamArrivals ? "Desligar" : "Ligar"}
+              </button>
+            </div>
+            </>
           }
         />
       ) : null}
