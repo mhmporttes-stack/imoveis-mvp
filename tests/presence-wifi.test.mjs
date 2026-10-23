@@ -141,3 +141,15 @@ test("Voice Monkey: POST no /trigger com Bearer e o device; nada sem gatilho/tra
   assert.deepEqual(broken, { ok: false, status: "falha_rede" });
   assert.ok(!JSON.stringify(refused).includes("tok"));
 });
+
+test("dono na imobiliária: arrive até leave, teto de 12 h, só o dono ativo", async () => {
+  const { ownerAtOfficeFrom } = await import("../lib/presence-wifi-core.mjs");
+  const at = "2026-10-23T12:00:00Z";
+  const nowMs = Date.parse(at) + 5 * 3600e3; // 5 h depois: não expira em 10 min como a ROL-2f
+  const users = [{ id: "u1", email: OWNER, status: "active" }, { id: "u2", email: "corretor@exemplo.com", status: "active" }];
+  assert.equal(ownerAtOfficeFrom({ rows: [{ user_id: "u1", last_event: "arrive", last_event_at: at }], users, isOwnerEmail, nowMs }), true);
+  assert.equal(ownerAtOfficeFrom({ rows: [{ user_id: "u1", last_event: "leave", last_event_at: at }], users, isOwnerEmail, nowMs }), false);
+  assert.equal(ownerAtOfficeFrom({ rows: [{ user_id: "u1", last_event: "arrive", last_event_at: at }], users, isOwnerEmail, nowMs: Date.parse(at) + 13 * 3600e3 }), false);
+  assert.equal(ownerAtOfficeFrom({ rows: [{ user_id: "u2", last_event: "arrive", last_event_at: at }], users, isOwnerEmail, nowMs }), false);
+  assert.equal(ownerAtOfficeFrom({ rows: [{ user_id: "u1", last_event: "arrive", last_event_at: at }], users: [{ ...users[0], status: "inactive" }], isOwnerEmail, nowMs }), false);
+});

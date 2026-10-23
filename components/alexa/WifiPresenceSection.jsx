@@ -11,7 +11,6 @@ import { useToast } from "@/components/ui/Toast";
 // "Chegada pelo Wi-Fi" (PRES-WIFI, dono 2026-10-23). Só aparece para quem pode usar (hoje, o dono): a API devolve 403
 // para os demais e a seção some.
 const EVENT_LABEL = { arrive: "Chegou", leave: "Saiu" };
-const OFFICE_LABEL = { chegada_registrada: "presença registrada", saida_registrada: "saída registrada", erro: "falha na presença" };
 const PLUG_LABEL = {
   ok: "tomada acionada",
   sem_gatilho: "sem gatilho configurado",
@@ -99,7 +98,7 @@ export default function WifiPresenceSection() {
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0 space-y-1">
             <h2 className="flex items-center gap-2 text-base font-semibold text-ink"><Wifi className="h-4 w-4" aria-hidden="true" /> Chegada pelo Wi-Fi</h2>
-            <p className="text-sm text-muted">Ao conectar no Wi-Fi da imobiliária, o iPhone registra sua presença e liga a tomada pela Alexa; ao sair, desliga.</p>
+            <p className="text-sm text-muted">Ao conectar no Wi-Fi da imobiliária, o iPhone avisa que você está na imobiliária e liga a tomada pela Alexa; ao sair, desliga. Não muda roleta nem painel On-line.</p>
           </div>
           <Badge tone={status.presence?.present ? "success" : "neutral"} dot>{status.presence?.present ? "Na imobiliária" : "Fora"}</Badge>
         </div>
@@ -148,7 +147,6 @@ export default function WifiPresenceSection() {
                   {status.events.map((item) => (
                     <li key={`${item.event}-${item.receivedAt}`}>
                       {formatDateTime(item.receivedAt)} · <span className="font-medium text-ink">{EVENT_LABEL[item.event] || item.event}</span>
-                      {item.officeStatus ? ` · ${OFFICE_LABEL[item.officeStatus] || item.officeStatus}` : ""}
                       {item.plugStatus ? ` · ${plugLabel(item.plugStatus)}` : ""}
                     </li>
                   ))}

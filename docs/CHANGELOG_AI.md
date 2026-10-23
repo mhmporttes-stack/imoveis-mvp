@@ -401,6 +401,12 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-23 — PRES-WIFI: decisão do dono — Wi-Fi só diz "está na imobiliária"
+
+- **Dono (2026-10-23):** "Eu não recebo leads nem precisa me adicionar no painel apenas saber que eu estou na imobiliária". Resolve a decisão pendente da entrada anterior.
+- `applyWifiPresenceEvent` (`lib/presence-wifi.js`) deixou de chamar `register_office_checkin` e de zerar `last_wifi_seen_at`: o Wi-Fi não mexe mais na ROL-2f, na roleta nem no painel On-line. Estado = `presence_wifi_tokens.last_event`/`last_event_at` (arrive → leave, teto 12 h); leitura nova `isOwnerAtOffice()` para Henry/Alexa usarem depois (regra pura `ownerAtOfficeFrom`, teste novo). Coluna `presence_wifi_events.office_status` fica sem uso (migration já aplicada; nada removido).
+- Tela "Chegada pelo Wi-Fi": texto ajustado, sem o resultado de presença no histórico. Docs: `BUSINESS_RULES.md` PRES-WIFI (REGRA OFICIAL), `PERMISSIONS.md`, rule `integracoes-externas.md`. Migration `20261023120000` aplicada em produção pela coordenação.
+
 ### 2026-10-23 — PRES-WIFI: Chegada pelo Wi-Fi (Atalhos do iPhone + tomada pela Alexa)
 
 - **Pedido do dono (aprovado 2026-10-23):** ao conectar no Wi-Fi da imobiliária ficar presente/on-line no CRM e a tomada da Alexa (tela do computador) ligar; ao sair, desligar. Gatilho: automação do app Atalhos (o PWA não roda em segundo plano no iPhone).
