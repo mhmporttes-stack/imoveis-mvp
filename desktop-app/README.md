@@ -11,11 +11,16 @@ Versão portátil (não precisa instalar):
 3. Entre no CRM com o seu login normal. O login fica salvo: ao reabrir, já entra.
 4. Para abrir sozinho com o Windows: ícone do app perto do relógio › botão direito › **Abrir com o Windows**.
 
-Atualizando da 1.0.0: clique em **Sair** no ícone do relógio, extraia a 1.1.0 por cima da pasta antiga (ou numa pasta nova) e abra. O login continua salvo.
+## Como atualizar (ex.: para a 1.2.0)
+
+1. Ícone do app perto do relógio › botão direito › **Sair** (só fechar no X não basta: o app continua rodando).
+2. No chat local, dentro da pasta do projeto: `git pull` e depois `pnpm run dist:nsis` (dentro de `desktop-app/`).
+3. Abra o instalador gerado em `desktop-app\dist\` (`CRM-Matheus-Machado-1.2.0-x64.exe`). O login, o log e as preferências continuam salvos.
 
 ## Como usar
 
-- **Fechar a janela (X) não fecha o app:** ele fica no ícone perto do relógio. Botão direito no ícone: Abrir, Recarregar, Abrir com o Windows, Ver registro de ações, Sair.
+- **Barra de título escondida (versão 1.2.0):** a janela não tem a barra do Windows. Leve o mouse até o alto da janela (os últimos ~6 px) e desce uma barra fina com o nome, os botões minimizar, maximizar/restaurar e fechar; ela some 1 s depois que o mouse sai. Arraste pela barra para mover; duplo clique nela maximiza/restaura. Atalhos: **Alt** (apertar e soltar) mostra a barra; **F11** liga/desliga a tela cheia. Prefere a barra sempre à mostra? Ícone › **Mostrar barra de título sempre** (aí o CRM fica logo abaixo dela, sem nada por cima). A janela abre maximizada e continua redimensionável pelas bordas.
+- **Fechar a janela (X) não fecha o app:** ele fica no ícone perto do relógio. Botão direito no ícone: Abrir, Recarregar, Abrir com o Windows, Mostrar barra de título sempre, Ver registro de ações, Sair.
 - **Ctrl+Shift+H** (em qualquer programa): traz o CRM para a frente e abre o Henry já ouvindo. Fale; ele para de gravar sozinho quando você para de falar.
 - **Diga "Henry"** (versão 1.1.0): o app fica ouvindo só o nome, no próprio PC — o som não sai do computador e não é gravado. Ele abre ouvindo o seu pedido. Enquanto o Henry fala, o app não fica ouvindo o nome (para interromper, fale "para" ou "Henry", como no navegador). Liga/desliga: cartão do Henry › Voz e personalidade › **Ouvir "Henry" sem atalho** (nasce ligado). Ctrl+Shift+H e o toque continuam valendo. Quando ele chamar "Chefe?", o microfone abre sozinho para você responder.
 - **Voz de reserva no PC:** se a ElevenLabs e a OpenAI falharem (créditos, internet), o Henry fala com a voz do próprio PC (Piper) antes de cair na voz do Windows.
@@ -37,6 +42,7 @@ Cada ação do Henry no PC (Spotify, link, aviso, tela, voz do PC, nome ouvido) 
 - Modelos de voz (fase 1.1): `npm run models` baixa para `models/` (fora do git) e confere o SHA-256 fixo de cada arquivo; `dist:portable` e `dist:nsis` já rodam isso antes e empacotam `models/` em `resources/models` (`extraResources`). No Windows a extração usa o `tar.exe` do próprio Windows 10.
 - Pacotes: `npm run dist:portable` (zip + `.exe` portátil, roda no Linux). Instalador NSIS: `npm run dist:nsis` (ou `pnpm run dist:nsis`; no Linux precisa de `wine`). Saída em `dist/` (fora do git). Conferir se os modelos entraram: `dist/win-unpacked/resources/models/` deve ter `piper/piper.exe`, `voices/pt_BR-faber-medium.onnx` e `vosk-model-small-pt-0.3.tar.gz`.
 - Nome "Henry" (Vosk): janela escondida `src/wake/` (página local `mm-wake://app`, sessão própria sem disco, só microfone), controle em `src/wake-engine.js`, gramática e confiança mínima em `src/core.js` (`WAKE_*`, ajustar ali). Voz local: `src/piper.js` (texto por stdin, argumentos fixos).
+- Barra de título (1.2.0): janela `BaseWindow` com `frame: false` e duas `WebContentsView` — o CRM e, por cima, a barra (`src/titlebar/`: página local `file://`, sessão própria `mm-titlebar` sem disco e sem permissão, preload próprio `window.mmTitlebar`). A barra fica `setVisible(false)` quando fechada (nada por cima do CRM); o processo principal lê a posição do cursor a cada 100 ms e decide por `titlebarStep` (`src/core.js`, `TITLEBAR_*`). Botões pelo canal IPC `mm:titlebar`, conferido por `validateTitlebarMessage` (só a webContents da barra, frame principal, `minimize`/`toggleMaximize`/`close`). Preferência em `%APPDATA%\CRM Matheus Machado\preferencias.json` (`titlebarAlwaysVisible`, padrão `false`). `window.mmDesktop` não mudou.
 - Segurança: regras em `src/core.js` (origens, navegação, permissões, ações da ponte); ponte em `src/preload.js` (`window.mmDesktop`, só na origem do CRM); o processo principal (`src/main.js`) confere origem e formato de novo em cada ação. Nenhuma chave/segredo no app.
 - Fora da Vercel: `.vercelignore`, `tsconfig.json` e `scripts/vercel-ignore-build.sh` excluem esta pasta.
 

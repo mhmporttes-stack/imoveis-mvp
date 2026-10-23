@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<!-- Barra de título do app (versão 1.2). Página LOCAL, isolada do CRM: sem rede, sem script de fora. -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self'">
+<link rel="stylesheet" href="titlebar.css">
+<title>Barra de título</title>
+</head>
+<body>
+<header id="bar" class="bar" aria-label="Barra de título">
+  <div class="drag">
+    <img class="icon" src="../../assets/favicon-32-mm.png" alt="" width="16" height="16">
+    <span class="title">Matheus Machado Corretor de Imóveis</span>
+  </div>
+  <nav class="controls">
+    <button type="button" data-command="minimize" title="Minimizar" aria-label="Minimizar">
+      <svg viewBox="0 0 10 10" aria-hidden="true"><path d="M1 5.5h8"/></svg>
+    </button>
+    <button type="button" data-command="toggleMaximize" id="maximize" title="Maximizar" aria-label="Maximizar">
+      <svg class="when-normal" viewBox="0 0 10 10" aria-hidden="true"><rect x="1.5" y="1.5" width="7" height="7"/></svg>
+      <svg class="when-maximized" viewBox="0 0 10 10" aria-hidden="true"><rect x="1.5" y="3" width="5.5" height="5.5"/><path d="M3 3V1.5h5.5V7H7"/></svg>
+    </button>
+    <button type="button" data-command="close" class="close" title="Fechar (o app continua perto do relógio)" aria-label="Fechar">
+      <svg viewBox="0 0 10 10" aria-hidden="true"><path d="M1.5 1.5l7 7M8.5 1.5l-7 7"/></svg>
+    </button>
+  </nav>
+</header>
+<script src="titlebar.js"></script>
+</body>
+</html>

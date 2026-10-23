@@ -5,9 +5,10 @@
 
 const path = require("node:path");
 const fs = require("node:fs");
+const { pathToFileURL } = require("node:url");
 const {
   app,
-  BrowserWindow,
+  BaseWindow,
   Menu,
   Notification,
   Tray,
@@ -15,10 +16,28 @@ const {
   ipcMain,
   nativeImage,
   powerSaveBlocker,
+  screen: electronScreen,
   session,
-  shell
+  shell,
+  WebContentsView
 } = require("electron");
-const { ALLOWED_ORIGINS, CRM_HOME, classifyNavigation, formatLogLine, isAllowedOrigin, shouldGrantPermission, validateAction } = require("./core");
+const {
+  ALLOWED_ORIGINS,
+  CRM_HOME,
+  TITLEBAR_HEIGHT,
+  TITLEBAR_POLL_MS,
+  TITLEBAR_SLIDE_MS,
+  altTapStep,
+  classifyNavigation,
+  formatLogLine,
+  isAllowedOrigin,
+  parsePreferences,
+  shouldGrantPermission,
+  titlebarPointer,
+  titlebarStep,
+  validateAction,
+  validateTitlebarMessage
+} = require("./core");
 const { setMonitorPower } = require("./screen");
 const { synthesize } = require("./piper");
 const { createWakeEngine, registerWakeScheme } = require("./wake-engine");
@@ -29,8 +48,22 @@ const SHORTCUT = "CommandOrControl+Shift+H";
 const ICON = path.join(__dirname, "..", "assets", "icon-512-mm.png");
 const TRAY_ICON = path.join(__dirname, "..", "assets", "favicon-32-mm.png");
 const LOG_MAX_BYTES = 1024 * 1024;
+const TITLE = "Matheus Machado Corretor de Imóveis";
+// Barra de título própria (versão 1.2): página local, sessão própria sem disco, sem permissão nenhuma.
+const TITLEBAR_HTML = path.join(__dirname, "titlebar", "titlebar.html");
+const TITLEBAR_URL = pathToFileURL(TITLEBAR_HTML).href;
+const TITLEBAR_PARTITION = "mm-titlebar";
 
+// Janela sem a barra do Windows (frame: false) com duas views: o CRM (crmView) e, por cima, a barra do app (barView).
 let mainWindow = null;
+let crmView = null;
+let barView = null;
+let pendingMaximize = false;
+let titlebar = { visible: false, hideAt: null };
+let titlebarHideTimer = null;
+let titlebarReveal = false;
+let altArmed = false;
+let preferences = parsePreferences("");
 let tray = null;
 let quitting = false;
 let wakeEngine = null;
@@ -62,6 +95,33 @@ function logAction(action, ok, detail = "") {
   } catch {
     // sem disco para o log: a ação segue
   }
+}
+
+function preferencesPath() {
+  return path.join(app.getPath("userData"), "preferencias.json");
+}
+
+function loadPreferences() {
+  try {
+    preferences = parsePreferences(fs.readFileSync(preferencesPath(), "utf8"));
+  } catch {
+    preferences = parsePreferences(""); // primeira vez (ou arquivo ilegível): padrão
+  }
+}
+
+function savePreferences() {
+  try {
+    const file = preferencesPath();
+    fs.mkdirSync(path.dirname(file), { recursive: true });
+    fs.writeFileSync(`${file}.tmp`, JSON.stringify(preferences, null, 2));
+    fs.renameSync(`${file}.tmp`, file);
+  } catch (error) {
+    logAction("preferencias", false, error?.message || "erro_ao_salvar");
+  }
+}
+
+function crmContents() {
+  return crmView && !crmView.webContents.isDestroyed() ? crmView.webContents : null;
 }
 
 function webPreferences() {
@@ -128,37 +188,169 @@ function setupSession() {
   return crm;
 }
 
+function titlebarPreferences() {
+  return {
+    preload: path.join(__dirname, "titlebar", "titlebar-preload.js"),
+    partition: TITLEBAR_PARTITION,
+    contextIsolation: true,
+    nodeIntegration: false,
+    sandbox: true,
+    webSecurity: true,
+    spellcheck: false
+  };
+}
+
+function isPinned() {
+  return preferences.titlebarAlwaysVisible && !mainWindow?.isFullScreen();
+}
+
+// Posição das views: barra fixa ("Mostrar barra de título sempre") empurra o CRM para baixo; oculta, ela desce POR CIMA.
+function layoutViews() {
+  if (!mainWindow || mainWindow.isDestroyed()) return;
+  const { width, height } = mainWindow.getContentBounds();
+  const top = isPinned() ? TITLEBAR_HEIGHT : 0;
+  crmView.setBounds({ x: 0, y: top, width, height: Math.max(0, height - top) });
+  barView.setBounds({ x: 0, y: 0, width, height: TITLEBAR_HEIGHT });
+}
+
+function sendTitlebarState() {
+  if (!barView || barView.webContents.isDestroyed() || !mainWindow || mainWindow.isDestroyed()) return;
+  barView.webContents.send("mm:titlebar-state", { visible: titlebar.visible, pinned: isPinned(), maximized: mainWindow.isMaximized() || mainWindow.isFullScreen() });
+}
+
+// Lê o cursor e decide (core.js titlebarStep). A barra fica INVISÍVEL (setVisible(false)) quando fechada: nada fica por
+// cima do CRM, e a faixa de 6 px do topo é só detectada pela posição do cursor — cliques ali vão para o CRM.
+function updateTitlebar() {
+  if (!mainWindow || mainWindow.isDestroyed() || !barView) return;
+  const active = mainWindow.isVisible() && !mainWindow.isMinimized();
+  let pointer = null;
+  if (active) {
+    const bounds = mainWindow.getBounds();
+    pointer = titlebarPointer(electronScreen.getCursorScreenPoint(), bounds, electronScreen.getDisplayMatching(bounds).bounds);
+  }
+  const next = titlebarStep(titlebar, {
+    now: Date.now(),
+    pointer,
+    active,
+    reveal: titlebarReveal,
+    alwaysVisible: preferences.titlebarAlwaysVisible,
+    fullscreen: mainWindow.isFullScreen()
+  });
+  titlebarReveal = false;
+  const changed = next.visible !== titlebar.visible;
+  titlebar = next;
+  if (!changed) return;
+  clearTimeout(titlebarHideTimer);
+  if (next.visible) {
+    barView.setVisible(true);
+    sendTitlebarState();
+  } else {
+    sendTitlebarState(); // sobe deslizando (CSS) e só então sai da janela
+    titlebarHideTimer = setTimeout(() => !titlebar.visible && barView && barView.setVisible(false), TITLEBAR_SLIDE_MS + 30);
+  }
+}
+
+function setTitlebarAlwaysVisible(enabled) {
+  preferences = { ...preferences, titlebarAlwaysVisible: Boolean(enabled) };
+  savePreferences();
+  logAction("barra_titulo_sempre", true, enabled ? "ligado" : "desligado");
+  layoutViews();
+  updateTitlebar();
+  sendTitlebarState();
+  buildTrayMenu();
+}
+
+// Teclas da janela (no CRM e na barra): F11 = tela cheia; Alt sozinho = mostra a barra (não atrapalha Alt+Tab nem atalhos).
+function attachWindowKeys(contents) {
+  contents.on("before-input-event", (event, input) => {
+    if (input.type === "keyDown" && input.key === "F11" && !input.isAutoRepeat) {
+      event.preventDefault();
+      if (mainWindow && !mainWindow.isDestroyed()) mainWindow.setFullScreen(!mainWindow.isFullScreen());
+      return;
+    }
+    const alt = altTapStep(altArmed, input);
+    altArmed = alt.armed;
+    if (alt.reveal) {
+      titlebarReveal = true;
+      updateTitlebar();
+    }
+  });
+}
+
 function createWindow({ hidden = false } = {}) {
-  mainWindow = new BrowserWindow({
+  // Sem a barra do Windows (pedido do dono, 2026-10-23): frame: false mantém borda de redimensionar, encaixe e
+  // animações do Windows 10 (thickFrame, padrão). Botões e arrastar ficam na barra própria (src/titlebar/).
+  mainWindow = new BaseWindow({
     width: 1400,
     height: 900,
     minWidth: 900,
     minHeight: 600,
-    show: !hidden,
+    show: false,
+    frame: false,
     icon: ICON,
-    title: "Matheus Machado Corretor de Imóveis",
-    autoHideMenuBar: true,
-    backgroundColor: "#0b1f3a",
-    webPreferences: webPreferences()
+    title: TITLE,
+    backgroundColor: "#0b1f3a"
   });
+  crmView = new WebContentsView({ webPreferences: webPreferences() });
+  crmView.setBackgroundColor("#0b1f3a");
+  barView = new WebContentsView({ webPreferences: titlebarPreferences() });
+  barView.setBackgroundColor("#00000000"); // translúcida por cima do CRM
+  barView.setVisible(false);
+  mainWindow.contentView.addChildView(crmView);
+  mainWindow.contentView.addChildView(barView); // por último = por cima
+  titlebar = { visible: false, hideAt: null };
+
+  // A barra é página local: não navega para lugar nenhum e não abre janela.
+  barView.webContents.on("will-navigate", (event) => event.preventDefault());
+  barView.webContents.on("did-finish-load", sendTitlebarState);
+  attachWindowKeys(crmView.webContents);
+  attachWindowKeys(barView.webContents);
+
+  for (const name of ["resize", "maximize", "unmaximize", "enter-full-screen", "leave-full-screen", "restore"]) {
+    mainWindow.on(name, () => {
+      layoutViews();
+      updateTitlebar();
+      sendTitlebarState();
+    });
+  }
+  mainWindow.on("focus", () => crmContents()?.focus());
   mainWindow.on("close", (event) => {
     if (quitting) return;
     event.preventDefault(); // fechar = esconder na bandeja (Sair pelo menu da bandeja)
     mainWindow.hide();
   });
-  mainWindow.webContents.on("did-fail-load", (_event, code, _description, url, isMainFrame) => {
+  mainWindow.on("closed", () => {
+    for (const view of [crmView, barView]) if (view && !view.webContents.isDestroyed()) view.webContents.close();
+    mainWindow = null;
+    crmView = null;
+    barView = null;
+  });
+  crmView.webContents.on("did-fail-load", (_event, code, _description, url, isMainFrame) => {
     if (!isMainFrame || code === -3) return; // -3 = navegação cancelada (normal)
     logAction("falha_ao_carregar", false, `${code}`);
-    setTimeout(() => mainWindow && !mainWindow.isDestroyed() && mainWindow.loadURL(isAllowedOrigin(url) ? url : CRM_HOME), 15000);
+    setTimeout(() => crmContents()?.loadURL(isAllowedOrigin(url) ? url : CRM_HOME), 15000);
   });
-  mainWindow.loadURL(CRM_HOME);
+  layoutViews();
+  barView.webContents.loadFile(TITLEBAR_HTML);
+  crmView.webContents.loadURL(CRM_HOME);
+  // Abre maximizada. Escondida (--hidden, início com o Windows): maximiza na primeira vez que aparecer.
+  pendingMaximize = hidden;
+  if (!hidden) {
+    mainWindow.maximize();
+    mainWindow.show();
+  }
 }
 
 function showWindow() {
   if (!mainWindow || mainWindow.isDestroyed()) createWindow();
+  if (pendingMaximize) {
+    pendingMaximize = false;
+    mainWindow.maximize();
+  }
   if (mainWindow.isMinimized()) mainWindow.restore();
   mainWindow.show();
   mainWindow.focus();
+  crmContents()?.focus();
 }
 
 function openAtLogin() {
@@ -176,9 +368,15 @@ function buildTrayMenu() {
   tray.setContextMenu(
     Menu.buildFromTemplate([
       { label: "Abrir", click: showWindow },
-      { label: "Recarregar", click: () => mainWindow?.webContents.reload() },
+      { label: "Recarregar", click: () => crmContents()?.reload() },
       { type: "separator" },
       { label: "Abrir com o Windows", type: "checkbox", checked: openAtLogin(), click: (item) => setOpenAtLogin(item.checked) },
+      {
+        label: "Mostrar barra de título sempre",
+        type: "checkbox",
+        checked: preferences.titlebarAlwaysVisible,
+        click: (item) => setTitlebarAlwaysVisible(item.checked)
+      },
       { label: "Ver registro de ações", click: () => shell.openPath(logPath()) },
       { type: "separator" },
       { label: "Sair", click: () => { quitting = true; app.quit(); } }
@@ -232,15 +430,46 @@ function setupBridge() {
   });
 }
 
+// Canal PRÓPRIO da barra (não é window.mmDesktop): só a página local da barra, frame principal, comando da lista fechada.
+function setupTitlebarChannel() {
+  ipcMain.on("mm:titlebar", (event, command) => {
+    const frame = event.senderFrame;
+    const checked = validateTitlebarMessage({
+      senderId: event.sender?.id,
+      barId: barView && !barView.webContents.isDestroyed() ? barView.webContents.id : undefined,
+      isMainFrame: Boolean(frame) && !frame.parent,
+      frameUrl: frame?.url,
+      barUrl: TITLEBAR_URL,
+      command
+    });
+    if (!checked.ok) {
+      logAction("barra_titulo", false, checked.error);
+      return;
+    }
+    if (!mainWindow || mainWindow.isDestroyed()) return;
+    if (checked.command === "minimize") mainWindow.minimize();
+    else if (checked.command === "close") mainWindow.close(); // = esconder na bandeja (handler "close")
+    else if (mainWindow.isFullScreen()) mainWindow.setFullScreen(false);
+    else if (mainWindow.isMaximized()) mainWindow.unmaximize();
+    else mainWindow.maximize();
+    if (checked.command === "toggleMaximize") crmContents()?.focus();
+  });
+}
+
 function start() {
   app.setAppUserModelId(APP_ID); // notificações do Windows com o nome do app
   Menu.setApplicationMenu(null);
   setupSession();
   setupBridge();
+  setupTitlebarChannel();
+  loadPreferences();
+  session.fromPartition(TITLEBAR_PARTITION).setPermissionRequestHandler((_contents, _permission, callback) => callback(false));
+  session.fromPartition(TITLEBAR_PARTITION).setPermissionCheckHandler(() => false);
   wakeEngine = createWakeEngine({ modelsDir: MODELS_DIR, log: logAction });
   app.on("web-contents-created", (_event, contents) => guardContents(contents));
   powerSaveBlocker.start("prevent-app-suspension"); // o app não é suspenso; o monitor ainda pode apagar
   createWindow({ hidden: process.argv.includes("--hidden") });
+  setInterval(updateTitlebar, TITLEBAR_POLL_MS); // posição do cursor → barra (barato; com a janela escondida só confere e sai)
 
   tray = new Tray(nativeImage.createFromPath(TRAY_ICON));
   tray.setToolTip("Matheus Machado Corretor de Imóveis");
@@ -249,7 +478,7 @@ function start() {
 
   const registered = globalShortcut.register(SHORTCUT, () => {
     showWindow();
-    mainWindow.webContents.send("mm:activate-henry");
+    crmContents()?.send("mm:activate-henry");
     logAction("atalho_henry", true);
   });
   if (!registered) logAction("atalho_henry", false, "Ctrl+Shift+H já usado por outro programa");

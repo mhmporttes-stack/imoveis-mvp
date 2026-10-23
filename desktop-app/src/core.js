@@ -153,6 +153,91 @@ function pcmToWav(pcm, sampleRate) {
   return Buffer.concat([header, data]);
 }
 
+// --- Barra de título própria (versão 1.2, pedido do dono em 2026-10-23) -------------------------------------------------
+// A janela não tem a barra do Windows. Uma barra fina do app (página local, isolada do CRM) desce quando o mouse chega
+// a até TITLEBAR_REVEAL_PX do topo e some TITLEBAR_HIDE_DELAY_MS depois que ele sai. A detecção é feita no processo
+// principal pela posição do cursor (nenhuma faixa invisível por cima do CRM: cliques no topo do CRM seguem normais).
+const TITLEBAR_REVEAL_PX = 6;
+const TITLEBAR_HEIGHT = 32;
+const TITLEBAR_HIDE_DELAY_MS = 1000;
+const TITLEBAR_SLIDE_MS = 150;
+const TITLEBAR_ALT_SHOW_MS = 3000; // Alt sozinho mostra a barra por 3 s (ou enquanto o mouse estiver nela)
+const TITLEBAR_POLL_MS = 100;
+// Comandos da barra (lista FECHADA, canal próprio "mm:titlebar" — nada disso existe em window.mmDesktop).
+const TITLEBAR_COMMANDS = Object.freeze(["minimize", "toggleMaximize", "close"]);
+const DEFAULT_PREFERENCES = Object.freeze({ titlebarAlwaysVisible: false });
+
+// Cursor (coordenadas da tela) → posição relativa ao topo visível da janela, ou null se fora dela.
+// Maximizada no Windows, a janela sem moldura passa alguns pixels da borda da tela: o topo considerado é o maior entre
+// o topo da janela e o topo do monitor (senão o mouse encostado no alto da tela ficaria "fora" da faixa).
+function titlebarPointer(cursor, bounds, displayBounds) {
+  if (!cursor || !bounds) return null;
+  const top = Math.max(bounds.y, displayBounds ? displayBounds.y : bounds.y);
+  const left = Math.max(bounds.x, displayBounds ? displayBounds.x : bounds.x);
+  const right = Math.min(bounds.x + bounds.width, displayBounds ? displayBounds.x + displayBounds.width : bounds.x + bounds.width);
+  const bottom = bounds.y + bounds.height;
+  if (cursor.x < left || cursor.x >= right || cursor.y < top || cursor.y >= bottom) return null;
+  return { x: cursor.x - left, y: cursor.y - top };
+}
+
+// Estado da barra: { visible, hideAt }. Entrada de cada leitura (a cada TITLEBAR_POLL_MS ou evento):
+//   now, pointer (titlebarPointer), alwaysVisible (preferência), fullscreen, active (janela visível e não minimizada),
+//   reveal (true = Alt pressionado sozinho: mostra por TITLEBAR_ALT_SHOW_MS).
+// Regras: "sempre" (fora da tela cheia) → sempre visível; mouse na faixa do topo → abre; mouse na barra aberta → fica;
+// mouse fora → some TITLEBAR_HIDE_DELAY_MS depois. Janela escondida/minimizada → fechada.
+function titlebarStep(state, input = {}) {
+  const now = Number(input.now) || 0;
+  const current = { visible: Boolean(state && state.visible), hideAt: state && Number.isFinite(state.hideAt) ? state.hideAt : null };
+  if (input.active === false) return { visible: false, hideAt: null };
+  if (input.alwaysVisible && !input.fullscreen) return { visible: true, hideAt: null };
+  const pointer = input.pointer || null;
+  if (pointer && pointer.y < TITLEBAR_REVEAL_PX) return { visible: true, hideAt: null };
+  if (input.reveal) return { visible: true, hideAt: now + TITLEBAR_ALT_SHOW_MS };
+  if (!current.visible) return { visible: false, hideAt: null };
+  if (pointer && pointer.y < TITLEBAR_HEIGHT) return { visible: true, hideAt: null };
+  if (current.hideAt === null) return { visible: true, hideAt: now + TITLEBAR_HIDE_DELAY_MS };
+  if (now >= current.hideAt) return { visible: false, hideAt: null };
+  return current;
+}
+
+// Alt "sozinho" (aperta e solta sem outra tecla no meio) mostra a barra — Alt+Tab e atalhos com Alt não contam.
+// input = before-input-event do Electron. Devolve { armed, reveal }.
+function altTapStep(armed, input = {}) {
+  if (input.type === "keyDown") {
+    if (input.key === "Alt") return { armed: !input.isAutoRepeat || Boolean(armed), reveal: false };
+    return { armed: false, reveal: false };
+  }
+  if (input.type === "keyUp" && input.key === "Alt") return { armed: false, reveal: Boolean(armed) };
+  return { armed: Boolean(armed), reveal: false };
+}
+
+// Canal da barra ("mm:titlebar"): só a página local da barra (frame principal, a mesma webContents que o app criou)
+// e só um comando da lista fechada. Qualquer outra origem — inclusive o CRM — é recusada.
+function validateTitlebarMessage({ senderId, barId, isMainFrame, frameUrl, barUrl, command } = {}) {
+  if (!Number.isInteger(barId) || senderId !== barId) return { ok: false, error: "remetente_recusado" };
+  if (!isMainFrame || typeof frameUrl !== "string" || typeof barUrl !== "string" || !barUrl) return { ok: false, error: "remetente_recusado" };
+  const url = parseUrl(frameUrl);
+  const expected = parseUrl(barUrl);
+  if (!url || !expected || url.protocol !== "file:" || `${url.protocol}//${url.host}${url.pathname}` !== `${expected.protocol}//${expected.host}${expected.pathname}`) {
+    return { ok: false, error: "remetente_recusado" };
+  }
+  if (!TITLEBAR_COMMANDS.includes(command)) return { ok: false, error: "comando_desconhecido" };
+  return { ok: true, command };
+}
+
+// Preferências do app (arquivo preferencias.json em userData). Só chaves conhecidas, só booleanos; o resto é ignorado.
+function parsePreferences(text) {
+  let data = null;
+  try {
+    data = JSON.parse(String(text || ""));
+  } catch {
+    data = null;
+  }
+  const prefs = { ...DEFAULT_PREFERENCES };
+  if (data && typeof data === "object" && typeof data.titlebarAlwaysVisible === "boolean") prefs.titlebarAlwaysVisible = data.titlebarAlwaysVisible;
+  return prefs;
+}
+
 // Linha do log local: data, ação, resultado e no máximo o destino (URI do Spotify / endereço) — nunca o texto do aviso.
 function formatLogLine({ at = new Date(), action = "", ok = false, detail = "" } = {}) {
   const safeDetail = cleanText(detail, 300);
@@ -181,5 +266,18 @@ module.exports = {
   validateAction,
   detectWakeInResult,
   pcmToWav,
-  formatLogLine
+  formatLogLine,
+  TITLEBAR_REVEAL_PX,
+  TITLEBAR_HEIGHT,
+  TITLEBAR_HIDE_DELAY_MS,
+  TITLEBAR_SLIDE_MS,
+  TITLEBAR_ALT_SHOW_MS,
+  TITLEBAR_POLL_MS,
+  TITLEBAR_COMMANDS,
+  DEFAULT_PREFERENCES,
+  titlebarPointer,
+  titlebarStep,
+  altTapStep,
+  validateTitlebarMessage,
+  parsePreferences
 };
