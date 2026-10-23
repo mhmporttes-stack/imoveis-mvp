@@ -401,6 +401,17 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-23 — PRES-WIFI: Chegada pelo Wi-Fi (Atalhos do iPhone + tomada pela Alexa)
+
+- **Pedido do dono (aprovado 2026-10-23):** ao conectar no Wi-Fi da imobiliária ficar presente/on-line no CRM e a tomada da Alexa (tela do computador) ligar; ao sair, desligar. Gatilho: automação do app Atalhos (o PWA não roda em segundo plano no iPhone).
+- **Rota pública** `POST /api/presence/wifi` (`Bearer wfp_…`, `{event: arrive|leave}`, 12/min por IP, resposta `{ok, event}`); fluxo puro e testável em `handleWifiPresenceRequest` (`lib/presence-wifi-core.mjs`), banco em `lib/presence-wifi.js`. Configuração `GET/POST /api/admin/presence-wifi` (`requireRealGeneralAdminApi` + dono). Tela: `/admin/alexa` › "Chegada pelo Wi-Fi" (`components/alexa/WifiPresenceSection.jsx`): gerar/trocar/desativar a chave, copiar URL, IDs dos gatilhos do Voice Monkey, últimos 10 eventos e passo a passo dos Atalhos.
+- **Presença:** reaproveita a ROL-2f (`register_office_checkin`, origem `wifi`, ip `atalho:wifi`); a saída só zera `last_wifi_seen_at` (validade da chegada para a roleta não muda). **On-line (`admin_presence`) não foi tocado** — "on-line até sair" conflita com ROL-2b/ROL-2f (2026-10-15): DECISÃO do dono pendente (`docs/BUSINESS_RULES.md` PRES-WIFI).
+- **Tomada:** nada existia para gatilho de rotina (só fala `announce`). Novo `triggerAlexaRoutine` em `lib/alexa-voice.js` → `POST https://api-v3.voicemonkey.io/trigger` `{device}` com o mesmo `VOICEMONKEY_TOKEN` e a trava `ALEXA_VOICE_ENABLED`. Nenhuma chamada real feita em teste.
+- **Banco:** migration aditiva `20261023120000_presenca_wifi.sql` (`presence_wifi_tokens`, `presence_wifi_events`; RLS sem policy). **Não aplicada** nesta sessão (sem acesso de escrita ao banco no container) — **A CONFIRMAR** aplicação.
+- **Relação com a rotina "Chegada ao escritório" (`/api/integrations/alexa-arrival`):** continua separada (outra chave, singleton); o dono pode chamar as duas URLs na mesma automação do Atalho.
+- Testes `tests/presence-wifi.test.mjs` (chave, Bearer, elegibilidade, teto, 429/401/403/400/200, Voice Monkey com fetch simulado). Docs: `BUSINESS_RULES.md` PRES-WIFI, `PERMISSIONS.md` §6, `DATABASE.md`, rule `integracoes-externas.md`.
+- **Risco/observação:** Wi-Fi oscilando liga/desliga a tomada a cada troca (sem atraso de saída nesta versão).
+
 ### 2026-10-23 — MKT-2: WhatsApp do cliente do Marketplace preenchido pelo corretor + "Chamar no WhatsApp"
 
 - **Pedido do dono (2026-10-23):** "sim, pode fazer e em seguida depois de salvar já coloque outro botão de chamar no WhatsApp". O cliente do Chat do Marketplace nasce sem telefone (MKT-2 decisão 1) e a ficha só mostrava o Telefone como leitura.

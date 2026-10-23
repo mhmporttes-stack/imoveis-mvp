@@ -28,6 +28,10 @@ paths:
   - "lib/alexa*"
   - "lib/primeiro-acesso*"
   - "app/api/admin/alexa/**"
+  - "lib/presence-wifi*"
+  - "app/api/presence/**"
+  - "app/api/admin/presence-wifi/**"
+  - "components/alexa/**"
   - "lib/henry-voice*"
   - "app/api/admin/henry/**"
   - "components/henry/**"
@@ -125,6 +129,8 @@ Desde 2026-10-01 o `scheduled-activities` também roda, no máximo 1 vez por dia
 Toda fala espontânea passa pelas travas de `lib/alexa-service.js` (Alexa ativa, evento/rotina ligada, "Quando pode falar", intervalo mínimo via `claimSpeakingSlot`); só contagens e primeiros nomes (`containsSensitiveContent`); logs só com motivo. Voz: `lib/alexa-voice.js`. Rotinas: "Chegada ao escritório" (`lib/alexa-arrival.js`) e "Bom dia no primeiro acesso" (`lib/alexa-bom-dia.js`).
 
 **[REGRA OFICIAL DE NEGÓCIO — dono, 2026-10-22] Bom dia no primeiro acesso.** No primeiro acesso do dia do dono (conta real, fora de "Alterar conta"; outros perfis nada muda) o painel abre no Início e a Alexa fala, disparada pelo servidor, o resumo com os MESMOS números do Início (`getPainelInicio` — nunca outra conta). **[COMPORTAMENTO ATUAL DA IMPLEMENTAÇÃO — a confirmar]** 1x/dia pela chave única de `admin_first_access_days`; se a chegada ao escritório já falou hoje, só o bom dia; termina convidando a abrir a skill ("Alexa, abrir central"). Detalhe: `docs/BUSINESS_RULES.md` INI-4.
+
+**[REGRA OFICIAL DE NEGÓCIO — dono, 2026-10-23] Chegada pelo Wi-Fi (PRES-WIFI).** O Atalho do iPhone ("Ao conectar/desconectar do Wi-Fi da imobiliária") avisa o CRM; chegou = presença na imobiliária + Alexa liga a tomada (gatilho do Voice Monkey); saiu = Alexa desliga. Hoje só o dono (`isWifiPresenceEligible`, `lib/presence-wifi-core.mjs` — para estender aos corretores mude só ela). Chave pessoal por usuário (só o hash), gerar/trocar/desativar em `/admin/alexa`. Presença: **o mesmo mecanismo da ROL-2f** (`register_office_checkin`, origem `wifi`) — não crie outro conceito de on-line/presença; a saída só tira o "na imobiliária agora", a validade da chegada para a roleta não muda. Tomada: `triggerAlexaRoutine` (`lib/alexa-voice.js`, mesma trava `ALEXA_VOICE_ENABLED` e `VOICEMONKEY_TOKEN` da fala). **[PENDENTE DE VALIDAÇÃO]** ficar ON-LINE (roleta/painel) até a saída: não implementado, conflita com ROL-2b. Detalhe: `docs/BUSINESS_RULES.md` PRES-WIFI.
 
 ## Assistente de voz Henry (Anthropic + OpenAI TTS)
 
