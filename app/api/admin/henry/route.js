@@ -29,6 +29,7 @@ import { isAllowedHenryNavigation, isHenryClientId } from "@/lib/henry-navigatio
 import { isSpotifyOpenUrl, isSpotifyUri } from "@/lib/henry-spotify-core.mjs";
 import { parseMorningState } from "@/lib/henry-morning-core.mjs";
 import { readSpotifyStatus } from "@/lib/henry-spotify";
+import { henryAlertPhraseAudio, pollHenryClientAlerts, speakHenryClientAlerts } from "@/lib/henry-voice-client-alerts";
 
 // Navegação devolvida ao navegador: só tela da lista fechada ou ficha de cliente (id no formato do banco).
 function navigationPayload(navigate) {
@@ -72,7 +73,7 @@ export async function GET(request) {
   const auth = await requireHenryOwner(request);
   if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status });
   try {
-    const [{ enabled, vision, webSearch, mobileWake, style }, dayTurns] = await Promise.all([readHenrySettings(), readHenryDayTurns().catch(() => [])]);
+    const [{ enabled, vision, webSearch, mobileWake, clientAlerts, style }, dayTurns] = await Promise.all([readHenrySettings(), readHenryDayTurns().catch(() => [])]);
     const provider = henryVoiceProvider();
     // Lista de vozes da ElevenLabs só para o cartão de configurações (?vozes=1); o ícone do canto não precisa dela.
     // Junto, o saldo de caracteres (GET /v1/user/subscription). 401/403 viram frase clara de permissão na tela.
@@ -104,6 +105,7 @@ export async function GET(request) {
       vision,
       webSearch,
       mobileWake,
+      clientAlerts,
       dayTurns: enabled ? dayTurns : [], // memória do dia: a tela cheia mostra a conversa de hoje (só texto)
       serverVoice: isHenryVoiceConfigured(),
       provider,
@@ -134,6 +136,7 @@ export async function PUT(request) {
   if (typeof body?.vision === "boolean") patch.vision = body.vision;
   if (typeof body?.mobileWake === "boolean") patch.mobileWake = body.mobileWake;
   if (typeof body?.webSearch === "boolean") patch.webSearch = body.webSearch;
+  if (typeof body?.clientAlerts === "boolean") patch.clientAlerts = body.clientAlerts;
   if (body?.style !== undefined) {
     const parsed = parseHenryStylePatch(body.style);
     if (!parsed.ok) return NextResponse.json({ error: parsed.error }, { status: 400 });
@@ -243,6 +246,35 @@ export async function POST(request) {
   if (body?.mode === "claim") {
     const allowed = await claimHenryDevice(auth, deviceId).catch(() => true);
     return NextResponse.json({ ok: true, allowed });
+  }
+  // Avisos de cliente novo/transferido (HENRY-1, dono 2026-10-23), só leitura:
+  //   { action: "poll", since, seen, call, voice } → { cursor, hold?, quiet?, events, callAudio } (consulta leve a cada ~30 s);
+  //   { action: "speak", clientIds, recent, away, voice } → { text, audio, recent } (depois do "pode falar");
+  //   { action: "phrase", text } → { audio } (só frases da lista fechada do aviso).
+  if (body?.mode === "client_alerts") {
+    try {
+      const { enabled, clientAlerts, style } = await readHenrySettings();
+      if (!enabled || !clientAlerts) return NextResponse.json({ disabled: true, events: [] });
+      const voice = body?.voice !== false;
+      if (body?.action === "poll") {
+        const result = await pollHenryClientAlerts(auth, { since: typeof body?.since === "string" ? body.since : "", seen: body?.seen, deviceId, call: typeof body?.call === "string" ? body.call : "", style, voice });
+        return NextResponse.json(result);
+      }
+      if (!(await checkPublicRateLimit(`henry:${auth.profile?.id}`, { windowSeconds: 60, maxAttempts: 20 }))) {
+        return NextResponse.json({ error: "Muitas falas seguidas. Espere um minuto." }, { status: 429 });
+      }
+      if (body?.action === "speak") {
+        const clientIds = (Array.isArray(body?.clientIds) ? body.clientIds : []).filter((id) => isHenryClientId(id)).slice(0, 20);
+        return NextResponse.json(await speakHenryClientAlerts(auth, { clientIds, recent: body?.recent && typeof body.recent === "object" ? body.recent : null, away: body?.away === true, style, voice }));
+      }
+      if (body?.action === "phrase") {
+        return NextResponse.json({ audio: voice ? await henryAlertPhraseAudio(auth, typeof body?.text === "string" ? body.text : "", style) : null });
+      }
+      return NextResponse.json({ error: "Ação inválida." }, { status: 400 });
+    } catch (error) {
+      console.warn(`[henry] aviso de clientes falhou (${error?.name || "erro"}).`);
+      return NextResponse.json({ error: "Não consegui ler os clientes novos agora." }, { status: 502 });
+    }
   }
   if (body?.mode === "warm") {
     try {

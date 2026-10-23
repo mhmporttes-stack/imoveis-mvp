@@ -94,6 +94,8 @@ export default function HenryVoiceView({
   dataScene = searching, // tela cheia: cena de busca (HenrySearchScene) só depois que uma ferramenta foi chamada
   sceneTopic = "geral",
   brokers = [], // corretores do pedido: procurando (scanner) → achado (card com foto e números)
+  pendingAlerts = 0, // avisos de cliente novo/transferido sem resposta (HENRY-1): indicador discreto; tocar = ouvir
+  onPendingAlerts,
   fixed = true
 }) {
   const orbSize = useFullscreenOrbSize(expanded, mobile);
@@ -110,6 +112,18 @@ export default function HenryVoiceView({
   // resposta e enquanto pensa sem ferramenta (papo), as ondas da conversa.
   const lastTurn = turns[turns.length - 1];
   const answer = !searching && lastTurn?.role === "assistant" ? lastTurn : null;
+
+  const pendingPill = pendingAlerts > 0 && onPendingAlerts ? (
+    <button
+      type="button"
+      onClick={onPendingAlerts}
+      className="pointer-events-auto mb-2.5 shrink-0 rounded-full px-3 py-1.5 text-[11px] font-bold shadow-float ring-1 ring-white/10"
+      style={{ background: BACKDROP, color: ACCENT }}
+      aria-label={`Ouvir ${pendingAlerts === 1 ? "o aviso pendente" : `os ${pendingAlerts} avisos pendentes`} do Henry`}
+    >
+      Aviso pendente ({pendingAlerts})
+    </button>
+  ) : null;
 
   if (!expanded && mobile) {
     // Celular: toque no anel = abre a cena já ouvindo. Mudo só aparece com "Ouvir 'Henry' com o app aberto" (tapToTalk falso).
@@ -142,6 +156,7 @@ export default function HenryVoiceView({
             </RoundButton>
           </span>
         ) : null}
+        {pendingPill}
         {engaged && caption ? (
           <p
             className="mb-1.5 max-w-[calc(100vw-9rem)] rounded-2xl px-3 py-2 text-[12px] leading-snug shadow-float ring-1 ring-white/10 [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:3] overflow-hidden"
@@ -176,6 +191,7 @@ export default function HenryVoiceView({
             {caption}
           </p>
         ) : null}
+        {pendingPill}
         <span className="pointer-events-auto mb-2.5">
           <RoundButton onClick={onToggleMute} label={micOff ? "Ligar o microfone do Henry (Alt+B)" : "Deixar o Henry no mudo (Alt+B)"} small>
             <MicIcon off={micOff} />

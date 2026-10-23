@@ -26,6 +26,7 @@ export default function HenrySettingsCard() {
             vision: data?.vision === true,
             mobileWake: data?.mobileWake === true,
             webSearch: data?.webSearch !== false,
+            clientAlerts: data?.clientAlerts !== false,
             serverVoice: Boolean(data?.serverVoice),
             provider: data?.provider || "browser",
             providerLabel: data?.providerLabel || "voz do navegador",
@@ -57,7 +58,7 @@ export default function HenrySettingsCard() {
       });
       const data = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(data?.error || "Não foi possível salvar.");
-      setState((current) => ({ ...current, enabled: data.enabled, vision: data.vision, mobileWake: data.mobileWake === true, webSearch: data.webSearch !== false }));
+      setState((current) => ({ ...current, enabled: data.enabled, vision: data.vision, mobileWake: data.mobileWake === true, webSearch: data.webSearch !== false, clientAlerts: data.clientAlerts !== false }));
       window.location.reload(); // o ícone do canto lê a configuração ao montar
     } catch (saveError) {
       setError(saveError?.message || "Não foi possível salvar.");
@@ -150,6 +151,26 @@ export default function HenrySettingsCard() {
           elevenSubscription={state.elevenSubscription}
           elevenSubscriptionError={state.elevenSubscriptionError}
           onSaved={(style) => setState((current) => ({ ...current, style }))}
+          extra={
+            <div className="mt-4 flex flex-wrap items-center justify-between gap-4 rounded-control border border-line p-4">
+              <div className="max-w-xl">
+                <p className="text-sm font-black text-navy">Avisar clientes novos e transferidos</p>
+                <p className="mt-1 text-sm text-muted">
+                  Com o CRM aberto (no aparelho em que você falou com o Henry por último), ele chama “Chefe?” e espera você responder (“oi”, “pode
+                  falar”) para contar quem recebeu o cliente, há quanto tempo ele espera e por quem já passou. “Agora não” guarda o aviso. Só das 7h às
+                  22h e fora do mudo. Nada é enviado a cliente nem a corretor.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => save("clientAlerts")}
+                disabled={Boolean(saving) || !state.enabled}
+                className={`rounded-control px-5 py-2.5 text-sm font-bold disabled:opacity-60 ${state.clientAlerts ? "border border-line text-navy" : "bg-navy text-white"}`}
+              >
+                {state.clientAlerts ? "Desligar os avisos" : "Ligar os avisos"}
+              </button>
+            </div>
+          }
         />
       ) : null}
       {state.spotify ? <HenrySpotifySection status={state.spotify} onChange={(spotify) => setState((current) => ({ ...current, spotify }))} /> : null}
@@ -173,7 +194,7 @@ function changedFields(form, saved) {
 
 // "Voz e personalidade" (HENRY-1): voz, tom, velocidade, detalhes do jeito de falar e como tratar o dono. Valida e
 // sanitiza no servidor (PUT /api/admin/henry, Zod). "Ouvir amostra" = frase curta paga, com o que está na tela.
-function HenryVoiceStyleSection({ saved, options, serverVoice, provider = "browser", providerLabel = "", elevenVoices = null, elevenVoicesError = "", elevenSubscription = null, elevenSubscriptionError = "", onSaved }) {
+function HenryVoiceStyleSection({ saved, options, serverVoice, provider = "browser", providerLabel = "", elevenVoices = null, elevenVoicesError = "", elevenSubscription = null, elevenSubscriptionError = "", onSaved, extra = null }) {
   const [form, setForm] = useState(() => ({ ...saved }));
   const [busy, setBusy] = useState("");
   const [message, setMessage] = useState({ tone: "", text: "" });
@@ -236,6 +257,7 @@ function HenryVoiceStyleSection({ saved, options, serverVoice, provider = "brows
       <p className="mt-1 max-w-2xl text-sm text-muted">
         Escolha a voz, o tom e a velocidade do Henry. Isso muda só o jeito de falar: ele continua só consultando, só para você, e sem falar dados sensíveis.
       </p>
+      {extra}
       <p className={`mt-2 max-w-2xl rounded-control px-3 py-2 text-sm font-bold ${provider === "browser" ? "bg-amber-50 text-amber-800" : "bg-emerald-50 text-emerald-800"}`} role="status">
         Voz ativa: {providerLabel}.
         {provider === "browser" ? " Voz do navegador: configure ELEVENLABS_API_KEY na Vercel para a voz natural." : ""}
