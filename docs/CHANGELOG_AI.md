@@ -44,15 +44,6 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 
 
-### 2026-10-23 — App de desktop 1.2.0: barra de título escondida, aparece com o mouse no topo
-- **Data:** 2026-10-23
-- **Área:** App de desktop (`desktop-app/`, fora da Vercel)
-- **Alteração:** janela sem a barra do Windows (`BaseWindow` `frame: false`, abre maximizada, redimensionável pelas bordas). Barra própria (`src/titlebar/`, página local numa `WebContentsView` por cima do CRM, sessão `mm-titlebar` sem disco/permissões) desce em 150 ms com o mouse a até 6 px do topo e some 1 s depois que ele sai; título, área de arrastar (duplo clique maximiza/restaura, nativo do Windows), minimizar, maximizar/restaurar e fechar (= bandeja, como antes). Alt (sozinho) mostra; F11 = tela cheia. Bandeja: "Mostrar barra de título sempre" (padrão desligado, `preferencias.json`; ligada, o CRM fica abaixo da barra). Detecção pela posição do cursor no processo principal (sem faixa invisível sobre o CRM; fechada, a barra fica `setVisible(false)`). Regras puras em `src/core.js` (`titlebarPointer`, `titlebarStep`, `altTapStep`, `validateTitlebarMessage`, `parsePreferences`).
-- **Motivo:** dono: "dá para ocultar essa barra e ela só aparecer se eu levar o mouse lá em cima?".
-- **Arquivos afetados:** `desktop-app/{package.json,README.md,src/core.js,src/main.js,src/titlebar/{titlebar.html,titlebar.css,titlebar.js,titlebar-preload.js} (novos),tests/titlebar.test.js (novo)}`.
-- **Risco/observação:** `window.mmDesktop` não mudou (teste trava a lista); a barra usa canal IPC próprio `mm:titlebar`, conferido por remetente (webContents da barra, frame principal, URL local) e lista fechada de 3 comandos. O CRM saiu da webContents da janela para uma `WebContentsView` (Recarregar, F5, Ctrl+Shift+H, escuta do "Henry" seguem pela view). Validado no Linux (Xvfb): barra fechada/aberta/sumindo com o CRM carregado e clique em Fechar escondendo a janela; `node --test tests/*.test.js`: 19/19. A CONFIRMAR no Windows 10 do dono: maximizar ao abrir, duplo clique na área de arrastar e encaixe nas bordas (sem gerenciador de janelas no teste).
-- **Autor:** Claude Code (crm-editor)
-
 ### 2026-10-23 — Seguidor Instagram 1.1.0: segue perfis privados (Solicitado) e trabalha numa janela própria
 - **Data:** 2026-10-23
 - **Área:** Ferramenta pessoal fora do CRM (`ferramentas/instagram-seguidor/`)
