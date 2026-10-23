@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useId, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { usePrefersReducedMotion } from "@/components/motion/usePrefersReducedMotion";
 import { useTabHidden } from "./HenrySearchScene";
 import styles from "./HenryMusicScene.module.css";
+import { HENRY_BEAM_CYAN, HENRY_BEAM_GOLD, HenryStrandBeams } from "./HenryStrandBeam";
 
 // Cena da MÚSICA do Henry (dono, 2026-10-23: "quando eu peço uma playlist… cena legal, como se ele encontrasse o Spotify,
 // pesquisasse a playlist que pedi e apertasse play… mostre ele conectado com o ícone do Spotify, igual ele faz com os
@@ -227,12 +228,11 @@ function RingEqualizer({ size, reduced }) {
   );
 }
 
-// Card do Spotify ligado ao anel por um feixe (mesmo desenho dos cards de corretor): à direita no computador, abaixo
+// Card do Spotify ligado ao anel pelo feixe padrão do Henry (mesmo dos cards do Pulso e de corretor): à direita no computador, abaixo
 // do anel no celular. Fica dentro do contêiner do orb (orbSize × orbSize).
 export default function HenryMusicScene({ music = null, orbSize = 520, mobile = false }) {
   const hidden = useTabHidden();
   const reduced = usePrefersReducedMotion();
-  const uid = useId().replace(/[^a-zA-Z0-9]/g, "");
   if (!music?.stage) return null;
   const size = orbSize;
   const c = size / 2;
@@ -240,29 +240,13 @@ export default function HenryMusicScene({ music = null, orbSize = 520, mobile = 
   const end = mobile ? [c, c + ring + 34] : [c + size * 0.5 + 30, c];
   const start = mobile ? [c, c + ring] : [c + ring, c];
   const control = mobile ? [c + 22, (start[1] + end[1]) / 2] : [(start[0] + end[0]) / 2, c - 30];
-  const d = `M${start[0].toFixed(1)} ${start[1].toFixed(1)} Q${control[0].toFixed(1)} ${control[1].toFixed(1)} ${end[0].toFixed(1)} ${end[1].toFixed(1)}`;
   const linked = music.stage !== "connect" && music.stage !== "error";
   return (
     <div className={`${styles.wrap} ${hidden ? styles.paused : ""}`} style={{ width: size, height: size }} data-henry-music aria-live="polite">
       {music.stage === "playing" ? <RingEqualizer size={size} reduced={reduced} /> : null}
+      {/* Feixe padrão do Henry (5 fios vibrando, HenryStrandBeam): dourado conectado, ciano conectando/erro. */}
+      <HenryStrandBeams beams={[{ id: "spotify", start, control, end, color: linked ? HENRY_BEAM_GOLD : HENRY_BEAM_CYAN }]} size={size} reduced={reduced} hidden={hidden} className={styles.beams} />
       <svg className={styles.beams} width={size} height={size} aria-hidden="true">
-        <defs>
-          <linearGradient id={`${uid}-beam`} gradientUnits="userSpaceOnUse" x1={start[0]} y1={start[1]} x2={end[0]} y2={end[1]}>
-            <stop offset="0%" stopColor={ACCENT} stopOpacity="0.15" />
-            <stop offset="60%" stopColor={ACCENT} stopOpacity="0.9" />
-            <stop offset="100%" stopColor={GOLD} stopOpacity="1" />
-          </linearGradient>
-        </defs>
-        <path d={d} fill="none" stroke={`url(#${uid}-beam)`} strokeWidth="6" opacity="0.16" strokeLinecap="round" />
-        <path d={d} fill="none" stroke={`url(#${uid}-beam)`} strokeWidth="1.4" pathLength="1" className={styles.beamDraw} opacity={linked ? 0.95 : 0.55} />
-        {!reduced ? <path d={d} fill="none" stroke={linked ? GOLD : ACCENT} strokeWidth="2" strokeDasharray="3 9" strokeLinecap="round" className={styles.beamFlow} opacity="0.8" /> : null}
-        {!reduced && !hidden && linked
-          ? [0, 0.55].map((begin) => (
-              <circle key={begin} r="2.6" fill="#fff" opacity="0.95" style={{ filter: `drop-shadow(0 0 4px ${GOLD})` }}>
-                <animateMotion dur="1.4s" begin={`${begin}s`} repeatCount="indefinite" path={d} />
-              </circle>
-            ))
-          : null}
         <circle cx={end[0]} cy={end[1]} r="3.2" fill={linked ? GOLD : ACCENT} />
       </svg>
       <div className={`${styles.slot} ${mobile ? styles.slotMobile : ""}`} style={{ left: mobile ? end[0] : end[0] + 4, top: end[1] }}>

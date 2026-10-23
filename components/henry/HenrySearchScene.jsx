@@ -4,6 +4,7 @@ import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "re
 import AnimatedNumber from "@/components/motion/AnimatedNumber";
 import { usePrefersReducedMotion } from "@/components/motion/usePrefersReducedMotion";
 import styles from "./HenrySearchScene.module.css";
+import { HENRY_BEAM_CYAN, HENRY_BEAM_GOLD, HenryStrandBeams } from "./HenryStrandBeam";
 
 // Cena de busca do Henry. Pedido original do dono (2026-10-22): dados transparentes atrás do anel e, para corretor, um
 // "scanner" e o cardzinho com a foto ligado ao anel. Redesenho no mesmo dia ("a cena ficou muito pobre, quero algo bem
@@ -644,11 +645,10 @@ function PremiumCard({ broker, mobile, delay = 0 }) {
 
 const ARC_ANGLES = { 1: [0], 2: [-24, 16], 3: [-46, -12, 22] };
 
-// Cards em arco à direita do anel (computador) ou acima dele (celular), ligados por feixes de luz curvos.
+// Cards em arco à direita do anel (computador) ou acima dele (celular), ligados pelo feixe padrão do Henry.
 export function HenryBrokerCards({ brokers = [], orbSize = 400, mobile = false }) {
   const hidden = useTabHidden();
   const reduced = usePrefersReducedMotion();
-  const uid = useId().replace(/[^a-zA-Z0-9]/g, "");
   const list = brokers.slice(-3);
   if (!list.length) return null;
   const found = list.filter((broker) => broker.found);
@@ -679,33 +679,17 @@ export function HenryBrokerCards({ brokers = [], orbSize = 400, mobile = false }
   });
   return (
     <div className={`${styles.brokers} ${mobile ? styles.mobileB : ""} ${hidden ? styles.paused : ""}`} style={{ width: size, height: size }} data-henry-brokers aria-hidden="true">
+      {/* Feixe padrão do Henry (5 fios vibrando, HenryStrandBeam): dourado no card do corretor, ciano no scanner. */}
+      <HenryStrandBeams
+        beams={placed.map((item) => ({ id: `${item.kind}-${item.broker.id}`, start: item.start, control: item.control, end: [item.x, item.y], color: item.kind === "card" ? HENRY_BEAM_GOLD : HENRY_BEAM_CYAN }))}
+        size={size}
+        reduced={reduced}
+        hidden={hidden}
+      />
       <svg className={styles.beams} width={size} height={size} aria-hidden="true">
-        <defs>
-          <linearGradient id={`${uid}-beam`} gradientUnits="userSpaceOnUse" x1={mobile ? c : c + ring} y1={mobile ? c + ring : c} x2={mobile ? c : size} y2={mobile ? c + ring + 24 : c}>
-            <stop offset="0%" stopColor={ACCENT} stopOpacity="0.15" />
-            <stop offset="55%" stopColor={ACCENT} stopOpacity="0.9" />
-            <stop offset="100%" stopColor={GOLD} stopOpacity="1" />
-          </linearGradient>
-        </defs>
-        {placed.map((item, index) => {
-          const d = `M${item.start[0].toFixed(1)} ${item.start[1].toFixed(1)} Q${item.control[0].toFixed(1)} ${item.control[1].toFixed(1)} ${item.x.toFixed(1)} ${item.y.toFixed(1)}`;
-          const isCard = item.kind === "card";
-          return (
-            <g key={`${item.kind}-${item.broker.id}`}>
-              <path d={d} fill="none" stroke={isCard ? `url(#${uid}-beam)` : ACCENT} strokeWidth={isCard ? 6 : 3} opacity="0.16" strokeLinecap="round" />
-              <path d={d} fill="none" stroke={isCard ? `url(#${uid}-beam)` : ACCENT} strokeWidth="1.4" pathLength="1" className={styles.beamDraw} style={{ animationDelay: `${index * 90}ms` }} opacity={isCard ? 0.95 : 0.5} />
-              {!reduced ? <path d={d} fill="none" stroke={isCard ? GOLD : ACCENT} strokeWidth="2" strokeDasharray="3 9" strokeLinecap="round" className={styles.beamFlow} opacity={isCard ? 0.9 : 0.6} /> : null}
-              {!reduced && !hidden && isCard
-                ? [0, 0.55].map((begin) => (
-                    <circle key={begin} r="2.6" fill="#fff" opacity="0.95" style={{ filter: `drop-shadow(0 0 4px ${GOLD})` }}>
-                      <animateMotion dur="1.4s" begin={`${begin}s`} repeatCount="indefinite" path={d} />
-                    </circle>
-                  ))
-                : null}
-              <circle cx={item.x} cy={item.y} r="3.2" fill={isCard ? GOLD : ACCENT} />
-            </g>
-          );
-        })}
+        {placed.map((item) => (
+          <circle key={`${item.kind}-${item.broker.id}`} cx={item.x} cy={item.y} r="3.2" fill={item.kind === "card" ? GOLD : ACCENT} />
+        ))}
       </svg>
       {placed.map((item, index) => (
         <div

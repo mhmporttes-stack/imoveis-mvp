@@ -19,6 +19,7 @@ import {
   pulseBlobStartAngle
 } from "@/lib/henry-pulse-core.mjs";
 import { HENRY_ORB_HIT_MS } from "./henry-orb-states.mjs";
+import { drawStrandBeam } from "./henry-strand-beam.mjs";
 
 // "Pulso do CRM" (rascunho HENRY-1 "Pulso", [PENDENTE DE VALIDAÇÃO]; conceito aprovado pelo dono em 2026-10-23).
 // Em volta do anel da tela cheia aparecem cards com eventos REAIS do CRM (GET /api/admin/henry/pulse): um feixe de 5 fios
@@ -42,7 +43,6 @@ const POLL_MS = 20 * 1000;
 const POLL_OVERLAP_MS = 30 * 1000; // evento gravado com hora um pouco anterior à consulta não se perde (id repetido é ignorado)
 const MAX_QUEUE = 12;
 const TRAIL_MS = 9000;
-const STRANDS = 5;
 
 async function fetchPulse(sinceIso) {
   const response = await fetch(`/api/admin/henry/pulse?since=${encodeURIComponent(sinceIso)}`, { cache: "no-store" });
@@ -265,46 +265,8 @@ export default function HenryPulse({ active = false, config = HENRY_PULSE_DEFAUL
       const sx = cx + Math.cos(angle) * R;
       const sy = cy + Math.sin(angle) * R;
       const bez = pulseBeamCurve({ sx, sy, tx, ty, bend: card.bend, wobble: reduced ? 0 : Math.sin(t * 0.003 + card.born) * 0.04 });
-      const [ex, ey] = bez(bk);
-      ctx.save();
-      ctx.globalCompositeOperation = "lighter";
-      ctx.shadowColor = color;
-      for (let s = 0; s < STRANDS; s += 1) {
-        const strandPhase = s * 1.9 + card.born * 0.001;
-        const amp = 3 + s * 0.8;
-        ctx.beginPath();
-        for (let u = 0; u <= bk + 0.0001; u += 0.02) {
-          const uu = Math.min(u, bk);
-          const [px, py] = bez(uu);
-          const [qx, qy] = bez(Math.min(1, uu + 0.01));
-          const l = Math.hypot(qx - px, qy - py) || 1;
-          const envelope = Math.sin(Math.PI * Math.min(1, uu / Math.max(bk, 0.001))); // zero nas pontas: os fios se reencontram
-          const v = reduced ? 0 : (Math.sin(uu * 22 + t * 0.012 + strandPhase) * 0.6 + Math.sin(uu * 47 - t * 0.02 + strandPhase * 1.7) * 0.4) * amp * envelope;
-          const x = px + (-(qy - py) / l) * v;
-          const y = py + ((qx - px) / l) * v;
-          if (u === 0) ctx.moveTo(x, y);
-          else ctx.lineTo(x, y);
-        }
-        const gradient = ctx.createLinearGradient(sx, sy, ex, ey);
-        gradient.addColorStop(0, `${color}10`);
-        gradient.addColorStop(0.5, `${color}aa`);
-        gradient.addColorStop(1, "#ffffffcc");
-        ctx.strokeStyle = gradient;
-        ctx.shadowBlur = s === 2 ? 10 : 0; // glow só no fio central (leve sem GPU)
-        ctx.lineWidth = (s === 2 ? 1.2 : 0.7) * (0.6 + d * 0.4);
-        ctx.globalAlpha = (0.55 + (s === 2 ? 0.35 : 0)) * d;
-        ctx.stroke();
-      }
-      ctx.globalAlpha = 1;
-      ctx.shadowBlur = 8;
-      ctx.fillStyle = "#ffffff";
-      for (let drop = 0; drop < 2; drop += 1) {
-        const [dx, dy] = bez((((t * 0.0016) + drop * 0.5) % 1) * bk);
-        ctx.beginPath();
-        ctx.arc(dx, dy, 1.8, 0, Math.PI * 2);
-        ctx.fill();
-      }
-      ctx.restore();
+      // Feixe padrão (5 fios, gradiente, gotinhas): o mesmo desenho das linhas das cenas (HenryStrandBeam).
+      drawStrandBeam(ctx, { point: bez, sx, sy, reach: bk, color, t, seed: card.born * 0.001, reduced, dim: d });
     }
 
     function frame(t) {

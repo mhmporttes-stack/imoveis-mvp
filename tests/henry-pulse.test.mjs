@@ -235,3 +235,27 @@ test("Pulso no anel (v17): um arco que se alarga até ±0,4π e some em 1,4 s", 
   assert.equal(orbHitArc(0.3).bump, 0, "inchaço só no começo");
   assert.ok(orbHitArc(0.1).bump > 0);
 });
+
+test("Feixe padrão (v18): 5 fios + 2 gotinhas, do anel até o ponto pedido, função única", async () => {
+  const { drawStrandBeam, quadraticPoint } = await import("../components/henry/henry-strand-beam.mjs");
+  const calls = { stroke: 0, arc: 0, lineTo: [] };
+  const ctx = new Proxy({}, {
+    get: (_, key) => {
+      if (key === "stroke") return () => (calls.stroke += 1);
+      if (key === "arc") return () => (calls.arc += 1);
+      if (key === "lineTo") return (x, y) => calls.lineTo.push([x, y]);
+      if (key === "createLinearGradient") return () => ({ addColorStop() {} });
+      return () => {};
+    },
+    set: () => true
+  });
+  const point = quadraticPoint([0, 0], [50, 40], [100, 0]);
+  assert.deepEqual(point(1), [100, 0]);
+  drawStrandBeam(ctx, { point, sx: 0, sy: 0, reach: 1, color: "#e9c27a", t: 1000, reduced: true });
+  assert.equal(calls.stroke, 5, "5 fios");
+  assert.equal(calls.arc, 2, "2 gotinhas");
+  assert.deepEqual(calls.lineTo.at(-1).map(Math.round), [100, 0], "termina no card");
+  calls.stroke = 0;
+  drawStrandBeam(ctx, { point, sx: 0, sy: 0, reach: 0, color: "#e9c27a", t: 0 });
+  assert.equal(calls.stroke, 0, "sem crescimento ainda = nada desenhado");
+});
