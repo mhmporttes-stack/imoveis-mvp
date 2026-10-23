@@ -318,8 +318,17 @@ function buildBroker(brokerId, range) {
     porMensagem,
     iniciaramCadencia: iniciaram,
     convertidos,
-    wallet: walletFor(brokerId)
+    wallet: walletFor(brokerId),
+    ranking: rankingFor(brokerId)
   };
+}
+
+// Pontos fictícios do Ranking oficial (hoje); a posição sai da ordem dos pontos, como em buildRankingPositionMap.
+const RANKING_POINTS = { "vitrine-corretor-ana": 191, "vitrine-corretor-bruno": 141, "vitrine-corretor-carla": 54, "vitrine-corretor-diego": 18, "vitrine-corretor-elisa": 0 };
+function rankingFor(brokerId) {
+  const ordered = Object.entries(RANKING_POINTS).sort((a, b) => b[1] - a[1]);
+  const position = ordered.findIndex(([id]) => id === brokerId) + 1;
+  return position ? { points: RANKING_POINTS[brokerId], position, total: ordered.length } : null;
 }
 
 function buildTeamOverview(period) {

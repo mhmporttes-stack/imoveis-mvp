@@ -3,7 +3,8 @@
 import { useEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import { useRevalidateOnReuse } from "@/components/useRevalidateOnReuse";
-import { X, History, ListRestart, Play, Printer } from "lucide-react";
+import { X, History, ListRestart, Play, Printer, Trophy } from "lucide-react";
+import { formatRankingBadge } from "@/lib/ranking-display.mjs";
 import { WHATSAPP_BADGE_LEGEND, whatsappCardIconTone } from "@/lib/whatsapp-restriction-core.mjs";
 import { formatAutoQueueCardLine, formatReconnectHoldLine } from "@/lib/daily-goal-policy-core.mjs";
 import { PRINTED_LIST_MODE_LABEL } from "@/lib/whatsapp-manual-disconnect-core.mjs";
@@ -122,6 +123,7 @@ export default function TeamDailyPerformance({ initialOverview, initialError = "
                 onRequeued={refetchAutomation}
                 onAccessChanged={refetchAutomation}
                 readOnly={readOnly}
+                periodLabel={PERIODS.find((option) => option.value === period)?.label || ""}
                 chatUnread={supervisionInbox.counts[broker.brokerId] || 0}
                 onOpenChat={() => setChatBroker({ id: broker.brokerId, name: broker.name, photoUrl: broker.photoUrl || "" })}
               />
@@ -303,8 +305,9 @@ function formatNextDispatchCompact(automation) {
   return new Intl.DateTimeFormat("pt-BR", { timeZone: "America/Sao_Paulo", hour: "2-digit", minute: "2-digit" }).format(new Date(scheduled));
 }
 
-function BrokerCard({ broker, index = 0, presenceStatus, automation, restriction, onRestrictionChanged, onClick, onRequeued, onAccessChanged, readOnly = false, chatUnread = 0, onOpenChat }) {
+function BrokerCard({ broker, index = 0, presenceStatus, automation, restriction, onRestrictionChanged, onClick, onRequeued, onAccessChanged, readOnly = false, periodLabel = "", chatUnread = 0, onOpenChat }) {
   const [requeuing, setRequeuing] = useState(false);
+  const rankingBadge = formatRankingBadge(broker.ranking, periodLabel);
   const sessionInfo = automation ? (AUTOMATION_SESSION_LABELS[automation.sessionStatus] || AUTOMATION_SESSION_LABELS.nunca_conectou) : null;
   const googleInfo = automation ? (GOOGLE_CONTACTS_STATUS_LABELS[automation.googleContactsStatus] || GOOGLE_CONTACTS_STATUS_LABELS.disconnected) : null;
   // "Rodando" só quando dá pra enviar de verdade (WhatsApp individual
@@ -375,6 +378,16 @@ function BrokerCard({ broker, index = 0, presenceStatus, automation, restriction
         </h3>
         {readOnly ? null : <span className="ml-auto shrink-0"><SupervisionChatButton count={chatUnread} name={broker.name} onClick={onOpenChat} /></span>}
       </div>
+      {rankingBadge ? (
+        <p className="mt-1.5">
+          <span
+            title={rankingBadge.title}
+            className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-extrabold ${rankingBadge.first ? "bg-amber-50 text-amber-800 ring-1 ring-amber-300" : "bg-blue-50 text-brand"}`}
+          >
+            <Trophy aria-hidden="true" className="h-3 w-3" />{rankingBadge.text}
+          </span>
+        </p>
+      ) : null}
       {automation?.whatsappAccessControllable ? (
         <WhatsappAccessControl brokerId={broker.brokerId} blocked={automation.whatsappAccessBlocked === true} readOnly={readOnly} onChanged={onAccessChanged} />
       ) : null}
