@@ -81,8 +81,8 @@ export function buildNeuralNet(count = 22) {
 export const ORB_TRANSITION_MS = 300;
 // Vibração dos fios (dono, 2026-10-23, protótipo v14: "ficou muito embaraçado"): ondulação × 0,4 em todos os estados.
 export const HENRY_ORB_VIB = 0.4;
-// Pulso de chegada do Pulso do CRM no anel (protótipo v16): duração total.
-export const HENRY_ORB_HIT_MS = 1100;
+// Pulso de chegada do Pulso do CRM no anel (protótipo v17): duração total.
+export const HENRY_ORB_HIT_MS = 1400;
 
 // Fator de aproximação por quadro: depois de ORB_TRANSITION_MS o valor percorreu ~95% do caminho, qualquer que seja o fps.
 export function orbEase(deltaSeconds) {
@@ -125,4 +125,12 @@ export function vividColor(hex) {
   let hue = 0;
   if (delta) hue = max === r ? ((g - b) / delta) % 6 : max === g ? (b - r) / delta + 2 : (r - g) / delta + 4;
   return `hsl(${Math.round(hue * 60 + 360) % 360}, 100%, 60%)`;
+}
+
+// Arco do pulso de chegada (protótipo v17) na idade relativa age (0–1 de HENRY_ORB_HIT_MS): meia-largura de 0,08π a 0,4π
+// (easeOut), alpha sobe em 6% e cai como (1 − p)^1,6, inchaço do raio 3,5% só no começo (até 30%).
+export function orbHitArc(age) {
+  const rise = Math.min(1, age / 0.06);
+  const fade = Math.pow(1 - Math.max(0, (age - 0.06) / 0.94), 1.6);
+  return { half: Math.PI * (0.08 + 0.32 * (1 - Math.pow(1 - age, 2))), alpha: rise * fade, bump: 0.035 * rise * Math.max(0, 1 - age / 0.3) };
 }

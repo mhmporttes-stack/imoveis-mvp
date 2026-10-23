@@ -223,3 +223,15 @@ test("Avatar (v13): canal = ícone, simulação = casa, corretor = foto com anel
   assert.deepEqual(pulseAvatar({ type: "lead", broker: { name: "Bruna", photo: "https://x/b.jpg", color: "#ff9fb8" } }), { kind: "photo", url: "https://x/b.jpg", color: "#ff9fb8" });
   assert.deepEqual(pulseAvatar({ type: "chegada", broker: { name: "Bruna", photo: "", color: "#ff9fb8" } }), { kind: "initial", letter: "B", color: "#ff9fb8" });
 });
+
+test("Pulso no anel (v17): um arco que se alarga até ±0,4π e some em 1,4 s", async () => {
+  const { HENRY_ORB_HIT_MS, orbHitArc } = await import("../components/henry/henry-orb-states.mjs");
+  assert.equal(HENRY_ORB_HIT_MS, 1400);
+  assert.ok(Math.abs(orbHitArc(0).half - Math.PI * 0.08) < 1e-9);
+  assert.ok(Math.abs(orbHitArc(1).half - Math.PI * 0.4) < 1e-9);
+  assert.equal(orbHitArc(0.06).alpha, 1, "bate forte logo no começo");
+  assert.ok(orbHitArc(0.5).alpha < 0.5 && orbHitArc(0.5).alpha > 0);
+  assert.equal(orbHitArc(1).alpha, 0, "some no fim");
+  assert.equal(orbHitArc(0.3).bump, 0, "inchaço só no começo");
+  assert.ok(orbHitArc(0.1).bump > 0);
+});
