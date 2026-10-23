@@ -138,7 +138,7 @@ function eventTitleAndDescription(event, context = {}) {
     case "tag_removed":
       return { title: "TAG REMOVIDA", description: [d.tagName ? `"${d.tagName}"` : ""] };
     case "data_updated":
-      return { title: "DADOS ATUALIZADOS", description: (d.fields || []).map((f) => f.field === "phone" && f.fromLast4 ? `Telefone: final ${f.fromLast4} → final ${f.toLast4}` : `${FIELD_LABEL[f.field] || f.field} atualizado(a)`) };
+      return { title: "DADOS ATUALIZADOS", description: (d.fields || []).map((f) => f.field === "phone" && f.fromLast4 ? `Telefone: final ${f.fromLast4} → final ${f.toLast4}` : f.field === "phone" && f.toLast4 ? `WhatsApp adicionado: final ${f.toLast4}` : `${FIELD_LABEL[f.field] || f.field} atualizado(a)`) };
     case "ad_reentry":
       return d.side === "new"
         ? { title: "REENTRADA POR ANÚNCIO", description: [d.campaignName ? `Campanha: ${d.campaignName}` : "", "Cliente já existia e voltou por um anúncio"].filter(Boolean) }

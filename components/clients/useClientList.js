@@ -769,6 +769,26 @@ export function useClientList({
     });
   }
 
+  // WhatsApp do cliente preenchido pelo corretor (MKT-2, dono 2026-10-23: cliente do Marketplace nasce sem telefone). O
+  // servidor valida (número válido, nunca da equipe, escopo) e registra na linha do tempo. Depois de salvar, a mesma consulta
+  // do botão WhatsApp (nada é enviado) só AVISA se o número não tiver WhatsApp — não desfaz o que foi salvo.
+  async function saveClientWhatsapp(client, phone) {
+    const registrationId = client.registration?.id;
+    if (!registrationId) return false;
+    const response = await fetch(`/api/simulation-registrations/${registrationId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ phone })
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.error || "Não foi possível salvar o WhatsApp.");
+    patchClientRegistration(client.id, { phone: data.phone, phoneNormalized: data.phoneNormalized });
+    const check = await fetch(`/api/admin/whatsapp-chat/check-client?clientId=${encodeURIComponent(registrationId)}`, { cache: "no-store", signal: AbortSignal.timeout(5000) })
+      .then((checkResponse) => (checkResponse.ok ? checkResponse.json() : null)).catch(() => null);
+    notify(check?.exists === false ? "WhatsApp salvo, mas o número não possui WhatsApp. Confira com o cliente." : "WhatsApp do cliente salvo.", check?.exists === false ? "danger" : undefined);
+    return true;
+  }
+
   // Destino do WhatsApp do card (mesma decisão do botão "WhatsApp"): Chat se a sessão do corretor está conectada; senão link externo.
   // `chatReady` vem do SERVIDOR (lista-documentos → getChatReplyReadiness): o Chat só responde, nunca inicia conversa (proteção
   // do número, 2026-10-05). Sem conversa do cliente no Chat (ou limite/hora): sempre o WhatsApp externo (ação humana do corretor).
@@ -933,6 +953,6 @@ export function useClientList({
     handleProspectingAction, confirmStatusReason, cancelStatusReason: () => setReasonTarget(null),
     confirmReceivedDate, cancelReceivedDate: () => setReceivedDateTarget(null),
     saveClientSchedule, clearClientSchedule, completeClientSchedule, createClientActivity, completeClientActivity, cancelClientActivity,
-    saveClientTags, createTagForClient, deleteTagFromSystem, openWhatsApp, setDocumentReceivedOffline, prepareDocumentsList, confirmDocumentsList, cancelDocumentsList: () => setDocsListTarget(null), copyBrokerSimulationLink, getScheduleDraft
+    saveClientTags, createTagForClient, deleteTagFromSystem, openWhatsApp, saveClientWhatsapp, setDocumentReceivedOffline, prepareDocumentsList, confirmDocumentsList, cancelDocumentsList: () => setDocsListTarget(null), copyBrokerSimulationLink, getScheduleDraft
   };
 }

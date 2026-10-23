@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { ArrowLeft, Lock, MessageSquareText, Phone, Send, Settings2 } from "lucide-react";
 import Button from "@/components/ui/Button";
 import Badge from "@/components/ui/Badge";
@@ -13,6 +14,9 @@ import { readViewerData, saveViewerData } from "@/components/chat-view-cache";
 import { MARKETPLACE_LIST_CACHE_PREFIX, MARKETPLACE_THREADS_CACHE_NAME } from "@/components/panel-cache-names";
 import { ManageShortcuts } from "@/components/WhatsappChatShortcuts";
 import { MAX_INTERNAL_LENGTH, MAX_OUTBOUND_LENGTH, fillMarketplaceShortcut, marketplaceOfficialWhatsappText } from "@/lib/marketplace-chat-core.mjs";
+import { toWhatsAppDigits, formatBrazilianPhone } from "@/lib/phone-utils";
+import { decideCardWhatsapp, detectDevice, buildExternalWhatsappUrl, CARD_WA_EXTERNAL } from "@/lib/client-card-whatsapp-core.mjs";
+import { flagContactNotSaved } from "@/lib/whatsapp-contact-warning.mjs";
 
 // Chat do Marketplace (MKT-2). A tela só mostra e chama /api/admin/marketplace-chat/**; regra, escopo e roleta ficam
 // no servidor (lib/marketplace-chat.js). As mensagens chegam e saem pela extensão no PC do escritório (~1–2 min).
@@ -153,6 +157,131 @@ function ShortcutPicker({ query, shortcuts, onPick, onManage }) {
         </button>
       ) : null}
     </div>
+  );
+}
+
+function readDevice() {
+  return detectDevice({
+    userAgent: navigator.userAgent || "",
+    standalone: navigator.standalone === true || window.matchMedia("(display-mode: standalone)").matches,
+    maxTouchPoints: navigator.maxTouchPoints || 0
+  });
+}
+
+// "Adicionar WhatsApp do cliente" + "Chamar no WhatsApp" no topo da conversa (MKT-2, dono 2026-10-23: o cliente do
+// Marketplace nasce sem telefone; o corretor cola o número que o cliente mandou). Só aparece com cliente vinculado e
+// visível para quem está logado (`conversation.client`, servidor). Grava pela MESMA rota da ficha (PATCH
+// /api/simulation-registrations/[id]: escopo, número válido, nunca da equipe, linha do tempo). "Chamar" segue a MESMA
+// sequência do botão WhatsApp do card (useClientList.openWhatsApp, WA-13a): decideCardWhatsapp pelo estado real do
+// WhatsApp do usuário → Chat interno ou WhatsApp Web/app; consulta sem envio se o número tem WhatsApp; registra o clique.
+// Nunca envia mensagem.
+function ClientWhatsappBar({ client, onSaved, onError }) {
+  const router = useRouter();
+  const [waState, setWaState] = useState(null);
+  const [editing, setEditing] = useState(false);
+  const [value, setValue] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [notice, setNotice] = useState("");
+  const phone = client.phoneNormalized || client.phone;
+  const hasPhone = Boolean(toWhatsAppDigits(phone));
+
+  useEffect(() => {
+    let alive = true;
+    fetch("/api/admin/whatsapp-individual/card-state", { cache: "no-store" })
+      .then((response) => (response.ok ? response.json() : null))
+      .then((data) => { if (alive && data) setWaState(data); })
+      .catch(() => {});
+    return () => { alive = false; };
+  }, []);
+
+  async function save(event) {
+    event.preventDefault();
+    if (busy) return;
+    setBusy(true);
+    setNotice("");
+    onError("");
+    try {
+      await callApi(`/api/simulation-registrations/${client.id}`, { method: "PATCH", body: JSON.stringify({ phone: value }) });
+      const check = await fetch(`/api/admin/whatsapp-chat/check-client?clientId=${encodeURIComponent(client.id)}`, { cache: "no-store", signal: AbortSignal.timeout(5000) })
+        .then((response) => (response.ok ? response.json() : null)).catch(() => null);
+      setNotice(check?.exists === false ? "WhatsApp salvo, mas o número não possui WhatsApp. Confira com o cliente." : "WhatsApp do cliente salvo.");
+      setEditing(false);
+      setValue("");
+      onSaved();
+    } catch (saveError) {
+      onError(saveError.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function callWhatsapp() {
+    if (!hasPhone) return;
+    onError("");
+    const decision = decideCardWhatsapp({
+      stateKnown: Boolean(waState),
+      sessionStatus: waState?.sessionStatus ?? null,
+      restricted: waState?.restricted === true,
+      chatDisabled: waState?.chatDisabled === true,
+      printedListMode: waState?.printedListMode === true,
+      device: readDevice(),
+      clientStatus: client.status,
+      isOwnClient: Boolean(waState?.userId) && client.responsibleUserId === waState.userId,
+      phone
+    });
+    if (decision.action !== CARD_WA_EXTERNAL) {
+      setBusy(true);
+      const check = await fetch(`/api/admin/whatsapp-chat/check-client?clientId=${encodeURIComponent(client.id)}`, { cache: "no-store", signal: AbortSignal.timeout(5000) })
+        .then(async (response) => {
+          if (response.ok) return response.json();
+          const data = response.status === 403 ? await response.json().catch(() => null) : null;
+          return data?.code === "REACTIVATION_REQUEUED" ? { requeued: true, error: data.error } : null;
+        }).catch(() => null);
+      setBusy(false);
+      if (check?.requeued) return onError(check.error);
+      if (check?.exists === false) return onError("O número não possui WhatsApp.");
+      if (check?.privateContact) {
+        const privateUrl = buildExternalWhatsappUrl(phone, readDevice());
+        fetch(`/api/simulation-registrations/${client.id}/whatsapp-contact`, { method: "POST", keepalive: true }).catch(() => {});
+        if (!privateUrl) return onError("Contato particular: o CRM não mostra a conversa. Atenda pelo WhatsApp do celular.");
+        if (!window.open(privateUrl, "_blank", "noopener,noreferrer")) window.location.assign(privateUrl);
+        return undefined;
+      }
+    }
+    fetch(`/api/simulation-registrations/${client.id}/whatsapp-contact`, { method: "POST", keepalive: true })
+      .then((response) => { if (!response.ok) throw new Error(`HTTP ${response.status}`); })
+      .catch(() => flagContactNotSaved(client.name || ""));
+    if (decision.action === CARD_WA_EXTERNAL) {
+      window.open(decision.url, "_blank", "noopener,noreferrer");
+      return undefined;
+    }
+    setBusy(true);
+    router.push(`/admin/chat?client=${encodeURIComponent(client.id)}`);
+    return undefined;
+  }
+
+  if (editing) {
+    return (
+      <form onSubmit={save} className="flex w-full flex-wrap items-center gap-2">
+        <label className="sr-only" htmlFor="marketplace-client-whatsapp">WhatsApp do cliente</label>
+        <input id="marketplace-client-whatsapp" type="tel" autoFocus className={`${inputClasses} min-w-0 flex-1`} placeholder="WhatsApp do cliente — (14) 99999-9999" value={value} onChange={(event) => setValue(event.target.value)} />
+        <Button size="sm" type="submit" loading={busy} disabled={!value.trim()}>Salvar</Button>
+        <Button size="sm" variant="ghost" type="button" onClick={() => { setEditing(false); setValue(""); }}>Cancelar</Button>
+      </form>
+    );
+  }
+  return (
+    <>
+      {hasPhone ? (
+        <>
+          <span className="shrink-0 text-sm font-medium text-ink">{formatBrazilianPhone(phone)}</span>
+          <Button size="sm" className="shrink-0" onClick={callWhatsapp} loading={busy}><Phone className="h-4 w-4" aria-hidden="true" /> Chamar no WhatsApp</Button>
+        </>
+      ) : (
+        <Button size="sm" variant="secondary" className="shrink-0" onClick={() => { setNotice(""); setEditing(true); }}><Phone className="h-4 w-4" aria-hidden="true" /> Adicionar WhatsApp do cliente</Button>
+      )}
+      {notice ? <p role="status" className="w-full text-xs text-muted">{notice}</p> : null}
+    </>
   );
 }
 
@@ -421,6 +550,7 @@ export default function MarketplaceChat({ canEditSettings = false, canAssign = f
                 ) : (
                   <Button size="sm" variant="secondary" className="shrink-0" onClick={addToCrm}>Adicionar ao CRM</Button>
                 )}
+                {conversation.client ? <ClientWhatsappBar key={conversation.client.id} client={conversation.client} onSaved={() => loadThread(selectedId)} onError={setError} /> : null}
               </div>
             </div>
             <div ref={messagesRef} key={selectedId} data-chat-wallpaper className="min-h-0 flex-1 space-y-2 overflow-y-auto overscroll-contain bg-mist p-3">

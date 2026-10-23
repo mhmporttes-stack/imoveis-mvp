@@ -22,8 +22,10 @@ export async function PATCH(request, { params }) {
 
   try {
     const body = await request.json();
+    // Telefone vindo da tela = digitado por pessoa: validado no servidor (número válido, nunca da equipe — MKT-2/WA-12).
     const registration = await updateSimulationRegistration((await params).id, {
       ...body,
+      manualPhone: body?.phone !== undefined,
       adminEmail: getActingAdminEmail(auth)
     }, auth);
     return NextResponse.json(registration);

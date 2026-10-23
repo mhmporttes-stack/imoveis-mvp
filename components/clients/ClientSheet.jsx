@@ -51,6 +51,7 @@ import StatusReasonDialog from "./StatusReasonDialog";
 import CooledHandoffCard from "@/components/cooled/CooledHandoffCard";
 import CooledChatHistory from "@/components/cooled/CooledChatHistory";
 import { useBasicMode, useWhatsappBlocked } from "@/components/WhatsappAccessProvider";
+import { toWhatsAppDigits } from "@/lib/phone-utils";
 import { ACTIVITY_TYPE_OPTIONS, TAG_COLORS, clientPhone, formatAgo, formatFullDateTime, formatWhen, getScheduleDraft, getUrgencySignal } from "./client-format";
 
 
@@ -182,7 +183,7 @@ export default function ClientSheet({ client, list, open, onClose, canManage, ca
 
           {/* Cadastro */}
           <Section title="Cadastro">
-            <RegistrationDetails client={client} />
+            <RegistrationDetails client={client} list={list} />
           </Section>
 
           {isOwner ? (
@@ -604,7 +605,7 @@ function TagChip({ tag }) {
   );
 }
 
-function RegistrationDetails({ client }) {
+function RegistrationDetails({ client, list }) {
   const registration = client.registration;
   if (!registration) return <p className="text-sm text-ink-2">Cadastro completo ainda não localizado para este cliente.</p>;
   const filled = hasSimulationData(registration);
@@ -615,7 +616,7 @@ function RegistrationDetails({ client }) {
   return (
     <div className="space-y-5">
       <dl className="grid grid-cols-2 gap-x-4 gap-y-3 text-sm">
-        <Item label="Telefone" value={clientPhone(client)} />
+        <ClientWhatsappItem key={client.id} client={client} list={list} />
         <Item label="Cadastrado em" value={formatDateTimeBR(registration.createdAt)} />
         <Item label="Último contato" value={client.lastWhatsappContactAt ? formatAgo(client.lastWhatsappContactAt) : "Nunca contatado"} />
         {registration.lastFormSubmittedAt ? <Item label="Novo formulário" value={formatAgo(registration.lastFormSubmittedAt)} highlight /> : null}
@@ -674,9 +675,48 @@ function Item({ label, value, highlight = false }) {
   );
 }
 
+// MKT-2 (dono, 2026-10-23): cliente sem WhatsApp (ex.: veio do Chat do Marketplace) — o corretor preenche aqui. O servidor
+// valida (número válido, nunca da equipe, escopo do cliente) e registra na linha do tempo. Depois de salvar, "Chamar no
+// WhatsApp" usa o MESMO botão do card (list.openWhatsApp: Chat se conectado, senão WhatsApp Web/app — WA-13a); só abre a
+// conversa, nunca envia. Cliente que já tem telefone continua como antes (só leitura).
+function ClientWhatsappItem({ client, list }) {
+  const whatsappBlocked = useWhatsappBlocked();
+  const [added, setAdded] = useState(false);
+  const registration = client.registration;
+  const hasPhone = Boolean(toWhatsAppDigits(registration?.phoneNormalized || registration?.phone));
+  if (hasPhone && !added) return <Item label="Telefone" value={clientPhone(client)} />;
+  if (!hasPhone) {
+    return (
+      <EditableItem
+        label="WhatsApp do cliente"
+        registrationId={registration?.id}
+        field="phone"
+        initialValue=""
+        placeholder="(14) 99999-9999"
+        type="tel"
+        onSave={async (value) => { await list.saveClientWhatsapp(client, value); setAdded(true); }}
+      />
+    );
+  }
+  return (
+    <div className="col-span-2 min-w-0 sm:col-span-1">
+      <dt className="text-xs text-muted">WhatsApp do cliente</dt>
+      <dd className="mt-0.5 flex flex-wrap items-center gap-2 font-medium text-ink">
+        {clientPhone(client)}
+        {whatsappBlocked ? null : (
+          <Button size="sm" onClick={() => list.openWhatsApp(client)} disabled={list.busyClientId === client.id}>
+            <MessageCircle className="h-4 w-4" aria-hidden="true" /> Chamar no WhatsApp
+          </Button>
+        )}
+      </dd>
+    </div>
+  );
+}
+
 // E-mail e PIS não vêm de nenhum formulário público — o corretor preenche
 // aqui para a documentação/CCA (mesma chamada do componente antigo).
-function EditableItem({ label, registrationId, field, initialValue, placeholder, type = "text" }) {
+// `onSave` (opcional): gravação própria do campo (ex.: WhatsApp do cliente); lança erro com a mensagem para a tela.
+function EditableItem({ label, registrationId, field, initialValue, placeholder, type = "text", onSave = null }) {
   const [editing, setEditing] = useState(false);
   const [value, setValue] = useState(initialValue || "");
   const [saved, setSaved] = useState(initialValue || "");
@@ -691,13 +731,17 @@ function EditableItem({ label, registrationId, field, initialValue, placeholder,
     setBusy(true);
     setError("");
     try {
-      const response = await fetch(`/api/simulation-registrations/${registrationId}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ [field]: value })
-      });
-      const data = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(data.error);
+      if (onSave) {
+        await onSave(value);
+      } else {
+        const response = await fetch(`/api/simulation-registrations/${registrationId}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ [field]: value })
+        });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(data.error);
+      }
       setSaved(value);
       setEditing(false);
     } catch (saveError) {
