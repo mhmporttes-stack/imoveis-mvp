@@ -122,10 +122,13 @@ export default function HenryVoiceView({
   const orbSize = useFullscreenOrbSize(expanded, mobile);
   // Pulso do CRM: a chegada de um evento vira "level" do anel REAL (o maior entre a voz e o pulso), sem anel paralelo.
   const pulseLevelRef = useRef(0);
+  const pulseHitsRef = useRef([]); // trechos do anel que acendem na cor do card que entrou (HenryOrb, signal.hits)
   const orbSignal = useCallback(() => {
     const signal = getSignal?.() || { mode: "idle", level: 0 };
     const extra = pulseLevelRef.current || 0;
-    return extra > 0.005 ? { ...signal, level: Math.max(Number(signal.level) || 0, extra) } : signal;
+    const hits = pulseHitsRef.current;
+    if (extra <= 0.005 && !hits.length) return signal;
+    return { ...signal, level: Math.max(Number(signal.level) || 0, extra), hits };
   }, [getSignal]);
   const inputRef = useRef(null);
   const touchRef = useRef(null);
@@ -332,7 +335,7 @@ export default function HenryVoiceView({
       </button>
 
       {/* Pulso do CRM: atrás do anel (cards e feixes em volta dele); apagado quando ele pensa ou fala. */}
-      <HenryPulse active={Boolean(pulse) && !opening} config={pulse || undefined} orbSize={orbSize} mobile={mobile} dim={searching || speaking || busy} onOpen={onPulseOpen} levelRef={pulseLevelRef} {...(pulsePoll ? { poll: pulsePoll } : {})} />
+      <HenryPulse active={Boolean(pulse) && !opening} config={pulse || undefined} orbSize={orbSize} mobile={mobile} dim={searching || speaking || busy} onOpen={onPulseOpen} levelRef={pulseLevelRef} hitsRef={pulseHitsRef} {...(pulsePoll ? { poll: pulsePoll } : {})} />
       <div className={`relative ${mobile ? "-translate-y-[14vh]" : ""}`}>
         {onTalk ? (
           <button type="button" onPointerDown={preventTouchSelection} onClick={onTalk} className="block rounded-full" aria-label={recording ? "Enviar o que eu falei" : "Tocar para falar com o Henry"}>

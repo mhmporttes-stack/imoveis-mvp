@@ -31,7 +31,8 @@ import {
 // card/rastro/pulso, consulta a cada ~20 s só com a aba visível; aba oculta pausa tudo. prefers-reduced-motion: sem
 // puxada nem vibração. Henry pensando/falando (dim): eventos mais apagados para não competir.
 // O anel é o REAL (HenryOrb, montado pelo HenryVoiceView): o Pulso não desenha anel próprio; a chegada de um evento vai
-// para o anel como "level" (levelRef = pulso × 0,6), somado ao sinal de voz pelo HenryVoiceView.
+// para o anel como "level" (levelRef = pulso × 0,6), somado ao sinal de voz pelo HenryVoiceView, e o trecho por onde o
+// card entrou acende na cor do tipo (hitsRef → signal.hits, desenhado pelo próprio HenryOrb).
 // O feixe é desenhado aqui (não reaproveita o HenryOrb: lá os fios são radiais em volta de um círculo; aqui seguem uma
 // curva entre dois pontos) com o mesmo estilo: fios finos, composição "lighter", glow.
 
@@ -50,7 +51,7 @@ async function fetchPulse(sinceIso) {
 const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
 const beamColor = (cfg, event) => (cfg.beam === "gold" ? "#e9c27a" : cfg.beam === "cyan" ? "#5cd6ff" : HENRY_PULSE_TYPES[event.type]?.color || "#5cd6ff");
 
-export default function HenryPulse({ active = false, config = HENRY_PULSE_DEFAULTS, orbSize = 520, mobile = false, dim = false, poll = fetchPulse, onOpen = null, pollMs = POLL_MS, levelRef = null }) {
+export default function HenryPulse({ active = false, config = HENRY_PULSE_DEFAULTS, orbSize = 520, mobile = false, dim = false, poll = fetchPulse, onOpen = null, pollMs = POLL_MS, levelRef = null, hitsRef = null }) {
   const rootRef = useRef(null);
   const canvasRef = useRef(null);
   const cfgRef = useRef(config);
@@ -290,6 +291,13 @@ export default function HenryPulse({ active = false, config = HENRY_PULSE_DEFAUL
         if (k >= 1) {
           addTrail(card.text.trail, card.x, card.y + 10);
           ringPulse = Math.min(1, ringPulse + cfg.pulse * HENRY_PULSE_SWALLOW); // o Henry "engole" o card
+          if (hitsRef) {
+            // Pulso na COR DO TIPO no trecho do anel por onde o card entrou (desenhado pelo HenryOrb, protótipo v11).
+            const { cx, cy } = geometry();
+            const hits = (hitsRef.current || []).filter((hit) => t - hit.born < 1200);
+            hits.push({ ang: Math.atan2(card.y + card.h / 2 - cy, card.x + card.w / 2 - cx), col: beamColor(cfg, card.event), born: t });
+            hitsRef.current = hits;
+          }
           card.el.remove();
           live.splice(i, 1);
           continue;
@@ -373,8 +381,9 @@ export default function HenryPulse({ active = false, config = HENRY_PULSE_DEFAUL
       document.removeEventListener("visibilitychange", onVisibility);
       [...live, ...trails].forEach((item) => item.el.remove());
       if (levelRef) levelRef.current = 0;
+      if (hitsRef) hitsRef.current = [];
     };
-  }, [active, pollMs, levelRef]);
+  }, [active, pollMs, levelRef, hitsRef]);
 
   if (!active) return null;
   return (

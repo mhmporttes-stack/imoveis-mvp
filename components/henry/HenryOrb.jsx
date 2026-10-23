@@ -12,7 +12,8 @@ import { HENRY_ORB_STATES, buildNeuralNet, mixHexColor, orbEase, orbStops } from
 //   parado   = respiração lenta e leve rotação;
 //   ouvindo  = ondas rápidas que percorrem o anel seguindo o volume, brilho ciano pulsando com cada sílaba;
 //   pensando = camadas girando em sentidos opostos, anel contraindo/expandindo, feixe dourado percorrendo o contorno;
-//   falando  = incha com a voz, fios abrem em leque e o anel vira quase esfera nos picos, cor quente (dourado e branco).
+//   falando  = incha com a voz, fios abrem em leque e se embaraçam só na faixa do anel (squash × 0,45), cor quente, e
+//              5 ondas vocais no meio seguem a voz real (estado `voice`, dono 2026-10-23).
 //   esperando = conversa aberta (ainda escuta sem o nome): brilho pulsando de leve no contorno;
 //   parado também fica escurecido (dim), para não confundir com "esperando".
 // Rede neural no centro (dono, 2026-10-23: "neurônios se conectando ali, entre os círculos, um ligando ao outro"): só
@@ -288,7 +289,9 @@ export default function HenryOrb({ size = 320, fibers = 48, points = 120, alpha 
 
       for (const seed of seeds) {
         const spin = state.rotation * seed.k + state.counter * seed.dir * seed.k;
-        const squash = 1 - sphere * (1 - Math.abs(Math.cos(seed.tilt)));
+        // Embaraçado só na faixa do anel (dono, 2026-10-23, protótipo v12): × 0,45 para os fios não cruzarem o meio,
+        // onde ficam as ondas vocais.
+        const squash = 1 - sphere * 0.45 * (1 - Math.abs(Math.cos(seed.tilt)));
         const turn = seed.turn * sphere;
         const cosT = Math.cos(turn);
         const sinT = Math.sin(turn);
@@ -320,6 +323,91 @@ export default function HenryOrb({ size = 320, fibers = 48, points = 120, alpha 
         context.globalAlpha = Math.min(1, alpha * (1 + level * 0.6) * state.dim);
         context.lineWidth = lineWidth * dpr;
         context.stroke(path);
+      }
+
+      // Ondas vocais no meio do anel (falando; dono, 2026-10-23, protótipo v12): 5 ondas finas horizontais que seguem a voz
+      // REAL (level do getSignal), afinando nas pontas. Movimento reduzido: paradas e baixas.
+      if (state.voice > 0.02) {
+        const span = radius * 0.62;
+        const WAVES = 5;
+        const N = 64;
+        const waveTime = reduce ? 0 : time;
+        // Ícone pequeno (celular 52–88 px, ícone do canto): traço proporcional para as ondas não virarem um borrão.
+        const waveWidth = dpr * Math.max(0.45, Math.min(1, size / 320));
+        context.lineCap = "round";
+        for (let w = 0; w < WAVES; w += 1) {
+          const off = w - (WAVES - 1) / 2;
+          const path = new Path2D();
+          for (let i = 0; i <= N; i += 1) {
+            const u = (i / N) * 2 - 1;
+            const env = Math.pow(Math.cos((u * Math.PI) / 2), 2);
+            const a = radius * (0.04 + level * 0.32) * (1 - Math.abs(off) * 0.17) * env;
+            const y = center + a * (Math.sin(u * (7 + w * 1.3) + waveTime * (6 + w) + w * 1.7) * 0.7 + Math.sin(u * 13 - waveTime * 9 + w) * 0.3);
+            const x = center + u * span;
+            if (i) path.lineTo(x, y);
+            else path.moveTo(x, y);
+          }
+          context.strokeStyle = w === 2 ? "#FFF6DD" : w % 2 ? "#F3DCA6" : "#4FC3E0";
+          context.globalAlpha = state.voice * 0.18;
+          context.lineWidth = 5 * waveWidth;
+          context.stroke(path);
+          context.globalAlpha = state.voice * (w === 2 ? 0.95 : 0.6);
+          context.lineWidth = (w === 2 ? 1.6 : 1) * waveWidth;
+          context.stroke(path);
+        }
+        context.lineCap = "butt";
+      }
+
+      // Pulso colorido de chegada (Pulso do CRM, protótipo v11 do dono, 2026-10-23): quando um card "entra" no Henry,
+      // ~15% do anel em volta do ângulo de entrada acende na COR DO TIPO do card, nos próprios fios (um a cada dois, mesma
+      // fórmula de ruído e mesmo giro), e apaga em 1,2 s. source-over: no modo aditivo a cor viraria branco.
+      // signal.hits = [{ ang, col, born }] (born no relógio de performance.now); sem hits nada muda.
+      const hits = Array.isArray(signal.hits) ? signal.hits : [];
+      if (hits.length && !reduce) {
+        context.globalCompositeOperation = "source-over";
+        const half = Math.PI * 0.15;
+        const SEGMENTS = 26;
+        for (const hit of hits) {
+          const age = (now - hit.born) / 1200;
+          if (!(age >= 0 && age < 1)) continue;
+          const env = age < 0.12 ? age / 0.12 : Math.pow(1 - (age - 0.12) / 0.88, 1.6);
+          context.strokeStyle = hit.col;
+          for (let index = 0; index < seeds.length; index += 2) {
+            const seed = seeds[index];
+            const spin = state.rotation * seed.k + state.counter * seed.dir * seed.k;
+            const spread = 1 + seed.offset * (1 + fan * 6);
+            let px = 0;
+            let py = 0;
+            for (let step = 0; step <= SEGMENTS; step += 1) {
+              const u = (step / SEGMENTS) * 2 - 1;
+              const phi = hit.ang + u * half;
+              const theta = phi - spin;
+              const noise =
+                0.06 * Math.sin(3 * theta + time * 0.9 + seed.a) +
+                0.045 * Math.sin(5 * theta - time * 1.3 * seed.k + seed.b) +
+                0.03 * Math.sin(9 * theta + time * 2.1 + seed.c) +
+                0.018 * Math.sin(15 * theta - time * 2.9 * seed.k + seed.a * 0.5);
+              const r = radius * (spread + noise * amp * seed.k) * (1 + 0.05 * env);
+              const x = center + r * Math.cos(phi);
+              const y = center + r * Math.sin(phi);
+              if (step) {
+                const a = env * Math.exp(-u * u * 2.5);
+                context.beginPath();
+                context.moveTo(px, py);
+                context.lineTo(x, y);
+                context.globalAlpha = a * 0.35;
+                context.lineWidth = 7 * dpr;
+                context.stroke();
+                context.globalAlpha = Math.min(1, a * 1.1);
+                context.lineWidth = 1.6 * dpr;
+                context.stroke();
+              }
+              px = x;
+              py = y;
+            }
+          }
+        }
+        context.globalCompositeOperation = "lighter";
       }
 
       // Feixe dourado percorrendo o contorno (pensando): cabeça brilhante e cauda que some.

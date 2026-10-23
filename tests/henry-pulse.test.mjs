@@ -203,3 +203,9 @@ test("Computador com mouse e tela estreita: só o lado onde o card cabe inteiro"
   const spot = pickPulseSpot({ W: 760, H: 800, cx: 380, cy: 400, R: 60, wide: true, random: () => 0.1 });
   assert.ok(spot.x >= 380 + 60 || spot.x + HENRY_PULSE_CARD_W <= 380 - 60);
 });
+
+test("Anel falando (v12): estado voice só em speaking; demais estados com as mesmas chaves", async () => {
+  const { HENRY_ORB_STATES } = await import("../components/henry/henry-orb-states.mjs");
+  assert.equal(HENRY_ORB_STATES.speaking.voice, 1);
+  for (const [name, state] of Object.entries(HENRY_ORB_STATES)) if (name !== "speaking") assert.equal(state.voice, 0, name);
+});
