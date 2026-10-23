@@ -179,7 +179,12 @@ test("anel e ícone: limites de desempenho e movimento reduzido", () => {
   assert.match(orb, /Math\.min\(2, window\.devicePixelRatio/);
   assert.match(orb, /Math\.min\(60, fibers\)/);
   assert.match(orb, /prefers-reduced-motion: reduce/);
-  assert.match(orb, /document\.hidden/);
+  assert.match(orb, /isPageHidden\(\)/); // aba oculta OU app de desktop minimizado (components/page-visibility.js)
+  // Tela cheia (app lento, 2026-10-23): halo em camada de meia resolução, 30 fps, 15 fps ociosa após 60 s.
+  assert.match(orb, /const FULLSCREEN_FRAME_MS = 1000 \/ 30;/);
+  assert.match(orb, /const FULLSCREEN_ECO_FRAME_MS = 1000 \/ 15;/);
+  assert.match(orb, /const FULLSCREEN_ECO_AFTER_MS = 60000;/);
+  assert.match(orb, /const glowLayer = glow \? createGlowLayer\(/);
   assert.match(orb, /buildNeuralNet\(nodes\)/);
   assert.match(orb, /pulses\.length >= 36/); // teto de sinapses por quadro
   const view = readFileSync(new URL("../components/henry/HenryVoiceView.jsx", import.meta.url), "utf8");

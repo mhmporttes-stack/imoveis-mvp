@@ -19,6 +19,7 @@ import {
   pulseBlobShape,
   pulseBlobStartAngle
 } from "@/lib/henry-pulse-core.mjs";
+import { isPageHidden, onPageVisibilityChange } from "@/components/page-visibility";
 import { HENRY_ORB_HIT_MS } from "./henry-orb-states.mjs";
 import { drawStrandBeam } from "./henry-strand-beam.mjs";
 
@@ -93,7 +94,7 @@ function initialAvatar(avatar) {
 const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
 const beamColor = (cfg, event) => (cfg.beam === "gold" ? "#e9c27a" : cfg.beam === "cyan" ? "#5cd6ff" : HENRY_PULSE_TYPES[event.type]?.color || "#5cd6ff");
 
-export default function HenryPulse({ active = false, config = HENRY_PULSE_DEFAULTS, orbSize = 520, mobile = false, dim = false, poll = fetchPulse, onOpen = null, pollMs = POLL_MS, levelRef = null, hitsRef = null, idle = true }) {
+export default function HenryPulse({ active = false, config = HENRY_PULSE_DEFAULTS, orbSize = 520, mobile = false, dim = false, poll = fetchPulse, onOpen = null, pollMs = POLL_MS, levelRef = null, hitsRef = null, busyRef = null, idle = true }) {
   const rootRef = useRef(null);
   const canvasRef = useRef(null);
   const cfgRef = useRef(config);
@@ -235,8 +236,6 @@ export default function HenryPulse({ active = false, config = HENRY_PULSE_DEFAUL
         ctx.restore();
         ctx.save();
         ctx.globalCompositeOperation = "lighter";
-        ctx.shadowColor = color;
-        ctx.shadowBlur = 14;
         for (const dir of [1, -1]) {
           for (let s = 0; s < 3; s += 1) {
             const off = s - 1;
@@ -251,6 +250,14 @@ export default function HenryPulse({ active = false, config = HENRY_PULSE_DEFAUL
               else ctx.lineTo(x, y);
             }
             ctx.strokeStyle = s === 1 ? "#ffffff" : color;
+            if (s === 1) {
+              // Brilho da moldura sem shadowBlur (caro sem GPU): o fio do meio largo e quase transparente, na cor do tipo.
+              ctx.strokeStyle = color;
+              ctx.globalAlpha = 0.2 * phase.frame * d;
+              ctx.lineWidth = 5;
+              ctx.stroke();
+              ctx.strokeStyle = "#ffffff";
+            }
             ctx.globalAlpha = (s === 1 ? 0.75 : 0.5) * phase.frame * d;
             ctx.lineWidth = s === 1 ? 1.2 : 0.8;
             ctx.stroke();
@@ -276,7 +283,7 @@ export default function HenryPulse({ active = false, config = HENRY_PULSE_DEFAUL
 
     function frame(t) {
       raf = 0;
-      if (!alive || document.hidden) return;
+      if (!alive || isPageHidden()) return;
       const cfg = cfgRef.current;
       ctx.clearRect(0, 0, W, H);
       ringPulse *= 0.94;
@@ -324,6 +331,7 @@ export default function HenryPulse({ active = false, config = HENRY_PULSE_DEFAUL
         trail.el.style.opacity = (cfg.trailOpacity * (1 - k) * dimFactor()).toFixed(3);
         trail.el.style.transform = `translateY(${reduced ? 0 : -k * 40}px)`;
       }
+      if (busyRef) busyRef.current = live.length > 0;
       if (live.length || trails.length || ringPulse >= 0.02) raf = requestAnimationFrame(frame);
       else {
         ctx.clearRect(0, 0, W, H);
@@ -331,12 +339,12 @@ export default function HenryPulse({ active = false, config = HENRY_PULSE_DEFAUL
       }
     }
     function kick() {
-      if (!raf && alive && !document.hidden) raf = requestAnimationFrame(frame);
+      if (!raf && alive && !isPageHidden()) raf = requestAnimationFrame(frame);
     }
 
     // Agendador: no máximo `rate` por minuto, um de cada vez, na ordem em que chegaram.
     const scheduler = window.setInterval(() => {
-      if (document.hidden || !queue.length || !idleRef.current) return; // card novo só com o Henry parado (v23)
+      if (isPageHidden() || !queue.length || !idleRef.current) return; // card novo só com o Henry parado (v23)
       const now = performance.now();
       if (now < nextAt) return;
       spawn(queue.shift());
@@ -346,7 +354,7 @@ export default function HenryPulse({ active = false, config = HENRY_PULSE_DEFAUL
     async function load() {
       window.clearTimeout(pollTimer);
       if (!alive) return;
-      if (!document.hidden) {
+      if (!isPageHidden()) {
         try {
           const data = await pollRef.current(since);
           if (!alive) return;
@@ -365,7 +373,7 @@ export default function HenryPulse({ active = false, config = HENRY_PULSE_DEFAUL
       if (alive) pollTimer = window.setTimeout(load, pollMs);
     }
     const onVisibility = () => {
-      if (document.hidden) return;
+      if (isPageHidden()) return;
       nextAt = 0;
       kick();
       load();
@@ -374,19 +382,20 @@ export default function HenryPulse({ active = false, config = HENRY_PULSE_DEFAUL
     resize();
     load();
     window.addEventListener("resize", resize);
-    document.addEventListener("visibilitychange", onVisibility);
+    const stopVisibility = onPageVisibilityChange(onVisibility); // aba oculta ou app de desktop minimizado
     return () => {
       alive = false;
       window.clearInterval(scheduler);
       window.clearTimeout(pollTimer);
       if (raf) cancelAnimationFrame(raf);
       window.removeEventListener("resize", resize);
-      document.removeEventListener("visibilitychange", onVisibility);
+      stopVisibility();
       [...live, ...trails].forEach((item) => item.el.remove());
       if (levelRef) levelRef.current = 0;
       if (hitsRef) hitsRef.current = [];
+      if (busyRef) busyRef.current = false;
     };
-  }, [active, pollMs, levelRef, hitsRef]);
+  }, [active, pollMs, levelRef, hitsRef, busyRef]);
 
   if (!active) return null;
   return (

@@ -87,7 +87,7 @@ import {
 } from "@/lib/henry-voice-client-alerts-core.mjs";
 import { saoPauloNow } from "@/lib/alexa-config-core.mjs";
 import { morningPlayRequest, morningPlayWindow } from "@/lib/henry-morning-core.mjs";
-import { setHenryFullscreenOpen } from "@/lib/henry-fullscreen-signal.mjs";
+import { isHenryFullscreenOpen, setHenryFullscreenOpen, subscribeHenryFullscreen } from "@/lib/henry-fullscreen-signal.mjs";
 import {
   DESKTOP_WAKE_EVENT,
   DESKTOP_WAKE_STATUS_EVENT,
@@ -98,8 +98,10 @@ import {
   readDesktopWakeSetting,
   readDesktopWakeWord,
   readHenryDesktopBridge,
-  shouldHandleDesktopWake
+  shouldHandleDesktopWake,
+  desktopCanReportFullscreen
 } from "@/lib/henry-desktop-core.mjs";
+import { isPageHidden, onPageVisibilityChange } from "@/components/page-visibility";
 import HenryVoiceView from "./HenryVoiceView";
 import { henryOrbMode, thinkingActivity } from "./henry-orb-states.mjs";
 import HenryCursor from "./HenryCursor";
@@ -425,6 +427,15 @@ export default function HenryVoiceAssistant() {
     setHenryFullscreenOpen(expanded);
     return () => setHenryFullscreenOpen(false);
   }, [expanded]);
+  // App de desktop (1.3.1): o mesmo sinal vai ao app, que guarda a caixa "Nova versão pronta" enquanto a cena está aberta.
+  useEffect(() => {
+    const report = () => {
+      const bridge = readHenryDesktopBridge(window);
+      if (desktopCanReportFullscreen(bridge)) bridge.henryFullscreen(isHenryFullscreenOpen());
+    };
+    report();
+    return subscribeHenryFullscreen(report);
+  }, []);
 
   // Tempo de espera do fim da fala trocado na tela de configuração: vale já, sem recarregar.
   useEffect(() => {
@@ -752,7 +763,8 @@ export default function HenryVoiceAssistant() {
       const topic = wait.replied ? "geral" : wait.topic; // transcrevendo: o assunto do pedido anterior não conta
       return { mode, level: 0.1, activity: thinkingActivity({ topic, progress: progress.count }), burst: progress.at ? Math.exp(-(now - progress.at) / 700) : 0 };
     }
-    return { mode, level: 0 };
+    // music: a tela cheia não entra no modo econômico (15 fps) com música tocando (HenryOrb, createFullscreenPacer).
+    return { mode, level: 0, music: isMusicGuardActive(musicGuardRef.current) };
   }, []);
 
   // Economia de CPU: minimizado e ocioso por mais de 30 s → o anel para no último quadro (acorda com qualquer atividade).
@@ -2493,9 +2505,16 @@ export default function HenryVoiceAssistant() {
     };
     const sync = () => publish(Boolean(active && alertsOn && voiceNotices && !mutedRef.current && alertRef.current.deviceActive && isAlertHour(saoPauloNow().minutes)));
     sync();
-    const timer = window.setInterval(sync, 3000);
+    // Página oculta (aba ou app de desktop minimizado): não recalcula; ao voltar recalcula na hora (2026-10-23).
+    const timer = window.setInterval(() => {
+      if (!isPageHidden()) sync();
+    }, 3000);
+    const stopWatchingVisibility = onPageVisibilityChange(() => {
+      if (!isPageHidden()) sync();
+    });
     return () => {
       window.clearInterval(timer);
+      stopWatchingVisibility();
       publish(false);
     };
   }, [active, alertsOn, voiceNotices]);

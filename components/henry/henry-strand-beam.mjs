@@ -14,7 +14,6 @@ export function drawStrandBeam(ctx, { point, sx, sy, reach, color, t, seed = 0, 
   const [ex, ey] = point(reach);
   ctx.save();
   ctx.globalCompositeOperation = "lighter";
-  ctx.shadowColor = color;
   for (let s = 0; s < STRANDS; s += 1) {
     const strandPhase = s * 1.9 + seed;
     const amp = 3 + s * 0.8;
@@ -36,16 +35,25 @@ export function drawStrandBeam(ctx, { point, sx, sy, reach, color, t, seed = 0, 
     gradient.addColorStop(0.5, `${color}aa`);
     gradient.addColorStop(1, "#ffffffcc");
     ctx.strokeStyle = gradient;
-    ctx.shadowBlur = s === 2 ? 10 : 0; // glow só no fio central (leve sem GPU)
+    if (s === 2) {
+      // Brilho do fio central sem shadowBlur (caro sem GPU: o quadro do Pulso caía de ~50 ms para ~130 ms): o mesmo fio,
+      // largo e quase transparente, como o halo dos fios do anel.
+      ctx.lineWidth = 5 * (0.6 + dim * 0.4);
+      ctx.globalAlpha = 0.16 * dim;
+      ctx.stroke();
+    }
     ctx.lineWidth = (s === 2 ? 1.2 : 0.7) * (0.6 + dim * 0.4);
     ctx.globalAlpha = (0.55 + (s === 2 ? 0.35 : 0)) * dim;
     ctx.stroke();
   }
-  ctx.globalAlpha = 1;
-  ctx.shadowBlur = 8;
   ctx.fillStyle = "#ffffff";
   for (let drop = 0; drop < 2; drop += 1) {
     const [dx, dy] = point(((t * 0.0016 + drop * 0.5) % 1) * reach);
+    ctx.globalAlpha = 0.18; // brilho da gotinha (sem shadowBlur)
+    ctx.beginPath();
+    ctx.arc(dx, dy, 4.5, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.globalAlpha = 1;
     ctx.beginPath();
     ctx.arc(dx, dy, 1.8, 0, Math.PI * 2);
     ctx.fill();

@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { AnimatePresence } from "motion/react";
 import CelebrationOverlay from "./CelebrationOverlay";
 import { useHenryFullscreen } from "@/components/henry/useHenryFullscreen";
+import { isPageHidden, onPageVisibilityChange } from "@/components/page-visibility";
 
 const POLL_INTERVAL_MS = 30 * 1000;
 const RETRY_WHEN_BUSY_MS = 15 * 1000;
@@ -55,17 +56,17 @@ export default function BrokerCelebrationGate({ userId, userName = "", userPhoto
 
   useEffect(() => {
     checkPending();
-    // Desempenho (2026-10-20): pausa com a aba/app oculto; ao voltar a ficar visível checa na hora.
+    // Desempenho (2026-10-20): pausa com a aba/app oculto (e com o app de desktop minimizado, 2026-10-23); ao voltar a
+    // ficar visível checa na hora.
     const intervalId = setInterval(() => {
-      if (document.visibilityState === "visible") checkPending();
+      if (!isPageHidden()) checkPending();
     }, POLL_INTERVAL_MS);
-    const onVisibility = () => {
-      if (document.visibilityState === "visible") checkPending();
-    };
-    document.addEventListener("visibilitychange", onVisibility);
+    const stopWatchingVisibility = onPageVisibilityChange(() => {
+      if (!isPageHidden()) checkPending();
+    });
     return () => {
       clearInterval(intervalId);
-      document.removeEventListener("visibilitychange", onVisibility);
+      stopWatchingVisibility();
       if (busyRetryRef.current) clearTimeout(busyRetryRef.current);
     };
   }, [checkPending]);

@@ -123,7 +123,8 @@ export default function HenryVoiceView({
   const orbSize = useFullscreenOrbSize(expanded, mobile);
   // Pulso do CRM: a chegada de um evento vira "level" do anel REAL (o maior entre a voz e o pulso), sem anel paralelo.
   const pulseLevelRef = useRef(0);
-  const pulseHitsRef = useRef([]); // trechos do anel que acendem na cor do card que entrou (HenryOrb, signal.hits)
+  const pulseHitsRef = useRef([]); // trechos do anel que acendem onde o card entrou (HenryOrb, signal.hits)
+  const pulseBusyRef = useRef(false); // há card do Pulso na tela (o anel não cai para o ritmo ocioso)
   // Bom dia novo (protótipo v22): no boom o anel acorda com um pulso de fala curto (~0,9 s) e, enquanto a mensagem
   // "Bom dia" está no meio do anel (a cena de abertura aberta), as ondas vocais não são desenhadas (noVoice).
   const wakeUntilRef = useRef(0);
@@ -135,8 +136,9 @@ export default function HenryVoiceView({
     if (openingRef.current) signal = { ...signal, noVoice: true };
     const extra = pulseLevelRef.current || 0;
     const hits = pulseHitsRef.current;
-    if (extra <= 0.005 && !hits.length) return signal;
-    return { ...signal, level: Math.max(Number(signal.level) || 0, extra), hits };
+    const pulseBusy = pulseBusyRef.current; // cards do Pulso na tela: o anel não cai para o ritmo ocioso
+    if (extra <= 0.005 && !hits.length && !pulseBusy) return signal;
+    return { ...signal, level: Math.max(Number(signal.level) || 0, extra), hits, pulseBusy };
   }, [getSignal]);
   const inputRef = useRef(null);
   const touchRef = useRef(null);
@@ -344,7 +346,7 @@ export default function HenryVoiceView({
 
       <HenryAlertList items={alertList} mobile={mobile} />
       {/* Pulso do CRM: atrás do anel (cards e feixes em volta dele); apagado quando ele pensa ou fala. */}
-      <HenryPulse active={Boolean(pulse) && !opening} idle={!engaged && !opening && !alertList.length && !musicScene && !brokers.length} config={pulse || undefined} orbSize={orbSize} mobile={mobile} dim={searching || speaking || busy} onOpen={onPulseOpen} levelRef={pulseLevelRef} hitsRef={pulseHitsRef} {...(pulsePoll ? { poll: pulsePoll } : {})} />
+      <HenryPulse active={Boolean(pulse) && !opening} idle={!engaged && !opening && !alertList.length && !musicScene && !brokers.length} config={pulse || undefined} orbSize={orbSize} mobile={mobile} dim={searching || speaking || busy} onOpen={onPulseOpen} levelRef={pulseLevelRef} hitsRef={pulseHitsRef} busyRef={pulseBusyRef} {...(pulsePoll ? { poll: pulsePoll } : {})} />
       <div className={`relative ${mobile ? "-translate-y-[14vh]" : ""}`}>
         {onTalk ? (
           <button type="button" onPointerDown={preventTouchSelection} onClick={onTalk} className="block rounded-full" aria-label={recording ? "Enviar o que eu falei" : "Tocar para falar com o Henry"}>

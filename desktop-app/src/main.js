@@ -31,6 +31,7 @@ const {
   classifyNavigation,
   formatLogLine,
   isAllowedOrigin,
+  isWindowHidden,
   parsePreferences,
   shouldGrantPermission,
   titlebarPointer,
@@ -134,6 +135,10 @@ function webPreferences() {
     nodeIntegration: false,
     sandbox: true,
     webSecurity: true,
+    // Fica false de propósito (revisto em 1.3.1, app lento): minimizado, o Henry ouve o nome (Vosk), grava o pedido e decide o
+    // fim da fala com timers de 100 ms; com throttling o Chromium os segura em 1 s (e em 1/min depois de 5 min oculto).
+    // Efeito colateral: document.hidden nunca fica true aqui — por isso o app avisa a página (onWindowVisibility) e o CRM
+    // pausa animações e consultas por components/page-visibility.js.
     backgroundThrottling: false,
     autoplayPolicy: "no-user-gesture-required",
     spellcheck: true,
@@ -308,6 +313,12 @@ function createWindow({ hidden = false } = {}) {
   attachWindowKeys(crmView.webContents);
   attachWindowKeys(barView.webContents);
 
+  // 1.3.1: minimizou/foi para a bandeja/voltou → a página pausa ou retoma animações e consultas (onWindowVisibility).
+  for (const name of ["minimize", "restore", "hide", "show"]) mainWindow.on(name, sendWindowVisibility);
+  crmView.webContents.on("did-finish-load", sendWindowVisibility);
+  // Página recarregou/caiu: a tela cheia do Henry fechou junto (a página nova avisa de novo se abrir) — nada fica preso.
+  crmView.webContents.on("did-navigate", () => updater?.setHold(false));
+  crmView.webContents.on("render-process-gone", () => updater?.setHold(false));
   for (const name of ["resize", "maximize", "unmaximize", "enter-full-screen", "leave-full-screen", "restore"]) {
     mainWindow.on(name, () => {
       layoutViews();
@@ -341,6 +352,12 @@ function createWindow({ hidden = false } = {}) {
     mainWindow.maximize();
     mainWindow.show();
   }
+}
+
+function sendWindowVisibility() {
+  const exists = Boolean(mainWindow && !mainWindow.isDestroyed());
+  const hidden = isWindowHidden({ exists, visible: exists && mainWindow.isVisible(), minimized: exists && mainWindow.isMinimized() });
+  crmContents()?.send("mm:window-visibility", { hidden });
 }
 
 function showWindow() {
@@ -442,6 +459,16 @@ function setupBridge() {
   });
 }
 
+// 1.3.1: tela cheia do Henry aberta/fechada (evento henryFullscreen da ponte) → o atualizador guarda/mostra a caixa
+// "Nova versão pronta". Só a página do CRM (frame principal da view do CRM); qualquer outra coisa é ignorada.
+function setupHenryFullscreenChannel() {
+  ipcMain.on("mm:henry-fullscreen", (event, open) => {
+    const frame = event.senderFrame;
+    if (!frame || frame.parent || !isAllowedOrigin(frame.url) || event.sender !== crmContents()) return;
+    updater?.setHold(open === true);
+  });
+}
+
 // Canal PRÓPRIO da barra (não é window.mmDesktop): só a página local da barra, frame principal, comando da lista fechada.
 function setupTitlebarChannel() {
   ipcMain.on("mm:titlebar", (event, command) => {
@@ -485,6 +512,7 @@ function start() {
   setupSession();
   setupBridge();
   setupTitlebarChannel();
+  setupHenryFullscreenChannel();
   loadPreferences();
   session.fromPartition(TITLEBAR_PARTITION).setPermissionRequestHandler((_contents, _permission, callback) => callback(false));
   session.fromPartition(TITLEBAR_PARTITION).setPermissionCheckHandler(() => false);

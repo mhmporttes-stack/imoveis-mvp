@@ -5,6 +5,7 @@ import AnimatedNumber from "@/components/motion/AnimatedNumber";
 import { usePrefersReducedMotion } from "@/components/motion/usePrefersReducedMotion";
 import styles from "./HenrySearchScene.module.css";
 import { HENRY_BEAM_CYAN, HENRY_BEAM_GOLD, HenryStrandBeams } from "./HenryStrandBeam";
+import { isPageHidden, onPageVisibilityChange } from "@/components/page-visibility";
 
 // Cena de busca do Henry. Pedido original do dono (2026-10-22): dados transparentes atrás do anel e, para corretor, um
 // "scanner" e o cardzinho com a foto ligado ao anel. Redesenho no mesmo dia ("a cena ficou muito pobre, quero algo bem
@@ -38,13 +39,13 @@ export function HenrySceneStyles() {
 }
 
 // Aba oculta → animações pausadas (economia de CPU/bateria).
+// Aba oculta OU janela do app de desktop minimizada/na bandeja (components/page-visibility.js, 2026-10-23).
 export function useTabHidden() {
   const [hidden, setHidden] = useState(false);
   useEffect(() => {
-    const sync = () => setHidden(document.visibilityState === "hidden");
+    const sync = () => setHidden(isPageHidden());
     sync();
-    document.addEventListener("visibilitychange", sync);
-    return () => document.removeEventListener("visibilitychange", sync);
+    return onPageVisibilityChange(sync);
   }, []);
   return hidden;
 }

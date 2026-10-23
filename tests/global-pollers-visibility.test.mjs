@@ -13,9 +13,16 @@ const files = [
 for (const file of files) {
   test(`${file}: só consulta com a aba visível e checa ao voltar`, () => {
     const source = readFileSync(new URL(`../${file}`, import.meta.url), "utf8");
-    assert.match(source, /document\.visibilityState === "visible"/);
-    assert.match(source, /document\.addEventListener\("visibilitychange", /);
-    assert.match(source, /document\.removeEventListener\("visibilitychange", /);
+    // Desde 2026-10-23 pode ser pelo helper components/page-visibility.js (também pausa com o app de desktop minimizado).
+    if (/isPageHidden\(\)/.test(source)) {
+      assert.match(source, /if \(!isPageHidden\(\)\)/);
+      assert.match(source, /const stopWatchingVisibility = onPageVisibilityChange\(/);
+      assert.match(source, /stopWatchingVisibility\(\);/);
+    } else {
+      assert.match(source, /document\.visibilityState === "visible"/);
+      assert.match(source, /document\.addEventListener\("visibilitychange", /);
+      assert.match(source, /document\.removeEventListener\("visibilitychange", /);
+    }
     assert.doesNotMatch(source, /setInterval\((poll|checkPending|load), /);
   });
 }

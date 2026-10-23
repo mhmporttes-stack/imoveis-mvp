@@ -248,8 +248,8 @@ test("Feixe padrão (v18): 5 fios + 2 gotinhas, do anel até o ponto pedido, fun
   const point = quadraticPoint([0, 0], [50, 40], [100, 0]);
   assert.deepEqual(point(1), [100, 0]);
   drawStrandBeam(ctx, { point, sx: 0, sy: 0, reach: 1, color: "#e9c27a", t: 1000, reduced: true });
-  assert.equal(calls.stroke, 5, "5 fios");
-  assert.equal(calls.arc, 2, "2 gotinhas");
+  assert.equal(calls.stroke, 6, "5 fios + o brilho largo do fio central (sem shadowBlur)");
+  assert.equal(calls.arc, 4, "2 gotinhas (núcleo + brilho)");
   assert.deepEqual(calls.lineTo.at(-1).map(Math.round), [100, 0], "termina no card");
   calls.stroke = 0;
   drawStrandBeam(ctx, { point, sx: 0, sy: 0, reach: 0, color: "#e9c27a", t: 0 });
