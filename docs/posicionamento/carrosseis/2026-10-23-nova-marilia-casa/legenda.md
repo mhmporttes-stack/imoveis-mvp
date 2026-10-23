@@ -32,3 +32,5 @@ Quer conhecer pessoalmente ou receber todas as informações? Me chama no Direct
 Matheus Machado · Corretor de imóveis em Marília/SP · CRECI 323106-F
 
 #marilia #mariliasp #casaavenda #minhacasaminhavida #imoveismarilia
+
+**Marketplace:** na fila, aprovado em 2026-10-23 (fotos do GitHub, commit aa2b921); a extensão publica sozinha.

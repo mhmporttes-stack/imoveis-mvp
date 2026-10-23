@@ -16,7 +16,7 @@ description: "Quando o dono manda fotos + dados de um imóvel: monta o carrossel
 
 ## 2. Fotos no armazenamento do site
 Segredo de rede `claude-fotos` (`/storage/v1/`): enviar `ig/lamina-01..10.jpg` e `capa-marketplace.jpg` para `property-media/cod<code>-<bairro>/` (POST `https://tshhasbbchjcvhoyizoo.supabase.co/storage/v1/object/property-media/<caminho>`). URL pública: `.../storage/v1/object/public/property-media/<caminho>`.
-Se o segredo não funcionar na sessão (só vale em sessão nova): site usa as URLs `raw.githubusercontent.com/mhmporttes-stack/imoveis-mvp/<commit>/...` como provisórias, e o **Marketplace espera** (a extensão só baixa de `*.supabase.co` e do domínio do site) — avisar o dono em uma linha.
+Se o segredo não funcionar na sessão (só vale em sessão nova): site usa as URLs `raw.githubusercontent.com/mhmporttes-stack/imoveis-mvp/<commit>/...` como provisórias, e o **Marketplace usa as mesmas URLs do GitHub** (raw.githubusercontent.com responde com CORS `*`, a extensão consegue baixar — testado em 2026-10-23 com COD4358/4359).
 
 ## 3. Site/CRM (MCP Supabase)
 - `properties`: `code` = próximo de 4 dígitos (ver lista em ESTILO-CARROSSEL "Imóvel no CRM"), `is_published=true`, `hide_price=true`, `price` do dono, `photos_json` = lâminas na ordem (`{data,name,storagePath}`), `sales_text` = legenda sem hashtags, `internal_notes` com endereço/permuta/contato.
