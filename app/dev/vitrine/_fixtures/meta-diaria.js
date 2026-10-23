@@ -13,6 +13,7 @@
 // - Elisa Martins — corretora nova, zero atividade.
 
 import { buildCompensationNotice } from "../../../../lib/daily-goal-compensation-view-core.mjs";
+import { buildPointsStatement } from "../../../../lib/points-statement-core.mjs";
 
 /* ------------------------------ Utilitários ------------------------------ */
 
@@ -318,8 +319,17 @@ function buildBroker(brokerId, range) {
     porMensagem,
     iniciaramCadencia: iniciaram,
     convertidos,
-    wallet: walletFor(brokerId)
+    wallet: walletFor(brokerId),
+    ranking: rankingFor(brokerId)
   };
+}
+
+// Pontos fictícios do Ranking oficial (hoje); a posição sai da ordem dos pontos, como em buildRankingPositionMap.
+const RANKING_POINTS = { "vitrine-corretor-ana": 191, "vitrine-corretor-bruno": 141, "vitrine-corretor-carla": 54, "vitrine-corretor-diego": 18, "vitrine-corretor-elisa": 0 };
+function rankingFor(brokerId) {
+  const ordered = Object.entries(RANKING_POINTS).sort((a, b) => b[1] - a[1]);
+  const position = ordered.findIndex(([id]) => id === brokerId) + 1;
+  return position ? { points: RANKING_POINTS[brokerId], position, total: ordered.length } : null;
 }
 
 function buildTeamOverview(period) {
@@ -812,6 +822,15 @@ export const routes = [
   { match: /^\/api\/daily-goal\/auto(\?|$)/, response: () => buildOwnAutoStatus() },
   { match: /^\/api\/daily-goal\/settings(\?|$)/, response: () => ({ quota: 20, messages: clone(MESSAGE_TEMPLATES), wallet: { walletLimit: 30, blockOnLimit: true } }) },
 
+  // Extrato dos pontos (selo do card): linhas sintéticas que somam os 191 pts da Ana (RANKING_POINTS), no formato de getPointsLedger.
+  {
+    match: /^\/api\/daily-goal\/team-overview\/([^/?]+)\/points-statement/,
+    delay: 260,
+    response: ({ url }) => {
+      const brokerId = decodeURIComponent(url.pathname.split("/").slice(-2)[0]);
+      return { statement: buildPointsStatementFixture(brokerId, url.searchParams.get("period") || "today") };
+    }
+  },
   // Visão do dono
   {
     match: /^\/api\/daily-goal\/team-overview\/([^/?]+)/,
@@ -836,3 +855,29 @@ export const propsFor = () => ({});
 
 // Mantido só para depuração no console do navegador (datas usadas pela fixture).
 export const __vitrineInfo = { today: TODAY, todayLabel: formatBR(TODAY) };
+
+/* --------------------- Extrato dos pontos (PointsStatementSheet) --------------------- */
+
+function buildPointsStatementFixture(brokerId, period) {
+  const brokerName = BROKERS.find((broker) => broker.id === brokerId)?.name || "Corretor";
+  const total = RANKING_POINTS[brokerId] ?? 0;
+  const at = (time, plainDate = TODAY) => new Date(`${plainDate}T${time}:00-03:00`).toISOString();
+  const rows = [];
+  const push = (entry) => rows.push({ brokerId, brokerName, clientName: "—", ...entry });
+  if (total > 0 && brokerId !== "vitrine-corretor-ana") {
+    push({ action: "Simulação realizada", clientName: "Cliente Vitrine", points: total, occurredAt: at("14:00"), origin: "Mudança de status" });
+  } else if (total > 0) {
+    push({ action: "Ajuste manual — Premiação pelo atendimento de ontem à noite", note: "Premiação pelo atendimento de ontem à noite", points: 50, occurredAt: at("18:06"), origin: "Ajuste manual" });
+    push({ action: "Cliente aprovado", clientName: "Marcos Antônio Pereira", points: 30, occurredAt: at("16:42"), origin: "Mudança de status" });
+    push({ action: "Cliente enviado para aprovação", clientName: "Joana Ferreira Lima", points: 20, occurredAt: at("15:10"), origin: "Mudança de status" });
+    push({ action: "Simulação realizada", clientName: "Paulo Roberto Alves", points: 15, occurredAt: at("14:25"), origin: "Mudança de status" });
+    push({ action: "Simulação realizada", clientName: "Lúcia Helena Costa", points: 15, occurredAt: at("11:48"), origin: "Mudança de status" });
+    push({ action: "Cliente em atendimento", clientName: "Rita de Cássia", points: 10, occurredAt: at("10:30"), origin: "Mudança de status" });
+    push({ action: "Cliente em atendimento", clientName: "11999998888", points: 10, occurredAt: at("09:55"), origin: "Mudança de status" });
+    for (let index = 0; index < 6; index += 1) push({ action: "Novo cliente cadastrado", clientName: ["Sônia Martins", "Davi Nogueira", "Ana Paula Reis", "Caio Santos", "Bia Lopes", "Téo Barros"][index], points: 1, occurredAt: at(`0${8 + (index % 2)}:${10 + index * 7}`), origin: "Cadastro" });
+    for (let index = 0; index < 30; index += 1) push({ action: `Prospecção — ${["1ª", "2ª", "3ª"][index % 3]} tentativa`, clientName: "Contato Vitrine", points: 1, occurredAt: at(`${String(7 + Math.floor(index / 5)).padStart(2, "0")}:${String((index % 5) * 11 + 3).padStart(2, "0")}`), origin: "Meta Diária" });
+    for (let index = 0; index < 5; index += 1) push({ action: "Prospecção — link pessoal", clientName: ["Valéria", "Heitor", "Nina", "Otávio", "Lara"][index] + " Souza", points: 1, occurredAt: at(`1${2 + index}:20`), origin: "Link pessoal do corretor" });
+    if (period !== "today") push({ action: "Bônus de Meta Diária batida (130% da meta)", points: 0, occurredAt: at("23:59", addDays(TODAY, -1)), origin: "Meta Diária" });
+  }
+  return { brokerId, range: resolveRange(period), ...buildPointsStatement(rows, { brokerId, todayYmd: TODAY }) };
+}

@@ -39,7 +39,7 @@ import {
   isStopCommand,
   nextRestartDelay
 } from "@/lib/henry-voice-conversation.mjs";
-import { pickBestBrowserVoice, pronounceForSpeech, splitSentences } from "@/lib/henry-voice-providers.mjs";
+import { henryReserveVoiceChain, pickBestBrowserVoice, pronounceForSpeech, splitSentences } from "@/lib/henry-voice-providers.mjs";
 import { normalizeHenryScene, pickWaitPhrase, rememberPhrase, shouldNarrate } from "@/lib/henry-voice-narration.mjs";
 import { HENRY_LISTEN_PROMPTS, pickVariant, rememberVariant } from "@/lib/henry-voice-persona.mjs";
 import {
@@ -56,9 +56,20 @@ import {
   pruneAlertPending
 } from "@/lib/henry-voice-client-alerts-core.mjs";
 import { saoPauloNow } from "@/lib/alexa-config-core.mjs";
-import { detectScreenCommand, readHenryDesktopBridge } from "@/lib/henry-desktop-core.mjs";
+import { morningPlayRequest, morningPlayWindow } from "@/lib/henry-morning-core.mjs";
+import {
+  DESKTOP_WAKE_EVENT,
+  chunkForLocalVoice,
+  desktopCanSpeakLocal,
+  desktopCanWake,
+  detectScreenCommand,
+  readDesktopWakeSetting,
+  readHenryDesktopBridge,
+  shouldHandleDesktopWake
+} from "@/lib/henry-desktop-core.mjs";
 import HenryVoiceView from "./HenryVoiceView";
 import HenryCursor from "./HenryCursor";
+import { playHenryOpeningSound } from "./HenryOpeningScene";
 import { captureWebcamFrame } from "./webcam-capture";
 import { createHenryVad } from "./henry-vad";
 
@@ -710,6 +721,24 @@ export default function HenryVoiceAssistant() {
       return;
     }
     if (!clip.audio?.base64) {
+      // Servidor sem áudio (ElevenLabs e OpenAI falharam/ausentes): reserva do aparelho — no app de desktop, o Piper do PC
+      // (pelo mesmo <audio>, com anel e interrupção); fora dele, a voz do navegador. Ordem só em henryReserveVoiceChain.
+      const [reserve] = henryReserveVoiceChain({ desktopLocalVoice: desktopCanSpeakLocal(desktopBridgeRef.current) });
+      if (reserve === "piper-local" && clip.text) {
+        const [first, ...rest] = chunkForLocalVoice(clip.text);
+        if (rest.length) queue.clips.unshift(...rest.map((text) => ({ ...clip, text })));
+        Promise.resolve(desktopBridgeRef.current.speakLocal(pronounceForSpeech(first || "")))
+          .catch(() => null)
+          .then((result) => {
+            if (speechQueueRef.current !== queue) return; // interrompido enquanto o PC preparava a voz
+            if (result?.ok && result.audio?.base64) playWithElement({ ...clip, text: first, audio: result.audio }, queue, advance);
+            else {
+              meterActiveRef.current = false;
+              speakBrowser(first, advance);
+            }
+          });
+        return;
+      }
       meterActiveRef.current = false; // voz do navegador: o anel usa o pulso simulado
       speakBrowser(clip.text, advance);
       return;
@@ -1941,22 +1970,100 @@ export default function HenryVoiceAssistant() {
     listenAgain();
   }, [listenAgain, startConversation, startRecording, unlockAudio, warmServer]);
 
-  // App de desktop: atalho global Ctrl+Shift+H (o app traz a janela) → abre o Henry já ouvindo.
+  // Botão ▶ "Começar o bom dia" (HENRY-1, dono 2026-10-23: plano B "caso a automação não funcione"). Visível até 11:00 de
+  // São Paulo e some/volta sozinho (timer até a próxima troca, sem recarregar). O clique — gesto do usuário — destrava o
+  // som (também no iPhone), abre a tela cheia, toca a cena de abertura e, ao terminar (ou pular), faz o MESMO pedido do
+  // "bom dia, Henry" falado (morningPlayRequest → ask). Pode repetir no mesmo dia: nada aqui guarda "bom dia feito".
+  const [morningPlay, setMorningPlay] = useState(false);
+  useEffect(() => {
+    if (!active) return undefined;
+    let timer = 0;
+    const sync = () => {
+      const { visible, msUntilChange } = morningPlayWindow(new Date());
+      setMorningPlay(visible);
+      timer = window.setTimeout(sync, Math.min(msUntilChange + 500, 60 * 60 * 1000));
+    };
+    sync();
+    const onVisible = () => {
+      if (document.visibilityState !== "visible") return;
+      window.clearTimeout(timer);
+      sync(); // aba/PC voltando da suspensão: timers atrasam, recalcula na hora
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      window.clearTimeout(timer);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
+  }, [active]);
+
+  const [opening, setOpening] = useState(false);
+  const openingRef = useRef(false);
+  const startMorningPlay = useCallback(() => {
+    unlockAudio();
+    if (!mutedRef.current) playHenryOpeningSound(audioCtxRef.current);
+    abortRequest();
+    stopSpeaking();
+    setExpanded(true);
+    warmServer();
+    fetch("/api/admin/henry", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ mode: "claim", deviceId: deviceIdRef.current }) }).catch(() => {});
+    // Celular que ouve pelo navegador: liga a escuta dentro do toque (exigência do iOS) para responder à pergunta da música.
+    if (listenModeRef.current === "tap" && !recordModeRef.current) {
+      sessionOpenRef.current = true;
+      startListeningRef.current?.();
+    }
+    openingRef.current = true;
+    setOpening(true);
+  }, [abortRequest, stopSpeaking, unlockAudio, warmServer]);
+  const finishOpening = useCallback(() => {
+    if (!openingRef.current) return;
+    openingRef.current = false;
+    setOpening(false);
+    askRef.current?.(morningPlayRequest());
+  }, []);
+  // Minimizou ("voltar"/arrastar) no meio da cena: pula para o bom dia em vez de deixar a cena pendurada.
+  useEffect(() => {
+    if (!expanded && openingRef.current) finishOpening();
+  }, [expanded, finishOpening]);
+
+  // App de desktop: atalho global Ctrl+Shift+H (o app traz a janela) ou o nome ouvido pelo app → abre o Henry já ouvindo.
+  const activateFromDesktop = useCallback(() => {
+    if (recordRef.current) return; // já gravando: o toque no Henry envia
+    openScene();
+    if (!recordModeRef.current) {
+      startConversation({ sound: true });
+      listenAgain();
+    }
+  }, [listenAgain, openScene, startConversation]);
+
   useEffect(() => {
     const bridge = desktopBridgeRef.current;
     if (!active || !bridge || typeof bridge.onActivate !== "function") return undefined;
-    const unsubscribe = bridge.onActivate(() => {
-      if (recordRef.current) return; // já gravando: o toque no Henry envia
-      openScene();
-      if (!recordModeRef.current) {
-        startConversation({ sound: true });
-        listenAgain();
-      }
+    const unsubscribe = bridge.onActivate(activateFromDesktop);
+    return () => {
+      if (typeof unsubscribe === "function") unsubscribe();
+    };
+  }, [active, activateFromDesktop]);
+
+  // Fase 1.1: "Henry" ouvido pelo app (Vosk, offline, áudio nunca sai do PC). Assinar liga a escuta no app; cancelar
+  // (liga/desliga "Ouvir 'Henry' sem atalho" em Voz e personalidade, Henry desligado, página fechada) desliga o microfone dele.
+  const [desktopWake, setDesktopWake] = useState(true);
+  useEffect(() => {
+    const read = () => setDesktopWake(readDesktopWakeSetting(window.localStorage));
+    read();
+    window.addEventListener(DESKTOP_WAKE_EVENT, read);
+    return () => window.removeEventListener(DESKTOP_WAKE_EVENT, read);
+  }, []);
+  useEffect(() => {
+    const bridge = desktopBridgeRef.current;
+    if (!active || !desktopWake || !desktopCanWake(bridge)) return undefined;
+    const unsubscribe = bridge.onWake(() => {
+      if (!shouldHandleDesktopWake({ phase: phaseRef.current, recording: Boolean(recordRef.current), muted: mutedRef.current })) return;
+      activateFromDesktop();
     });
     return () => {
       if (typeof unsubscribe === "function") unsubscribe();
     };
-  }, [active, listenAgain, openScene, startConversation]);
+  }, [active, desktopWake, activateFromDesktop]);
 
   const toggleMute = useCallback(() => {
     setMuted((current) => {
@@ -1981,7 +2088,7 @@ export default function HenryVoiceAssistant() {
       if (event.altKey && !event.ctrlKey && !event.metaKey && (event.key === "b" || event.key === "B" || event.code === "KeyB")) {
         event.preventDefault();
         toggleMute();
-      } else if (event.key === "Escape" && expanded) {
+      } else if (event.key === "Escape" && expanded && !openingRef.current) {
         setExpanded(false);
       }
     };
@@ -2071,6 +2178,10 @@ export default function HenryVoiceAssistant() {
       brokers={phase === "thinking" || phase === "speaking" ? scene.brokers : []}
       pendingAlerts={pendingAlerts}
       onPendingAlerts={hearPendingAlerts}
+      morningPlay={morningPlay}
+      onMorningPlay={startMorningPlay}
+      opening={opening}
+      onOpeningDone={finishOpening}
     />
     <HenryCursor request={navRequest} mobile={!desktop} />
     </>

@@ -15,11 +15,15 @@ import {
   morningOpening,
   parseMorningState,
   resolveMorningMusic,
-  spotifyUriFromLink
+  spotifyUriFromLink,
+  MORNING_PLAY_LABEL,
+  morningPlayRequest,
+  morningPlayWindow,
+  morningSceneDate
 } from "../lib/henry-morning-core.mjs";
 import { runSpotifyCommand } from "../lib/henry-spotify-core.mjs";
 import { mergeHenryStyle, parseHenryStylePatch, resolveHenryStyle } from "../lib/henry-voice-style.mjs";
-import { safeHenryReply } from "../lib/henry-voice-core.mjs";
+import { detectWakeWord, safeHenryReply } from "../lib/henry-voice-core.mjs";
 
 const reply = (status, body = null) => ({ status, ok: status >= 200 && status < 300, json: async () => body, text: async () => (body === null ? "" : JSON.stringify(body)) });
 
@@ -135,4 +139,41 @@ test("bom dia: fluxo ligado no servidor e na tela (só o dono, somente leitura, 
   const ui = readFileSync(new URL("../components/henry/HenryVoiceAssistant.jsx", import.meta.url), "utf8");
   assert.match(ui, /isConversationExpired\(conversationNow\.lastAt\)/);
   assert.match(ui, /morningRef\.current = null;/);
+});
+
+test("botão ▶ do bom dia: visível do início do dia até 11:00 de São Paulo e some/volta sozinho", () => {
+  // São Paulo = UTC-3 (sem horário de verão).
+  assert.deepEqual(morningPlayWindow(new Date("2026-10-23T03:00:00Z")), { visible: true, msUntilChange: 11 * 3600000 }); // 00:00
+  assert.equal(morningPlayWindow(new Date("2026-10-23T11:30:00Z")).visible, true); // 08:30
+  const last = morningPlayWindow(new Date("2026-10-23T13:59:30Z")); // 10:59:30
+  assert.equal(last.visible, true);
+  assert.equal(last.msUntilChange, 30000); // a tela agenda o sumiço exatamente às 11:00, sem recarregar
+  assert.equal(morningPlayWindow(new Date("2026-10-23T14:00:00Z")).visible, false); // 11:00 em ponto
+  assert.equal(morningPlayWindow(new Date("2026-10-23T20:00:00Z")).visible, false); // 17:00
+  const night = morningPlayWindow(new Date("2026-10-24T02:59:00Z")); // 23:59
+  assert.equal(night.visible, false);
+  assert.equal(night.msUntilChange, 60000); // volta à meia-noite
+  assert.equal(MORNING_PLAY_LABEL, "Começar o bom dia");
+  assert.equal(morningSceneDate(new Date("2026-10-23T12:00:00Z")), "sexta-feira, 23 de outubro");
+});
+
+test("botão ▶ do bom dia: faz o MESMO pedido do 'bom dia, Henry' falado, sem fluxo paralelo", () => {
+  const request = morningPlayRequest();
+  const spoken = detectWakeWord("bom dia, Henry");
+  assert.equal(spoken.kind, "report");
+  assert.deepEqual(request, { mode: spoken.kind, question: spoken.question, shown: "Bom dia, Henry" });
+  const assistant = readFileSync(new URL("../components/henry/HenryVoiceAssistant.jsx", import.meta.url), "utf8");
+  // Ao terminar a cena, o clique segue pelo ask() de sempre (mesma função do bom dia falado) — nada de outro fetch.
+  assert.match(assistant, /askRef\.current\?\.\(morningPlayRequest\(\)\)/);
+  assert.match(assistant, /morningPlayWindow\(new Date\(\)\)/);
+  // Gesto do clique destrava o áudio (iPhone) antes de qualquer coisa.
+  const start = assistant.slice(assistant.indexOf("const startMorningPlay"), assistant.indexOf("const finishOpening"));
+  assert.match(start, /unlockAudio\(\);/);
+  assert.match(start, /if \(!mutedRef\.current\) playHenryOpeningSound/);
+  assert.doesNotMatch(start, /fetch\([^)]*mode: "report"/);
+  const view = readFileSync(new URL("../components/henry/HenryVoiceView.jsx", import.meta.url), "utf8");
+  assert.equal((view.match(/<PlayButton /g) || []).length, 3); // minimizado (computador e celular) e tela cheia
+  const scene = readFileSync(new URL("../components/henry/HenryOpeningScene.jsx", import.meta.url), "utf8");
+  assert.match(scene, /\/assets\/matheus-machado-symbol\.png/);
+  assert.match(scene, /prefers-reduced-motion/);
 });

@@ -1,0 +1,14 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'unsafe-eval' 'wasm-unsafe-eval' blob:; worker-src blob:; connect-src 'self'">
+<title>Escuta do nome Henry</title>
+</head>
+<body>
+<!-- Janela escondida do app: ouve só o nome "Henry", offline (Vosk). Nada é gravado nem sai do PC. 'unsafe-eval': o
+     Vosk (WASM/embind) monta funções em tempo de execução; a página só carrega os arquivos fixos do app (sem rede). -->
+<script src="mm-wake://app/vosk.js"></script>
+<script src="mm-wake://app/wake.js"></script>
+</body>
+</html>
