@@ -151,7 +151,7 @@ test("servidor: travas, ordem do envio, cache, custo e cadência (leitura do có
   assert.ok(sent.indexOf('recordOutcome(registrationId, "sent"') < sent.indexOf("sendSimulationVoiceAudio"));
   assert.match(sent, /channel: result\.audioChannel/);
   // Boas-vindas entram no uso do dia do número (mesma cadência da Meta Diária / SIM-AUTO-ENVIO).
-  assert.match(source("lib/daily-goal-auto.js"), /\[AUTO_SIMULATION_SEND_KIND, VOICE_AUDIO_KINDS\.welcome\]/);
+  assert.match(source("lib/daily-goal-auto.js"), /\[AUTO_SIMULATION_SEND_KIND, AUTO_FOLLOWUP_KIND, VOICE_AUDIO_KINDS\.welcome\]/);
   assert.equal(VOICE_AUDIO_KINDS.welcome, "client_voice_audio_welcome");
   // Tela/API só do admin geral.
   const route = source("app/api/admin/client-voice-audio/route.js");

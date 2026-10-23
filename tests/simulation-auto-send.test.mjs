@@ -95,7 +95,7 @@ test("cadência anti-ban: mesma trava da automação (janela, 5 min, teto, pausa
   }
   // Os envios automáticos da simulação entram no uso do dia do número (teto/intervalo da Meta Diária e da fila extra).
   assert.match(auto, /loadAutoSimulationSendUsageRows\(brokerId, dayStart\)/);
-  assert.match(auto, /\.in\("metadata->>kind", \[AUTO_SIMULATION_SEND_KIND, VOICE_AUDIO_KINDS\.welcome\]\)/); // + boas-vindas em áudio (VOZ-1)
+  assert.match(auto, /\.in\("metadata->>kind", \[AUTO_SIMULATION_SEND_KIND, AUTO_FOLLOWUP_KIND, VOICE_AUDIO_KINDS\.welcome\]\)/); // + boas-vindas em áudio (VOZ-1)
   assert.match(source("lib/simulation-auto-send.js"), /individualAutomationSendGate\(senderId, \{ slot \}\)/);
 });
 
@@ -103,7 +103,7 @@ test("mensagem = a mesma do envio manual (só o link); eco do celular nunca vira
   const server = source("lib/simulation-auto-send.js");
   assert.match(server, /buildPresentationSendMessage\(\{ link \}\)/);
   assert.doesNotMatch(server, /text: "[A-ZÀ-Ú]/); // nenhum texto novo para o cliente
-  assert.match(source("lib/whatsapp-form-reminder.js"), /\.in\("metadata->>kind", \[FORM_REMINDER_KIND, AUTO_SIMULATION_SEND_KIND\]\)/);
+  assert.match(source("lib/whatsapp-form-reminder.js"), /\.in\("metadata->>kind", \[FORM_REMINDER_KIND, AUTO_SIMULATION_SEND_KIND, AUTO_FOLLOWUP_KIND\]\)/);
   assert.equal(AUTO_SIMULATION_SEND_KIND, "simulation_auto_send");
 });
 

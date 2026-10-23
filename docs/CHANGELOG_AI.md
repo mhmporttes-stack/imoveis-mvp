@@ -410,6 +410,15 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-23 — Simulação automática: lembrete "ficou alguma dúvida?" 20 min depois do envio (SIM-AUTO-ENVIO-b)
+- **Data:** 2026-10-23
+- **Área:** WhatsApp / simulação automática / linha do tempo
+- **Alteração:** depois do envio automático da simulação, programa UM lembrete pela mesma conversa ("{Saudação}, {Nome}, meu amigo/minha amiga, ficou alguma dúvida relacionada à simulação?"), enviado 20 min depois (21h–8h → 8 h) só se ninguém falou: cliente em qualquer conversa (reação não conta), mensagem humana da equipe, status mudado por pessoa ou Não contactar/arquivado/Particular encerram. Travas do envio: cadência anti-ban (lembrete entra no uso do número), janela de 24 h do Oficial (fechada = registra e não envia), reserva por cadastro. Eventos `simulation_auto_followup_*` com rótulos na linha do tempo; eco do celular ignorado.
+- **Motivo:** regra do dono (2026-10-23): "Depois que enviar a simulação, se o cliente responder, encerre o fluxo. Depois de 20 minutos, se o cliente não falar nada, envie uma mensagem".
+- **Arquivos afetados:** `lib/simulation-auto-send-core.mjs`, `lib/simulation-auto-send.js`, `lib/daily-goal-auto.js` (uso do número), `lib/whatsapp-form-reminder.js` (eco), `components/ClientJourneyActions.jsx`, `tests/simulation-auto-followup.test.mjs` (novo), `tests/simulation-auto-send.test.mjs`, `tests/client-voice-audio.test.mjs`; docs `BUSINESS_RULES.md` (SIM-AUTO-ENVIO-b), `WHATSAPP.md` §9-D, `.claude/rules/crm-clientes-funil.md`.
+- **Risco/observação:** só daqui para frente; sem migration. A CONFIRMAR com o dono: "status avançou" implementado como qualquer mudança de status por pessoa; lembrete individual fora da janela 06:30–18:00 espera (até 72 h). Contagem para o Henry não ligada (mudaria a fala dele). Pedido paralelo do coordenador ("número do dono não serve sem 'Usar para disparo'"): verificado no código e no banco (leitura) que o Número 1 com `dispatch_enabled` vazio JÁ conta como "Usar para disparo" (`isSlotDispatchEnabled`); a Meta Diária automática do dono está desligada (`daily_goal_auto_settings.enabled = false`). O pendente `whatsapp_nao_conectado` foi gravado às 06:30 (número ainda desconectado); o cron segue tentando por 72 h e o envio fica liberado após a espera de 30 min pós-conexão. Nenhuma coluna/migration criada. Testes que já falhavam no HEAD (11 arquivos + `financial-calculations`) continuam iguais.
+- **Autor:** Claude Code (crm-editor)
+
 ### 2026-10-23 — App de desktop 1.2.0: barra de título escondida, aparece com o mouse no topo
 - **Data:** 2026-10-23
 - **Área:** App de desktop (`desktop-app/`, fora da Vercel)
