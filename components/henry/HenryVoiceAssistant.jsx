@@ -657,6 +657,42 @@ export default function HenryVoiceAssistant() {
     if (!queue.playing) playNextRef.current();
   }, []);
 
+  // Spotify fechado: abre a URI pelo protocolo spotify: (âncora na mesma aba) e pede ao servidor para esperar o aparelho
+  // (~10 s) e tocar nele. Tocou → silêncio (a música fala por si). Não pegou (ou iPhone sem play) → frase curta pedindo um
+  // play no Spotify — só se o dono não fez outra pergunta nesse meio-tempo. Nunca força nada além disso.
+  const openSpotifyAndPlay = useCallback(async (uri, requestId) => {
+    try {
+      const link = document.createElement("a");
+      link.href = uri;
+      link.rel = "noopener";
+      link.style.display = "none";
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+    } catch {
+      // protocolo recusado: o servidor ainda espera um aparelho e, sem ele, pede o play
+    }
+    let data = null;
+    try {
+      const response = await fetch("/api/admin/henry/spotify/play", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ uri })
+      });
+      data = await response.json().catch(() => null);
+      if (!response.ok) data = { ok: false, reply: data?.error || "Não consegui tocar no Spotify. Dá play uma vez nele." };
+    } catch {
+      data = { ok: false, reply: "Não consegui tocar no Spotify. Dá play uma vez nele." };
+    }
+    if (data?.ok || !data?.reply || requestIdRef.current !== requestId) return;
+    const withReply = [...turnsRef.current, { role: "assistant", text: data.reply }];
+    turnsRef.current = withReply;
+    setTurns(withReply);
+    beginSpeech(data.reply);
+    enqueueClip({ audio: data.audio || null, text: data.reply });
+    endSpeech();
+  }, [beginSpeech, endSpeech, enqueueClip]);
+
   // Despedida na voz do Henry ("obrigado, Henry"): do mesmo cache das frases de espera, sem repetir as últimas 5. Sem voz
   // do servidor: só o som de fim (nunca a voz do navegador).
   const sayGoodbye = useCallback(() => {
@@ -743,7 +779,7 @@ export default function HenryVoiceAssistant() {
       conversationRef.current = { ...conversationRef.current, historyStart: 0 };
       setTurns([]);
     };
-    const onReply = (reply, navigate, detail = null, rawScene = null, openUrl = null) => {
+    const onReply = (reply, navigate, detail = null, rawScene = null, openUrl = null, spotify = null) => {
       if (waitRef.current.id === id) waitRef.current = { ...waitRef.current, replied: true };
       // Cena da resposta (HenryAnswerScenes), escolhida no servidor pelas ferramentas chamadas.
       const answerScene = normalizeHenryScene(rawScene);
@@ -765,6 +801,11 @@ export default function HenryVoiceAssistant() {
         }
       }
       beginSpeech(reply);
+      // Spotify fechado (`open_spotify`): abre o app pela URI na MESMA aba (âncora, sem aba nova — no PC abre o app
+      // desktop; o navegador pode perguntar "Abrir Spotify?" na 1ª vez) e o servidor espera o aparelho e dá o play.
+      if (spotify?.action === "open_spotify" && typeof spotify.uri === "string" && /^spotify:(track|playlist|album|artist):[A-Za-z0-9]+$/.test(spotify.uri)) {
+        openSpotifyAndPlay(spotify.uri, id);
+      }
     };
     try {
       // Visão (HENRY-2): 1 quadro da webcam só no "bom dia" ou em pergunta visual, com a visão ligada. Falhou → sem imagem.
@@ -799,7 +840,7 @@ export default function HenryVoiceAssistant() {
           return;
         }
         if (data.memoryCleared) clearTurns();
-        onReply(data.reply || "", data.navigate, data.detail || null, data.scene || null, data.openUrl || null);
+        onReply(data.reply || "", data.navigate, data.detail || null, data.scene || null, data.openUrl || null, data.spotify || null);
         enqueueClip({ audio: data.audio, text: data.reply || "" });
         endSpeech();
         return;
@@ -830,7 +871,7 @@ export default function HenryVoiceAssistant() {
           }
           if (typeof message?.reply === "string") {
             if (message.memoryCleared) clearTurns();
-            onReply(message.reply, message.navigate, message.detail || null, message.scene || null, message.openUrl || null);
+            onReply(message.reply, message.navigate, message.detail || null, message.scene || null, message.openUrl || null, message.spotify || null);
           }
           else if (typeof message?.text === "string") enqueueClip({ audio: message.audio, text: message.text });
           else if (message?.done) endSpeech();
@@ -848,7 +889,7 @@ export default function HenryVoiceAssistant() {
     } finally {
       if (abortRef.current === controller) abortRef.current = null;
     }
-  }, [abortRequest, applyProgress, beginSpeech, endConversation, endSpeech, enqueueClip, listenAgain, router, startConversation, stopSpeaking, touchConversation, updatePhase]);
+  }, [abortRequest, applyProgress, beginSpeech, endConversation, endSpeech, enqueueClip, listenAgain, openSpotifyAndPlay, router, startConversation, stopSpeaking, touchConversation, updatePhase]);
 
   // Botão de câmera da tela cheia = liga/desliga a visão (mesma configuração do cartão em /admin/alexa).
   const toggleVision = useCallback(async () => {

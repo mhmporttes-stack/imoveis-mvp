@@ -401,6 +401,13 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-23 — Henry abre o Spotify fechado e toca
+- **Pedido do dono:** com o Spotify fechado, o Henry abrir o app e tocar (antes só pedia para abrir).
+- **O que mudou:** "tocar" sem aparelho → busca o item e devolve `open_spotify` com a URI; a tela abre `spotify:...` na mesma aba e `POST /api/admin/henry/spotify/play` (dono, fora de "Alterar conta") espera um aparelho (1,2 s, ~10 s), transfere e toca; fala "Abrindo o Spotify…"; sem aparelho → pede um play no Spotify. Pausar/próxima/volume sem aparelho: sem mudança.
+- **Docs:** `docs/BUSINESS_RULES.md` HENRY-1, `docs/PERMISSIONS.md`.
+- **Arquivos:** `lib/henry-spotify-core.mjs`, `lib/henry-spotify.js`, `lib/henry-voice.js`, `app/api/admin/henry/route.js`, `app/api/admin/henry/spotify/play/route.js` (nova), `components/henry/HenryVoiceAssistant.jsx`, `tests/henry-spotify.test.mjs`.
+- **Risco/observação:** A CONFIRMAR no uso real (PC e iPhone); no iPhone a página pode ficar suspensa ao abrir o app — então só a frase pedindo o play.
+
 ### 2026-10-22 — Henry controla o Spotify do dono
 - **Pedido do dono:** Spotify (Premium) no Henry, só para ele.
 - **O que mudou:** ferramenta `spotify` (tocar por busca, pausar, continuar, próxima, anterior, volume, o que está tocando); OAuth Authorization Code em `/api/admin/henry/spotify/connect` (GET conecta, DELETE desconecta) e `/api/admin/henry/spotify/callback` (`requireAdminApi` + `assertOwnerAdmin` + fora de "Alterar conta"; `state` anti-CSRF em cookie HttpOnly); refresh token só no servidor em `crm_settings` `henry_spotify` (cifrado quando `CRM_SECRETS_ENCRYPTION_KEY` existe), renovação automática; botão Conectar/Desconectar no cartão do Henry; sem as variáveis, abre a busca no Spotify Web (campo `openUrl` novo na resposta do Henry, só `open.spotify.com/search`).

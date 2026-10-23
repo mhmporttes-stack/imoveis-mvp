@@ -5,8 +5,12 @@ import {
   SPOTIFY_SCOPES,
   buildSpotifyAuthorizeUrl,
   createSpotifyTokenManager,
+  describeSpotifyOpenResult,
   describeSpotifyResult,
   isSpotifyOpenUrl,
+  isSpotifyUri,
+  playOnSpotifyWhenReady,
+  spotifyPlayBody,
   isValidSpotifyState,
   normalizeSpotifyCommand,
   runSpotifyCommand,
@@ -81,12 +85,12 @@ test("token: acesso revogado vira 'spotify_revoked'; sem refresh token, não con
   await assert.rejects(empty.getAccessToken(), /spotify_not_connected/);
 });
 
-test("player: tocar busca e toca; sem aparelho ativo usa o 1º de /devices; nenhum → pede para abrir o Spotify", async () => {
+test("player: tocar busca e toca; sem aparelho ativo usa o 1º de /devices; nenhum → open_spotify com a URI", async () => {
   const tokens = { getAccessToken: async () => "at" };
   const log = [];
   const withDevices = (devices) => async (url, options) => {
     log.push(`${options.method} ${url.replace("https://api.spotify.com", "")}${options.body ? ` ${options.body}` : ""}`);
-    if (url.includes("/v1/search")) return reply(200, { tracks: { items: [{ uri: "spotify:track:1", name: "Tempo Perdido", artists: [{ name: "Legião Urbana" }] }] } });
+    if (url.includes("/v1/search")) return reply(200, { tracks: { items: [{ uri: "spotify:track:4uLU6hMCjMI75M1A2tKUQC", name: "Tempo Perdido", artists: [{ name: "Legião Urbana" }] }] } });
     if (url.includes("/v1/me/player/devices")) return reply(200, { devices });
     if (url.includes("/v1/me/player/play") && !url.includes("device_id")) return reply(404, { error: { status: 404, reason: "NO_ACTIVE_DEVICE" } });
     return reply(204);
@@ -95,10 +99,12 @@ test("player: tocar busca e toca; sem aparelho ativo usa o 1º de /devices; nenh
   const ok = await runSpotifyCommand(command, { fetchImpl: withDevices([{ id: "pc", name: "PC" }]), tokens });
   assert.equal(ok.ok, true);
   assert.equal(ok.playing.name, "Tempo Perdido");
-  assert.ok(log.some((line) => line.startsWith("PUT /v1/me/player/play?device_id=pc") && line.includes("spotify:track:1")));
+  assert.ok(log.some((line) => line.startsWith("PUT /v1/me/player/play?device_id=pc") && line.includes("spotify:track:4uLU6hMCjMI75M1A2tKUQC")));
   const none = await runSpotifyCommand(command, { fetchImpl: withDevices([]), tokens });
-  assert.deepEqual({ ok: none.ok, reason: none.reason }, { ok: false, reason: "no_device" });
-  assert.match(describeSpotifyResult(command, none), /abrir o Spotify/);
+  assert.deepEqual({ ok: none.ok, reason: none.reason, uri: none.uri }, { ok: false, reason: "no_device", uri: "spotify:track:4uLU6hMCjMI75M1A2tKUQC" });
+  assert.match(describeSpotifyResult(command, none), /Abrindo o Spotify/);
+  // Pausar/próxima/volume sem aparelho continuam pedindo para abrir (sem URI).
+  assert.match(describeSpotifyResult({ action: "pausar" }, { ok: false, reason: "no_device" }), /abrir o Spotify/);
   const pause = await runSpotifyCommand({ action: "pausar" }, { fetchImpl: async () => reply(204), tokens });
   assert.equal(pause.ok, true);
 });
@@ -147,4 +153,85 @@ test("Spotify no Henry: ferramenta, guard do dono, refresh token só no servidor
   assert.match(route, /isSpotifyOpenUrl\(url\) \? url : null/);
   assert.equal(henryProgressFor("spotify", { acao: "pausar" }), null); // música não é busca no CRM
   assert.equal(pickHenryAnswerScene({ tools: [{ name: "spotify", input: { acao: "tocar" } }] }), "conversa");
+});
+
+test("open_spotify: sem aparelho a busca devolve a URI; polling acha o aparelho, transfere e toca nele (fetch mockado)", async () => {
+  const tokens = { getAccessToken: async () => "at" };
+  const playlistId = "37i9dQZF1DXcBWIGoYBM5M";
+  assert.ok(isSpotifyUri(`spotify:playlist:${playlistId}`));
+  assert.ok(isSpotifyUri("spotify:track:4uLU6hMCjMI75M1A2tKUQC"));
+  assert.ok(!isSpotifyUri("spotify:user:abc"));
+  assert.ok(!isSpotifyUri("javascript:alert(1)"));
+  assert.ok(!isSpotifyUri("https://open.spotify.com/track/4uLU6hMCjMI75M1A2tKUQC"));
+  assert.deepEqual(spotifyPlayBody("spotify:track:4uLU6hMCjMI75M1A2tKUQC"), { uris: ["spotify:track:4uLU6hMCjMI75M1A2tKUQC"] });
+  assert.deepEqual(spotifyPlayBody(`spotify:playlist:${playlistId}`), { context_uri: `spotify:playlist:${playlistId}` });
+
+  // 1) pedido de tocar com /devices vazio → URI para o navegador abrir.
+  const empty = async (url) => {
+    if (url.includes("/v1/search")) return reply(200, { playlists: { items: [{ uri: `spotify:playlist:${playlistId}`, name: "Rock Clássico" }] } });
+    if (url.includes("/v1/me/player/devices")) return reply(200, { devices: [] });
+    return reply(404, { error: { status: 404, reason: "NO_ACTIVE_DEVICE" } });
+  };
+  const command = normalizeSpotifyCommand({ acao: "tocar", busca: "rock clássico", tipo: "playlist" });
+  const opened = await runSpotifyCommand(command, { fetchImpl: empty, tokens });
+  assert.equal(opened.uri, `spotify:playlist:${playlistId}`);
+
+  // 2) polling: duas voltas sem aparelho, na 3ª o PC aparece; o 1º play recusa (app ainda subindo), o 2º pega.
+  let clock = 0;
+  let devicePolls = 0;
+  let plays = 0;
+  const log = [];
+  const fetchImpl = async (url, options) => {
+    const path = url.replace("https://api.spotify.com", "");
+    log.push(`${options.method} ${path}${options.body ? ` ${options.body}` : ""}`);
+    if (path === "/v1/me/player/devices") {
+      devicePolls += 1;
+      return reply(200, { devices: devicePolls >= 3 ? [{ id: "pc", name: "PC", is_active: false }] : [] });
+    }
+    if (path.startsWith("/v1/me/player/play")) {
+      plays += 1;
+      return plays === 1 ? reply(404, { error: { status: 404, reason: "NO_ACTIVE_DEVICE" } }) : reply(204);
+    }
+    return reply(204);
+  };
+  const sleeps = [];
+  const done = await playOnSpotifyWhenReady(opened.uri, { fetchImpl, tokens, timeoutMs: 10000, intervalMs: 1200, now: () => clock, sleep: async (ms) => { sleeps.push(ms); clock += ms; } });
+  assert.deepEqual(done, { ok: true, device: "PC" });
+  assert.equal(devicePolls, 4);
+  assert.ok(sleeps.every((ms) => ms === 1200));
+  assert.ok(log.includes(`PUT /v1/me/player ${JSON.stringify({ device_ids: ["pc"], play: false })}`)); // transfer
+  assert.ok(log.includes(`PUT /v1/me/player/play?device_id=pc ${JSON.stringify({ context_uri: `spotify:playlist:${playlistId}` })}`));
+  assert.equal(describeSpotifyOpenResult(done), "");
+
+  // 3) nenhum aparelho em ~10 s → desiste e pede um play no Spotify.
+  clock = 0;
+  let polls = 0;
+  const never = await playOnSpotifyWhenReady(opened.uri, {
+    tokens,
+    fetchImpl: async () => { polls += 1; return reply(200, { devices: [] }); },
+    timeoutMs: 10000,
+    intervalMs: 1200,
+    now: () => clock,
+    sleep: async (ms) => { clock += ms; }
+  });
+  assert.deepEqual(never, { ok: false, reason: "no_device" });
+  assert.ok(polls >= 8 && polls <= 9, `polls=${polls}`);
+  assert.match(describeSpotifyOpenResult(never), /play uma vez/);
+  assert.deepEqual(await playOnSpotifyWhenReady("spotify:user:x", { tokens, fetchImpl: async () => reply(204) }), { ok: false, reason: "failed" });
+});
+
+test("open_spotify: payload validado na rota, fala fixa, tela abre na mesma aba e rota de play só do dono", () => {
+  const route = readFileSync(new URL("../app/api/admin/henry/route.js", import.meta.url), "utf8");
+  assert.match(route, /isSpotifyUri\(spotify\.uri\)/);
+  const voice = readFileSync(new URL("../lib/henry-voice.js", import.meta.url), "utf8");
+  assert.match(voice, /if \(context\.spotify\) replyText = "Abrindo o Spotify…";/);
+  const play = readFileSync(new URL("../app/api/admin/henry/spotify/play/route.js", import.meta.url), "utf8");
+  assert.match(play, /requireAdminApi\(request\)/);
+  assert.match(play, /assertHenrySpotifyOwner\(auth\)/);
+  assert.match(play, /isSpotifyUri\(body\?\.uri\)/);
+  const ui = readFileSync(new URL("../components/henry/HenryVoiceAssistant.jsx", import.meta.url), "utf8");
+  assert.match(ui, /open_spotify/);
+  assert.match(ui, /\/api\/admin\/henry\/spotify\/play/);
+  const opener = ui.slice(ui.indexOf("const openSpotifyAndPlay"), ui.indexOf("// Despedida na voz do Henry"));
+  assert.ok(!opener.includes("window.open"), "abre o app sem aba nova");
 });
