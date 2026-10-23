@@ -500,6 +500,14 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-23 — Publicado: Pulso do CRM, bom dia novo, avisos na tela, feixe padrão e anel ajustado do Henry
+- **Data:** 2026-10-23
+- **Área:** Henry (tela cheia, anel, abertura do bom dia, avisos) / Pulso do CRM
+- **Alteração:** merge do branch `feat/pulso-crm-v17` em `main` (deploy), com a aprovação do dono em 23/10 ("publique assim"). Detalhe do que entrou: entrada "Henry: Pulso do CRM preparado…" abaixo. O Pulso continua nascendo DESLIGADO (liga em "Voz e personalidade"); o bom dia novo fica sem o símbolo "M" por decisão do dono.
+- **Motivo:** dono aprovou o visual e mandou publicar como está.
+- **Arquivos afetados:** os do branch (ver entrada abaixo).
+- **Risco/observação:** NÃO publicados (ficam para depois): `feat/henry-bloqueio`, migrations e mudanças na automação do WhatsApp. Regras do Pulso/bom dia/avisos seguem como rascunho [PENDENTE DE VALIDAÇÃO] em `docs/BUSINESS_RULES.md` HENRY-1 até o dono validar o uso real.
+
 ### 2026-10-23 — Henry: "Pulso do CRM" preparado no branch `feat/pulso-crm` (desligado, sem publicar)
 - **Data:** 2026-10-23
 - **Área:** Henry / tela cheia / leitura de eventos do CRM
