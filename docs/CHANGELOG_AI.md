@@ -44,6 +44,15 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 
 
+### 2026-10-23 — Henry: confirmação de escuta logo depois do fim da fala (HENRY-1)
+- **Data:** 2026-10-23
+- **Área:** Henry (voz)
+- **Alteração:** ao fechar a gravação/escuta com fala válida o Henry responde na hora (antes da transcrição e da IA) com um som curto WebAudio, uma interjeição ou uma frase curta na voz dele, sorteados 40/35/25 (dados/demorado → frase; papo → som/interjeição), sem repetir seguido e sem repetir as faladas no dia. Nunca em resposta a pergunta dele, comando resolvido na hora ou com fala tocando. Interjeições/frases entram no pacote da narração (`getHenryNarration`); a frase de espera só entra ~2,5 s depois da confirmação; o pedido novo não corta a confirmação e a resposta só espera ela acabar. Liga/desliga "Confirmar que ouviu" em Voz e personalidade (`style.listenAck`, nasce ligado).
+- **Motivo:** pedido do dono: 6–7 s de silêncio entre o fim da fala e a resposta (2 s de fim de fala + ~1 s de transcrição + ~3 s de IA); ele manteve a espera e pediu para preencher o silêncio.
+- **Arquivos afetados:** `lib/henry-voice-narration.mjs`, `lib/henry-voice.js`, `lib/henry-voice-style.mjs`, `app/api/admin/henry/route.js`, `components/henry/HenryVoiceAssistant.jsx`, `components/henry/HenrySettingsCard.jsx`, `tests/henry-listen-ack.test.mjs`, `tests/henry-voice-style.test.mjs`, docs.
+- **Risco/observação:** +13 sínteses curtas por voz no pacote da narração (uma vez a cada 6 h por voz; custo em `ai_usage_log`). Sessão com o pacote antigo no `sessionStorage` usa só o som até recarregar. Na gravação o texto ainda não existe: comando resolvido na hora falado (ex.: "leia os avisos") pode ganhar a confirmação.
+- **Autor:** Claude Code (crm-editor)
+
 ### 2026-10-23 — Agenda: detalhe da atividade com ações fixas no rodapé (celular)
 - **Data:** 2026-10-23
 - **Área:** Agenda

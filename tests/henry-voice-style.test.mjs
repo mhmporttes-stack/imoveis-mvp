@@ -30,7 +30,7 @@ test("vozes: as 13 da documentação oficial do gpt-4o-mini-tts, nenhuma inventa
 
 test("padrões: nada salvo = tom AMIGO (dono, 2026-10-22), voz do env, ritmo ágil, Matheus; tom salvo é respeitado", () => {
   const style = resolveHenryStyle(undefined, { defaultVoice: "ash" });
-  assert.deepEqual(style, { voice: "ash", elevenVoice: "", tone: "descontraido", speed: "normal", endWait: "normal", details: "", address: "", rockMusic: "", sertanejoMusic: "" }); // músicas do bom dia vazias = padrão (2026-10-23)
+  assert.deepEqual(style, { voice: "ash", elevenVoice: "", tone: "descontraido", speed: "normal", endWait: "normal", listenAck: "on", details: "", address: "", rockMusic: "", sertanejoMusic: "" }); // músicas do bom dia vazias = padrão (2026-10-23)
   assert.equal(resolveHenryStyle({}, {}).voice, "ash");
   assert.equal(resolveHenryStyle({}, { defaultVoice: "coral" }).voice, "coral");
   assert.match(buildHenryTtsInstructions(style), FRIEND);

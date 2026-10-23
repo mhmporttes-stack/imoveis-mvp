@@ -63,7 +63,7 @@ import {
   triggeredTranscriptIntent
 } from "@/lib/henry-voice-conversation.mjs";
 import { henryReserveVoiceChain, pickBestBrowserVoice, pronounceForSpeech, splitSentences } from "@/lib/henry-voice-providers.mjs";
-import { MUSIC_TOPIC, henryMusicIntent, mergeHenryMusic, musicQueryFromText, normalizeHenryScene, pickWaitPhrase, rememberPhrase, shouldNarrate, spotifyDeviceRequestKind } from "@/lib/henry-voice-narration.mjs";
+import { MUSIC_TOPIC, ackToneDurationMs, henryAckContext, henryMusicIntent, isAckPhrase, mergeHenryMusic, musicQueryFromText, normalizeHenryScene, pickListenAck, pickWaitPhrase, rememberPhrase, shouldAcknowledgeHeard, shouldNarrate, spotifyDeviceRequestKind } from "@/lib/henry-voice-narration.mjs";
 import { HENRY_LISTEN_PROMPTS, pickVariant, rememberVariant } from "@/lib/henry-voice-persona.mjs";
 import {
   ALERT_ANSWER_WAIT_MS,
@@ -326,6 +326,10 @@ export default function HenryVoiceAssistant() {
   const waitRef = useRef({ id: 0, startedAt: 0, replied: true, topic: "geral", lastAt: 0, names: [] });
   const recentPhrasesRef = useRef([]);
   const narratingTextRef = useRef("");
+  // Confirmação de escuta (dono, 2026-10-23): liga/desliga "Confirmar que ouviu", último item (nunca repete seguido), fim
+  // da última (a frase de espera espera ~2,5 s depois dela) e se a gravação já confirmou antes da transcrição.
+  const listenAckRef = useRef(true);
+  const ackRef = useRef({ lastId: "", endedAt: 0, preAcked: false });
   // live = já houve ferramenta (ou é o "bom dia"): só então a cena de busca entra; antes disso, as ondas da conversa.
   const [scene, setScene] = useState({ topic: "geral", label: "", brokers: [], live: false });
   // Música (dono, 2026-10-23): cena do Spotify do pedido atual (eventos reais do stream) e "Tocando agora" do player.
@@ -400,6 +404,7 @@ export default function HenryVoiceAssistant() {
   useEffect(() => {
     const onEndWait = (event) => {
       if (Number.isFinite(event?.detail?.ms)) endWaitMsRef.current = event.detail.ms;
+      if (typeof event?.detail?.listenAck === "boolean") listenAckRef.current = event.detail.listenAck;
     };
     window.addEventListener(HENRY_END_WAIT_EVENT, onEndWait);
     return () => window.removeEventListener(HENRY_END_WAIT_EVENT, onEndWait);
@@ -427,6 +432,7 @@ export default function HenryVoiceAssistant() {
         setVision(data?.vision === true);
         if (Number.isFinite(data?.browserRate)) browserRateRef.current = data.browserRate;
         if (Number.isFinite(data?.endWaitMs)) endWaitMsRef.current = data.endWaitMs;
+        listenAckRef.current = data?.listenAck !== false;
         narrationKeyRef.current = typeof data?.narrationKey === "string" ? data.narrationKey : "";
         // Memória do dia (REGRA OFICIAL, dono 2026-10-22): a conversa de hoje volta ao abrir/recarregar (só texto).
         if (Array.isArray(data?.dayTurns) && data.dayTurns.length && !turnsRef.current.length) {
@@ -717,6 +723,29 @@ export default function HenryVoiceAssistant() {
     oscillator.stop(now + 0.25);
   }, [ensureAudioContext]);
 
+  // Som curto de "entendi" (confirmação de escuta): duas notas suaves sintetizadas aqui, sem arquivo. Devolve quanto dura
+  // (0 = não tocou: som ainda bloqueado pelo navegador).
+  const playAckTone = useCallback((tone) => {
+    const context = ensureAudioContext();
+    if (!context || context.state !== "running" || !tone?.notes?.length) return 0;
+    let at = context.currentTime + 0.01;
+    for (const [frequency, ms] of tone.notes) {
+      const oscillator = context.createOscillator();
+      const gain = context.createGain();
+      const length = ms / 1000;
+      oscillator.type = tone.wave || "sine";
+      oscillator.frequency.setValueAtTime(frequency, at);
+      gain.gain.setValueAtTime(0.0001, at);
+      gain.gain.exponentialRampToValueAtTime(tone.wave === "triangle" ? 0.09 : 0.06, at + 0.015);
+      gain.gain.exponentialRampToValueAtTime(0.0001, at + length);
+      oscillator.connect(gain).connect(context.destination);
+      oscillator.start(at);
+      oscillator.stop(at + length + 0.02);
+      at += length + 0.02;
+    }
+    return ackToneDurationMs(tone);
+  }, [ensureAudioContext]);
+
   // --- Modo conversa ------------------------------------------------------------------------------------------------
   const touchConversation = useCallback(() => {
     if (conversationRef.current.active) conversationRef.current.lastAt = Date.now();
@@ -923,6 +952,10 @@ export default function HenryVoiceAssistant() {
   const playNextRef = useRef(() => {});
   playNextRef.current = () => {
     const queue = speechQueueRef.current;
+    if (queue.acking) {
+      queue.acking = false;
+      ackRef.current = { ...ackRef.current, endedAt: Date.now() };
+    }
     const clip = queue.clips.shift();
     if (!clip) {
       queue.playing = false;
@@ -931,6 +964,7 @@ export default function HenryVoiceAssistant() {
     }
     queue.playing = true;
     queue.narrating = Boolean(clip.narration);
+    queue.acking = Boolean(clip.ack);
     narratingTextRef.current = clip.narration ? clip.text : "";
     currentClipRef.current = { text: clip.text || "", prevText: currentClipRef.current.text, startedAt: Date.now() };
     busyAtRef.current = Date.now();
@@ -944,6 +978,11 @@ export default function HenryVoiceAssistant() {
     const advance = () => {
       if (speechQueueRef.current === queue) playNextRef.current();
     };
+    if (clip.tone) {
+      // Confirmação de escuta em som (WebAudio, sem arquivo): a fila só segue quando ele termina (nunca sobrepõe).
+      window.setTimeout(advance, playAckTone(clip.tone));
+      return;
+    }
     if (clip.narration && !clip.audio?.base64) {
       advance(); // frase de espera só na voz do Henry; sem áudio, nada
       return;
@@ -1112,6 +1151,34 @@ export default function HenryVoiceAssistant() {
     playNextRef.current();
   }, []);
 
+  // Confirmação de escuta (dono, 2026-10-23: "não deixe o silêncio; às vezes ele nem precisa falar, só fazer um som que
+  // entendeu"): logo depois do fim da fala, antes da transcrição/IA. Som, interjeição ou frase curta (pickListenAck), na
+  // fila de sempre (marcada como narração: a resposta espera só ela terminar). Nunca com outra fala tocando, resposta a
+  // uma pergunta dele (aviso, passo do bom dia) ou comando resolvido na hora.
+  const acknowledgeHeard = useCallback(({ mode = "question", question = "", awaitingReply = false, instant = false } = {}) => {
+    const queue = speechQueueRef.current;
+    const allowed = shouldAcknowledgeHeard({
+      enabled: listenAckRef.current,
+      muted: mutedRef.current,
+      heard: true,
+      awaitingReply: awaitingReply || Boolean(morningRef.current),
+      instant,
+      speaking: queue.playing
+    });
+    if (!allowed) return false;
+    const usedToday = [...readUsedWaits(), ...recentPhrasesRef.current];
+    const choice = pickListenAck({ context: henryAckContext({ mode, question }), lastId: ackRef.current.lastId, usedToday, phrases: narrationRef.current.phrases });
+    if (!choice) return false;
+    ackRef.current = { ...ackRef.current, lastId: choice.id };
+    if (choice.kind !== "tone") {
+      recentPhrasesRef.current = rememberPhrase(recentPhrasesRef.current, choice.id);
+      rememberUsedWait(choice.id);
+    }
+    queue.clips.push(choice.kind === "tone" ? { tone: choice.tone, text: "", narration: true, ack: true } : { audio: choice.audio, text: choice.text, narration: true, ack: true });
+    if (!queue.playing) playNextRef.current();
+    return true;
+  }, []);
+
   // --- Cena de busca e narração ------------------------------------------------------------------------------------
   // Evento de progresso do servidor → assunto da cena, legenda e cards de corretor (até 3; o achado ganha os números).
   const applyProgress = useCallback((message) => {
@@ -1163,9 +1230,9 @@ export default function HenryVoiceAssistant() {
       const queue = speechQueueRef.current;
       const { phrases } = narrationRef.current;
       const name = wait.names.find((item) => !recentPhrasesRef.current.includes(item.id));
-      const waits = phrases.filter((phrase) => !phrase.topics?.includes("bye")); // despedidas só no fim da conversa
+      const waits = phrases.filter((phrase) => !phrase.topics?.includes("bye") && !isAckPhrase(phrase)); // despedidas só no fim; confirmações só no fim da fala
       const hasAudio = Boolean(name) || waits.length > 0;
-      if (!shouldNarrate({ now: Date.now(), startedAt: wait.startedAt, lastNarrationAt: wait.lastAt, playing: queue.playing, replied: wait.replied || wait.id !== requestIdRef.current, hasAudio })) return;
+      if (!shouldNarrate({ now: Date.now(), startedAt: wait.startedAt, lastNarrationAt: wait.lastAt, playing: queue.playing, replied: wait.replied || wait.id !== requestIdRef.current, hasAudio, ackEndedAt: ackRef.current.endedAt })) return;
       const usedToday = [...readUsedWaits(), ...recentPhrasesRef.current];
       const choice = name || pickWaitPhrase({ topic: wait.topic, recentIds: usedToday, phrases: waits, avoid: usedToday.length });
       if (!choice?.audio?.base64) return;
@@ -1213,6 +1280,7 @@ export default function HenryVoiceAssistant() {
       return;
     }
     alertRef.current.afterAsk = true;
+    ackRef.current = { ...ackRef.current, preAcked: false };
     pendingReplyRef.current = { active: false }; // a resposta à pergunta dele (se havia) é esta
     const pendingMorning = morningRef.current;
     morningRef.current = null;
@@ -1221,7 +1289,10 @@ export default function HenryVoiceAssistant() {
     // Resposta da música/estilo segue como "bom dia" (relatório, com a visão como no bom dia); aniversário = pergunta.
     if (morning && morning.step !== "birthday") mode = "report";
     abortRequest();
-    stopSpeaking();
+    // Confirmação de escuta tocando (gravação já confirmou antes da transcrição): termina o som/interjeição e a resposta
+    // entra logo depois (beginSpeech) — nunca corta no meio nem atrasa mais que isso.
+    if (speechQueueRef.current.playing && speechQueueRef.current.acking) speechQueueRef.current.clips = [];
+    else stopSpeaking();
     setNotice("");
     const id = requestIdRef.current + 1;
     requestIdRef.current = id;
@@ -1512,6 +1583,11 @@ export default function HenryVoiceAssistant() {
     abortRef.current = controller;
     latencyRef.current = { speechEnd: session.lastVoiceAt || Date.now() };
     updatePhase("thinking");
+    // Fala confirmada (voz no medidor/VAD): confirma que ouviu já, antes da transcrição. Continuação de um corte que já
+    // confirmou não confirma de novo.
+    if (session.heardVoice && !(session.continued && ackRef.current.preAcked)) {
+      ackRef.current = { ...ackRef.current, preAcked: acknowledgeHeard({ awaitingReply: isAwaitingReply(pendingReplyRef.current) }) || ackRef.current.preAcked };
+    }
     try {
       const audio = await blobToDataUrl(blob);
       const response = await fetch("/api/admin/henry", {
@@ -1535,7 +1611,7 @@ export default function HenryVoiceAssistant() {
     } finally {
       if (abortRef.current === controller) abortRef.current = null;
     }
-  }, [releaseRecordVad, updatePhase]);
+  }, [acknowledgeHeard, releaseRecordVad, updatePhase]);
 
   const stopRecording = useCallback((discard = false, { autoCut = false } = {}) => {
     const session = recordRef.current;
@@ -1558,6 +1634,7 @@ export default function HenryVoiceAssistant() {
   // prefix/continued = continuação depois de um corte automático (o trecho já ouvido entra na frente do próximo).
   const startRecording = useCallback(async ({ prefix = "", continued = false } = {}) => {
     if (recordRef.current) return;
+    if (!continued) ackRef.current = { ...ackRef.current, preAcked: false };
     unlockAudio();
     stopSpeaking();
     abortRequest();
@@ -1797,7 +1874,14 @@ export default function HenryVoiceAssistant() {
     if (alertAnswerRef.current(text)) return true; // resposta ao "Chefe?" do aviso de cliente
     const conversation = conversationRef.current;
     const spoken = [lastReplyRef.current];
-    const ask = (mode, question) => askRef.current?.({ mode, question, shown: text });
+    const ask = (mode, question) => {
+      // Lidos ANTES do pedido (ask zera a pergunta aberta): resposta a uma pergunta dele e comando resolvido na hora não
+      // ganham confirmação de escuta.
+      const awaitingReply = isAwaitingReply(pendingReplyRef.current);
+      const instant = mode === "question" && (isReadAlertsCommand(question) || Boolean(desktopBridgeRef.current && detectScreenCommand(question)));
+      askRef.current?.({ mode, question, shown: text });
+      acknowledgeHeard({ mode, question, awaitingReply, instant });
+    };
     if (conversation.active && isConversationEnd(text) && !isEchoOf(text, spoken)) {
       interrupt();
       endConversation();
@@ -1888,7 +1972,7 @@ export default function HenryVoiceAssistant() {
       return true;
     }
     return false;
-  }, [currentSpeech, duckSpotifyVolume, endConversation, interrupt, listenAgain, sayGoodbye, startConversation, voiceConfirmed]);
+  }, [acknowledgeHeard, currentSpeech, duckSpotifyVolume, endConversation, interrupt, listenAgain, sayGoodbye, startConversation, voiceConfirmed]);
 
   // --- Avisos de cliente novo e transferido (HENRY-1, dono 2026-10-23) -----------------------------------------------
   // "Sempre depois de chefe? Ou patrão? etc., ele aguarda uma resposta minha, como 'sim, pode falar' ou 'oi', aí ele me
