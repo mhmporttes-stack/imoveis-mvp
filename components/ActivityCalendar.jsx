@@ -6,6 +6,9 @@ import { AlertTriangle, Cake, CalendarClock, CalendarDays, CheckCircle2, Chevron
 import { toWhatsAppDigits } from "@/lib/phone-utils";
 import { ConfirmReceiptModal, RescheduleReceiptModal } from "@/components/ReceiptActionModals";
 import { tabClasses } from "@/components/ui/Tabs";
+import Sheet from "@/components/ui/Sheet";
+import Button, { buttonClasses } from "@/components/ui/Button";
+import Badge from "@/components/ui/Badge";
 import { readViewerData, saveViewerData } from "@/components/chat-view-cache";
 import { CALENDAR_CACHE_PREFIX, calendarMonthQuery } from "@/components/panel-cache-names";
 
@@ -399,7 +402,15 @@ export default function ActivityCalendar({ pendingOnly = false, viewerKey = "" }
       </div>
 
       {selectedActivity ? (
-        <ActivityModal activity={selectedActivity} onClose={() => setSelectedActivity(null)} />
+        <ActivityModal
+          activity={selectedActivity}
+          completeLoading={completeLoadingId === selectedActivity.id}
+          completeError={completeError}
+          onClose={() => setSelectedActivity(null)}
+          onComplete={() => completeActivity(selectedActivity)}
+          onReschedule={() => { const activity = selectedActivity; setSelectedActivity(null); openReschedule(activity); }}
+          onReceiptAction={(type) => { const receipt = selectedActivity.financialReceipt; setSelectedActivity(null); setReceiptAction({ type, receipt }); }}
+        />
       ) : null}
       {rescheduleActivity ? (
         <RescheduleActivityModal
@@ -473,58 +484,159 @@ function ActivityStateButton({ activity, state, loading, onOpenLateActions }) {
   );
 }
 
-function ActivityModal({ activity, onClose }) {
-  useEffect(() => {
-    const onKeyDown = (event) => {
-      if (event.key === "Escape") onClose();
-    };
-    document.body.style.overflow = "hidden";
-    window.addEventListener("keydown", onKeyDown);
-    return () => {
-      document.body.style.overflow = "";
-      window.removeEventListener("keydown", onKeyDown);
-    };
-  }, [onClose]);
+// Detalhe da atividade (dono, 2026-10-23: "não está dando para abrir o cliente na agenda").
+// Antes: modal centrado sem altura máxima nem rolagem — no celular os botões ficavam abaixo da tela.
+// Agora: Sheet (bottom-sheet no celular, modal centrado no desktop), dados em lista compacta, descrição
+// com "Ver mais" e ações fixas no rodapé (safe-area). As ações reaproveitam os mesmos handlers da lista,
+// com as mesmas condições de exibição.
+const ACTIVITY_STATE_BADGE = {
+  pending: { tone: "danger", label: "Atrasada" },
+  completed: { tone: "success", label: "Concluída" },
+  rescheduled: { tone: "neutral", label: "Reagendada" },
+  scheduled: { tone: "info", label: "Agendada" }
+};
+
+function ActivityModal({ activity, completeLoading = false, completeError = "", onClose, onComplete, onReschedule, onReceiptAction }) {
+  const state = getActivityState(activity);
+  const badge = activity.isBirthday ? { tone: "warning", label: "Aniversário" } : ACTIVITY_STATE_BADGE[state] || ACTIVITY_STATE_BADGE.scheduled;
+  const whatsappDigits = toWhatsAppDigits(activity.phoneNormalized || activity.phone);
+  const canOpenClient = Boolean(activity.clientId || activity.source === "legacy");
+  const showLateActions = state === "pending" && !activity.financialSaleId && !activity.isBirthday;
+  const showReceiptActions = Boolean(activity.financialReceipt) && activity.activityStatus !== "completed" && activity.activityStatus !== "rescheduled";
+  const statusDetail = activity.isBirthday
+    ? "Evento anual"
+    : activity.scheduledActivityCompletedAt
+      ? `Realizada em ${formatDateLabel(toSaoPauloDateKey(activity.scheduledActivityCompletedAt))} às ${formatTime(activity.scheduledActivityCompletedAt)}`
+      : state === "rescheduled" && activity.rescheduledToAt
+        ? `Reagendada para ${formatDateLabel(toSaoPauloDateKey(activity.rescheduledToAt))} às ${formatTime(activity.rescheduledToAt)}`
+        : "";
+  const title = activity.title || activity.clientName || "Atividade";
+
+  const footer = (
+    <div className="grid gap-2">
+      {canOpenClient || (whatsappDigits && !activity.isBirthday) ? (
+        <div className="flex gap-2">
+          {canOpenClient ? (
+            <Button href={clientDeepLink(activity)} size="lg" className="flex-1">
+              <UserRound className="h-4 w-4" aria-hidden="true" /> Abrir cliente
+            </Button>
+          ) : null}
+          {whatsappDigits && !activity.isBirthday ? (
+            <a
+              href={`https://wa.me/${whatsappDigits}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className={buttonClasses({ variant: "secondary", size: "lg", className: canOpenClient ? "" : "flex-1" })}
+              aria-label={`Abrir WhatsApp de ${activity.clientName || "cliente"}`}
+            >
+              <MessageCircle className="h-4 w-4" aria-hidden="true" /> WhatsApp
+            </a>
+          ) : null}
+        </div>
+      ) : null}
+      {showLateActions ? (
+        <div className="grid grid-cols-2 gap-2">
+          <Button variant="secondary" onClick={onReschedule}>
+            <CalendarClock className="h-4 w-4" aria-hidden="true" /> Reagendar
+          </Button>
+          <Button variant="secondary" loading={completeLoading} disabled={completeLoading} onClick={onComplete} className="text-success">
+            {completeLoading ? null : <CheckCircle2 className="h-4 w-4" aria-hidden="true" />} Concluir
+          </Button>
+        </div>
+      ) : null}
+      {showReceiptActions ? (
+        <div className="grid grid-cols-2 gap-2">
+          <Button variant="secondary" onClick={() => onReceiptAction("confirm")} className="text-success">Confirmar recebimento</Button>
+          <Button variant="secondary" onClick={() => onReceiptAction("reschedule")}>Reagendar</Button>
+        </div>
+      ) : null}
+      {!canOpenClient && !(whatsappDigits && !activity.isBirthday) && !showLateActions && !showReceiptActions ? (
+        <Button variant="secondary" size="lg" block onClick={onClose}>Fechar</Button>
+      ) : null}
+    </div>
+  );
 
   return (
-    <div className="fixed inset-0 z-50 grid place-items-center bg-navy/70 p-4" role="dialog" aria-modal="true" onMouseDown={onClose}>
-      <div className="w-full max-w-2xl rounded-panel bg-white p-6 shadow-2xl md:p-8" onMouseDown={(event) => event.stopPropagation()}>
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <p className="text-xs font-black uppercase tracking-[0.24em] text-brand">{activity.isBirthday ? "Aniversário" : "Atividade agendada"}</p>
-            <h3 className="mt-2 text-3xl font-black text-navy">{activity.title || activity.clientName}</h3>
-          </div>
-          <button type="button" className="rounded-full border border-line p-3 text-navy transition hover:bg-mist" aria-label="Fechar detalhes da atividade" onClick={onClose}>
-            <X size={20} />
-          </button>
-        </div>
+    <div className="contents">
+      <Sheet
+        open
+        onClose={onClose}
+        compact
+        className="ui-sheet-modal"
+        title={title}
+        description={
+          <span className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1">
+            <Badge tone={badge.tone} dot>{badge.label}</Badge>
+            <span className="inline-flex items-center gap-1 font-semibold text-ink">
+              <Clock className="h-3.5 w-3.5 text-ink-2" aria-hidden="true" />
+              {formatDateLabel(toSaoPauloDateKey(activity.scheduledActivityAt))} às {formatTime(activity.scheduledActivityAt)}
+            </span>
+          </span>
+        }
+        footer={footer}
+      >
+        <dl className="divide-y divide-line border-y border-line text-sm">
+          <DetailRow label="Tipo" value={<span className="inline-flex flex-wrap items-center gap-2">{formatActivityType(activity.scheduledActivityType)}<PriorityBadge priority={activity.priority} /></span>} />
+          {activity.clientName && activity.clientName !== title ? <DetailRow label="Cliente" value={activity.clientName} /> : null}
+          <DetailRow label="Corretor" value={activity.responsibleName} />
+          <DetailRow label="WhatsApp" value={activity.phone || "Não informado"} />
+          {statusDetail ? <DetailRow label="Status" value={statusDetail} /> : null}
+        </dl>
 
-        <div className="mt-6 grid gap-3 sm:grid-cols-2">
-          <Detail icon={<Clock size={18} />} label="Data e horário" value={`${formatDateLabel(toSaoPauloDateKey(activity.scheduledActivityAt))} às ${formatTime(activity.scheduledActivityAt)}`} />
-          <Detail icon={<CalendarClock size={18} />} label="Tipo" value={formatActivityType(activity.scheduledActivityType)} />
-          <Detail icon={<UserRound size={18} />} label="Corretor" value={activity.responsibleName} />
-          <Detail icon={<CheckCircle2 size={18} />} label="Status" value={activity.isBirthday ? "Evento anual" : activity.scheduledActivityCompletedAt ? `Realizada em ${formatDateLabel(toSaoPauloDateKey(activity.scheduledActivityCompletedAt))} às ${formatTime(activity.scheduledActivityCompletedAt)}` : "Atividade agendada"} />
-          <Detail label="Cliente" value={activity.clientName} />
-          <Detail label="WhatsApp" value={activity.phone || "Não informado"} />
-        </div>
+        {completeError ? (
+          <p className="mt-3 rounded-control border border-danger-line bg-danger-soft px-3 py-2 text-sm font-semibold text-danger" role="alert">{completeError}</p>
+        ) : null}
 
-        <div className="mt-5 rounded-2xl border border-line bg-[#f8fbff] p-5">
-          <p className="text-xs font-black uppercase tracking-[0.18em] text-brand">Descrição</p>
-          <p className="mt-2 whitespace-pre-wrap text-base font-semibold leading-7 text-navy">
-            {activity.scheduledActivityNote || "Sem descrição informada."}
-          </p>
-        </div>
+        <ActivityDescription note={activity.scheduledActivityNote} />
 
         {activity.isBirthday ? <BirthdayGreeting activity={activity} /> : null}
-
-        <div className="mt-6 flex flex-col gap-3 sm:flex-row">
-          {activity.clientId || activity.source === "legacy" ? (
-            <Link href={clientDeepLink(activity)} className="premium-button-primary text-center">Abrir cliente</Link>
-          ) : null}
-          <button type="button" className="premium-button-secondary" onClick={onClose}>Fechar</button>
-        </div>
-      </div>
+      </Sheet>
     </div>
+  );
+}
+
+function DetailRow({ label, value }) {
+  return (
+    <div className="grid grid-cols-[5.5rem_minmax(0,1fr)] items-baseline gap-3 py-2.5">
+      <dt className="text-xs font-semibold text-ink-2">{label}</dt>
+      <dd className="min-w-0 break-words font-semibold text-navy">{value || "—"}</dd>
+    </div>
+  );
+}
+
+// Descrição limitada a 4 linhas; "Ver mais" só aparece quando o texto realmente passa disso.
+function ActivityDescription({ note }) {
+  const textRef = useRef(null);
+  const [expanded, setExpanded] = useState(false);
+  const [overflowing, setOverflowing] = useState(false);
+  const text = String(note || "").trim();
+
+  useEffect(() => {
+    const element = textRef.current;
+    if (!element || expanded) return;
+    setOverflowing(element.scrollHeight - element.clientHeight > 2);
+  }, [text, expanded]);
+
+  return (
+    <section className="mt-4">
+      <h3 className="text-xs font-semibold text-ink-2">Descrição</h3>
+      <p
+        ref={textRef}
+        className={`mt-1 whitespace-pre-wrap text-sm leading-6 ${text ? "text-navy" : "text-ink-2"} ${expanded ? "" : "line-clamp-4"}`}
+      >
+        {text || "Sem descrição informada."}
+      </p>
+      {overflowing || expanded ? (
+        <button
+          type="button"
+          className="mt-1 min-h-9 text-sm font-bold text-accent-text underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+          aria-expanded={expanded}
+          onClick={() => setExpanded((value) => !value)}
+        >
+          {expanded ? "Ver menos" : "Ver mais"}
+        </button>
+      ) : null}
+    </section>
   );
 }
 
@@ -534,9 +646,14 @@ function ActivityModal({ activity, onClose }) {
 // disponível, senão pelo nome. Link direto para /admin/simulacoes/<id> não
 // funciona: essa rota é do Gerador de Simulações (entidade "simulations"),
 // não da lista de clientes — abrir um cliente por ali sempre dava 404.
+// Com o id do cliente, o ?clientId= já abre a ficha (ClientWorkspace) — mesmo link do Chat.
 function clientDeepLink(activity) {
   const query = activity.clientCode || activity.clientName || "";
-  return `/admin/simulacoes${query ? `?query=${encodeURIComponent(query)}` : ""}`;
+  const params = new URLSearchParams();
+  if (query) params.set("query", query);
+  if (activity.clientId) params.set("clientId", activity.clientId);
+  const search = params.toString();
+  return `/admin/simulacoes${search ? `?${search}` : ""}`;
 }
 
 function firstName(fullName) {
@@ -702,17 +819,6 @@ function RescheduleActivityModal({
           <button type="button" className="premium-button-secondary" onClick={onClose}>Cancelar</button>
         </div>
       </form>
-    </div>
-  );
-}
-
-function Detail({ icon = null, label, value }) {
-  return (
-    <div className="rounded-2xl border border-line bg-white p-4">
-      <p className="flex items-center gap-2 text-xs font-black uppercase tracking-[0.16em] text-brand">
-        {icon} {label}
-      </p>
-      <p className="mt-2 font-bold text-navy">{value}</p>
     </div>
   );
 }

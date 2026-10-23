@@ -44,6 +44,15 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 
 
+### 2026-10-23 — Agenda: detalhe da atividade com ações fixas no rodapé (celular)
+- **Data:** 2026-10-23
+- **Área:** Agenda
+- **Alteração:** o detalhe da atividade (`ActivityModal` em `components/ActivityCalendar.jsx`) virou `Sheet` (`ui-sheet-modal`: bottom-sheet no celular, modal centrado no desktop): cabeçalho com título + selo de estado (Atrasada/Agendada/Concluída/Reagendada/Aniversário) + data e hora; dados em lista compacta (rótulo e valor na mesma linha); descrição em 4 linhas com "Ver mais"; rodapé fixo com safe-area: "Abrir cliente" (principal), WhatsApp (`wa.me`), e — com as mesmas condições da lista — Reagendar/Concluir (atividade atrasada) e Confirmar recebimento/Reagendar (previsão de comissão). "Abrir cliente" passou a levar `?clientId=` além de `?query=`, abrindo a ficha direto (mesmo link do Chat).
+- **Motivo:** pedido do dono (print do PWA Android): "não está dando para abrir o cliente na agenda" — o modal antigo não tinha altura máxima nem rolagem, e no celular os botões ficavam abaixo da tela.
+- **Arquivos afetados:** `components/ActivityCalendar.jsx`, `app/dev/vitrine/_components/VitrineClient.jsx`, `app/dev/vitrine/_fixtures/telas.js` (`?tela=agenda&variante=Fernando`).
+- **Risco/observação:** só apresentação; sem mudança em `lib/`/API. Ações que abrem outra janela (reagendar, recebimento) fecham o detalhe antes. Revisado na vitrine em 360×800, 360×640 e 1280×800. Build limpo.
+- **Autor:** Claude Code (designer-crm)
+
 ### 2026-10-23 — Henry: fim da fala com 2,0 s de silêncio, histerese do VAD e continuação depois de corte (bug "corta minha fala")
 - **Data:** 2026-10-23
 - **Área:** Henry (voz)

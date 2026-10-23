@@ -125,7 +125,8 @@ const TELAS = {
     titulo: "Agenda",
     active: "calendar",
     rotas: telas.routes,
-    render: () => (<main className="min-h-screen bg-mist py-14"><ActivityCalendar /></main>)
+    // ?variante=Fernando abre o detalhe da atividade (AutoClick).
+    render: (perfil, variante) => (<main className="min-h-screen bg-mist py-14"><ActivityCalendar />{variante ? <AutoClick passos={variante} /> : null}</main>)
   },
   "simulador-caixa": {
     path: "/admin/simulador-caixa",
