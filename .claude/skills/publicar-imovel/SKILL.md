@@ -27,7 +27,7 @@ Se o segredo não funcionar na sessão (só vale em sessão nova): site usa as U
 Inserir em `marketplace_listings`: `property_id`, `title`, `price` (número), `description` (texto do site + "Matheus Machado Corretor de Imóveis · CRECI 323106-F"), `offer_type='sale'`, `property_type` (`house`/`apartment`), `bedrooms`, `bathrooms`, `area_m2`, `neighborhood` (só o bairro), `photo_urls` = **[capa-marketplace, lâminas 02–09]** em URLs do Supabase, `status='pending'`, **`approved_at=now()`** (aprovação permanente do dono). A extensão publica sozinha (até 3/dia, 08–20h, PC ligado).
 
 ## 5. Instagram (Windsor `instagram` → `create_carousel_post`, conta 17841410653785252)
-URLs públicas JPEG (Supabase ou raw do GitHub) + legenda. Se a chamada der tempo esgotado, **não reenviar**: conferir antes (Windsor `get_data` campos `media_caption`, ou perguntar ao dono) para não duplicar.
+URLs públicas JPEG (Supabase ou raw do GitHub) + legenda. Se a chamada der tempo esgotado, **NUNCA reenviar** — tempo esgotado já duplicou post (COD4358, 2026-10-22: os 2 envios saíram); o post quase sempre sai mesmo sem confirmação: conferir antes (Windsor `get_data` campos `media_caption`, ou perguntar ao dono) para não duplicar.
 
 ## 6. Registrar e avisar
 `legenda.md` (ids, links), `FILA-POSTAGEM.md` → Publicados, código usado em ESTILO-CARROSSEL. Resposta ao dono: curta, com o link do site, a legenda em caixa de texto e o que ficou pendente.

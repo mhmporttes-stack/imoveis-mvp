@@ -2,7 +2,7 @@
 
 Código **COD4359** (só no selo de cima). Carrossel com 10 lâminas no modelo padrão. Pedido do dono: **remover as escritas das fotos** ("Garagem para 2 carros", "Cozinha", "2 quartos", "Sala") — feito por recorte, sem tocar no imóvel. Resolução aumentada 2x (ESRGAN). **Sem valor no post.** Capa do Marketplace: `capa-marketplace.jpg`.
 
-Dados enviados pelo dono: Rua José Viana, 269 — perto do SEST SENAT, última rua do Nova Marília; casa vazia, totalmente reformada; terreno 8 x 20 m (160 m²); 2 quartos; sala; cozinha; banheiro; quartinho de despensa nos fundos; R$ 250.000,00; aceita financiamento. Contato: proprietário Ronaldo (telefone não informado).
+Dados enviados pelo dono: Rua José Viana, 269 — perto do SEST SENAT, última rua do Nova Marília; casa vazia, totalmente reformada; terreno 8 x 20 m (160 m²); 2 quartos; sala; cozinha; banheiro; quartinho de despensa nos fundos; R$ 250.000,00; aceita financiamento. Contato: proprietário Ronaldo, +55 14 99744-5071.
 
 ## Site / CRM
 
