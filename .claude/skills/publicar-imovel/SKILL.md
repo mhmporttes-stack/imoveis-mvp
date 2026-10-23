@@ -27,7 +27,14 @@ Se o segredo não funcionar na sessão (só vale em sessão nova): site usa as U
 Inserir em `marketplace_listings`: `property_id`, `title`, `price` (número), `description` (texto do site + "Matheus Machado Corretor de Imóveis · CRECI 323106-F"), `offer_type='sale'`, `property_type` (`house`/`apartment`), `bedrooms`, `bathrooms`, `area_m2`, `neighborhood` (só o bairro), `photo_urls` = **[capa-marketplace, lâminas 02–09]** em URLs do Supabase, `status='pending'`, **`approved_at=now()`** (aprovação permanente do dono). A extensão publica sozinha (até 3/dia, 08–20h, PC ligado).
 
 ## 5. Instagram (Windsor `instagram` → `create_carousel_post`, conta 17841410653785252)
-URLs públicas JPEG (Supabase ou raw do GitHub) + legenda. Se a chamada der tempo esgotado, **NUNCA reenviar** — tempo esgotado já duplicou post (COD4358, 2026-10-22: os 2 envios saíram); o post quase sempre sai mesmo sem confirmação: conferir antes (Windsor `get_data` campos `media_caption`, ou perguntar ao dono) para não duplicar.
+URLs públicas JPEG (Supabase ou raw do GitHub) + legenda.
+
+**Tempo esgotado ou erro → confirmar antes de tentar de novo (regra do dono, 2026-10-23; já duplicou o COD4358):**
+1. Tempo esgotado quase sempre PUBLICA. Antes de qualquer reenvio, conferir: Windsor `get_data` conector `instagram`, campos `media_id, media_caption, timestamp`, `date_preset: last_1dT`, **sem filtro** (filtro com acento não casa) e comparar localmente a 1ª linha da legenda.
+2. Achou → publicado; registrar o `media_id` e parar.
+3. Não achou → esperar ~2 min (Monitor/until, nunca sleep solto) e conferir de novo; até **3 conferências** (~6 min).
+4. Só depois de 3 conferências sem o post: reenviar **uma vez** e repetir a conferência. Se ainda falhar, avisar o dono (não insistir).
+5. Erro com mensagem clara de recusa (permissão, URL inválida) = não publicou: corrigir a causa e reenviar direto.
 
 ## 6. Registrar e avisar
 `legenda.md` (ids, links), `FILA-POSTAGEM.md` → Publicados, código usado em ESTILO-CARROSSEL. Resposta ao dono: curta, com o link do site, a legenda em caixa de texto e o que ficou pendente.

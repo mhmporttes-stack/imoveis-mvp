@@ -39,7 +39,8 @@ Pedido do dono em 22/10/2026: "ela fica a todo momento abrindo novas guias".
 1. Feche o Chrome por completo: todas as janelas e, se houver o ícone do Chrome perto do relógio, botão direito › **Sair**.
 2. Botão direito no atalho do Chrome que você usa (área de trabalho; na barra de tarefas: botão direito no Chrome › botão direito em "Google Chrome") › **Propriedades**.
 3. No campo **Destino**, depois de `chrome.exe"`, acrescente um espaço e cole:
-   `--disable-features=CalculateNativeWinOcclusion --disable-backgrounding-occluded-windows`
+   `--disable-features=CalculateNativeWinOcclusion --disable-backgrounding-occluded-windows --silent-debugger-extension-api`
+   (o último item, desde 23/10/2026, **esconde a faixa "…começou a depurar este navegador"** que aparecia em todas as janelas durante cada clique da extensão; pedido do dono)
 4. **OK**. Abra o Chrome sempre por esse atalho. No popup, a linha "Janela de trabalho" deve dizer **visível** mesmo com a janela atrás das outras.
 
 Não existe mais opção em `chrome://flags` para isso no Windows (confirmado no código do Chromium em 22/10/2026: o recurso `CalculateNativeWinOcclusion` só se desliga pela linha de comando). Se o Chrome for aberto por outro caminho (link, outro atalho, reinício automático depois de atualizar), vale o comportamento normal até abrir de novo pelo atalho.
