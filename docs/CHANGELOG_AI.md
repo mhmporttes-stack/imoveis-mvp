@@ -500,6 +500,15 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-23 — Aba "Todos" de Clientes sem situação negativa (CLI-12a)
+- **Data:** 2026-10-23
+- **Área:** Clientes (lista/contadores)
+- **Alteração:** a aba "Todos" (lista, paginação, total e contador) passou a excluir também **Arquivado**, além de **Não contactar** (que já saía desde 2026-10-02). Fonte única `ALL_TAB_NEGATIVE_STATUSES`/`allTabExcludedStatuses` (`lib/client-status.js`), aplicada na query de `listSimulationClientsPage` e no contador `getSimulationClientCounters` (`lib/simulation-list-query.js`). Aba Arquivados e demais abas inalteradas; pesquisa por nome/telefone na aba Todos inalterada (arquivado continua aparecendo na busca). Vale para os 4 perfis, cada um no seu escopo.
+- **Motivo:** pedido do dono (2026-10-23): "Todos" não deve mostrar cliente negativo; ele fica só na aba própria. Contagem somente leitura antes da mudança (visão do admin geral, sem Particular e sem Pago): Todos = 2.638 → 1.993; saem **645 Arquivados** (576 do dono/admin, 63 de corretores, 6 de gestora); os 1.013 "Não contactar" já estavam fora. Não existe status "perdido/desistiu/sem interesse": "Não tem interesse"/"Sem interesse" é motivo de Não contactar; nenhuma etiqueta de encerramento negativo existe no banco.
+- **Arquivos afetados:** `lib/client-status.js`, `lib/simulation-list-query.js`, `tests/clients-all-tab-negatives.test.mjs`; docs `BUSINESS_RULES.md` CLI-12a, `.claude/rules/crm-clientes-funil.md`.
+- **Risco/observação:** (1) Filtros/etiqueta/data aplicados dentro da aba Todos também deixam de mostrar arquivados (use a aba Arquivados). (2) Não mudaram: aba Patrocinado (continua mostrando arquivados, só tira Não contactar), métrica `clientes_por_grupo`/grupo "all" do Henry/Alexa (`lib/crm-metrics/status-counts-core.mjs`, ainda tira só Não contactar), exportação, roleta, automações, Meta Diária. (3) Teste antigo quebrado fora do escopo: `tests/document-received-offline.test.mjs` espera 3 chamadas de `applyDocumentsOfflineSignal` em `simulation-list-query.js`, mas o código (já no `main` antes desta mudança) centralizou em `applyCardSignals` (1 chamada).
+- **Autor:** Claude Code (crm-editor)
+
 ### 2026-10-23 — Cache pesado de métricas (semana/mês) em job próprio do pg_cron
 - **Data:** 2026-10-23
 - **Área:** Infra / Banco (cron) / Henry / Alexa V2
