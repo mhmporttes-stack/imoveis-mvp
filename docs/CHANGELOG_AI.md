@@ -500,6 +500,15 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-23 — Aba "Todos": Restrição, Reprovado, Comprometimento de renda e 3 etiquetas também saem (CLI-12a ampliada)
+- **Data:** 2026-10-23
+- **Área:** Clientes (lista/contadores) / métricas Henry-Alexa
+- **Alteração:** respostas do dono às decisões da entrada anterior. A aba Todos (lista, paginação, total, contador) passa a excluir também os status `restriction`, `rejected`, `income_commitment` e os clientes com as etiquetas SEM WHATSAPP, OUTRA CIDADE e RESTRIÇÃO (nome normalizado exato em `tags.normalized_name`). Na busca por nome/telefone só "Não contactar" fica fora. Patrocinado inalterado. Grupo "all" de `fetchStatusCounts` (Henry/Alexa, snapshot `clientes_por_grupo`) passou a ser uma contagem com a mesma exclusão da tela (visão do admin geral), e o padrão de `aggregateStatusCounts` usa `ALL_TAB_NEGATIVE_STATUSES`.
+- **Motivo:** decisão do dono (2026-10-23). Contagem somente leitura (visão do admin, sem Particular e Pago): aba Todos 1.996 → 1.973 (saem 23): Restrição 17, Reprovado 3, Comprometimento de renda 2, etiqueta OUTRA CIDADE 1 (a etiqueta RESTRIÇÃO pega 2 clientes, ambos já em status Restrição; SEM WHATSAPP pega 0 — os 10 já eram Arquivado/Não contactar). "all" do Henry/Alexa: 2.786 (tirava só Não contactar, contava Particular e Pago) → 1.973.
+- **Arquivos afetados:** `lib/client-status.js`, `lib/client-all-tab-core.mjs` (novo), `lib/client-all-tab.js` (novo), `lib/simulation-list-query.js`, `lib/crm-metrics/funnel-stock.js`, `lib/crm-metrics/status-counts-core.mjs`, `tests/clients-all-tab-negatives.test.mjs`, `tests/crm-metrics-core.test.mjs`; docs `BUSINESS_RULES.md` CLI-12a, `.claude/rules/crm-clientes-funil.md` (glob `lib/client-all-tab*`).
+- **Risco/observação:** (1) A exclusão por etiqueta vai como lista de ids na URL (`not.id.in`); hoje ~24 clientes. Se essas etiquetas passarem de algumas centenas de clientes, trocar por função no banco. (2) Falhas fora do escopo na suíte completa, em testes que não leem os arquivos alterados (ou, nos dois primeiros, já falhavam no `main`): `document-received-offline` e `sponsored-cost` (contam chamadas que foram para `applyCardSignals`), WhatsApp/Chat, `context-budget` e `whatsapp-service-lease`.
+- **Autor:** Claude Code (crm-editor)
+
 ### 2026-10-23 — Aba "Todos" de Clientes sem situação negativa (CLI-12a)
 - **Data:** 2026-10-23
 - **Área:** Clientes (lista/contadores)
