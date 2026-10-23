@@ -9,6 +9,7 @@ import {
 import { sendSimulationRegistrationNotification } from "@/lib/simulation-registration-notifications";
 import { announceAlexaEvent } from "@/lib/alexa-service";
 import { saveSiteSimulationFromRegistration } from "@/lib/simulations";
+import { scheduleAutoSimulationSend } from "@/lib/simulation-auto-send";
 import { saveAutoSnapshot } from "@/lib/simulation-auto-reviews";
 import { buildAutoSnapshot } from "@/lib/simulation-auto-review-core.mjs";
 import { recordScenario } from "@/lib/simulation-scenarios";
@@ -42,8 +43,9 @@ export async function POST(request) {
   try {
     const registration = await createSimulationRegistration(payload, extractRequestMetadata(request));
     // SIM-AUTO (dono, 2026-10-19): elegível ao MCMV → simulação automática gravada (novo + usado), status "Simulação
-    // automática" e retrato para a conferência. O link da apresentação só nasce depois que o corretor marca "Simulação
-    // OK" ou conclui a correção (regra oficial; trava em lib/simulation-presentation.js). Fora do MCMV: a vazia de sempre.
+    // automática" e retrato para a conferência (que não trava mais o link desde 2026-10-23). Fora do MCMV: a vazia de sempre.
+    // SIM-AUTO-ENVIO (dono, 2026-10-23): cadastro NOVO com simulação automática é programado para o envio automático do
+    // link (cron whatsapp-flows, lib/simulation-auto-send.js). Só daqui para frente: nada retroativo.
     // Falha aqui nunca derruba o cadastro (mesmo tratamento da simulação vazia de antes).
     try {
       const saved = await saveSiteSimulationFromRegistration(registration);
@@ -55,6 +57,7 @@ export async function POST(request) {
         await saveAutoSnapshot({ registrationId: registration.id, simulationId: saved.simulation.id, snapshot });
         // Cenário para "Comparar simulações" (nunca derruba o cadastro).
         await recordScenario({ registrationId: registration.id, simulationId: saved.simulation.id, origin: "site", data: { ...scenarioDataFromSimulation(saved.simulation, { registration, estimate: saved.estimate }), autoSnapshot: snapshot } });
+        if (registration.isNewRegistration !== false) await scheduleAutoSimulationSend(registration.id);
       }
     } catch (simulationError) {
       console.warn("Site simulation creation failed:", simulationError?.message || simulationError);

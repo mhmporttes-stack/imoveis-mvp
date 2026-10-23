@@ -401,6 +401,10 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-23 — SIM-AUTO-ENVIO ligado
+
+- Com o "sim" do dono (2026-10-23): `scheduleAutoSimulationSend` no cadastro novo (`app/api/simulation-registrations/route.js`) e `processAutoSimulationSends` no cron `whatsapp-flows` (até 3 envios por rodada). Só cadastros novos a partir de agora (nada retroativo). Decisões técnicas confirmadas pelo dono: espera de 2 min, tentativas por 72 h, corretor off-line da roleta sem a regra de presença. Docs: `BUSINESS_RULES.md` SIM-AUTO-ENVIO, `WHATSAPP.md` §9-D.
+
 ### 2026-10-23 — SIM-AUTO: trava do link revogada + envio automático da simulação (código pronto, ativação pendente)
 
 - **Regras do dono (2026-10-23):** "Remova essa regra já validamos e os valores batem" (trava de conferência do link da simulação automática) e envio automático da simulação a todo cliente novo do formulário, com o canal pela conversa do cliente (Oficial com janela / número do corretor / individual do dono) e, com o Oficial fora da janela, roleta para corretor com WhatsApp conectado (on-line, senão off-line). Registradas em `.claude/rules/crm-clientes-funil.md` e `docs/BUSINESS_RULES.md` (SIM-AUTO, SIM-AUTO-ENVIO); `docs/WHATSAPP.md` §9-D.

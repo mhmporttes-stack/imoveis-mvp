@@ -118,3 +118,12 @@ test("linha do tempo: eventos próprios, nenhum conta como atendimento humano; c
   const timeline = source("components/ClientJourneyActions.jsx");
   for (const event of Object.values(AUTO_SEND_EVENTS)) assert.match(timeline, new RegExp(`case "${event}":`));
 });
+
+test("ativação (dono, 2026-10-23): só cadastro NOVO com simulação automática é programado; cron whatsapp-flows processa", () => {
+  const route = source("app/api/simulation-registrations/route.js");
+  assert.match(route, /if \(saved\.automatic && saved\.simulation\?\.id\) \{[\s\S]{0,900}if \(registration\.isNewRegistration !== false\) await scheduleAutoSimulationSend\(registration\.id\);/);
+  const cron = source("app/api/cron/whatsapp-flows/route.js");
+  assert.match(cron, /autoSimulationSends = await processAutoSimulationSends\(\);/);
+  // Nada retroativo: o cron só trata cadastros com o evento "programado" (gravado a partir da ativação).
+  assert.match(source("lib/simulation-auto-send.js"), /\.eq\("event_type", AUTO_SEND_EVENTS\.scheduled\)/);
+});

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createHash, timingSafeEqual } from "crypto";
 import { processDueFlowSessions } from "@/lib/whatsapp-flows";
 import { processFormReminders } from "@/lib/whatsapp-form-reminder";
+import { processAutoSimulationSends } from "@/lib/simulation-auto-send";
 import { checkWhatsappServiceStalled } from "@/lib/whatsapp-service-stall";
 import { checkFalseConnections } from "@/lib/whatsapp-false-connection";
 import { checkMarketplaceExtensionSignal, checkMarketplaceRedistributionStalled } from "@/lib/marketplace-chat";
@@ -46,6 +47,15 @@ export async function GET(request) {
     console.error("Falha ao processar o lembrete do formulário.", error);
     remindersError = error;
   }
+  // Envio automático da simulação automática (SIM-AUTO-ENVIO, dono 2026-10-23) — rodado à parte: erro aqui nunca impede o
+  // resto do cron e aparece na resposta/log.
+  let autoSimulationSends = null;
+  try {
+    autoSimulationSends = await processAutoSimulationSends();
+  } catch (error) {
+    console.error("Falha ao processar o envio automático da simulação.", error);
+    autoSimulationSends = { error: "Falha ao processar o envio automático da simulação." };
+  }
   // Serviço do WhatsApp parado (lease sem renovar há > 5 min) -> alerta à administração. Nunca lança (WA-22).
   const serviceStall = await checkWhatsappServiceStalled();
   // Número "conectado" que não recebe (quedas 500/428 em loop ou silêncio em horário comercial): marca, avisa e pinta a tela. Nunca lança.
@@ -59,11 +69,12 @@ export async function GET(request) {
       error: flowsError ? "Falha ao processar os fluxos." : "Falha ao processar o lembrete do formulário.",
       ...(flows || {}),
       ...(formReminders ? { formReminders } : {}),
+      autoSimulationSends,
       serviceStall,
       falseConnections,
       marketplaceRedistribution,
       marketplaceExtension
     }, { status: 500 });
   }
-  return NextResponse.json({ ok: true, ...flows, formReminders, serviceStall, falseConnections, marketplaceRedistribution, marketplaceExtension });
+  return NextResponse.json({ ok: true, ...flows, formReminders, autoSimulationSends, serviceStall, falseConnections, marketplaceRedistribution, marketplaceExtension });
 }
