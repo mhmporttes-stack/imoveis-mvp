@@ -6,7 +6,11 @@ Dados enviados pelo dono: Rua José Viana, 269 — perto do SEST SENAT, última 
 
 ## Site / CRM
 
-Pendente.
+**No site desde 2026-10-23:** `properties` id `ed88c8d1-1c4d-409f-a211-79aedf12871b`, publicado, contato Ronaldo (proprietário) salvo. Fotos provisórias no GitHub (commit 262e235). Página: https://www.matheusmachadoimoveis.com.br/empreendimentos/ed88c8d1-1c4d-409f-a211-79aedf12871b
+
+**Instagram:** publicado pelo Claude em 2026-10-23 (media 17994337713023031).
+
+**Marketplace:** pendente (chave de fotos não vale nesta sessão).
 
 ## Legenda
 
