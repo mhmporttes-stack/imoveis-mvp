@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { detectWakeWord, isVisualQuestion } from "@/lib/henry-voice-core.mjs";
 import { shouldMinimizeForNavigation } from "@/lib/henry-navigation-core.mjs";
+import { henryPulseConfig } from "@/lib/henry-pulse-core.mjs";
 import {
   BARGE_DUCK_VOLUME,
   BARGE_SEGMENT_MAX_MS,
@@ -241,6 +242,8 @@ export default function HenryVoiceAssistant() {
   const [alertsOn, setAlertsOn] = useState(false);
   // "Avisos só por voz (sem card na tela)" (dono, 2026-10-23; nasce ligado): os informativos da Central viram aviso do Henry.
   const [voiceNotices, setVoiceNotices] = useState(false);
+  // Pulso do CRM (rascunho HENRY-1 "Pulso"): config do HenryPulse com a configuração salva; null = desligado (nasce assim).
+  const [pulseConfig, setPulseConfig] = useState(null);
   const [pendingAlerts, setPendingAlerts] = useState(0);
   // stage: idle | calling (falando o vocativo) | waiting (microfone aberto, esperando "pode falar") | telling (falando a
   // informação). afterAsk = uma pergunta normal está em andamento (ao terminar, oferece o aviso pendente).
@@ -461,6 +464,7 @@ export default function HenryVoiceAssistant() {
         setMobileWake(data?.mobileWake === true);
         setAlertsOn(data?.clientAlerts !== false || data?.teamArrivals !== false || data?.voiceNotices !== false);
         setVoiceNotices(data?.voiceNotices !== false);
+        setPulseConfig(data?.pulse?.enabled === true ? henryPulseConfig(data.pulse) : null);
       })
       .catch(() => alive && setEnabled(false))
       .finally(() => alive && setReady(true));
@@ -3019,6 +3023,14 @@ export default function HenryVoiceAssistant() {
       onMorningPlay={startMorningPlay}
       opening={opening}
       onOpeningDone={finishOpening}
+      pulse={pulseConfig}
+      onPulseOpen={(link) => {
+        // Card do Pulso: mesma navegação guiada das respostas (minimiza + cursor); só destino da lista fechada.
+        const navigate = { key: "pulso", path: link?.path || "", label: "Pulso do CRM", ...(link?.clientId ? { clientId: link.clientId } : {}) };
+        if (!shouldMinimizeForNavigation(navigate)) return;
+        setExpanded(false);
+        setNavRequest({ ...navigate, id: Date.now() });
+      }}
     />
     <HenryCursor request={navRequest} mobile={!desktop} />
     </>

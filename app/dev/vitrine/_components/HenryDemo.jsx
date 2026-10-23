@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import HenryVoiceView from "@/components/henry/HenryVoiceView";
 import { playHenryOpeningSound } from "@/components/henry/HenryOpeningScene";
+import { henryPulseConfig } from "@/lib/henry-pulse-core.mjs";
 
 // Vitrine DEV do Henry (HENRY-1): mesma apresentação do painel, com sinal de áudio SIMULADO e conversa fictícia.
 const SAMPLE_TURNS = [
@@ -80,6 +81,35 @@ const MUSIC_STAGES = {
   error: { stage: "error", query: "sertanejo raiz", error: "Nenhum aparelho com o Spotify aberto." }
 };
 const MUSIC_CYCLE = ["connect", "search", "found", "playing"];
+// Pulso do CRM (?pulso=1, rascunho HENRY-1 "Pulso"): eventos de EXEMPLO no mesmo formato do GET /api/admin/henry/pulse
+// (nomes fictícios), com uma rajada de WhatsApp de vez em quando para ver o agrupamento ("Bruna enviou 5 mensagens").
+const PULSE_TEAM = [["Gabriel", AVATAR], ["Bruna", ""], ["Caroline", AVATAR_2], ["Jennyfer", ""], ["Eduardo", ""], ["Ketlin", ""]];
+const PULSE_CLIENTS = ["Maria", "João", "Ana", "Pedro", "Larissa", "Fernando", "Camila", "Rafael"];
+const PULSE_SNIPPETS = ["Oi, tudo bem? Vi que preencheu o formulário…", "Segue a sua simulação, dá uma olhada", "Consegue me mandar o RG e o comprovante?", "Bora agendar a visita amanhã?"];
+const PULSE_COLORS = ["#5cd6ff", "#ff9fb8", "#b59cff", "#9be7c4", "#ffd36b", "#7aa8ff"];
+let pulseSeq = 0;
+function samplePulseEvent(type, at, brokerIndex = Math.floor(Math.random() * PULSE_TEAM.length)) {
+  const pick = (list) => list[Math.floor(Math.random() * list.length)];
+  const [name, photo] = PULSE_TEAM[brokerIndex];
+  const broker = { name, photo, color: PULSE_COLORS[brokerIndex] };
+  const base = { id: `demo:${(pulseSeq += 1)}`, type, at, broker, client: pick(PULSE_CLIENTS), link: { path: "/admin/simulacoes" } };
+  if (type === "whatsapp") return { ...base, snippet: pick(PULSE_SNIPPETS), group: `whatsapp:${name}` };
+  if (type === "messenger") return { ...base, broker: null, snippet: "", group: "messenger:auto" };
+  if (type === "instagram") return { ...base, broker: null, client: "", tag: "MARKETPLACE", detail: "Jardim Itaipu" };
+  if (type === "simulacao") return { ...base, broker: null };
+  if (type === "cca") return { ...base, detail: "Menin" };
+  if (type === "chegada") return { ...base, client: "" };
+  if (type === "pontos") return { ...base, client: "", points: 50, detail: "Primeiro a chegar na imobiliária (dividido entre 2)" };
+  return base;
+}
+async function samplePulsePoll() {
+  const now = Date.now();
+  const types = ["whatsapp", "messenger", "instagram", "lead", "simulacao", "cca", "chegada", "pontos"];
+  const events = Array.from({ length: 6 }, (_, index) => samplePulseEvent(types[Math.floor(Math.random() * types.length)], new Date(now - (6 - index) * 3000).toISOString()));
+  if (Math.random() < 0.5) for (let index = 0; index < 5; index += 1) events.push(samplePulseEvent("whatsapp", new Date(now - 1000 + index * 100).toISOString(), 1));
+  return { enabled: true, events, now: new Date(now).toISOString() };
+}
+
 const SAMPLE_NOW_PLAYING = { isPlaying: true, name: "Evidências", artists: "Chitãozinho & Xororó", image: COVER, tempo: null };
 
 const STATE_CYCLE = [
@@ -91,7 +121,7 @@ const STATE_CYCLE = [
   { mode: "speaking", kind: "", ms: 3000 }
 ];
 
-export default function HenryDemo({ mode: initialMode = "speaking", thinkingKind = "", stateCycle = false, expanded = true, capturing = false, scene = "", topic = "relatorio", brokerCount = 2, answer = "", opening: initialOpening = false, telemetry = false, musicStage = "", waves = "" }) {
+export default function HenryDemo({ mode: initialMode = "speaking", thinkingKind = "", stateCycle = false, expanded = true, capturing = false, scene = "", topic = "relatorio", brokerCount = 2, answer = "", opening: initialOpening = false, telemetry = false, musicStage = "", waves = "", pulse = false }) {
   const [cycleIndex, setCycleIndex] = useState(0);
   useEffect(() => {
     if (musicStage !== "ciclo") return undefined;
@@ -184,6 +214,9 @@ export default function HenryDemo({ mode: initialMode = "speaking", thinkingKind
   return (
     <HenryVoiceView
       key={openingKey}
+      pulse={pulse ? henryPulseConfig({}) : null}
+      pulsePoll={pulse ? samplePulsePoll : undefined}
+      onPulseOpen={(link) => console.info("[vitrine] Pulso abriria", link?.path)}
       morningPlay
       onMorningPlay={playOpening}
       opening={opening}

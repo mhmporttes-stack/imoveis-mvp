@@ -1,12 +1,13 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import HenryOrb from "./HenryOrb";
 import HenryAnswerScenes from "./HenryAnswerScenes";
 import HenryOpeningScene from "./HenryOpeningScene";
 import { MORNING_PLAY_LABEL } from "@/lib/henry-morning-core.mjs";
 import { HenryBrokerCards, HenryDataScene, HenryDetailPanel, HenryIconSearchHint, HenrySceneStyles } from "./HenrySearchScene";
 import HenryMusicScene, { HenryNowPlaying } from "./HenryMusicScene";
+import HenryPulse from "./HenryPulse";
 
 // Apresentação do Henry (sem estado de voz): ícone do canto e tela cheia. Visual pedido pelo dono em 2026-10-22 a partir de
 // uma referência em vídeo ("nesse perfil… no meu estilo"): fundo azul-marinho profundo, anel de filamentos no centro,
@@ -111,9 +112,21 @@ export default function HenryVoiceView({
   onOpeningDone,
   openingName = "Matheus",
   openingTelemetry = null,
+  // Pulso do CRM (rascunho HENRY-1 "Pulso"): config do HenryPulse (null = desligado), abrir o link do card e, só na
+  // vitrine, a fonte de eventos de exemplo.
+  pulse = null,
+  onPulseOpen = null,
+  pulsePoll = undefined,
   fixed = true
 }) {
   const orbSize = useFullscreenOrbSize(expanded, mobile);
+  // Pulso do CRM: a chegada de um evento vira "level" do anel REAL (o maior entre a voz e o pulso), sem anel paralelo.
+  const pulseLevelRef = useRef(0);
+  const orbSignal = useCallback(() => {
+    const signal = getSignal?.() || { mode: "idle", level: 0 };
+    const extra = pulseLevelRef.current || 0;
+    return extra > 0.005 ? { ...signal, level: Math.max(Number(signal.level) || 0, extra) } : signal;
+  }, [getSignal]);
   const inputRef = useRef(null);
   const touchRef = useRef(null);
   useEffect(() => {
@@ -318,13 +331,15 @@ export default function HenryVoiceView({
         </svg>
       </button>
 
+      {/* Pulso do CRM: atrás do anel (cards e feixes em volta dele); apagado quando ele pensa ou fala. */}
+      <HenryPulse active={Boolean(pulse) && !opening} config={pulse || undefined} orbSize={orbSize} mobile={mobile} dim={searching || speaking || busy} onOpen={onPulseOpen} levelRef={pulseLevelRef} {...(pulsePoll ? { poll: pulsePoll } : {})} />
       <div className={`relative ${mobile ? "-translate-y-[14vh]" : ""}`}>
         {onTalk ? (
           <button type="button" onPointerDown={preventTouchSelection} onClick={onTalk} className="block rounded-full" aria-label={recording ? "Enviar o que eu falei" : "Tocar para falar com o Henry"}>
-            <HenryOrb size={orbSize} fibers={mobile ? 40 : 52} points={mobile ? 110 : 140} alpha={0.3} lineWidth={0.85} glow nodes={mobile ? 16 : 24} getSignal={getSignal} />
+            <HenryOrb size={orbSize} fibers={mobile ? 40 : 52} points={mobile ? 110 : 140} alpha={0.3} lineWidth={0.85} glow nodes={mobile ? 16 : 24} getSignal={pulse ? orbSignal : getSignal} />
           </button>
         ) : (
-          <HenryOrb size={orbSize} fibers={mobile ? 40 : 52} points={mobile ? 110 : 140} alpha={0.3} lineWidth={0.85} glow nodes={mobile ? 16 : 24} getSignal={getSignal} />
+          <HenryOrb size={orbSize} fibers={mobile ? 40 : 52} points={mobile ? 110 : 140} alpha={0.3} lineWidth={0.85} glow nodes={mobile ? 16 : 24} getSignal={pulse ? orbSignal : getSignal} />
         )}
         <HenryBrokerCards brokers={brokers} orbSize={orbSize} mobile={mobile} />
         <HenryMusicScene music={musicScene} orbSize={orbSize} mobile={mobile} />

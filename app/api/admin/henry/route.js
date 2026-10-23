@@ -24,6 +24,7 @@ import {
 import { HENRY_FALLBACK_REPLY, HENRY_MAX_QUESTION_LENGTH, isHenryEligible, parseHenryImage, safeHenryReply, shouldUseHenryImage } from "@/lib/henry-voice-core.mjs";
 import { henryBrowserRate, henryEndWaitMs, henryListenAckOn, henryStyleOptions, parseHenryStylePatch } from "@/lib/henry-voice-style.mjs";
 import { splitForSpeech } from "@/lib/henry-voice-conversation.mjs";
+import { parseHenryPulsePatch } from "@/lib/henry-pulse-core.mjs";
 import { henryInitialProgress } from "@/lib/henry-voice-narration.mjs";
 import { isAllowedHenryNavigation, isHenryClientId } from "@/lib/henry-navigation-core.mjs";
 import { isSpotifyOpenUrl, isSpotifyUri } from "@/lib/henry-spotify-core.mjs";
@@ -73,7 +74,7 @@ export async function GET(request) {
   const auth = await requireHenryOwner(request);
   if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status });
   try {
-    const [{ enabled, vision, webSearch, mobileWake, clientAlerts, teamArrivals, voiceNotices, style }, dayTurns] = await Promise.all([readHenrySettings(), readHenryDayTurns().catch(() => [])]);
+    const [{ enabled, vision, webSearch, mobileWake, clientAlerts, teamArrivals, voiceNotices, pulse, style }, dayTurns] = await Promise.all([readHenrySettings(), readHenryDayTurns().catch(() => [])]);
     const provider = henryVoiceProvider();
     // Lista de vozes da ElevenLabs só para o cartão de configurações (?vozes=1); o ícone do canto não precisa dela.
     // Junto, o saldo de caracteres (GET /v1/user/subscription). 401/403 viram frase clara de permissão na tela.
@@ -108,6 +109,7 @@ export async function GET(request) {
       clientAlerts,
       teamArrivals,
       voiceNotices, // "Avisos só por voz (sem card na tela)" — nasce ligado
+      pulse, // "Pulso do CRM" (rascunho HENRY-1 "Pulso"): { enabled (nasce desligado), intensity, types, snippets }
       dayTurns: enabled ? dayTurns : [], // memória do dia: a tela cheia mostra a conversa de hoje (só texto)
       serverVoice: isHenryVoiceConfigured(),
       provider,
@@ -143,6 +145,11 @@ export async function PUT(request) {
   if (typeof body?.clientAlerts === "boolean") patch.clientAlerts = body.clientAlerts;
   if (typeof body?.teamArrivals === "boolean") patch.teamArrivals = body.teamArrivals;
   if (typeof body?.voiceNotices === "boolean") patch.voiceNotices = body.voiceNotices;
+  if (body?.pulse !== undefined) {
+    const parsed = parseHenryPulsePatch(body.pulse);
+    if (!parsed.ok) return NextResponse.json({ error: parsed.error }, { status: 400 });
+    patch.pulse = parsed.patch;
+  }
   if (body?.style !== undefined) {
     const parsed = parseHenryStylePatch(body.style);
     if (!parsed.ok) return NextResponse.json({ error: parsed.error }, { status: 400 });
