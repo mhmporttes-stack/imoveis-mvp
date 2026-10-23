@@ -131,6 +131,9 @@ export default function HenryVoiceAssistant() {
   const [inConversation, setInConversation] = useState(false);
   const conversationRef = useRef({ active: false, lastAt: 0, historyStart: 0 });
   const abortRef = useRef(null); // pedido em andamento (cancelado ao interromper)
+  // Bom dia em conversa (dono, 2026-10-23): passo que espera a resposta do dono ("music" → "style" → "birthday"). Vale só
+  // dentro da janela de conversa (40 s); qualquer pergunta o consome; o servidor decide o resto.
+  const morningRef = useRef(null);
   const webSourceRef = useRef(null); // voz tocando pelo AudioContext (celular)
   const soundRetryRef = useRef(false);
   // Id aleatório deste navegador (só para "um aparelho por vez"; nada identifica o aparelho).
@@ -408,6 +411,7 @@ export default function HenryVoiceAssistant() {
   const endConversation = useCallback(({ sound = true } = {}) => {
     if (!conversationRef.current.active) return;
     conversationRef.current = { active: false, lastAt: 0, historyStart: turnsRef.current.length };
+    morningRef.current = null;
     setInConversation(false);
     if (phaseRef.current === "armed") updatePhase("idle");
     if (sound) chime("end");
@@ -660,7 +664,7 @@ export default function HenryVoiceAssistant() {
   // Spotify fechado: abre a URI pelo protocolo spotify: (âncora na mesma aba) e pede ao servidor para esperar o aparelho
   // (~10 s) e tocar nele. Tocou → silêncio (a música fala por si). Não pegou (ou iPhone sem play) → frase curta pedindo um
   // play no Spotify — só se o dono não fez outra pergunta nesse meio-tempo. Nunca força nada além disso.
-  const openSpotifyAndPlay = useCallback(async (uri, requestId) => {
+  const openSpotifyAndPlay = useCallback(async (uri, requestId, volume = null) => {
     try {
       const link = document.createElement("a");
       link.href = uri;
@@ -677,7 +681,7 @@ export default function HenryVoiceAssistant() {
       const response = await fetch("/api/admin/henry/spotify/play", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ uri })
+        body: JSON.stringify(volume === null ? { uri } : { uri, volume })
       });
       data = await response.json().catch(() => null);
       if (!response.ok) data = { ok: false, reply: data?.error || "Não consegui tocar no Spotify. Dá play uma vez nele." };
@@ -757,6 +761,12 @@ export default function HenryVoiceAssistant() {
   // Interrompe o que estiver em andamento (pedido e voz) e faz a nova pergunta. Memória: só as trocas do modo conversa
   // atual (no máximo ~6), só desta página — nada vai para o banco.
   const ask = useCallback(async ({ mode, question, shown }) => {
+    const pendingMorning = morningRef.current;
+    morningRef.current = null;
+    const conversationNow = conversationRef.current;
+    const morning = mode === "question" && pendingMorning && conversationNow.active && !isConversationExpired(conversationNow.lastAt) ? { step: pendingMorning.step } : null;
+    // Resposta da música/estilo segue como "bom dia" (relatório, com a visão como no bom dia); aniversário = pergunta.
+    if (morning && morning.step !== "birthday") mode = "report";
     abortRequest();
     stopSpeaking();
     setNotice("");
@@ -779,7 +789,8 @@ export default function HenryVoiceAssistant() {
       conversationRef.current = { ...conversationRef.current, historyStart: 0 };
       setTurns([]);
     };
-    const onReply = (reply, navigate, detail = null, rawScene = null, openUrl = null, spotify = null) => {
+    const onReply = (reply, navigate, detail = null, rawScene = null, openUrl = null, spotify = null, nextMorning = null) => {
+      if (requestIdRef.current === id) morningRef.current = nextMorning?.step ? { step: nextMorning.step } : null;
       if (waitRef.current.id === id) waitRef.current = { ...waitRef.current, replied: true };
       // Cena da resposta (HenryAnswerScenes), escolhida no servidor pelas ferramentas chamadas.
       const answerScene = normalizeHenryScene(rawScene);
@@ -804,7 +815,7 @@ export default function HenryVoiceAssistant() {
       // Spotify fechado (`open_spotify`): abre o app pela URI na MESMA aba (âncora, sem aba nova — no PC abre o app
       // desktop; o navegador pode perguntar "Abrir Spotify?" na 1ª vez) e o servidor espera o aparelho e dá o play.
       if (spotify?.action === "open_spotify" && typeof spotify.uri === "string" && /^spotify:(track|playlist|album|artist):[A-Za-z0-9]+$/.test(spotify.uri)) {
-        openSpotifyAndPlay(spotify.uri, id);
+        openSpotifyAndPlay(spotify.uri, id, Number.isInteger(spotify.volume) ? spotify.volume : null);
       }
     };
     try {
@@ -819,7 +830,7 @@ export default function HenryVoiceAssistant() {
       const response = await fetch("/api/admin/henry", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(image ? { mode, question, history, image, stream: true, deviceId: deviceIdRef.current } : { mode, question, history, stream: true, deviceId: deviceIdRef.current }),
+        body: JSON.stringify({ mode, question, history, ...(image ? { image } : {}), ...(morning ? { morning } : {}), stream: true, deviceId: deviceIdRef.current }),
         signal: controller.signal
       });
       image = null;
@@ -840,7 +851,7 @@ export default function HenryVoiceAssistant() {
           return;
         }
         if (data.memoryCleared) clearTurns();
-        onReply(data.reply || "", data.navigate, data.detail || null, data.scene || null, data.openUrl || null, data.spotify || null);
+        onReply(data.reply || "", data.navigate, data.detail || null, data.scene || null, data.openUrl || null, data.spotify || null, data.morning || null);
         enqueueClip({ audio: data.audio, text: data.reply || "" });
         endSpeech();
         return;
@@ -871,7 +882,7 @@ export default function HenryVoiceAssistant() {
           }
           if (typeof message?.reply === "string") {
             if (message.memoryCleared) clearTurns();
-            onReply(message.reply, message.navigate, message.detail || null, message.scene || null, message.openUrl || null, message.spotify || null);
+            onReply(message.reply, message.navigate, message.detail || null, message.scene || null, message.openUrl || null, message.spotify || null, message.morning || null);
           }
           else if (typeof message?.text === "string") enqueueClip({ audio: message.audio, text: message.text });
           else if (message?.done) endSpeech();

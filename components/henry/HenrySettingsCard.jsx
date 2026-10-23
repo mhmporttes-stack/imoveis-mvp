@@ -158,13 +158,14 @@ export default function HenrySettingsCard() {
   );
 }
 
-const STYLE_FIELDS = ["voice", "elevenVoice", "tone", "speed", "details", "address"];
+const STYLE_FIELDS = ["voice", "elevenVoice", "tone", "speed", "details", "address", "rockMusic", "sertanejoMusic"];
+const TEXT_FIELDS = ["details", "address", "rockMusic", "sertanejoMusic"];
 
 // Só o que mudou em relação ao salvo (a voz padrão do servidor pode não estar na lista e não é reenviada).
 function changedFields(form, saved) {
   const patch = {};
   for (const key of STYLE_FIELDS) {
-    const value = key === "details" || key === "address" ? String(form[key] || "").trim() : form[key];
+    const value = TEXT_FIELDS.includes(key) ? String(form[key] || "").trim() : form[key];
     if (value !== (saved[key] || "")) patch[key] = value;
   }
   return patch;
@@ -317,6 +318,12 @@ function HenryVoiceStyleSection({ saved, options, serverVoice, provider = "brows
             maxLength={options.detailsMax}
             rows={2}
           />
+        </Field>
+        <Field label="Bom dia: música do rock (opcional)" hint="Nome da playlist ou link do Spotify. Em branco = playlist de rock clássico.">
+          <input className={inputClasses} value={form.rockMusic || ""} onChange={update("rockMusic")} maxLength={options.musicMax} placeholder={options.defaultRockMusic} />
+        </Field>
+        <Field label="Bom dia: música do sertanejo raiz (opcional)" hint="Nome da playlist ou link do Spotify. Em branco = Zezé Di Camargo & Luciano.">
+          <input className={inputClasses} value={form.sertanejoMusic || ""} onChange={update("sertanejoMusic")} maxLength={options.musicMax} placeholder={options.defaultSertanejoMusic} />
         </Field>
       </div>
       <div className="mt-4 flex flex-wrap items-center gap-3">

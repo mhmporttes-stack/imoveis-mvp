@@ -27,6 +27,7 @@ import { splitForSpeech } from "@/lib/henry-voice-conversation.mjs";
 import { henryInitialProgress } from "@/lib/henry-voice-narration.mjs";
 import { isAllowedHenryNavigation, isHenryClientId } from "@/lib/henry-navigation-core.mjs";
 import { isSpotifyOpenUrl, isSpotifyUri } from "@/lib/henry-spotify-core.mjs";
+import { parseMorningState } from "@/lib/henry-morning-core.mjs";
 import { readSpotifyStatus } from "@/lib/henry-spotify";
 
 // Navegação devolvida ao navegador: só tela da lista fechada ou ficha de cliente (id no formato do banco).
@@ -41,7 +42,14 @@ function openUrlPayload(url) {
 
 // Spotify fechado: ação `open_spotify` com a URI do item (só spotify:track|playlist|album|artist:<id>).
 function spotifyPayload(spotify) {
-  return spotify?.action === "open_spotify" && isSpotifyUri(spotify.uri) ? { action: "open_spotify", uri: spotify.uri } : null;
+  if (!(spotify?.action === "open_spotify" && isSpotifyUri(spotify.uri))) return null;
+  const volume = Number.isInteger(spotify.volume) && spotify.volume >= 0 && spotify.volume <= 100 ? spotify.volume : null;
+  return { action: "open_spotify", uri: spotify.uri, ...(volume !== null ? { volume } : {}) };
+}
+
+// Bom dia em conversa (dono, 2026-10-23): próximo passo que a tela guarda na janela de conversa (só o nome do passo).
+function morningPayload(morning) {
+  return parseMorningState(morning);
 }
 import { HENRY_AUDIO_MAX_MS, HENRY_PROVIDER_LABELS, checkHenryAudio } from "@/lib/henry-voice-providers.mjs";
 
@@ -173,7 +181,7 @@ function answerStream(auth, request, style) {
           }
         });
         const navigate = navigationPayload(answer.navigate);
-        send({ reply: answer.reply, navigate, openUrl: openUrlPayload(answer.openUrl), detail: answer.detail || null, spotify: spotifyPayload(answer.spotify), scene: answer.scene || null, ...(answer.memoryCleared ? { memoryCleared: true } : {}) });
+        send({ reply: answer.reply, navigate, openUrl: openUrlPayload(answer.openUrl), detail: answer.detail || null, spotify: spotifyPayload(answer.spotify), morning: morningPayload(answer.morning), scene: answer.scene || null, ...(answer.memoryCleared ? { memoryCleared: true } : {}) });
         const parts = splitForSpeech(answer.reply);
         const audios = parts.map((text, index) => synthesizeHenrySpeech(auth, text, style, { previousText: parts[index - 1] || "", nextText: parts[index + 1] || "" }));
         for (let index = 0; index < parts.length; index += 1) {
@@ -295,11 +303,12 @@ export async function POST(request) {
     const image = shouldUseHenryImage({ vision, mode, question }) ? parseHenryImage(body?.image) : null;
     // Modo conversa: `stream` = linhas (NDJSON) abertas na hora: progresso/narração enquanto pensa, depois o texto e a voz
     // em partes (1ª frase primeiro). Mesmo texto, mesma barreira (safeHenryReply já aplicada).
-    if (body?.stream === true && body?.voice !== false) return answerStream(auth, { mode, question, history: body?.history, image, vision, webSearch }, style);
-    const answer = await answerHenry(auth, { mode, question, history: body?.history, image, style, vision, webSearch });
+    const morning = parseMorningState(body?.morning);
+    if (body?.stream === true && body?.voice !== false) return answerStream(auth, { mode, question, history: body?.history, image, morning, vision, webSearch }, style);
+    const answer = await answerHenry(auth, { mode, question, history: body?.history, image, style, morning, vision, webSearch });
     const navigate = navigationPayload(answer.navigate);
     const audio = body?.voice === false ? null : await synthesizeHenrySpeech(auth, answer.reply, style);
-    return NextResponse.json({ reply: answer.reply, navigate, openUrl: openUrlPayload(answer.openUrl), detail: answer.detail || null, spotify: spotifyPayload(answer.spotify), scene: answer.scene || null, memoryCleared: answer.memoryCleared === true, audio });
+    return NextResponse.json({ reply: answer.reply, navigate, openUrl: openUrlPayload(answer.openUrl), detail: answer.detail || null, spotify: spotifyPayload(answer.spotify), morning: morningPayload(answer.morning), scene: answer.scene || null, memoryCleared: answer.memoryCleared === true, audio });
   } catch (error) {
     console.warn(`[henry] pergunta falhou: ${error?.status ? error.message : error?.name === "TimeoutError" ? "timeout" : "erro"}.`);
     return NextResponse.json({ error: error?.status ? error.message : "Não consegui responder agora. Tente de novo." }, { status: error?.status || 502 });
