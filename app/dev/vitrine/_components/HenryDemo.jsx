@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import HenryVoiceView from "@/components/henry/HenryVoiceView";
+import { playHenryOpeningSound } from "@/components/henry/HenryOpeningScene";
 
 // Vitrine DEV do Henry (HENRY-1): mesma apresentação do painel, com sinal de áudio SIMULADO e conversa fictícia.
 const SAMPLE_TURNS = [
@@ -59,7 +60,28 @@ const ANSWER_SAMPLES = {
   corretor: { q: "Henry, como foi a Ana no mês?", text: "A Ana fez 412 pontos e tá em 1º no ranking.", scene: { kind: "corretor" } }
 };
 
-export default function HenryDemo({ mode: initialMode = "speaking", expanded = true, capturing = false, scene = "", topic = "relatorio", brokerCount = 2, answer = "" }) {
+// Cena de abertura do bom dia (?cena=abertura): o ▶ ao lado do microfone repete a cena (com o som). ?numeros=1 mostra a
+// telemetria com números FICTÍCIOS (no painel ela só aparece com números reais já carregados).
+const SAMPLE_TELEMETRY = [
+  { label: "Clientes novos", value: 7 },
+  { label: "Simulações enviadas", value: 4 },
+  { label: "Aniversariantes", value: 2 }
+];
+
+export default function HenryDemo({ mode: initialMode = "speaking", expanded = true, capturing = false, scene = "", topic = "relatorio", brokerCount = 2, answer = "", opening: initialOpening = false, telemetry = false }) {
+  const [opening, setOpening] = useState(initialOpening);
+  const [openingKey, setOpeningKey] = useState(0);
+  const playOpening = () => {
+    const Context = window.AudioContext || window.webkitAudioContext;
+    if (Context) {
+      window.__henryDemoAudio = window.__henryDemoAudio || new Context();
+      window.__henryDemoAudio.resume?.();
+      playHenryOpeningSound(window.__henryDemoAudio);
+    }
+    setOpen(true);
+    setOpeningKey((value) => value + 1);
+    setOpening(true);
+  };
   // "achou" (redesenho da cena, 2026-10-22): busca 2,6 s → resposta 3,4 s, em ciclo, para ver entrada/busca/achou/saída.
   const [cycleSearching, setCycleSearching] = useState(true);
   useEffect(() => {
@@ -107,6 +129,12 @@ export default function HenryDemo({ mode: initialMode = "speaking", expanded = t
   }, []);
   return (
     <HenryVoiceView
+      key={openingKey}
+      morningPlay
+      onMorningPlay={playOpening}
+      opening={opening}
+      onOpeningDone={() => setOpening(false)}
+      openingTelemetry={telemetry ? SAMPLE_TELEMETRY : null}
       expanded={open}
       onExpand={() => setOpen(true)}
       onMinimize={() => setOpen(false)}

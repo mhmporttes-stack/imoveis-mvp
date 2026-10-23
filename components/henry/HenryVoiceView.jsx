@@ -3,6 +3,8 @@
 import { useEffect, useRef, useState } from "react";
 import HenryOrb from "./HenryOrb";
 import HenryAnswerScenes from "./HenryAnswerScenes";
+import HenryOpeningScene from "./HenryOpeningScene";
+import { MORNING_PLAY_LABEL } from "@/lib/henry-morning-core.mjs";
 import { HenryBrokerCards, HenryDataScene, HenryDetailPanel, HenryIconSearchHint, HenrySceneStyles } from "./HenrySearchScene";
 
 // Apresentação do Henry (sem estado de voz): ícone do canto e tela cheia. Visual pedido pelo dono em 2026-10-22 a partir de
@@ -96,6 +98,14 @@ export default function HenryVoiceView({
   brokers = [], // corretores do pedido: procurando (scanner) → achado (card com foto e números)
   pendingAlerts = 0, // avisos de cliente novo/transferido sem resposta (HENRY-1): indicador discreto; tocar = ouvir
   onPendingAlerts,
+  // Botão ▶ "Começar o bom dia" (HENRY-1, dono 2026-10-23): ao lado do microfone só até 11h (quem decide é o
+  // HenryVoiceAssistant, por morningPlayWindow). opening = cena de abertura por cima da tela cheia.
+  morningPlay = false,
+  onMorningPlay,
+  opening = false,
+  onOpeningDone,
+  openingName = "Matheus",
+  openingTelemetry = null,
   fixed = true
 }) {
   const orbSize = useFullscreenOrbSize(expanded, mobile);
@@ -113,6 +123,7 @@ export default function HenryVoiceView({
   const lastTurn = turns[turns.length - 1];
   const answer = !searching && lastTurn?.role === "assistant" ? lastTurn : null;
 
+  const showPlay = morningPlay && Boolean(onMorningPlay) && !opening;
   const pendingPill = pendingAlerts > 0 && onPendingAlerts ? (
     <button
       type="button"
@@ -156,6 +167,11 @@ export default function HenryVoiceView({
             </RoundButton>
           </span>
         ) : null}
+        {showPlay ? (
+          <span className="pointer-events-auto mb-1.5">
+            <PlayButton onClick={onMorningPlay} />
+          </span>
+        ) : null}
         {pendingPill}
         {engaged && caption ? (
           <p
@@ -192,6 +208,11 @@ export default function HenryVoiceView({
           </p>
         ) : null}
         {pendingPill}
+        {showPlay ? (
+          <span className="pointer-events-auto mb-2.5">
+            <PlayButton onClick={onMorningPlay} />
+          </span>
+        ) : null}
         <span className="pointer-events-auto mb-2.5">
           <RoundButton onClick={onToggleMute} label={micOff ? "Ligar o microfone do Henry (Alt+B)" : "Deixar o Henry no mudo (Alt+B)"} small>
             <MicIcon off={micOff} />
@@ -247,6 +268,7 @@ export default function HenryVoiceView({
       }}
     >
       <HenrySceneStyles />
+      {opening ? <HenryOpeningScene name={openingName} mobile={mobile} telemetry={openingTelemetry} onDone={onOpeningDone} /> : null}
       <HenryDataScene active={dataScene} topic={sceneTopic} mobile={mobile} orbSize={orbSize} hasBrokers={brokers.length > 0} />
       {!dataScene ? (
         <HenryAnswerScenes
@@ -347,6 +369,7 @@ export default function HenryVoiceView({
           <RoundButton onClick={onToggleMute} label={recordMode ? (recording ? "Enviar o que eu falei" : "Tocar para falar") : micOff ? "Ligar o microfone (Alt+B)" : "Mudo (Alt+B)"} dark active={!micOff}>
             <MicIcon off={micOff && !recordMode} />
           </RoundButton>
+          {showPlay ? <PlayButton onClick={onMorningPlay} dark /> : null}
         </div>
       </div>
     </div>
@@ -363,6 +386,26 @@ function RoundButton({ onClick, label, children, small = false, dark = false, ac
   return (
     <button type="button" onPointerDown={preventTouchSelection} onClick={onClick} className={`${base} flex items-center justify-center rounded-full transition ${tone}`} aria-label={label} title={label}>
       {children}
+    </button>
+  );
+}
+
+// ▶ dourado (cor de destaque da marca): plano B do "bom dia, Henry" quando a automação não dispara.
+function PlayButton({ onClick, dark = false }) {
+  return (
+    <button
+      type="button"
+      onPointerDown={preventTouchSelection}
+      onClick={onClick}
+      className={`flex h-9 w-9 items-center justify-center rounded-full transition ${dark ? "border border-[#E8B85C]/60 bg-[#E8B85C]/15 hover:bg-[#E8B85C]/25" : "shadow-float ring-1 ring-white/10 hover:ring-[#E8B85C]/60"}`}
+      style={{ background: dark ? undefined : BACKDROP, color: "#E8B85C" }}
+      aria-label={MORNING_PLAY_LABEL}
+      title={MORNING_PLAY_LABEL}
+      data-henry-morning-play
+    >
+      <svg viewBox="0 0 24 24" className="ml-0.5 h-4 w-4" fill="currentColor" aria-hidden="true">
+        <path d="M8 5.5v13a1 1 0 0 0 1.52.85l10.4-6.5a1 1 0 0 0 0-1.7L9.52 4.65A1 1 0 0 0 8 5.5z" />
+      </svg>
     </button>
   );
 }

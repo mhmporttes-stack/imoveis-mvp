@@ -44,6 +44,15 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 
 
+### 2026-10-23 — App de desktop 1.2.0: barra de título escondida, aparece com o mouse no topo
+- **Data:** 2026-10-23
+- **Área:** App de desktop (`desktop-app/`, fora da Vercel)
+- **Alteração:** janela sem a barra do Windows (`BaseWindow` `frame: false`, abre maximizada, redimensionável pelas bordas). Barra própria (`src/titlebar/`, página local numa `WebContentsView` por cima do CRM, sessão `mm-titlebar` sem disco/permissões) desce em 150 ms com o mouse a até 6 px do topo e some 1 s depois que ele sai; título, área de arrastar (duplo clique maximiza/restaura, nativo do Windows), minimizar, maximizar/restaurar e fechar (= bandeja, como antes). Alt (sozinho) mostra; F11 = tela cheia. Bandeja: "Mostrar barra de título sempre" (padrão desligado, `preferencias.json`; ligada, o CRM fica abaixo da barra). Detecção pela posição do cursor no processo principal (sem faixa invisível sobre o CRM; fechada, a barra fica `setVisible(false)`). Regras puras em `src/core.js` (`titlebarPointer`, `titlebarStep`, `altTapStep`, `validateTitlebarMessage`, `parsePreferences`).
+- **Motivo:** dono: "dá para ocultar essa barra e ela só aparecer se eu levar o mouse lá em cima?".
+- **Arquivos afetados:** `desktop-app/{package.json,README.md,src/core.js,src/main.js,src/titlebar/{titlebar.html,titlebar.css,titlebar.js,titlebar-preload.js} (novos),tests/titlebar.test.js (novo)}`.
+- **Risco/observação:** `window.mmDesktop` não mudou (teste trava a lista); a barra usa canal IPC próprio `mm:titlebar`, conferido por remetente (webContents da barra, frame principal, URL local) e lista fechada de 3 comandos. O CRM saiu da webContents da janela para uma `WebContentsView` (Recarregar, F5, Ctrl+Shift+H, escuta do "Henry" seguem pela view). Validado no Linux (Xvfb): barra fechada/aberta/sumindo com o CRM carregado e clique em Fechar escondendo a janela; `node --test tests/*.test.js`: 19/19. A CONFIRMAR no Windows 10 do dono: maximizar ao abrir, duplo clique na área de arrastar e encaixe nas bordas (sem gerenciador de janelas no teste).
+- **Autor:** Claude Code (crm-editor)
+
 ### 2026-10-23 — Seguidor Instagram 1.1.0: segue perfis privados (Solicitado) e trabalha numa janela própria
 - **Data:** 2026-10-23
 - **Área:** Ferramenta pessoal fora do CRM (`ferramentas/instagram-seguidor/`)
@@ -409,6 +418,15 @@ Copie o modelo abaixo (uma entrada por bloco):
 - **Risco/observação:** textos, links, tracking e SEO inalterados; `pnpm build` ok; `tests/brand-assets.test.mjs` 4/4. Publicado e conferido no ar. A imagem de cidade não é comprovadamente de Marília (trocar por foto real quando o dono enviar).
 
 ## Registro
+
+### 2026-10-23 — Henry: botão ▶ "Começar o bom dia" com cena de abertura futurística (HENRY-1)
+- **Data:** 2026-10-23
+- **Área:** Henry (voz) / frontend
+- **Alteração:** ▶ ao lado do microfone do Henry (minimizado no computador e no celular, e na tela cheia), visível só até 11:00 de São Paulo e some/volta sozinho. O clique destrava o som (iPhone), abre a tela cheia, toca uma cena de abertura de ~5 s (linha de luz, horizonte digital, anéis de HUD, partículas formando o anel, símbolo oficial com glitch, "Bom dia, Matheus" digitando, onda de choque virando o orbe; som curto WebAudio fora do mudo; toque/clique/Esc pula; reduced-motion = quadro parado) e então faz o mesmo pedido do "bom dia, Henry" falado — sem fluxo novo de música/relatório. Pode repetir no mesmo dia. Regra registrada em `.claude/rules/integracoes-externas.md` (+ glob `lib/henry-morning*`) e `docs/BUSINESS_RULES.md` HENRY-1.
+- **Motivo:** pedido do dono — plano B quando a palavra de chamada não dispara a abertura.
+- **Arquivos afetados:** `lib/henry-morning-core.mjs` (`morningPlayWindow`, `morningPlayRequest`, `morningSceneDate`), `components/henry/HenryOpeningScene.jsx` + `.module.css` (novos), `components/henry/HenryVoiceView.jsx`, `components/henry/HenryVoiceAssistant.jsx`, `app/dev/vitrine/henry/page.dev.jsx`, `app/dev/vitrine/_components/HenryDemo.jsx`, `tests/henry-morning.test.mjs`.
+- **Risco/observação:** fluidez a 60 fps no i7-6700 sem placa de vídeo e no iPhone **A CONFIRMAR** no aparelho (prints só em Chromium headless). A cena não mostra números do dia porque a tela não os tem antes do relatório (telemetria só aparece se for passada). Crítica do `design-critic` não feita nesta sessão (sem ferramenta de subagente); revisão por prints em `scratch/` (descartáveis).
+- **Autor:** Claude Code (crm-editor)
 
 ### 2026-10-23 — App de desktop 1.1.0: "Henry" ouvido offline (Vosk) e voz de reserva no PC (Piper)
 - **Data:** 2026-10-23
