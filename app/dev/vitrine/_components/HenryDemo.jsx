@@ -82,7 +82,16 @@ const MUSIC_STAGES = {
 const MUSIC_CYCLE = ["connect", "search", "found", "playing"];
 const SAMPLE_NOW_PLAYING = { isPlaying: true, name: "Evidências", artists: "Chitãozinho & Xororó", image: COVER, tempo: null };
 
-export default function HenryDemo({ mode: initialMode = "speaking", expanded = true, capturing = false, scene = "", topic = "relatorio", brokerCount = 2, answer = "", opening: initialOpening = false, telemetry = false, musicStage = "", waves = "" }) {
+const STATE_CYCLE = [
+  { mode: "idle", kind: "", ms: 3000 },
+  { mode: "waiting", kind: "", ms: 3500 },
+  { mode: "listening", kind: "", ms: 2500 },
+  { mode: "thinking", kind: "papo", ms: 3500 },
+  { mode: "thinking", kind: "busca", ms: 4000 },
+  { mode: "speaking", kind: "", ms: 3000 }
+];
+
+export default function HenryDemo({ mode: initialMode = "speaking", thinkingKind = "", stateCycle = false, expanded = true, capturing = false, scene = "", topic = "relatorio", brokerCount = 2, answer = "", opening: initialOpening = false, telemetry = false, musicStage = "", waves = "" }) {
   const [cycleIndex, setCycleIndex] = useState(0);
   useEffect(() => {
     if (musicStage !== "ciclo") return undefined;
@@ -118,7 +127,16 @@ export default function HenryDemo({ mode: initialMode = "speaking", expanded = t
     return () => clearTimeout(id);
   }, [scene, cycleSearching]);
   const musicSpeaking = music?.stage === "playing" || music?.stage === "error";
-  const mode = scene === "achou" ? (cycleSearching ? "thinking" : "speaking") : music ? (musicSpeaking ? "speaking" : "thinking") : initialMode;
+  // ?estado=ciclo: parado → esperando → ouvindo → pensando → buscando → falando, para ver as transições (a rede se desfaz).
+  const [stateIndex, setStateIndex] = useState(0);
+  useEffect(() => {
+    if (!stateCycle) return undefined;
+    const id = setTimeout(() => setStateIndex((value) => (value + 1) % STATE_CYCLE.length), STATE_CYCLE[stateIndex].ms);
+    return () => clearTimeout(id);
+  }, [stateCycle, stateIndex]);
+  const cycled = stateCycle ? STATE_CYCLE[stateIndex] : null;
+  const thinkingAs = cycled ? cycled.kind : thinkingKind;
+  const mode = cycled ? cycled.mode : scene === "achou" ? (cycleSearching ? "thinking" : "speaking") : music ? (musicSpeaking ? "speaking" : "thinking") : initialMode;
   const [muted, setMuted] = useState(false);
   const [vision, setVision] = useState(true);
   const [keyboard, setKeyboard] = useState(false);
@@ -129,8 +147,13 @@ export default function HenryDemo({ mode: initialMode = "speaking", expanded = t
     const syllables = Math.max(0, Math.sin(t * 9.1)) * (0.55 + 0.45 * Math.sin(t * 1.3));
     if (mode === "speaking") return { mode, level: 0.2 + 0.75 * syllables };
     if (mode === "listening") return { mode, level: 0.1 + 0.7 * syllables };
+    if (mode === "thinking") {
+      // Rede neural: papo calmo; busca de dados intensa, com um "evento de progresso" a cada 1,6 s.
+      const data = thinkingAs !== "papo";
+      return { mode, level: 0.1, activity: data ? 0.9 : 0.3, burst: data ? Math.exp(-((t * 1000) % 1600) / 700) : 0 };
+    }
     return { mode, level: 0 };
-  }, [mode]);
+  }, [mode, thinkingAs]);
   const engaged = mode !== "idle";
   const allBrokers = [
     { id: "b1", firstName: "Ana", photoUrl: AVATAR, stats: [{ label: "pontos", value: "412" }, { label: "meta", value: "104%" }], position: 1, found: true },
@@ -169,15 +192,16 @@ export default function HenryDemo({ mode: initialMode = "speaking", expanded = t
       expanded={open}
       onExpand={() => setOpen(true)}
       onMinimize={() => setOpen(false)}
-      status={{ idle: "Ouvindo — diga “Henry”", listening: "Em conversa — pode falar sem dizer o nome (“obrigado, Henry” encerra)", thinking: "Pensando…", speaking: "Falando… diga “Henry” para interromper" }[mode] || ""}
+      status={{ idle: "Ouvindo — diga “Henry”", waiting: "Em conversa — pode falar sem dizer o nome (“obrigado, Henry” encerra)", listening: "Em conversa — pode falar sem dizer o nome (“obrigado, Henry” encerra)", thinking: "Pensando…", speaking: "Falando… diga “Henry” para interromper" }[mode] || ""}
       engaged={engaged}
       mobile={mobile}
       tapToTalk={mobile}
       inConversation={engaged}
       caption={{ thinking: SAMPLE_TURNS[2].text, speaking: SAMPLE_TURNS[3].text, listening: SAMPLE_TURNS[3].text }[mode] || ""}
-      turns={turns}
+      turns={mode === "idle" && (thinkingAs || stateCycle) ? [] : turns}
       searching={mode === "thinking"}
-      sceneTopic={music ? "music" : topic}
+      dataScene={mode === "thinking" && thinkingAs !== "papo"}
+      sceneTopic={music ? "music" : thinkingAs === "papo" ? "geral" : topic}
       music={music}
       nowPlaying={nowPlaying}
       brokers={brokers}

@@ -38,7 +38,7 @@ import {
   splitForSpeech
 } from "../lib/henry-voice-conversation.mjs";
 import { HENRY_HISTORY_TURNS, sanitizeHistory } from "../lib/henry-voice-core.mjs";
-import { HENRY_ORB_STATES, mixHexColor, orbEase, orbStops } from "../components/henry/henry-orb-states.mjs";
+import { HENRY_ORB_MODES, HENRY_ORB_STATES, buildNeuralNet, henryOrbMode, mixHexColor, orbEase, orbStops, thinkingActivity } from "../components/henry/henry-orb-states.mjs";
 
 test("palavras de parada: só frase curta feita delas", () => {
   for (const phrase of ["para", "Para!", "espera", "pera", "peraí", "chega", "para, Henry", "ei, espera aí", "pode parar"]) {
@@ -131,16 +131,63 @@ test("anel: estados distintos, transição de ~300 ms e cor quente ao falar", ()
   assert.equal(orbStops(1)[0][1], "#ffffff");
 });
 
+test("anel: estados distinguíveis — parado, esperando, ouvindo, pensando (rede neural), falando", () => {
+  // Fonte única do estado visual (dono, 2026-10-23).
+  assert.equal(henryOrbMode({ phase: "speaking", recording: true }), "speaking");
+  assert.equal(henryOrbMode({ phase: "thinking", recording: true }), "listening"); // gravando o pedido = ouvindo
+  assert.equal(henryOrbMode({ phase: "thinking", micOn: true, conversationOpen: true }), "thinking");
+  assert.equal(henryOrbMode({ phase: "armed", micOn: true }), "listening");
+  assert.equal(henryOrbMode({ phase: "idle", micOn: true, hearing: true }), "listening");
+  assert.equal(henryOrbMode({ phase: "idle", micOn: true, conversationOpen: true }), "waiting");
+  assert.equal(henryOrbMode({ phase: "idle", micOn: true, awaitingReply: true }), "waiting");
+  assert.equal(henryOrbMode({ phase: "idle", micOn: false, conversationOpen: true }), "idle"); // mudo: não escuta
+  assert.equal(henryOrbMode({ phase: "idle", micOn: true }), "idle");
+  assert.equal(henryOrbMode(), "idle");
+  for (const mode of ["idle", "waiting", "listening", "thinking", "speaking"]) assert.ok(HENRY_ORB_MODES.includes(mode));
+  const { idle, waiting, thinking, speaking, listening } = HENRY_ORB_STATES;
+  // Só "pensando" tem rede no centro; ao falar ela some (interpolação de ~300 ms).
+  assert.equal(thinking.neural, 1);
+  for (const state of [idle, waiting, listening, speaking]) assert.equal(state.neural, 0);
+  // Esperando = brilho no contorno; parado = escurecido e sem contorno.
+  assert.equal(waiting.rim, 1);
+  assert.equal(idle.rim, 0);
+  assert.ok(idle.dim < waiting.dim && waiting.dim <= 1);
+  // Todos os estados têm as mesmas chaves (a interpolação não pode deixar parâmetro para trás).
+  const keys = Object.keys(idle).sort().join();
+  for (const state of Object.values(HENRY_ORB_STATES)) assert.equal(Object.keys(state).sort().join(), keys);
+});
+
+test("rede neural: papo calmo, busca intensa, progresso aumenta; rede determinística dentro dos anéis", () => {
+  assert.ok(thinkingActivity({ topic: "geral" }) < thinkingActivity({ topic: "music" }));
+  assert.ok(thinkingActivity({ topic: "music" }) < thinkingActivity({ topic: "relatorio" }));
+  assert.ok(thinkingActivity({ topic: "internet", progress: 3 }) > thinkingActivity({ topic: "internet" }));
+  assert.equal(thinkingActivity({ topic: "funil", progress: 50 }), 1);
+  const big = buildNeuralNet(24);
+  assert.equal(big.nodes.length, 24);
+  assert.deepEqual(buildNeuralNet(24), big);
+  for (const node of big.nodes) assert.ok(Math.hypot(node.x, node.y) <= 0.7 + 1e-9);
+  assert.ok(big.edges.length >= 24 && big.tendrils.length > 0);
+  for (const edge of big.edges) assert.ok(edge.a < edge.b && edge.b < 24);
+  const icon = buildNeuralNet(6); // ícone minimizado: poucos nós
+  assert.equal(icon.nodes.length, 6);
+  assert.ok(icon.edges.length > 0);
+  assert.equal(buildNeuralNet(500).nodes.length, 40); // teto de desempenho
+});
+
 test("anel e ícone: limites de desempenho e movimento reduzido", () => {
   const orb = readFileSync(new URL("../components/henry/HenryOrb.jsx", import.meta.url), "utf8");
   assert.match(orb, /Math\.min\(2, window\.devicePixelRatio/);
   assert.match(orb, /Math\.min\(60, fibers\)/);
   assert.match(orb, /prefers-reduced-motion: reduce/);
   assert.match(orb, /document\.hidden/);
+  assert.match(orb, /buildNeuralNet\(nodes\)/);
+  assert.match(orb, /pulses\.length >= 36/); // teto de sinapses por quadro
   const view = readFileSync(new URL("../components/henry/HenryVoiceView.jsx", import.meta.url), "utf8");
   assert.match(view, /motion-reduce:transition-none/);
   assert.match(view, /pointer-events-none fixed/);
   for (const match of view.matchAll(/fibers=\{(\d+)\}/g)) assert.ok(Number(match[1]) <= 60);
+  for (const match of view.matchAll(/nodes=\{(\d+)\}/g)) assert.ok(Number(match[1]) <= 8); // ícone: poucos nós
+  assert.match(view, /Henry pensando…/); // leitor de tela
 });
 
 test("rota: fala em partes só com o mesmo texto já liberado pela barreira", () => {

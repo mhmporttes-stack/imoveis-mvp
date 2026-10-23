@@ -162,11 +162,12 @@ export default function HenryVoiceView({
             style={{ background: BACKDROP, width: MOBILE_BIG, height: MOBILE_BIG, transform: `scale(${box / MOBILE_BIG})`, transformOrigin: "bottom left" }}
             aria-label={`Falar com o Henry. ${status}`}
           >
-            <HenryOrb size={MOBILE_BIG} fibers={18} points={48} alpha={0.45} lineWidth={0.8} getSignal={getSignal} sleep={sleeping && !engaged} />
+            <HenryOrb size={MOBILE_BIG} fibers={18} points={48} alpha={0.45} lineWidth={0.8} nodes={6} getSignal={getSignal} sleep={sleeping && !engaged} />
             {inConversation ? <ConversationDot /> : null}
           </button>
           <HenrySceneStyles />
           <HenryIconSearchHint searching={searching} broker={foundBroker} size={box} />
+          <ThinkingStatus searching={searching} />
         </div>
         {!tapToTalk ? (
           <span className="pointer-events-auto mb-1.5">
@@ -236,12 +237,13 @@ export default function HenryVoiceView({
             aria-label={`Abrir o Henry. ${status}`}
             title={`Henry — ${heardHint || status}`}
           >
-            <HenryOrb size={ICON_BIG} fibers={24} points={60} alpha={0.42} lineWidth={0.8} getSignal={getSignal} sleep={sleeping && !engaged} />
+            <HenryOrb size={ICON_BIG} fibers={24} points={60} alpha={0.42} lineWidth={0.8} nodes={7} getSignal={getSignal} sleep={sleeping && !engaged} />
             {capturing ? <CaptureDot className="absolute right-3 top-3" /> : null}
             {inConversation ? <ConversationDot /> : null}
           </button>
           <HenrySceneStyles />
           <HenryIconSearchHint searching={searching} broker={foundBroker} size={box} />
+          <ThinkingStatus searching={searching} />
         </div>
       </div>
     );
@@ -319,10 +321,10 @@ export default function HenryVoiceView({
       <div className={`relative ${mobile ? "-translate-y-[14vh]" : ""}`}>
         {onTalk ? (
           <button type="button" onPointerDown={preventTouchSelection} onClick={onTalk} className="block rounded-full" aria-label={recording ? "Enviar o que eu falei" : "Tocar para falar com o Henry"}>
-            <HenryOrb size={orbSize} fibers={mobile ? 40 : 52} points={mobile ? 110 : 140} alpha={0.3} lineWidth={0.85} glow getSignal={getSignal} />
+            <HenryOrb size={orbSize} fibers={mobile ? 40 : 52} points={mobile ? 110 : 140} alpha={0.3} lineWidth={0.85} glow nodes={mobile ? 16 : 24} getSignal={getSignal} />
           </button>
         ) : (
-          <HenryOrb size={orbSize} fibers={mobile ? 40 : 52} points={mobile ? 110 : 140} alpha={0.3} lineWidth={0.85} glow getSignal={getSignal} />
+          <HenryOrb size={orbSize} fibers={mobile ? 40 : 52} points={mobile ? 110 : 140} alpha={0.3} lineWidth={0.85} glow nodes={mobile ? 16 : 24} getSignal={getSignal} />
         )}
         <HenryBrokerCards brokers={brokers} orbSize={orbSize} mobile={mobile} />
         <HenryMusicScene music={musicScene} orbSize={orbSize} mobile={mobile} />
@@ -436,6 +438,15 @@ function CaptureDot({ className = "" }) {
     <span className={`flex h-3 w-3 ${className}`} aria-label="Câmera capturando" role="status">
       <span className="absolute inline-flex h-3 w-3 animate-ping rounded-full opacity-75 motion-reduce:animate-none" style={{ background: "#F3DCA6" }} />
       <span className="relative inline-flex h-3 w-3 rounded-full" style={{ background: "#F3DCA6" }} />
+    </span>
+  );
+}
+
+// Leitor de tela: o anel mostra "pensando" pela rede neural; aqui o mesmo estado em texto (invisível na tela).
+function ThinkingStatus({ searching }) {
+  return (
+    <span className="sr-only" role="status" aria-live="polite">
+      {searching ? "Henry pensando…" : ""}
     </span>
   );
 }

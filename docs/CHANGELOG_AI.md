@@ -44,6 +44,15 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 
 
+### 2026-10-23 — Henry: rede neural no centro do anel ("pensando") e estados distinguíveis (HENRY-1)
+- **Data:** 2026-10-23
+- **Área:** Henry (voz)
+- **Alteração:** anel do Henry com 5 estados visuais vindos de UMA fonte (`henryOrbMode` no `getSignal`): parado escurecido; esperando (conversa aberta) com brilho pulsando no contorno; ouvindo; pensando/buscando com rede neural no centro (nós, filamentos, sinapses, tentáculos até os anéis; intensidade pelo assunto e pelos eventos de progresso; some em ~300 ms ao falar); falando. Também no ícone minimizado (poucos nós) e texto "Henry pensando…" para leitor de tela. Vitrine `?estado=…`.
+- **Motivo:** dono: "preciso poder identificar quando o Henry está pensando… ou quando ele simplesmente parou de conversar".
+- **Arquivos afetados:** `components/henry/henry-orb-states.mjs`, `components/henry/HenryOrb.jsx`, `components/henry/HenryVoiceView.jsx`, `components/henry/HenryVoiceAssistant.jsx` (só `getSignal`/`progressRef`), `app/dev/vitrine/henry/page.dev.jsx`, `app/dev/vitrine/_components/HenryDemo.jsx`, `tests/henry-voice-conversation.test.mjs`, `docs/BUSINESS_RULES.md`.
+- **Risco/observação:** só apresentação; nenhuma rota/regra de voz mudou. Desempenho medido só na vitrine (Chromium do container) — conferir no i7-6700 e no iPhone. "Esperando" depende do microfone ligado (no celular de tocar-para-falar não aparece, porque lá sempre é preciso tocar).
+- **Autor:** Claude Code (crm-editor)
+
 ### 2026-10-23 — Envio à CCA: destino no texto e envio direto sem análise da IA (DOC-8)
 - **Data:** 2026-10-23
 - **Área:** Documentação/CCA

@@ -98,6 +98,7 @@ import {
   shouldHandleDesktopWake
 } from "@/lib/henry-desktop-core.mjs";
 import HenryVoiceView from "./HenryVoiceView";
+import { henryOrbMode, thinkingActivity } from "./henry-orb-states.mjs";
 import HenryCursor from "./HenryCursor";
 import { playHenryOpeningSound } from "./HenryOpeningScene";
 import { captureWebcamFrame } from "./webcam-capture";
@@ -324,6 +325,8 @@ export default function HenryVoiceAssistant() {
   const narrationKeyRef = useRef("");
   const narrationRef = useRef({ key: "", phrases: [], loading: false });
   const waitRef = useRef({ id: 0, startedAt: 0, replied: true, topic: "geral", lastAt: 0, names: [] });
+  // Eventos de progresso do pedido atual (rede neural do anel: mais atividade a cada etapa; zera ao começar a pensar).
+  const progressRef = useRef({ count: 0, at: 0 });
   const recentPhrasesRef = useRef([]);
   const narratingTextRef = useRef("");
   // Confirmação de escuta (dono, 2026-10-23): liga/desliga "Confirmar que ouviu", último item (nunca repete seguido), fim
@@ -388,6 +391,7 @@ export default function HenryVoiceAssistant() {
   }, []);
   const updatePhase = useCallback((value) => {
     busyAtRef.current = Date.now();
+    if (value === "thinking" && phaseRef.current !== "thinking") progressRef.current = { count: 0, at: 0 };
     phaseRef.current = value;
     setPhase(value);
     lastActivityRef.current = Date.now();
@@ -649,20 +653,30 @@ export default function HenryVoiceAssistant() {
     };
   }, [active, ensureAudioContext]);
 
-  // Sinal do anel (HenryOrb): estado + nível REAL do áudio. "Ouvindo" = alguém falando perto (resultado parcial do
-  // reconhecedor há menos de 1,5 s) ou o Henry esperando a pergunta; fora disso o anel só respira.
+  // Sinal do anel (HenryOrb): FONTE ÚNICA do estado visual (henryOrbMode) + nível REAL do áudio. "Ouvindo" = alguém
+  // falando perto (resultado parcial do reconhecedor há menos de 1,5 s) ou o Henry esperando a pergunta; "esperando" =
+  // conversa aberta sem ninguém falando; "pensando" = rede neural com atividade pelo assunto e pelos eventos de progresso.
   const getSignal = useCallback(() => {
-    const current = phaseRef.current;
-    if (current === "speaking") {
-      return { mode: "speaking", level: outAnalyserRef.current && meterActiveRef.current ? levelFrom(outAnalyserRef.current, meterBuffer) : 0.45 + Math.sin(Date.now() / 140) * 0.3 };
+    const now = Date.now();
+    const mode = henryOrbMode({
+      phase: phaseRef.current,
+      recording: Boolean(recordRef.current),
+      hearing: now - lastHeardRef.current < 1500,
+      micOn: shouldListenRef.current,
+      conversationOpen: conversationRef.current.active,
+      awaitingReply: isAwaitingReply(pendingReplyRef.current, now)
+    });
+    if (mode === "speaking") {
+      return { mode, level: outAnalyserRef.current && meterActiveRef.current ? levelFrom(outAnalyserRef.current, meterBuffer) : 0.45 + Math.sin(now / 140) * 0.3 };
     }
-    if (recordRef.current) return { mode: "listening", level: micAnalyserRef.current ? levelFrom(micAnalyserRef.current, meterBuffer) : 0.3 };
-    if (current === "thinking") return { mode: "thinking", level: 0.1 };
-    const hearing = current === "armed" || Date.now() - lastHeardRef.current < 1500;
-    if (hearing && shouldListenRef.current) {
-      return { mode: "listening", level: micAnalyserRef.current ? levelFrom(micAnalyserRef.current, meterBuffer) : 0.3 };
+    if (mode === "listening") return { mode, level: micAnalyserRef.current ? levelFrom(micAnalyserRef.current, meterBuffer) : 0.3 };
+    if (mode === "thinking") {
+      const wait = waitRef.current;
+      const progress = progressRef.current;
+      const topic = wait.replied ? "geral" : wait.topic; // transcrevendo: o assunto do pedido anterior não conta
+      return { mode, level: 0.1, activity: thinkingActivity({ topic, progress: progress.count }), burst: progress.at ? Math.exp(-(now - progress.at) / 700) : 0 };
     }
-    return { mode: "idle", level: 0 };
+    return { mode, level: 0 };
   }, []);
 
   // Economia de CPU: minimizado e ocioso por mais de 30 s → o anel para no último quadro (acorda com qualquer atividade).
@@ -1182,6 +1196,7 @@ export default function HenryVoiceAssistant() {
   // --- Cena de busca e narração ------------------------------------------------------------------------------------
   // Evento de progresso do servidor → assunto da cena, legenda e cards de corretor (até 3; o achado ganha os números).
   const applyProgress = useCallback((message) => {
+    progressRef.current = { count: progressRef.current.count + 1, at: Date.now() };
     let topic = typeof message.topic === "string" ? message.topic : "geral";
     if (message.music) {
       updateMusic(message.music);
