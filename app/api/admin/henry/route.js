@@ -21,7 +21,7 @@ import {
   transcribeHenryAudio,
   warmHenryReport
 } from "@/lib/henry-voice";
-import { HENRY_MAX_QUESTION_LENGTH, isHenryEligible, parseHenryImage, shouldUseHenryImage } from "@/lib/henry-voice-core.mjs";
+import { HENRY_FALLBACK_REPLY, HENRY_MAX_QUESTION_LENGTH, isHenryEligible, parseHenryImage, safeHenryReply, shouldUseHenryImage } from "@/lib/henry-voice-core.mjs";
 import { henryBrowserRate, henryEndWaitMs, henryStyleOptions, parseHenryStylePatch } from "@/lib/henry-voice-style.mjs";
 import { splitForSpeech } from "@/lib/henry-voice-conversation.mjs";
 import { henryInitialProgress } from "@/lib/henry-voice-narration.mjs";
@@ -73,7 +73,7 @@ export async function GET(request) {
   const auth = await requireHenryOwner(request);
   if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status });
   try {
-    const [{ enabled, vision, webSearch, mobileWake, clientAlerts, teamArrivals, style }, dayTurns] = await Promise.all([readHenrySettings(), readHenryDayTurns().catch(() => [])]);
+    const [{ enabled, vision, webSearch, mobileWake, clientAlerts, teamArrivals, voiceNotices, style }, dayTurns] = await Promise.all([readHenrySettings(), readHenryDayTurns().catch(() => [])]);
     const provider = henryVoiceProvider();
     // Lista de vozes da ElevenLabs só para o cartão de configurações (?vozes=1); o ícone do canto não precisa dela.
     // Junto, o saldo de caracteres (GET /v1/user/subscription). 401/403 viram frase clara de permissão na tela.
@@ -107,6 +107,7 @@ export async function GET(request) {
       mobileWake,
       clientAlerts,
       teamArrivals,
+      voiceNotices, // "Avisos só por voz (sem card na tela)" — nasce ligado
       dayTurns: enabled ? dayTurns : [], // memória do dia: a tela cheia mostra a conversa de hoje (só texto)
       serverVoice: isHenryVoiceConfigured(),
       provider,
@@ -140,6 +141,7 @@ export async function PUT(request) {
   if (typeof body?.webSearch === "boolean") patch.webSearch = body.webSearch;
   if (typeof body?.clientAlerts === "boolean") patch.clientAlerts = body.clientAlerts;
   if (typeof body?.teamArrivals === "boolean") patch.teamArrivals = body.teamArrivals;
+  if (typeof body?.voiceNotices === "boolean") patch.voiceNotices = body.voiceNotices;
   if (body?.style !== undefined) {
     const parsed = parseHenryStylePatch(body.style);
     if (!parsed.ok) return NextResponse.json({ error: parsed.error }, { status: 400 });
@@ -176,12 +178,24 @@ function answerStream(auth, request, style) {
         }
       };
       const pending = [];
+      const startedAt = Date.now();
+      // Voz antecipada (dono, 2026-10-23: "ele demora muito para responder"): a 1ª frase da resposta já vai para a voz
+      // enquanto o modelo termina o resto. Só é usada se for EXATAMENTE a 1ª parte da resposta final (que já passou pela
+      // barreira da fala); senão é descartada (custo de uma fala curta).
+      let early = null;
+      const onFirstSentence = (sentence) => {
+        const safe = safeHenryReply(sentence);
+        if (!safe || safe === HENRY_FALLBACK_REPLY) return;
+        const ttsStarted = Date.now();
+        early = { text: safe, audio: synthesizeHenrySpeech(auth, safe, style).then((audio) => ({ audio, ms: Date.now() - ttsStarted })) };
+      };
       // Pedido de música (texto ou resposta da música do bom dia) já abre com o tópico "music" (dono, 2026-10-23).
       send(henryInitialProgress(request.mode, { question: request.question, morningStep: request.morning?.step || "" }));
       try {
         const answer = await answerHenry(auth, {
           ...request,
           style,
+          onFirstSentence,
           onProgress: ({ say, ...event }) => {
             send(event);
             if (say) pending.push(synthesizeHenryShort(auth, say, style).then((audio) => audio && send({ narration: { text: say, audio } })).catch(() => {}));
@@ -189,11 +203,26 @@ function answerStream(auth, request, style) {
         });
         const navigate = navigationPayload(answer.navigate);
         send({ reply: answer.reply, navigate, openUrl: openUrlPayload(answer.openUrl), detail: answer.detail || null, spotify: spotifyPayload(answer.spotify), morning: morningPayload(answer.morning), scene: answer.scene || null, ...(answer.memoryCleared ? { memoryCleared: true } : {}), ...(answer.musicPlaying ? { musicPlaying: true } : {}), ...(answer.spotifyMoved ? { spotifyMoved: true } : {}) });
+        const replyAt = Date.now();
         const parts = splitForSpeech(answer.reply);
-        const audios = parts.map((text, index) => synthesizeHenrySpeech(auth, text, style, { previousText: parts[index - 1] || "", nextText: parts[index + 1] || "" }));
+        const reuse = early && parts[0] === early.text;
+        const ttsStarted = Date.now();
+        const audios = parts.map((text, index) => (index === 0 && reuse ? early.audio.then((result) => result.audio) : synthesizeHenrySpeech(auth, text, style, { previousText: parts[index - 1] || "", nextText: parts[index + 1] || "" })));
+        let firstPartAt = 0;
         for (let index = 0; index < parts.length; index += 1) {
           send({ part: index, text: parts[index], audio: await audios[index] });
+          if (!index) firstPartAt = Date.now();
         }
+        // Tempos de cada etapa (ms, sem conteúdo): no log do servidor e para o console de diagnóstico da tela.
+        const timing = {
+          ...(answer.timing || {}),
+          ateResposta: replyAt - startedAt,
+          tts1: firstPartAt ? firstPartAt - (reuse ? replyAt : ttsStarted) : null,
+          ate1aParte: firstPartAt ? firstPartAt - startedAt : null,
+          vozAntecipada: Boolean(reuse)
+        };
+        console.info(`[henry] tempos: resposta=${timing.ateResposta}ms modelo=${timing.modelMs ?? "-"}ms 1o_token=${timing.firstTokenMs ?? "-"}ms ferramentas=${timing.toolsMs ?? 0}ms rodadas=${timing.rounds ?? "-"} 1a_parte=${timing.ate1aParte ?? "-"}ms antecipada=${reuse ? "sim" : "nao"} ferramentas_ligadas=${timing.tools === false ? "nao" : "sim"}.`);
+        send({ timing });
         send({ done: true });
       } catch (error) {
         console.warn(`[henry] pergunta falhou: ${error?.status ? error.message : error?.name === "TimeoutError" ? "timeout" : "erro"}.`);
@@ -257,8 +286,8 @@ export async function POST(request) {
   //   { action: "phrase", text } → { audio } (só frases da lista fechada do aviso e a repetição curta da pergunta aberta).
   if (body?.mode === "client_alerts") {
     try {
-      const { enabled, clientAlerts, teamArrivals, style } = await readHenrySettings();
-      if (!enabled || (!clientAlerts && !teamArrivals)) return NextResponse.json({ disabled: true, events: [] });
+      const { enabled, clientAlerts, teamArrivals, voiceNotices, style } = await readHenrySettings();
+      if (!enabled || (!clientAlerts && !teamArrivals && !voiceNotices)) return NextResponse.json({ disabled: true, events: [] });
       const kinds = { clients: clientAlerts, arrivals: teamArrivals };
       const voice = body?.voice !== false;
       if (body?.action === "poll") {
@@ -271,7 +300,8 @@ export async function POST(request) {
       if (body?.action === "speak") {
         const clientIds = (Array.isArray(body?.clientIds) ? body.clientIds : []).filter((id) => isHenryClientId(id)).slice(0, 20);
         const userIds = (Array.isArray(body?.userIds) ? body.userIds : []).filter((id) => isHenryClientId(id)).slice(0, 20); // id de usuário: mesmo formato uuid
-        return NextResponse.json(await speakHenryClientAlerts(auth, { clientIds, userIds, ...kinds, recent: body?.recent && typeof body.recent === "object" ? body.recent : null, away: body?.away === true, style, voice }));
+        const noticeIds = voiceNotices ? (Array.isArray(body?.noticeIds) ? body.noticeIds : []).filter((id) => isHenryClientId(id)).slice(0, 30) : []; // avisos da Central (uuid)
+        return NextResponse.json(await speakHenryClientAlerts(auth, { clientIds, userIds, noticeIds, ...kinds, recent: body?.recent && typeof body.recent === "object" ? body.recent : null, away: body?.away === true, style, voice }));
       }
       if (body?.action === "phrase") {
         return NextResponse.json({ audio: voice ? await henryAlertPhraseAudio(auth, typeof body?.text === "string" ? body.text : "", style) : null });
@@ -316,8 +346,9 @@ export async function POST(request) {
       const [{ enabled }, allowedRate] = await Promise.all([readHenrySettings(), checkPublicRateLimit(`henry:${auth.profile?.id}`, { windowSeconds: 60, maxAttempts: 20 })]);
       if (!enabled) return NextResponse.json({ error: "O Henry está desligado. Ligue em Alexa e Henry." }, { status: 409 });
       if (!allowedRate) return NextResponse.json({ error: "Muitas perguntas seguidas. Espere um minuto." }, { status: 429 });
+      const sttStarted = Date.now();
       const text = await transcribeHenryAudio(auth, audio, { durationMs });
-      return NextResponse.json({ text });
+      return NextResponse.json({ text, ms: Date.now() - sttStarted }); // ms = tempo da ElevenLabs (diagnóstico de latência)
     } catch (error) {
       return NextResponse.json({ error: error?.status ? error.message : "Não consegui entender o áudio agora. Tente de novo." }, { status: error?.status || 502 });
     }

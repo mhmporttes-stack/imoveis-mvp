@@ -225,6 +225,6 @@ test("pergunta aberta sem resposta: repete curta uma vez; aviso não repete (o a
   assert.match(server, /\(musicState = await morningMusicState\(\)\)\.playing/);
   assert.match(server, /prefix: MORNING_ALREADY_PLAYING/);
   const ui = readFileSync(new URL("../components/henry/HenryVoiceAssistant.jsx", import.meta.url), "utf8");
-  assert.match(ui, /intent\.kind === "empty" && missedReplyRef\.current\(\)/);
+  assert.match(ui, /intent\.reason === "empty" && missedReplyRef\.current\(\)/); // gravação do Henry: vazia repete a pergunta (dono, 2026-10-23)
   assert.match(ui, /holdSpotifyDuck\(HENRY_REPLY_WINDOW_MS\)/);
 });

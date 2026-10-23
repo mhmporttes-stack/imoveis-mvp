@@ -44,6 +44,7 @@ export default function HenrySettingsCard() {
             webSearch: data?.webSearch !== false,
             clientAlerts: data?.clientAlerts !== false,
             teamArrivals: data?.teamArrivals !== false,
+            voiceNotices: data?.voiceNotices !== false,
             serverVoice: Boolean(data?.serverVoice),
             provider: data?.provider || "browser",
             providerLabel: data?.providerLabel || "voz do navegador",
@@ -75,7 +76,7 @@ export default function HenrySettingsCard() {
       });
       const data = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(data?.error || "Não foi possível salvar.");
-      setState((current) => ({ ...current, enabled: data.enabled, vision: data.vision, mobileWake: data.mobileWake === true, webSearch: data.webSearch !== false, clientAlerts: data.clientAlerts !== false, teamArrivals: data.teamArrivals !== false }));
+      setState((current) => ({ ...current, enabled: data.enabled, vision: data.vision, mobileWake: data.mobileWake === true, webSearch: data.webSearch !== false, clientAlerts: data.clientAlerts !== false, teamArrivals: data.teamArrivals !== false, voiceNotices: data.voiceNotices !== false }));
       window.location.reload(); // o ícone do canto lê a configuração ao montar
     } catch (saveError) {
       setError(saveError?.message || "Não foi possível salvar.");
@@ -203,6 +204,24 @@ export default function HenrySettingsCard() {
                 className={`rounded-control px-5 py-2.5 text-sm font-bold disabled:opacity-60 ${state.teamArrivals ? "border border-line text-navy" : "bg-navy text-white"}`}
               >
                 {state.teamArrivals ? "Desligar" : "Ligar"}
+              </button>
+            </div>
+            <div className="mt-4 flex flex-wrap items-center justify-between gap-4 rounded-control border border-line p-4">
+              <div className="max-w-xl">
+                <p className="text-sm font-black text-navy">Avisos só por voz (sem card na tela)</p>
+                <p className="mt-1 text-sm text-muted">
+                  Os avisos informativos da Central de Alertas deixam de aparecer como card na sua tela: o Henry chama (“Ô, patrão?”) e conta quando você
+                  responder. “Henry, leia os avisos” fala tudo o que estiver acumulado. Vale só com o Henry ligado neste aparelho, fora do mudo e das 7h às
+                  22h — fora disso os cards voltam. As janelas que bloqueiam o CRM continuam na tela.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => save("voiceNotices")}
+                disabled={Boolean(saving) || !state.enabled}
+                className={`rounded-control px-5 py-2.5 text-sm font-bold disabled:opacity-60 ${state.voiceNotices ? "border border-line text-navy" : "bg-navy text-white"}`}
+              >
+                {state.voiceNotices ? "Desligar" : "Ligar"}
               </button>
             </div>
             </>

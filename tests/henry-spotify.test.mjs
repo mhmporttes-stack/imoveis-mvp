@@ -225,7 +225,7 @@ test("open_spotify: payload validado na rota, fala fixa, tela abre na mesma aba 
   const route = readFileSync(new URL("../app/api/admin/henry/route.js", import.meta.url), "utf8");
   assert.match(route, /isSpotifyUri\(spotify\.uri\)/);
   const voice = readFileSync(new URL("../lib/henry-voice.js", import.meta.url), "utf8");
-  assert.match(voice, /if \(context\.spotify\) replyText = "Abrindo o Spotify…";/);
+  assert.match(voice, /if \(context\.spotify && musicOnly\) replyText = "Abrindo o Spotify…";/); // pedido só de música (composto fica com o modelo)
   const play = readFileSync(new URL("../app/api/admin/henry/spotify/play/route.js", import.meta.url), "utf8");
   assert.match(play, /requireAdminApi\(request\)/);
   assert.match(play, /assertHenrySpotifyOwner\(auth\)/);

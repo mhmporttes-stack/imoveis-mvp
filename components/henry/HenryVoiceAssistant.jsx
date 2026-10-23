@@ -53,7 +53,14 @@ import {
   henryAsksQuestion,
   isAwaitingReply,
   openPendingReply,
-  repeatQuestionFor
+  repeatQuestionFor,
+  RECORD_START_GRACE_MS,
+  RECORD_VOICE_CONFIRM_TICKS,
+  SPONTANEOUS_MAX_AGE_MS,
+  canSpeakSpontaneously,
+  henryLatencyBreakdown,
+  recordLevelThreshold,
+  triggeredTranscriptIntent
 } from "@/lib/henry-voice-conversation.mjs";
 import { henryReserveVoiceChain, pickBestBrowserVoice, pronounceForSpeech, splitSentences } from "@/lib/henry-voice-providers.mjs";
 import { MUSIC_TOPIC, henryMusicIntent, mergeHenryMusic, musicQueryFromText, normalizeHenryScene, pickWaitPhrase, rememberPhrase, shouldNarrate, spotifyDeviceRequestKind } from "@/lib/henry-voice-narration.mjs";
@@ -69,7 +76,12 @@ import {
   isAlertHour,
   mergeAlertPending,
   pickAlertPhrase,
-  pruneAlertPending
+  pruneAlertPending,
+  HENRY_NOTICE_DONE_EVENT,
+  HENRY_NOTICE_ITEMS_EVENT,
+  HENRY_VOICE_NOTICES_EVENT,
+  isReadAlertsCommand,
+  noticePendingItems
 } from "@/lib/henry-voice-client-alerts-core.mjs";
 import { saoPauloNow } from "@/lib/alexa-config-core.mjs";
 import { morningPlayRequest, morningPlayWindow } from "@/lib/henry-morning-core.mjs";
@@ -152,6 +164,41 @@ function claimAlertLeader(tabId) {
   }
 }
 const IDLE_SLEEP_MS = 30000;
+
+// Diagnóstico (dono, 2026-10-23: "ouve e não responde", "demora muito"): motivo de cada transcrição descartada e tempos
+// de cada etapa, só no console do navegador e num contador da página (window.__henryDebug). Nunca o texto nem o áudio.
+function henryDebug(event, data = {}) {
+  try {
+    const store = (window.__henryDebug ||= { discards: {}, timings: [] });
+    if (event === "descarte" && data.reason) store.discards[data.reason] = (store.discards[data.reason] || 0) + 1;
+    if (event === "tempos") store.timings = [...store.timings, { at: Date.now(), ...data }].slice(-20);
+    console.info(`[henry] ${event}`, data);
+  } catch {
+    // console indisponível: segue
+  }
+}
+
+// Dia de São Paulo (chave das frases de espera já usadas hoje).
+const todayKey = () => new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(new Date());
+// Frases de espera/despedida já faladas HOJE neste aparelho (dono, 2026-10-23: "vocabulário muito repetitivo"): nenhuma
+// se repete no dia até o banco do assunto acabar (só os ids, nada da conversa).
+const USED_WAITS_KEY = "mm-henry-wait-used";
+function readUsedWaits() {
+  try {
+    const value = JSON.parse(window.localStorage.getItem(USED_WAITS_KEY) || "null");
+    return value?.day === todayKey() && Array.isArray(value.ids) ? value.ids : [];
+  } catch {
+    return [];
+  }
+}
+function rememberUsedWait(id) {
+  try {
+    window.localStorage.setItem(USED_WAITS_KEY, JSON.stringify({ day: todayKey(), ids: [...readUsedWaits().filter((item) => item !== id), id].slice(-120) }));
+  } catch {
+    // armazenamento cheio: vale só a memória da página
+  }
+}
+const MUSIC_FINAL_STAGES = new Set(["playing", "error", "control", "device", "opening"]);
 const meterBuffer = typeof Uint8Array === "undefined" ? null : new Uint8Array(1024);
 
 // Blob da gravação → data URL (só na memória; vai no corpo do pedido e é descartado).
@@ -186,6 +233,8 @@ export default function HenryVoiceAssistant() {
   const [desktop, setDesktop] = useState(false);
   const [mobileWake, setMobileWake] = useState(false);
   const [alertsOn, setAlertsOn] = useState(false);
+  // "Avisos só por voz (sem card na tela)" (dono, 2026-10-23; nasce ligado): os informativos da Central viram aviso do Henry.
+  const [voiceNotices, setVoiceNotices] = useState(false);
   const [pendingAlerts, setPendingAlerts] = useState(0);
   // stage: idle | calling (falando o vocativo) | waiting (microfone aberto, esperando "pode falar") | telling (falando a
   // informação). afterAsk = uma pergunta normal está em andamento (ao terminar, oferece o aviso pendente).
@@ -282,6 +331,7 @@ export default function HenryVoiceAssistant() {
   // Música (dono, 2026-10-23): cena do Spotify do pedido atual (eventos reais do stream) e "Tocando agora" do player.
   const [music, setMusic] = useState(null);
   const musicRef = useRef(null);
+  const deferredTopicRef = useRef(""); // assunto de dados que chegou durante a cena da música (pedido composto)
   const updateMusic = useCallback((next) => {
     const merged = next === null ? null : mergeHenryMusic(musicRef.current, next);
     musicRef.current = merged;
@@ -321,7 +371,19 @@ export default function HenryVoiceAssistant() {
     setListenPrompt(next);
   }, [phase]);
 
+  // Marcas de tempo do pedido atual (fim da fala → transcrição → resposta → 1º áudio → começou a tocar), só números.
+  const latencyRef = useRef({});
+  // Última atividade (fala dele, pedido, gravação): fala espontânea só depois de ~3 s de calma (canSpeakSpontaneously).
+  const busyAtRef = useRef(0);
+  const spontaneousRef = useRef([]);
+  // Fila da fala espontânea (dono, 2026-10-23: "do nada ele corta e começa a falar outra coisa"): nada interrompe uma
+  // fala dele nem a escuta da resposta do dono. kind repetido substitui o anterior; allowAwaiting = continuação da MESMA
+  // pergunta aberta (2º chamado do aviso, repetição curta), que pode tocar enquanto a janela da resposta ainda conta.
+  const saySpontaneous = useCallback((kind, run, { allowAwaiting = false } = {}) => {
+    spontaneousRef.current = [...spontaneousRef.current.filter((item) => item.kind !== kind), { kind, run, allowAwaiting, at: Date.now() }];
+  }, []);
   const updatePhase = useCallback((value) => {
+    busyAtRef.current = Date.now();
     phaseRef.current = value;
     setPhase(value);
     lastActivityRef.current = Date.now();
@@ -373,7 +435,8 @@ export default function HenryVoiceAssistant() {
           setTurns(restored);
         }
         setMobileWake(data?.mobileWake === true);
-        setAlertsOn(data?.clientAlerts !== false || data?.teamArrivals !== false);
+        setAlertsOn(data?.clientAlerts !== false || data?.teamArrivals !== false || data?.voiceNotices !== false);
+        setVoiceNotices(data?.voiceNotices !== false);
       })
       .catch(() => alive && setEnabled(false))
       .finally(() => alive && setReady(true));
@@ -870,6 +933,14 @@ export default function HenryVoiceAssistant() {
     queue.narrating = Boolean(clip.narration);
     narratingTextRef.current = clip.narration ? clip.text : "";
     currentClipRef.current = { text: clip.text || "", prevText: currentClipRef.current.text, startedAt: Date.now() };
+    busyAtRef.current = Date.now();
+    if (!clip.narration) {
+      const marks = latencyRef.current;
+      if (marks.asked && !marks.playing) {
+        marks.playing = Date.now();
+        henryDebug("tempos", henryLatencyBreakdown(marks));
+      }
+    }
     const advance = () => {
       if (speechQueueRef.current === queue) playNextRef.current();
     };
@@ -1015,22 +1086,28 @@ export default function HenryVoiceAssistant() {
       } else updateMusic({ stage: "error", error: String(data?.reply || "O Spotify não respondeu agora.").slice(0, 80) });
     }
     if (!data?.reply || requestIdRef.current !== requestId) return;
-    const withReply = [...turnsRef.current, { role: "assistant", text: data.reply }];
-    turnsRef.current = withReply;
-    setTurns(withReply);
-    beginSpeech(data.reply);
-    enqueueClip({ audio: data.audio || null, text: data.reply });
-    endSpeech();
-  }, [beginSpeech, endSpeech, enqueueClip, markMusicPlayed, updateMusic]);
+    // Chega ~10 s depois: entra na fila da fala espontânea (nunca corta outra fala nem a escuta do dono).
+    saySpontaneous("spotify", () => {
+      if (requestIdRef.current !== requestId) return; // o dono já pediu outra coisa
+      const withReply = [...turnsRef.current, { role: "assistant", text: data.reply }];
+      turnsRef.current = withReply;
+      setTurns(withReply);
+      beginSpeech(data.reply);
+      enqueueClip({ audio: data.audio || null, text: data.reply });
+      endSpeech();
+    });
+  }, [beginSpeech, endSpeech, enqueueClip, markMusicPlayed, saySpontaneous, updateMusic]);
 
   // Despedida na voz do Henry ("obrigado, Henry"): do mesmo cache das frases de espera, sem repetir as últimas 5. Sem voz
   // do servidor: só o som de fim (nunca a voz do navegador).
   const sayGoodbye = useCallback(() => {
     const byes = narrationRef.current.phrases.filter((phrase) => phrase.topics?.includes("bye"));
     if (!byes.length || mutedRef.current) return;
-    const choice = pickWaitPhrase({ topic: "bye", recentIds: recentPhrasesRef.current, phrases: byes });
+    const usedToday = [...readUsedWaits(), ...recentPhrasesRef.current];
+    const choice = pickWaitPhrase({ topic: "bye", recentIds: usedToday, phrases: byes, avoid: usedToday.length });
     if (!choice?.audio?.base64) return;
     recentPhrasesRef.current = rememberPhrase(recentPhrasesRef.current, choice.id);
+    rememberUsedWait(choice.id);
     speechQueueRef.current = { clips: [{ audio: choice.audio, text: choice.text, narration: true }], playing: false, done: true };
     playNextRef.current();
   }, []);
@@ -1038,12 +1115,22 @@ export default function HenryVoiceAssistant() {
   // --- Cena de busca e narração ------------------------------------------------------------------------------------
   // Evento de progresso do servidor → assunto da cena, legenda e cards de corretor (até 3; o achado ganha os números).
   const applyProgress = useCallback((message) => {
-    const topic = typeof message.topic === "string" ? message.topic : "geral";
-    waitRef.current = { ...waitRef.current, topic };
+    let topic = typeof message.topic === "string" ? message.topic : "geral";
     if (message.music) {
       updateMusic(message.music);
       if (message.music.stage === "playing") markMusicPlayed();
     }
+    // Pedido composto ("toca X e me fala do Gabriel", dono 2026-10-23: a cena da música não rodou): a cena do Spotify
+    // segue até a música chegar ao fim (tocando/erro); o assunto de dados que chegou no meio entra logo depois.
+    const musicBusy = Boolean(musicRef.current) && !MUSIC_FINAL_STAGES.has(musicRef.current.stage);
+    if (topic !== MUSIC_TOPIC && waitRef.current.topic === MUSIC_TOPIC && musicBusy) {
+      deferredTopicRef.current = topic;
+      topic = MUSIC_TOPIC;
+    } else if (topic === MUSIC_TOPIC && !musicBusy && deferredTopicRef.current) {
+      topic = deferredTopicRef.current;
+      deferredTopicRef.current = "";
+    }
+    waitRef.current = { ...waitRef.current, topic };
     setScene((current) => {
       let brokers = current.brokers;
       const broker = message.broker;
@@ -1062,7 +1149,8 @@ export default function HenryVoiceAssistant() {
         brokers = [...others, previous && !card.found ? previous : { ...previous, ...card, stats: card.stats.length ? card.stats : previous?.stats || [] }].slice(-3);
       }
       // Música nunca liga a cena de números (dono, 2026-10-23).
-      return { topic, label: String(message.label || "").slice(0, 80), brokers, live: topic === MUSIC_TOPIC ? false : current.live || message.progress !== "inicio" };
+      const label = topic === message.topic || !current.label ? String(message.label || "").slice(0, 80) : current.label;
+      return { topic, label, brokers, live: topic === MUSIC_TOPIC ? false : current.live || message.progress !== "inicio" };
     });
   }, [markMusicPlayed, updateMusic]);
 
@@ -1078,10 +1166,12 @@ export default function HenryVoiceAssistant() {
       const waits = phrases.filter((phrase) => !phrase.topics?.includes("bye")); // despedidas só no fim da conversa
       const hasAudio = Boolean(name) || waits.length > 0;
       if (!shouldNarrate({ now: Date.now(), startedAt: wait.startedAt, lastNarrationAt: wait.lastAt, playing: queue.playing, replied: wait.replied || wait.id !== requestIdRef.current, hasAudio })) return;
-      const choice = name || pickWaitPhrase({ topic: wait.topic, recentIds: recentPhrasesRef.current, phrases: waits });
+      const usedToday = [...readUsedWaits(), ...recentPhrasesRef.current];
+      const choice = name || pickWaitPhrase({ topic: wait.topic, recentIds: usedToday, phrases: waits, avoid: usedToday.length });
       if (!choice?.audio?.base64) return;
       waitRef.current = { ...wait, lastAt: Date.now(), names: name ? wait.names.filter((item) => item !== name) : wait.names };
       recentPhrasesRef.current = rememberPhrase(recentPhrasesRef.current, choice.id);
+      if (!name) rememberUsedWait(choice.id);
       queue.clips.push({ audio: choice.audio, text: choice.text, narration: true });
       if (!queue.playing) playNextRef.current();
     }, 200);
@@ -1094,6 +1184,18 @@ export default function HenryVoiceAssistant() {
   const ask = useCallback(async ({ mode, question, shown }) => {
     // Resposta ao chamado do aviso digitada ou transcrita (a falada já passa por handleFinal).
     if (mode === "question" && alertAnswerRef.current(question)) return;
+    // "Henry, leia os avisos" (dono, 2026-10-23): fala tudo o que está acumulado, sem ir ao modelo.
+    if (mode === "question" && isReadAlertsCommand(question)) {
+      const withTurn = [...turnsRef.current, { role: "user", text: shown || question }];
+      turnsRef.current = withTurn;
+      setTurns(withTurn);
+      abortRequest();
+      stopSpeaking();
+      setNotice("");
+      startConversation();
+      readAlertsRef.current?.();
+      return;
+    }
     // App de desktop: "desliga a tela"/"liga a tela" é feito aqui mesmo pelo app (não vai ao servidor).
     const screen = mode === "question" && desktopBridgeRef.current ? detectScreenCommand(question) : null;
     if (screen) {
@@ -1123,6 +1225,10 @@ export default function HenryVoiceAssistant() {
     setNotice("");
     const id = requestIdRef.current + 1;
     requestIdRef.current = id;
+    const askedAt = Date.now();
+    const previousMarks = latencyRef.current;
+    latencyRef.current = previousMarks.transcribed && !previousMarks.asked && askedAt - previousMarks.transcribed < 4000 ? { ...previousMarks, asked: askedAt } : { asked: askedAt };
+    const marks = latencyRef.current;
     const controller = new AbortController();
     abortRef.current = controller;
     const history = conversationHistory(turnsRef.current, conversationRef.current.historyStart);
@@ -1135,6 +1241,8 @@ export default function HenryVoiceAssistant() {
     const musicIntent = henryMusicIntent({ mode, question, morningStep: morning?.step || "" });
     const startTopic = musicIntent ? MUSIC_TOPIC : mode === "report" ? "relatorio" : "geral";
     waitRef.current = { id, startedAt: Date.now(), replied: false, topic: startTopic, lastAt: 0, names: [] };
+    // Pedido novo: toda cena do pedido anterior sai (cards de corretor, música, assunto adiado) — nenhuma fica órfã.
+    deferredTopicRef.current = "";
     setScene({ topic: startTopic, label: "", brokers: [], live: mode === "report" && !musicIntent });
     updateMusic(null);
     // Troca de aparelho ("toca na Alexa", "volta pro computador"): cena do aparelho, sem campo de busca.
@@ -1270,10 +1378,14 @@ export default function HenryVoiceAssistant() {
             continue;
           }
           if (typeof message?.reply === "string") {
+            if (!marks.reply) marks.reply = Date.now();
             if (message.memoryCleared) clearTurns();
             onReply(message.reply, message.navigate, message.detail || null, message.scene || null, message.openUrl || null, message.spotify || null, message.morning || null, message.musicPlaying === true, message.spotifyMoved === true);
           }
-          else if (typeof message?.text === "string") enqueueClip({ audio: message.audio, text: message.text });
+          else if (typeof message?.text === "string") {
+            if (!marks.firstAudio) marks.firstAudio = Date.now();
+            enqueueClip({ audio: message.audio, text: message.text });
+          } else if (message?.timing && typeof message.timing === "object") marks.server = message.timing;
           else if (message?.done) endSpeech();
           else if (typeof message?.progress === "string") applyProgress(message);
           else if (message?.narration?.audio?.base64 && waitRef.current.id === id) waitRef.current.names.push({ id: `n:${message.narration.text}`, text: message.narration.text, audio: message.narration.audio });
@@ -1389,6 +1501,7 @@ export default function HenryVoiceAssistant() {
         return;
       }
       updatePhase("idle");
+      henryDebug("descarte", { reason: session.discard === "cancel" ? "cancelada" : session.discard === "silence" ? "sem_voz" : "curta_demais" });
       if (session.discard !== "cancel" && missedReplyRef.current({ silent: session.discard === "silence" })) return; // pergunta aberta: repete curta, sem "Não ouvi"
       if (session.discard === "silence") setNotice("Não ouvi nada. Toque no Henry e fale.");
       return;
@@ -1397,6 +1510,7 @@ export default function HenryVoiceAssistant() {
     requestIdRef.current = id;
     const controller = new AbortController();
     abortRef.current = controller;
+    latencyRef.current = { speechEnd: session.lastVoiceAt || Date.now() };
     updatePhase("thinking");
     try {
       const audio = await blobToDataUrl(blob);
@@ -1407,8 +1521,12 @@ export default function HenryVoiceAssistant() {
         signal: controller.signal
       });
       const data = await response.json().catch(() => ({}));
-      if (requestIdRef.current !== id) return;
+      if (requestIdRef.current !== id) {
+        henryDebug("descarte", { reason: "pedido_mais_novo" }); // outro pedido começou enquanto transcrevia
+        return;
+      }
       if (!response.ok) throw new Error(data?.error || "Não consegui entender o áudio agora. Tente de novo.");
+      latencyRef.current = { ...latencyRef.current, transcribed: Date.now(), ...(Number.isFinite(data?.ms) ? { sttMs: data.ms } : {}) };
       recordingDoneRef.current?.(joinCutTranscripts(session.prefix, String(data?.text || "").trim()), session);
     } catch (error) {
       if (error?.name === "AbortError" || requestIdRef.current !== id) return;
@@ -1445,7 +1563,8 @@ export default function HenryVoiceAssistant() {
     abortRequest();
     setNotice("");
     setAudioSession("play-and-record");
-    const session = { chunks: [], startedAt: Date.now(), firstVoiceAt: 0, lastVoiceAt: 0, heardVoice: false, finished: false, discard: false, autoCut: false, prefix, continued, vad: false };
+    const session = { chunks: [], startedAt: Date.now(), firstVoiceAt: 0, lastVoiceAt: 0, heardVoice: false, finished: false, discard: false, autoCut: false, prefix, continued, vad: false, floor: 0, floorReads: 0, loudTicks: 0 };
+    busyAtRef.current = Date.now();
     recordRef.current = session;
     setRecording(true);
     setRecordHeard(Boolean(prefix));
@@ -1498,18 +1617,31 @@ export default function HenryVoiceAssistant() {
       }
       session.timer = window.setInterval(() => {
         const now = Date.now();
+        busyAtRef.current = now;
         // Contexto suspenso (iOS) não mede: sem medidor, só o toque ou o limite de 25 s param.
         const hasMeter = Boolean(session.analyser) && audioCtxRef.current?.state === "running";
         const vad = vadRef.current;
-        const vadRunning = session.vad && vad.running;
-        const loud = hasMeter && levelFrom(session.analyser, meterBuffer) >= recordVoiceThreshold(session.heardVoice);
-        if (loud || (vadRunning && vad.speaking)) {
-          if (!session.heardVoice) setRecordHeard(true);
-          if (!session.firstVoiceAt) session.firstVoiceAt = now;
-          session.heardVoice = true;
-          session.lastVoiceAt = now;
-          lastHeardRef.current = now;
-          markActivity();
+        // Música tocando (dono, 2026-10-23: gravações presas até 25 s): o VAD ouve a letra como voz — com a música, só o
+        // medidor decide, contra o ruído de fundo medido no começo da gravação.
+        const vadRunning = session.vad && vad.running && !isMusicGuardActive(musicGuardRef.current);
+        const level = hasMeter ? levelFrom(session.analyser, meterBuffer) : 0;
+        // Primeiros ~350 ms: só mede o ruído de fundo (o fim da fala dele no alto-falante não conta como o dono falando).
+        if (hasMeter && now - session.startedAt < RECORD_START_GRACE_MS) {
+          session.floor = (session.floor * session.floorReads + level) / (session.floorReads + 1);
+          session.floorReads += 1;
+        } else {
+          const loudNow = hasMeter && level >= recordLevelThreshold({ heardVoice: session.heardVoice, floor: session.floor });
+          session.loudTicks = loudNow ? session.loudTicks + 1 : 0;
+          // Começo da voz: 2 leituras seguidas (~200 ms); depois de ouvir voz, 1 leitura já mantém a fala viva.
+          const loud = loudNow && (session.heardVoice || session.loudTicks >= RECORD_VOICE_CONFIRM_TICKS);
+          if (loud || (vadRunning && vad.speaking)) {
+            if (!session.heardVoice) setRecordHeard(true);
+            if (!session.firstVoiceAt) session.firstVoiceAt = now;
+            session.heardVoice = true;
+            session.lastVoiceAt = now;
+            lastHeardRef.current = now;
+            markActivity();
+          }
         }
         const decision = recordingDecision({
           startedAt: session.startedAt,
@@ -1523,7 +1655,9 @@ export default function HenryVoiceAssistant() {
           vadRunning,
           vadSpeaking: vad.speaking,
           vadEndedAt: vad.lastAt,
-          noSpeechMs: session.continued ? RECORD_CONTINUE_NO_SPEECH_MS : undefined
+          // Continuação de um corte com trecho já ouvido espera menos; continuação de transcrição vazia (nada ouvido
+          // ainda — a resposta pode estar chegando agora) espera o tempo normal.
+          noSpeechMs: session.continued && session.prefix ? RECORD_CONTINUE_NO_SPEECH_MS : undefined
         });
         // Corte automático por silêncio (não pelo limite de tempo): a transcrição curta/vazia pode continuar ouvindo.
         if (decision) stopRecording(decision === "discard" ? "silence" : false, { autoCut: decision === "send" && now - session.startedAt < RECORD_MAX_MS });
@@ -1543,27 +1677,30 @@ export default function HenryVoiceAssistant() {
   recordingDoneRef.current = (text, session) => {
     const awaitingReply = isAwaitingReply(pendingReplyRef.current);
     if (shouldContinueAfterCut(text, { autoCut: session.autoCut, continued: session.continued, awaitingReply })) {
+      henryDebug("continua", { reason: text ? "frase_cortada" : "vazia" });
       updatePhase("idle");
       startRecording({ prefix: text, continued: true });
       return;
     }
     const afterCut = session.autoCut || session.continued;
-    // Música tocando: o toque/atalho já é o chamado, mas trecho longo sem pausa e sem o nome é a letra (ignora).
-    if (isMusicGuardActive(musicGuardRef.current) && text && !musicListenGate(text, { explicit: true, awaitingReply }).accept) {
-      updatePhase("idle");
-      if (missedReplyRef.current()) return;
-      setNotice("Parecia a música tocando. Toque no Henry e fale de novo.");
-      return;
-    }
-    const intent = classifyTapUtterance(text);
+    // Gravação aberta pelo próprio Henry (toque, atalho, nome no app, depois de uma pergunta dele): texto NÃO vazio SEMPRE
+    // vira pedido (dono, 2026-10-23). Só o eco evidente da frase que ele acabou de falar é descartado. A guarda da música
+    // e da "letra" vale só para a escuta contínua sem gatilho (handleFinal), nunca aqui.
+    const spoken = [lastReplyRef.current, currentClipRef.current.text].filter(Boolean);
+    const intent = triggeredTranscriptIntent(text, { spoken, continued: session.continued });
     if (intent.kind === "report") askRef.current?.({ mode: "report", question: "", shown: text });
     else if (intent.kind === "question") askRef.current?.({ mode: "question", question: intent.question, shown: text });
-    else {
+    else if (intent.kind === "wake") {
+      // Só o nome: continua ouvindo (uma vez) para o pedido; de novo só o nome, vira pergunta (triggeredTranscriptIntent).
+      henryDebug("continua", { reason: "so_o_nome" });
+      updatePhase("idle");
+      startRecording({ prefix: "", continued: true });
+    } else {
+      henryDebug("descarte", { reason: intent.reason || "vazia" });
       updatePhase("idle");
       // Transcrição vazia com pergunta aberta (ex.: "Posso dar play?" e a música abafou o "pode"): repete curta, uma vez.
-      if (intent.kind === "empty" && missedReplyRef.current()) return;
-      if (intent.kind === "wake") setNotice("Pode perguntar: toque no Henry e fale.");
-      else setNotice(afterCut ? "Não ouvi nada. Toque no Henry e fale." : "Não entendi. Toque no Henry e fale de novo.");
+      if (intent.reason === "empty" && missedReplyRef.current()) return;
+      setNotice(intent.reason === "echo" ? "Ouvi a minha própria voz. Toque no Henry e fale de novo." : afterCut ? "Não ouvi nada. Toque no Henry e fale." : "Não entendi. Toque no Henry e fale de novo.");
     }
   };
 
@@ -1623,11 +1760,17 @@ export default function HenryVoiceAssistant() {
       });
       const data = await response.json().catch(() => ({}));
       const text = response.ok ? String(data?.text || "").trim() : "";
-      if (!text || phaseRef.current !== "speaking") return;
+      if (!text || phaseRef.current !== "speaking") {
+        henryDebug("descarte", { reason: text ? "interrupcao_tarde" : "interrupcao_vazia" });
+        return;
+      }
       const withMusic = isMusicGuardActive(musicGuardRef.current); // música tocando: só comando forte
       const named = withMusic ? detectMusicBargeIn(text) : detectBargeIn(text, clipText);
       const barge = named.interrupt || withMusic ? named : detectSpeechBargeIn(text, clipText, { final: true });
-      if (!barge.interrupt) return;
+      if (!barge.interrupt) {
+        henryDebug("descarte", { reason: "interrupcao_nao_confirmada" }); // trecho ouvido enquanto ele falava (eco/sala)
+        return;
+      }
       interrupt();
       startConversation();
       setHeard({ text: text.slice(0, 80), at: Date.now(), accepted: true });
@@ -1685,7 +1828,10 @@ export default function HenryVoiceAssistant() {
       const explicit = musicGuardRef.current.explicitUntil > Date.now();
       const awaitingReply = isAwaitingReply(pendingReplyRef.current); // ele perguntou: resposta curta vale sem o nome
       const gate = musicListenGate(text, { explicit, awaitingReply });
-      if (!gate.accept || isEchoOf(text, spoken)) return false;
+      if (!gate.accept || isEchoOf(text, spoken)) {
+        henryDebug("descarte", { reason: gate.accept ? "eco" : `musica_${gate.reason}` });
+        return false;
+      }
       musicGuardRef.current = { ...musicGuardRef.current, explicitUntil: 0 };
       duckSpotifyVolume();
       const intent = gate.named ? classifyArmedUtterance(text, spoken) : classifyTapUtterance(text);
@@ -1789,7 +1935,35 @@ export default function HenryVoiceAssistant() {
   }, [beginSpeech, endSpeech, enqueueClip]);
 
   // Chamado: só o vocativo (ou "posso falar?"), depois o microfone fica aberto esperando a resposta.
-  const callForAlert = useCallback(async ({ kind = "vocative", text = "", audio = null } = {}) => {
+  // Fila da fala espontânea: toca o primeiro da fila quando o Henry está ocioso há ~3 s (canSpeakSpontaneously).
+  useEffect(() => {
+    if (!active) return undefined;
+    const timer = window.setInterval(() => {
+      const queue = spontaneousRef.current;
+      if (!queue.length) return;
+      const now = Date.now();
+      const fresh = queue.filter((item) => now - item.at < SPONTANEOUS_MAX_AGE_MS);
+      if (fresh.length !== queue.length) spontaneousRef.current = fresh;
+      const next = fresh[0];
+      if (!next || mutedRef.current) return;
+      const free = canSpeakSpontaneously({
+        phase: phaseRef.current,
+        recording: Boolean(recordRef.current),
+        playing: speechQueueRef.current.playing,
+        awaitingReply: !next.allowAwaiting && isAwaitingReply(pendingReplyRef.current, now),
+        busyAt: busyAtRef.current,
+        heardAt: lastHeardRef.current,
+        now
+      });
+      if (!free) return;
+      spontaneousRef.current = spontaneousRef.current.filter((item) => item !== next);
+      henryDebug("fala_espontanea", { kind: next.kind, esperou_ms: now - next.at });
+      next.run();
+    }, 400);
+    return () => window.clearInterval(timer);
+  }, [active]);
+
+  const callForAlertNow = useCallback(async ({ kind = "vocative", text = "", audio = null } = {}) => {
     if (mutedRef.current) return;
     const store = readAlertStore();
     let line = text;
@@ -1799,7 +1973,13 @@ export default function HenryVoiceAssistant() {
       writeAlertStore({ [recentKey]: picked.recent });
       line = picked.text;
     }
+    const token = requestIdRef.current;
     const voice = audio || (await alertPhraseAudio(line));
+    // Enquanto a voz do chamado carregava o dono pediu outra coisa (ou abriu a gravação): não chama por cima.
+    if (requestIdRef.current !== token || recordRef.current || phaseRef.current === "thinking" || phaseRef.current === "speaking") {
+      henryDebug("fala_espontanea", { kind: "aviso", adiada: true });
+      return;
+    }
     window.clearTimeout(alertRef.current.timer);
     alertRef.current = { ...alertRef.current, stage: "calling", calls: alertRef.current.stage === "calling" || alertRef.current.stage === "waiting" ? alertRef.current.calls + 1 : 1, offer: kind !== "vocative" };
     startConversation(); // a resposta vale sem dizer "Henry" (janela de conversa)
@@ -1811,42 +1991,68 @@ export default function HenryVoiceAssistant() {
     }
     sayAlertLine(line, voice);
   }, [alertPhraseAudio, duckSpotifyVolume, musicPlaying, sayAlertLine, startConversation]);
+  const callForAlert = useCallback((options = {}, { allowAwaiting = false } = {}) => saySpontaneous("aviso", () => callForAlertNow(options), { allowAwaiting }), [callForAlertNow, saySpontaneous]);
 
   // "Pode falar" (ou toque no indicador): a informação, com os dados relidos agora; um resumo quando são vários.
-  const tellAlerts = useCallback(async () => {
+  const tellAlerts = useCallback(async ({ command = false } = {}) => {
     window.clearTimeout(alertRef.current.timer);
     const store = readAlertStore();
     const pending = pruneAlertPending(store.pending || []);
     if (!pending.length) {
       alertRef.current = { ...alertRef.current, stage: "idle", calls: 0 };
       syncPending([]);
+      // "Leia os avisos" sem nada guardado: diz que não tem (frase fixa, na voz dele).
+      if (command) {
+        const picked = pickAlertPhrase("none", Array.isArray(store.phrases_none) ? store.phrases_none : []);
+        writeAlertStore({ phrases_none: picked.recent });
+        const audio = await alertPhraseAudio(picked.text);
+        sayAlertLine(picked.text, audio);
+      }
       return;
     }
     alertRef.current = { ...alertRef.current, stage: "telling", calls: 0 };
     updatePhase("thinking");
+    const token = requestIdRef.current;
+    const noticeIds = pending.filter((item) => item.kind === "notice" && item.noticeId).map((item) => item.noticeId);
     let data = null;
     try {
       const response = await fetch("/api/admin/henry", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ mode: "client_alerts", action: "speak", clientIds: pending.filter((item) => item.clientId).map((item) => item.clientId), userIds: pending.filter((item) => item.kind === "arrival" && item.userId).map((item) => item.userId), recent: store.recent || null, away: store.away === true, voice: !mutedRef.current })
+        body: JSON.stringify({ mode: "client_alerts", action: "speak", clientIds: pending.filter((item) => item.clientId).map((item) => item.clientId), userIds: pending.filter((item) => item.kind === "arrival" && item.userId).map((item) => item.userId), noticeIds, recent: store.recent || null, away: store.away === true, voice: !mutedRef.current })
       });
       data = await response.json().catch(() => null);
       if (!response.ok) data = null;
     } catch {
       data = null;
     }
+    // O dono pediu outra coisa enquanto o aviso carregava: não fala por cima (o aviso continua pendente).
+    if (requestIdRef.current !== token || recordRef.current) {
+      alertRef.current = { ...alertRef.current, stage: "idle" };
+      henryDebug("fala_espontanea", { kind: "aviso_conteudo", adiada: true });
+      return;
+    }
     if (!data) {
       alertRef.current = { ...alertRef.current, stage: "idle" };
       listenAgain();
+      if (command) setNotice("Não consegui ler os avisos agora. Tente de novo.");
       return; // falhou: o aviso continua pendente (indicador) para tentar de novo
     }
-    writeAlertStore({ pending: [], away: false, retries: 0, retryAt: 0, recent: data.recent || store.recent || null });
-    syncPending([]);
+    // Avisos da Central lidos: "visto" pelo MESMO caminho da tela e fora do pendente; a Central não mostra mais o card.
+    const readNotices = Array.isArray(data.noticeIds) ? data.noticeIds : [];
+    if (readNotices.length) {
+      fetch("/api/admin/alerts/shown", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ids: readNotices }) }).catch(() => {});
+      window.dispatchEvent(new CustomEvent(HENRY_NOTICE_DONE_EVENT, { detail: { ids: readNotices } }));
+    }
+    const left = pending.filter((item) => item.kind === "notice" && !readNotices.includes(item.noticeId));
+    writeAlertStore({ pending: left, away: false, retries: 0, retryAt: 0, recent: data.recent || store.recent || null });
+    syncPending(left);
     alertRef.current = { ...alertRef.current, stage: "idle" };
     if (data.text) sayAlertLine(data.text, data.audio);
     else listenAgain();
-  }, [listenAgain, sayAlertLine, syncPending, updatePhase]);
+  }, [alertPhraseAudio, listenAgain, sayAlertLine, syncPending, updatePhase]);
+  const readAlertsRef = useRef(null);
+  readAlertsRef.current = () => tellAlerts({ command: true });
 
   // Sem resposta: chama mais uma vez; depois disso fica pendente (nada é falado) e tenta em ~10 min (até 3 vezes).
   const alertNoAnswer = useCallback(() => {
@@ -1855,7 +2061,7 @@ export default function HenryVoiceAssistant() {
       const store = readAlertStore();
       const picked = pickAlertPhrase("vocative", Array.isArray(store.vocatives) ? store.vocatives : []);
       writeAlertStore({ vocatives: picked.recent });
-      callForAlert({ text: picked.text });
+      callForAlert({ text: picked.text }, { allowAwaiting: true });
       return;
     }
     const store = readAlertStore();
@@ -1872,7 +2078,10 @@ export default function HenryVoiceAssistant() {
     const text = String(raw || "").trim();
     if (!text || isEchoOf(text, [lastReplyRef.current])) return false;
     const answer = classifyAlertAnswer(text);
-    if (answer === "noise") return true;
+    if (answer === "noise") {
+      henryDebug("descarte", { reason: "ruido_no_aviso" });
+      return true;
+    }
     window.clearTimeout(current.timer);
     pendingReplyRef.current = { active: false };
     if (answer === "yes") {
@@ -1910,10 +2119,17 @@ export default function HenryVoiceAssistant() {
       setNotice("Fico no aguardo: toque no Henry quando quiser responder.");
       return true;
     }
-    pendingReplyRef.current = { ...openPendingReply(pending.kind), retried: true };
-    startConversation();
-    if (musicPlaying()) duckSpotifyVolume();
-    alertPhraseAudio(text).then((audio) => sayAlertLine(text, audio));
+    pendingReplyRef.current = { ...pending, retried: true };
+    saySpontaneous("repetir_pergunta", () => {
+      pendingReplyRef.current = { ...openPendingReply(pending.kind), retried: true };
+      startConversation();
+      if (musicPlaying()) duckSpotifyVolume();
+      const token = requestIdRef.current;
+      alertPhraseAudio(text).then((audio) => {
+        if (requestIdRef.current !== token || recordRef.current) return; // o dono já falou outra coisa
+        sayAlertLine(text, audio);
+      });
+    }, { allowAwaiting: true });
     return true;
   };
   const callLaterRef = useRef(() => {});
@@ -1921,7 +2137,11 @@ export default function HenryVoiceAssistant() {
     const store = readAlertStore();
     const picked = pickAlertPhrase("later", Array.isArray(store.phrases_later) ? store.phrases_later : []);
     writeAlertStore({ phrases_later: picked.recent });
-    alertPhraseAudio(picked.text).then((audio) => sayAlertLine(picked.text, audio));
+    const token = requestIdRef.current;
+    alertPhraseAudio(picked.text).then((audio) => {
+      if (requestIdRef.current !== token || recordRef.current) return;
+      sayAlertLine(picked.text, audio);
+    });
   };
 
   // Fim da fala: chamado terminou → espera a resposta; pergunta normal terminou com aviso pendente → oferece.
@@ -1970,9 +2190,22 @@ export default function HenryVoiceAssistant() {
     syncPending(kept);
     let busy = false;
     const tick = async () => {
+      // Avisos da Central que passaram de 2 h sem serem lidos: voltam como card na tela (nunca somem).
+      const before = readAlertStore().pending || [];
+      const expired = before.filter((item) => item.kind === "notice" && !pruneAlertPending([item]).length).map((item) => item.noticeId);
+      if (expired.length) {
+        writeAlertStore({ pending: before.filter((item) => !expired.includes(item.noticeId)) });
+        window.dispatchEvent(new CustomEvent(HENRY_NOTICE_DONE_EVENT, { detail: { ids: expired, release: true } }));
+      }
       if (busy || !claimAlertLeader(tabIdRef.current)) return;
       const now = Date.now();
       const store = readAlertStore();
+      // Aviso novo da Central: o mesmo chamado do aviso de cliente ("Ô, patrão?" → "pode falar" → conta).
+      if (noticeCallRef.current && alertRef.current.stage === "idle" && alertIdle() && alertRef.current.deviceActive && isAlertHour(saoPauloNow().minutes) && pruneAlertPending(store.pending || []).some((item) => item.kind === "notice")) {
+        noticeCallRef.current = false;
+        writeAlertStore({ retries: 0 });
+        callForAlert({ kind: "vocative" });
+      }
       if (alertRef.current.stage !== "idle" || !alertIdle()) return;
       if (now >= Number(alertRef.current.nextPollAt || 0)) {
         busy = true;
@@ -2028,6 +2261,44 @@ export default function HenryVoiceAssistant() {
       window.clearTimeout(alertRef.current.timer);
     };
   }, [active, alertsOn, callForAlert, syncPending]);
+
+  // --- Avisos da Central por voz (dono, 2026-10-23) ---------------------------------------------------------------
+  // Ativo = Henry ligado nesta página, opção ligada, fora do mudo, aparelho ativo dos avisos e 7h–22h. A Central de
+  // Alertas (AlertCenterGate) guarda os INFORMATIVOS enquanto isso vale e os manda para cá; desligou/fechou → voltam
+  // como card. Os IMPORTANTES (bloqueiam o CRM) nunca passam por aqui.
+  const noticeCallRef = useRef(false);
+  useEffect(() => {
+    let current = false;
+    const publish = (value) => {
+      if (value === current) return;
+      current = value;
+      window.__mmHenryVoiceNotices = { active: value };
+      window.dispatchEvent(new CustomEvent(HENRY_VOICE_NOTICES_EVENT, { detail: { active: value } }));
+    };
+    const sync = () => publish(Boolean(active && alertsOn && voiceNotices && !mutedRef.current && alertRef.current.deviceActive && isAlertHour(saoPauloNow().minutes)));
+    sync();
+    const timer = window.setInterval(sync, 3000);
+    return () => {
+      window.clearInterval(timer);
+      publish(false);
+    };
+  }, [active, alertsOn, voiceNotices]);
+  useEffect(() => {
+    const onItems = (event) => {
+      const items = noticePendingItems(event?.detail?.items || []).map((item) => ({ ...item, at: new Date().toISOString() })); // prazo de 2 h conta daqui
+      if (!items.length) return;
+      const store = readAlertStore();
+      const known = new Set((store.pending || []).map((item) => item.key));
+      const fresh = items.filter((item) => !known.has(item.key));
+      if (!fresh.length) return;
+      const pending = mergeAlertPending(pruneAlertPending(store.pending || []), fresh);
+      writeAlertStore({ pending });
+      syncPending(pending);
+      noticeCallRef.current = true; // chama quando ele estiver ocioso (tick dos avisos)
+    };
+    window.addEventListener(HENRY_NOTICE_ITEMS_EVENT, onItems);
+    return () => window.removeEventListener(HENRY_NOTICE_ITEMS_EVENT, onItems);
+  }, [syncPending]);
 
   // Toque no indicador "Aviso pendente (N)": fala na hora (o toque também libera o som no celular).
   const hearPendingAlerts = useCallback(() => {

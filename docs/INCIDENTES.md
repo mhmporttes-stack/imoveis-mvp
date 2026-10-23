@@ -799,3 +799,16 @@ Copie o modelo abaixo (uma entrada por bloco):
 - **Sintoma:** a extensão abria e lia as conversas do Marketplace, mas o popup mostrava "não chegou ao CRM (Não foi possível sincronizar.)"; `marketplace_conversations` com linhas e `marketplace_messages` vazia.
 - **Causa raiz:** o upsert de mensagens (`lib/marketplace-chat.js`, `onConflict: "conversation_id,external_id"`) falhava no Postgres com "there is no unique or exclusion constraint matching the ON CONFLICT specification" (PostgREST 400): o único índice único era parcial (`where external_id is not null`), e ON CONFLICT só casa com índice parcial quando recebe o mesmo predicado.
 - **Correção:** índice único completo `marketplace_messages_conversation_external_key` (migration `20261021223000_marketplace_messages_external_unique_full.sql`); NULLs seguem distintos. Achado pelos logs do Postgres (`query_logs`), não pela extensão.
+
+## 2026-10-23 — Henry "ouve e não responde" / "pergunta, eu respondo e ele cala" (app de desktop)
+
+- **Sintoma:** anel em "ouvindo", o dono para de falar e nada acontece; resposta ao "Ô, patrão?" ignorada (chama de novo). `ai_usage_log`: 73 `henry_voice_stt` × 34 `henry_voice_assistant` em 6 h.
+- **Causa raiz:** (1) a gravação abria logo depois da fala dele e o fim da voz dele no alto-falante contava como "o dono falando" → fechava em 1,2 s com transcrição vazia → microfone fechado durante a transcrição e continuação de só 3,5 s → a resposta real caía no vão; (2) com música tocando, VAD/medidor nunca viam silêncio → gravação até o limite de 25 s → a guarda da música descartava a transcrição como "letra".
+- **Correção:** `triggeredTranscriptIntent` (texto não vazio de gravação do Henry sempre vira pedido; só eco evidente sai), 350 ms de ruído de fundo + voz confirmada em 2 leituras, VAD ignorado com música, continuação de vazio com 7 s; motivos no console (`window.__henryDebug`).
+
+## 2026-10-23 — Henry pede música e responde só "tá tocando" (outra música; parte do pedido some)
+
+- **Sintoma:** "coloca o quinto vigia e depois me fala do Gabriel" → "Pronto, tá tocando! Vida Loka, Pt. 1" e nada do Gabriel.
+- **Causa raiz:** busca do Spotify com `limit=1` só em faixa (pega o 1º resultado sem conferir) e a fala fixa da música substituía a resposta inteira do modelo, mesmo em pedido composto.
+- **Correção:** `pickSpotifySearchResult` (4 tipos, 10 de cada, escolha por correspondência; nada parecido = "É essa?"), `confirmPlaying` (confere o que tocou, 1 nova tentativa), fala fixa só em pedido só de música.
+
