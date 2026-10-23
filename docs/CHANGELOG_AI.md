@@ -437,6 +437,15 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-23 — Bônus "Primeiro a chegar" / "Último a sair" da imobiliária (RAN-10)
+- **Data:** 2026-10-23
+- **Área:** Ranking/pontuação / Presença na imobiliária (ROL-2f)
+- **Alteração:** regra nova do dono (100 pontos ao primeiro a chegar e ao último a sair pelo Wi-Fi; menos de 3 min divide). Decisão gravada 1×/dia/tipo em `office_presence_bonus_awards` (migration aditiva `20261023200000`) pelo cron `scheduled-activities`; Ranking/Extrato/telas de Desempenho somam e mostram as linhas. Sem push/sino.
+- **Motivo:** pedido do dono. Dia 23/10 (leitura no banco): 1ª chegada pelo Wi-Fi entre participantes = 2 corretores com 18 s de diferença (08:26:58 e 08:27:16) → 50/50; o dono chegou antes (08:23) e não participa; sem ausências. Concessão de hoje fica para o cron depois do deploy + migration (mesmo caminho de código, não SQL manual).
+- **Arquivos afetados:** `lib/office-presence-bonus-core.mjs`, `lib/office-presence-bonus.js`, `lib/performance-overview.js`, `lib/points-statement-core.mjs`, `app/api/cron/scheduled-activities/route.js`, `components/PerformanceOverviewDashboard.jsx`, `components/BrokerPerformanceDetail.jsx`, `supabase/migrations/20261023200000_bonus_primeiro_ultimo_imobiliaria.sql`, `tests/office-presence-bonus.test.mjs`; docs `BUSINESS_RULES.md` RAN-10, `DATABASE.md`, rule `meta-diaria-ranking.md`.
+- **Risco/observação:** (1) A CONFIRMAR com o dono os 4 pontos PENDENTES da RAN-10 (empate sem encadear, resto da divisão, ausência posterior, saída de quem foi liberado à mão). (2) A pontuação deste bônus é gravada (decisão do dia), ao contrário da RAN-1 ("sempre recalculada") — necessário porque o último a sair só existe depois do dia e uma ausência posterior não deve tirar pontos já dados. (3) Valor fixo de 100 no código (`OFFICE_BONUS_POINTS`), fora da tela de regras de pontuação (a tabela `scoring_rule_versions` tem CHECK fechado de chaves). (4) O aviso opcional "foi a primeira a chegar" no Henry não foi feito (arquivos do Henry em edição por outro agente).
+- **Autor:** Claude Code (crm-editor)
+
 ### 2026-10-23 — Henry: trocar o aparelho do Spotify por voz ("toca na Alexa") (HENRY-1)
 - **Data:** 2026-10-23
 - **Área:** Henry (voz) / Spotify

@@ -221,6 +221,17 @@ export async function GET(request) {
       cooledClients = { error: cooledError?.message || "Falha no fluxo." };
     }
 
+    // Bônus "Primeiro a chegar"/"Último a sair" da imobiliária (RAN-10, dono 2026-10-23): decide uma vez por dia e tipo,
+    // sem aviso/push. Nunca derruba o resto do cron.
+    let officePresenceBonus = null;
+    try {
+      const { runOfficePresenceBonus } = await import("@/lib/office-presence-bonus");
+      officePresenceBonus = await runOfficePresenceBonus();
+    } catch (bonusError) {
+      console.error("Falha no bônus de presença na imobiliária.", bonusError);
+      officePresenceBonus = { error: bonusError?.message || "Falha no bônus de presença." };
+    }
+
     const allResults = [...results, ...calendarResults];
     return NextResponse.json({
       ok: true,
@@ -238,7 +249,8 @@ export async function GET(request) {
       marketplaceRedistribution,
       orphanReassignment,
       captacaoUploadCleanup,
-      cooledClients
+      cooledClients,
+      officePresenceBonus
     });
   } catch (error) {
     console.error("Falha ao verificar atividades agendadas.", error);

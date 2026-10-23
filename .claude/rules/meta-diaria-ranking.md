@@ -3,6 +3,8 @@ paths:
   - "lib/daily-goal*"
   - "lib/performance-*"
   - "lib/scoring-rules.js"
+  - "lib/office-presence-bonus*"
+  - "lib/points-statement*"
   - "lib/ranking-display.mjs"
   - "lib/weekly-ranking*"
   - "lib/celebrations.js"
@@ -85,6 +87,8 @@ Pontuação é **sempre recalculada a partir dos eventos reais** (nunca armazena
 `getPerformanceOverview` carrega os eventos brutos (`teamRegistrations`, `history`, `prospectingEvents`) **sempre da mesma forma, nunca filtrados pelo escopo de quem está perguntando** — a permissão de visualização (quem aparece na lista) é aplicada só depois, em `listVisibleTeamProfiles`. Isso é proposital: o mesmo corretor no mesmo período tem que somar os mesmos pontos não importa quem está olhando o dashboard.
 
 **[COMPORTAMENTO ATUAL DA IMPLEMENTAÇÃO — pedido do dono, 2026-10-23] Extrato dos pontos no card da equipe.** O selo "X pts · Nº lugar" de `TeamDailyPerformance` abre `PointsStatementSheet` (rota `team-overview/[brokerId]/points-statement`, `lib/points-statement.js`). As linhas vêm de `getPointsLedger` SEM `brokerId` (mesma base do selo) e só são filtradas/traduzidas em `lib/points-statement-core.mjs` — nunca crie fórmula de pontos ali nem peça o ledger filtrado por corretor (o histórico de status de quem age em cliente de outro corretor sumiria e o total deixaria de bater com o selo).
+
+**[REGRA OFICIAL DE NEGÓCIO — dono, 2026-10-23] Primeiro a chegar / Último a sair (RAN-10).** "o primeiro corretor a chegar ganha 100 pontos; se 2 pessoas chegarem com uma diferença menor que 3 minutos os pontos são divididos entre eles. Mesma regra para quem for o último a sair da imobiliária." Corretor e associado ativos (dono, gestora e inativos fora), todos os dias. Chegada = 1ª do dia pelo Wi-Fi da ROL-2f (`office_presence_checkins` `source = 'wifi'`; "Liberar hoje" e ausente fora); saída = último sinal no Wi-Fi do dia (`last_wifi_seen_at`). Decisão gravada uma vez por dia e tipo (`office_presence_bonus_awards`, migration `20261023200000`) pelo cron `scheduled-activities` (chegada 3 min depois da 1ª; saída do dia anterior a partir das 03:00) — nunca recalcule nem crie outro caminho; Ranking e Extrato leem `loadOfficeBonusScoring`. Sem aviso/push (AUT-9). Regras só em `lib/office-presence-bonus-core.mjs` (+ `lib/office-presence-bonus.js`); testes `tests/office-presence-bonus.test.mjs`. **[PENDENTE DE VALIDAÇÃO]** empate contado contra o primeiro/último, sem encadear; ponto que sobra da divisão vai a quem chegou primeiro/saiu por último. Detalhe: `docs/BUSINESS_RULES.md` RAN-10.
 
 **[REGRA OFICIAL DE NEGÓCIO — dono, 2026-10-12] Horas no CRM: "Semana passada".** Em Desempenho › Online, o filtro de semana é a última semana FECHADA, de segunda a domingo (São Paulo) — não existe mais "Esta semana". A tela mostra o intervalo somado. Regra pura `resolvePresencePeriodDates` (`lib/admin-presence-core.mjs`); detalhes `docs/BUSINESS_RULES.md` RAN-6a. Não mexer em outros seletores de "Esta semana" (Meta/Desempenho) por causa desta regra.
 

@@ -186,6 +186,18 @@ export default function BrokerPerformanceDetail({ brokerId, brokerName, initialO
                 <span className="font-extrabold text-emerald-700">+{formatInteger(broker.dailyGoalBonusPoints)} pts</span>
               </div>
             )}
+            {broker.firstArrivalPoints > 0 && (
+              <div className="flex items-center justify-between gap-3 rounded-2xl border border-navy/5 px-4 py-3 text-sm">
+                <span className="font-bold text-navy">Primeiro a chegar na imobiliária</span>
+                <span className="font-extrabold text-emerald-700">+{formatInteger(broker.firstArrivalPoints)} pts</span>
+              </div>
+            )}
+            {broker.lastDeparturePoints > 0 && (
+              <div className="flex items-center justify-between gap-3 rounded-2xl border border-navy/5 px-4 py-3 text-sm">
+                <span className="font-bold text-navy">Último a sair da imobiliária</span>
+                <span className="font-extrabold text-emerald-700">+{formatInteger(broker.lastDeparturePoints)} pts</span>
+              </div>
+            )}
             <div className="flex items-center justify-between gap-3 rounded-2xl bg-navy px-4 py-3 text-sm text-white">
               <span className="font-black uppercase tracking-[0.1em]">Total</span>
               <span className="font-black">{formatInteger(broker.points)} pts</span>
