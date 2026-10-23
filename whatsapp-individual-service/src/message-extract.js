@@ -194,6 +194,29 @@ export function mediaInfoOf(content) {
   };
 }
 
+// VISUALIZAÇÃO ÚNICA (dono, 2026-10-23: "aponte quando foi enviado algo de visualização única"). O WhatsApp não entrega
+// o conteúdo a aparelhos conectados: o Baileys recebe o nó com <unavailable type="view_once"/> e devolve um stub sem
+// conteúdo (CIPHERTEXT) com key.isViewOnce = true — antes era descartado em silêncio (do contato) ou virava "não
+// decifrada" (do corretor). Quando vier com conteúdo (envelope viewOnceMessage*/viewOnce: true), a mídia NUNCA é
+// baixada: respeita o "ver uma vez" — o CRM guarda só o marcador. -> { media: 'image'|'video'|'audio'|'' } ou null.
+const VIEW_ONCE_KEYS = ["viewOnceMessage", "viewOnceMessageV2", "viewOnceMessageV2Extension"];
+const VIEW_ONCE_MEDIA = { image: "image", video: "video", gif: "video", audio: "audio" };
+export function viewOnceOf(msg) {
+  let flagged = msg?.key?.isViewOnce === true;
+  let content = msg?.message || null;
+  for (let i = 0; i < 5 && content; i += 1) {
+    const wrapperKey = WRAPPER_KEYS.find((key) => content[key]?.message);
+    if (!wrapperKey) break;
+    if (VIEW_ONCE_KEYS.includes(wrapperKey)) flagged = true;
+    content = content[wrapperKey].message;
+  }
+  const mediaKey = content ? Object.keys(MEDIA_KEYS).find((name) => content[name]) : "";
+  if (mediaKey && content[mediaKey]?.viewOnce === true) flagged = true;
+  if (!flagged) return null;
+  const kind = mediaKey ? mediaInfoOf(content)?.kind : "";
+  return { media: VIEW_ONCE_MEDIA[kind] || "" };
+}
+
 // msg do Baileys -> evento para o CRM, ou null (grupo, status, sem conteúdo).
 // kind: 'message' | 'reaction' | 'edit' | 'revoke'.
 export function extractChatEvent(msg, lidMap = new Map()) {
@@ -214,6 +237,13 @@ export function extractChatEvent(msg, lidMap = new Map()) {
     base.group = true;
     base.senderName = fromMe ? "" : String(msg?.pushName || "").slice(0, 80);
     base.senderPhone = fromMe ? "" : (phoneFromJid(msg?.key?.participantPn) || phoneFromJid(msg?.key?.participant));
+  }
+  // Visualização única: só o marcador, sem mídia (nada é baixado). Grupo: nada vai ao CRM (sem marcador nos grupos).
+  const viewOnce = viewOnceOf(msg);
+  if (viewOnce) {
+    if (groupKey) return null;
+    const viewOnceContext = contextInfoOf(unwrapContent(msg?.message));
+    return { ...base, kind: "message", messageType: "view_once", text: "", media: null, viewOnce, quotedId: viewOnceContext?.stanzaId || "" };
   }
   const content = unwrapContent(msg?.message);
   if (!content) return null;
@@ -294,6 +324,8 @@ export const UNDECRYPTED_STUB_TYPE = 2;
 export function extractUndecryptedOwnEvent(msg, lidMap = new Map()) {
   if (!msg || Number(msg.messageStubType) !== UNDECRYPTED_STUB_TYPE) return null;
   if (msg.key?.fromMe !== true) return null;
+  // Visualização única enviada pelo celular: vai como marcador próprio (extractChatEvent), não como "não decifrada".
+  if (msg.key?.isViewOnce === true) return null;
   const waMessageId = String(msg.key?.id || "");
   if (!waMessageId) return null;
   const remoteJid = String(msg.key?.remoteJid || "");

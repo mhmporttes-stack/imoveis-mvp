@@ -4,6 +4,8 @@ import { displayLink } from "@/lib/short-links.mjs";
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { BadgeCheck, Check, Copy, MousePointerClick, Pencil, Percent, Plus, Save, Trash2, UserRound, Users, X, Zap, ZapOff } from "lucide-react";
+import Kpi from "@/components/ui/Kpi";
+import { tabClasses } from "@/components/ui/Tabs";
 
 const EMPTY_FORM = {
   name: "",
@@ -192,7 +194,7 @@ export default function CampaignsManager({ initialCampaigns = [], initialSummary
 
   return (
     <section className="container-page grid gap-6">
-      <div className="rounded-[28px] border border-line bg-white p-5 shadow-soft sm:p-6">
+      <div className="rounded-panel border border-line bg-white p-5 shadow-soft sm:p-6">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div className="flex flex-wrap gap-2" role="tablist" aria-label="Tipo de link">
             {TYPE_FILTERS.map((option) => (
@@ -200,9 +202,8 @@ export default function CampaignsManager({ initialCampaigns = [], initialSummary
                 key={option.value}
                 type="button"
                 onClick={() => setType(option.value)}
-                className={`min-h-11 rounded-full border px-4 text-sm font-extrabold transition ${
-                  type === option.value ? "border-brand bg-blue-50 text-brand" : "border-navy/10 bg-white text-navy hover:border-brand"
-                }`}
+                aria-pressed={type === option.value}
+                className={tabClasses(type === option.value)}
               >
                 {option.label}
               </button>
@@ -213,7 +214,7 @@ export default function CampaignsManager({ initialCampaigns = [], initialSummary
             value={search}
             onChange={(event) => setSearch(event.target.value)}
             placeholder="Buscar por nome do link ou corretor..."
-            className="h-11 w-full min-w-0 rounded-2xl border border-line bg-white px-4 font-bold outline-none transition focus:border-brand focus:ring-4 focus:ring-brand/10 lg:max-w-xs"
+            className="h-11 w-full min-w-0 rounded-2xl border border-line bg-white px-4 font-bold outline-none transition focus:border-brand focus:ring-4 focus:ring-brand/10 lg:w-[26rem] lg:max-w-[45%]"
           />
         </div>
 
@@ -224,9 +225,9 @@ export default function CampaignsManager({ initialCampaigns = [], initialSummary
                 key={option.value || "all-time"}
                 type="button"
                 onClick={() => setPeriod(option.value)}
-                className={`min-h-10 rounded-full border px-3.5 text-xs font-extrabold uppercase tracking-wide transition ${
-                  period === option.value ? "border-brand bg-blue-50 text-brand" : "border-navy/10 bg-white text-muted hover:border-brand"
-                }`}
+                role="tab"
+                aria-selected={period === option.value}
+                className={tabClasses(period === option.value, "sm")}
               >
                 {option.label}
               </button>
@@ -249,7 +250,7 @@ export default function CampaignsManager({ initialCampaigns = [], initialSummary
         <SummaryCard icon={BadgeCheck} label="Vendas" value={summary.sale || 0} tone="green" />
       </div>
 
-      <form onSubmit={createCampaign} className="rounded-[28px] border border-line bg-white p-6 shadow-soft">
+      <form onSubmit={createCampaign} className="rounded-panel border border-line bg-white p-6 shadow-soft">
         <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
           <div>
             <p className="text-sm font-black uppercase tracking-[0.18em] text-brand">Novo link personalizado</p>
@@ -279,9 +280,9 @@ export default function CampaignsManager({ initialCampaigns = [], initialSummary
           const isOfficial = campaign.kind === "official";
           const conversion = campaign.viewCount > 0 ? (campaign.submissionCount / campaign.viewCount) * 100 : null;
           return (
-            <article key={campaign.id} className="rounded-[28px] border border-line bg-white p-6 shadow-soft">
+            <article key={campaign.id} className="rounded-panel border border-line bg-white p-6 shadow-soft">
               {editingId === campaign.id && editForm ? (
-                <form className="mb-6 rounded-[20px] border border-brand/20 bg-mist p-4" onSubmit={saveCampaign}>
+                <form className="mb-6 rounded-panel border border-brand/20 bg-mist p-4" onSubmit={saveCampaign}>
                   <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
                     <Field label="Nome da campanha" value={editForm.name} onChange={(value) => setEditForm((current) => ({ ...current, name: value }))} />
                     <DestinationField value={editForm.destinationType} onChange={(value) => setEditForm((current) => ({ ...current, destinationType: value, brokerId: value === "broker" ? current.brokerId : "" }))} />
@@ -357,7 +358,7 @@ export default function CampaignsManager({ initialCampaigns = [], initialSummary
         })}
 
         {!sortedCampaigns.length ? (
-          <article className="rounded-[28px] border border-line bg-white p-8 text-center font-black text-navy shadow-soft">
+          <article className="rounded-panel border border-line bg-white p-8 text-center font-black text-navy shadow-soft">
             Nenhum link encontrado para esse filtro.
           </article>
         ) : null}
@@ -366,27 +367,16 @@ export default function CampaignsManager({ initialCampaigns = [], initialSummary
   );
 }
 
-function SummaryCard({ icon: Icon, label, value, tone }) {
-  const toneClasses = {
-    blue: "border-blue-100 bg-blue-50 text-blue-700",
-    amber: "border-amber-100 bg-amber-50 text-amber-700",
-    slate: "border-slate-100 bg-slate-50 text-slate-700",
-    green: "border-emerald-100 bg-emerald-50 text-emerald-700"
-  };
-  return (
-    <article className={`rounded-2xl border bg-white p-4 shadow-soft ${toneClasses[tone] || toneClasses.slate}`}>
-      <Icon className="h-5 w-5" aria-hidden="true" />
-      <p className="mt-2 text-2xl font-black text-navy">{value}</p>
-      <p className="text-xs font-bold uppercase tracking-wide text-muted">{label}</p>
-    </article>
-  );
+// Visual novo (2026-10-22): indicador no padrão único (components/ui/Kpi); `tone` mantido na chamada, sem cor própria.
+function SummaryCard({ icon, label, value }) {
+  return <Kpi icon={icon} label={label} value={value} />;
 }
 
 function MiniStat({ label, value }) {
   return (
-    <div className="rounded-xl border border-line bg-mist px-3 py-2 text-center">
-      <p className="text-lg font-black text-navy">{value}</p>
-      <p className="text-[10px] font-black uppercase tracking-wide text-muted">{label}</p>
+    <div className="rounded-control border border-line bg-surface-2 px-3 py-2 text-center">
+      <p className="text-lg font-extrabold tabular-nums text-ink">{value}</p>
+      <p className="text-[11px] font-semibold text-muted">{label}</p>
     </div>
   );
 }

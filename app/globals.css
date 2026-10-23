@@ -71,28 +71,32 @@ body.admin-scroll-fix {
   --mm-motion-message: 2340ms;  /* mensagem nova */
   --mm-motion-menu: 1980ms;     /* menu de ações da mensagem */
   --mm-motion-sheet: 2700ms;    /* Sheets (folha de baixo / lateral) */
-  --mm-motion-backdrop: 2160ms; /* fundo escuro dos Sheets */
+  --mm-motion-backdrop: 2160ms; /* fundo escuro dos Sheets — sem uso desde 2026-10-22 (é só opacidade: usa --mm-motion-fade) */
   --mm-motion-nav: 2340ms;      /* indicador ativo da navegação */
+  /* Decisão B do dono (2026-10-22, etapa 2 de velocidade): o MOVIMENTO mantém as durações acima, mas a OPACIDADE
+     (legibilidade) chega em 0,4 s — cada cena usa duas animações: a de transform (duração longa) + o fade (esta). */
+  --mm-motion-fade: 400ms;
 }
 
+/* Só o movimento; a opacidade de cada cena vem do admin-fade-in/admin-fade-half com --mm-motion-fade (decisão B). */
 @keyframes admin-content-in {
-  from { opacity: 0; transform: translateY(18px); }
-  to { opacity: 1; transform: none; }
+  from { transform: translateY(18px); }
+  to { transform: none; }
 }
 
 @keyframes admin-detail-in {
-  from { opacity: 0; transform: translateX(40px); }
-  to { opacity: 1; transform: none; }
+  from { transform: translateX(40px); }
+  to { transform: none; }
 }
 
 @keyframes admin-detail-back {
-  from { opacity: 0; transform: translateX(-40px); }
-  to { opacity: 1; transform: none; }
+  from { transform: translateX(-40px); }
+  to { transform: none; }
 }
 
 @keyframes admin-nav-active {
-  from { opacity: 0.5; transform: scale(0.8); }
-  to { opacity: 1; transform: none; }
+  from { transform: scale(0.8); }
+  to { transform: none; }
 }
 
 @keyframes admin-fade-in {
@@ -100,43 +104,48 @@ body.admin-scroll-fix {
   to { opacity: 1; }
 }
 
+@keyframes admin-fade-half {
+  from { opacity: 0.5; }
+  to { opacity: 1; }
+}
+
 /* Troca de abas (e entrada de conteúdo); a troca de rota é animada no AdminMenu. */
 .admin-motion-enter {
-  animation: admin-content-in var(--mm-motion-tab) var(--mm-motion-ease) backwards;
+  animation: admin-content-in var(--mm-motion-tab) var(--mm-motion-ease) backwards, admin-fade-in var(--mm-motion-fade) var(--mm-motion-ease) backwards;
 }
 
 /* Chat: abrir conversa (painel entra da direita) — no celular é a "troca de tela" da lista para a conversa. */
 .admin-motion-detail {
-  animation: admin-detail-in var(--mm-motion-screen) var(--mm-motion-ease) backwards;
+  animation: admin-detail-in var(--mm-motion-screen) var(--mm-motion-ease) backwards, admin-fade-in var(--mm-motion-fade) var(--mm-motion-ease) backwards;
 }
 
 .admin-nav-current {
-  animation: admin-nav-active var(--mm-motion-nav) var(--mm-motion-ease) backwards;
+  animation: admin-nav-active var(--mm-motion-nav) var(--mm-motion-ease) backwards, admin-fade-half var(--mm-motion-fade) var(--mm-motion-ease) backwards;
 }
 
 /* Chat: fechar conversa no celular (a lista volta da esquerda). */
 @media (max-width: 1023px) {
   .admin-motion-back {
-    animation: admin-detail-back var(--mm-motion-back) var(--mm-motion-ease) backwards;
+    animation: admin-detail-back var(--mm-motion-back) var(--mm-motion-ease) backwards, admin-fade-in var(--mm-motion-fade) var(--mm-motion-ease) backwards;
   }
 }
 
-/* Chat: as mensagens de uma conversa recém-aberta aparecem num fade (só opacidade, sem mexer na rolagem). */
+/* Chat: as mensagens de uma conversa recém-aberta aparecem num fade (só opacidade, sem mexer na rolagem; decisão B: 0,4 s). */
 [data-chat-wallpaper] {
-  animation: admin-fade-in var(--mm-motion-tab) var(--mm-motion-ease) backwards;
+  animation: admin-fade-in var(--mm-motion-fade) var(--mm-motion-ease) backwards;
 }
 
 /* Chat: mensagem nova (recebida ou enviada) — só a última bolha monta com a animação; as antigas não
    re-animam ao atualizar a lista (a chave é o id da mensagem). Recebida cresce do canto esquerdo, enviada
    do canto direito (lado da caixa de digitação). Anima a bolha, nunca a linha (sem empurrar o layout). */
 @keyframes chat-bubble-in {
-  from { opacity: 0; transform: translateY(14px) scale(0.94); }
-  to { opacity: 1; transform: none; }
+  from { transform: translateY(14px) scale(0.94); }
+  to { transform: none; }
 }
 
 [data-chat-wallpaper] > :last-child > :is([data-message-id], [data-internal-message]) {
   transform-origin: bottom left;
-  animation: chat-bubble-in var(--mm-motion-message) var(--mm-motion-ease) backwards;
+  animation: chat-bubble-in var(--mm-motion-message) var(--mm-motion-ease) backwards, admin-fade-in var(--mm-motion-fade) var(--mm-motion-ease) backwards;
 }
 
 [data-chat-wallpaper] > .justify-end:last-child > [data-message-id] {
@@ -179,21 +188,21 @@ body:has(.chat-app-root) .admin-page-footer {
    altura que o menu mede para caber na tela); no celular a pilha de ações cresce do toque (lá a medida
    usa offsetHeight, que ignora transform). O fundo com desfoque NÃO anima. */
 @keyframes chat-menu-in {
-  from { opacity: 0; transform: translateY(-10px); }
-  to { opacity: 1; transform: none; }
+  from { transform: translateY(-10px); }
+  to { transform: none; }
 }
 
 @keyframes chat-focus-in {
-  from { opacity: 0; transform: scale(0.9); }
-  to { opacity: 1; transform: none; }
+  from { transform: scale(0.9); }
+  to { transform: none; }
 }
 
 [data-message-actions="menu"] > [role="menu"] {
-  animation: chat-menu-in var(--mm-motion-menu) var(--mm-motion-ease) backwards;
+  animation: chat-menu-in var(--mm-motion-menu) var(--mm-motion-ease) backwards, admin-fade-in var(--mm-motion-fade) var(--mm-motion-ease) backwards;
 }
 
 [data-message-actions="focus"] > [role="menu"] {
-  animation: chat-focus-in var(--mm-motion-menu) var(--mm-motion-ease) backwards;
+  animation: chat-focus-in var(--mm-motion-menu) var(--mm-motion-ease) backwards, admin-fade-in var(--mm-motion-fade) var(--mm-motion-ease) backwards;
 }
 
 body.admin-scroll-fix main :is(button, a[href]):not(:disabled) {
@@ -551,7 +560,7 @@ html.ui-sheet-open {
 
 .ui-sheet::backdrop {
   background: rgba(3, 29, 58, 0.45);
-  animation: admin-fade-in var(--mm-motion-backdrop, 2160ms) var(--mm-motion-ease, cubic-bezier(0.22, 1, 0.36, 1));
+  animation: admin-fade-in var(--mm-motion-fade, 400ms) var(--mm-motion-ease, cubic-bezier(0.22, 1, 0.36, 1));
 }
 
 .ui-sheet-bottom,
@@ -560,7 +569,7 @@ html.ui-sheet-open {
   inset: auto 0 0 0;
   width: 100%;
   max-height: min(88dvh, calc(100dvh - 24px));
-  border-radius: 20px 20px 0 0;
+  border-radius: var(--mm-r-sheet, 20px) var(--mm-r-sheet, 20px) 0 0;
   padding-top: 8px;
   animation: ui-sheet-up var(--mm-motion-sheet) var(--mm-motion-ease);
 }
@@ -587,7 +596,7 @@ html.ui-sheet-open {
   width: min(480px, 100vw);
   height: 100dvh;
   max-height: 100dvh;
-  border-radius: 20px 0 0 20px;
+  border-radius: var(--mm-r-sheet, 20px) 0 0 var(--mm-r-sheet, 20px);
   animation: ui-sheet-left var(--mm-motion-sheet) var(--mm-motion-ease);
 }
 
@@ -607,7 +616,7 @@ html.ui-sheet-open {
     height: 100dvh;
     max-height: 100dvh;
     padding-top: 0;
-    border-radius: 20px 0 0 20px;
+    border-radius: var(--mm-r-sheet, 20px) 0 0 var(--mm-r-sheet, 20px);
     animation-name: ui-sheet-left;
   }
 
@@ -914,8 +923,146 @@ body:has([data-home-hero]) .site-header {
   border-bottom-color: transparent;
 }
 
-/* Clientes (computador): "Clientes que esfriaram" e "Notificações" passam para os atalhos do topo da tela; as cópias do cartão Melhor do Dia
-   somem só a partir de md e só enquanto a tela de Clientes está aberta (ClientWorkspace marca o body). */
+
+/* ===== Casca do painel — visual novo (dono, 2026-10-22) =====
+   Menu lateral do computador (components/AdminMenu.jsx), cabeçalho (components/AdminTopBar.jsx), contadores verdes e
+   entrada dos blocos por rolagem (components/motion/AdminScrollReveal.jsx). Tudo depende de classes que só existem
+   no painel (html.mm-panel / admin-has-sidebar), então o site público não muda. */
+
+/* Rola, mas sem barra visível (menu lateral, folha "Mais", fileiras de abas). */
+.mm-noscroll {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.mm-noscroll::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
+}
+
+.admin-sidebar-panel {
+  background: #ffffff;
+}
+html.mm-dark .admin-sidebar-panel {
+  background: #0a1626;
+}
+
+/* Coluna do menu recolhido reservada à esquerda do conteúdo (os apps "Chat"/"Financeiro" instalados não têm menu). */
 @media (min-width: 768px) {
-  body[data-shortcuts-moved="true"] [data-top-moved-indicator] { display: none; }
+  html.admin-has-sidebar:not([data-mm-app]) body {
+    padding-left: calc(var(--mm-shell-sidebar, 76px) + env(safe-area-inset-left));
+  }
+}
+
+/* Contador verde do visual novo (badge de Chat, Agenda, Marketplace, menu): verde #1FB37A com texto escuro. */
+.mm-count {
+  background: #1fb37a;
+  color: #04140d;
+}
+.mm-count-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 999px;
+  background: #1fb37a;
+  box-shadow: 0 0 0 2px rgb(var(--mm-surf, 255 255 255));
+}
+
+/* Pílula "Online" do cabeçalho: ponto verde pulsando devagar. */
+@keyframes mm-blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
+.mm-online-dot {
+  animation: mm-blink 1.6s ease-in-out infinite;
+}
+
+/* Chat no celular continua de tela cheia (lista → conversa, como o WhatsApp): sem o cabeçalho do painel. */
+@media (max-width: 767px) {
+  html.chat-app-mode .admin-topbar,
+  body:has(.chat-app-root) .admin-topbar {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mm-online-dot {
+    animation: none;
+  }
+}
+
+/* Campeão da semana / Melhor do dia (components/TopRankingBadge.jsx): brilho que passa, anel pulsando, coroa dourada. */
+@keyframes mm-scan {
+  from { transform: translateX(-120%); }
+  to { transform: translateX(320%); }
+}
+/* Anel pulsando (velocidade, 2026-10-22): mesmo desenho do antigo box-shadow animado (anel que cresce 12 px além da foto
+   e some aos 70%), agora num disco atrás da foto animado só com transform/opacity (não repinta a cada quadro).
+   --mm-pulse-from = foto ÷ (foto + 24 px): 42 px no celular, 58 px a partir de 1024 px (TopRankingBadge). */
+@keyframes mm-pulse {
+  0% { transform: scale(var(--mm-pulse-from, 0.7)); opacity: 1; }
+  70% { transform: scale(1); opacity: 0; }
+  100% { transform: scale(1); opacity: 0; }
+}
+@keyframes mm-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-4px); }
+}
+.mm-scan {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 35%;
+  pointer-events: none;
+  background: linear-gradient(90deg, transparent, rgba(27, 127, 176, 0.1), transparent);
+  animation: mm-scan 5s ease-in-out infinite;
+}
+.mm-champion-weekly .mm-scan {
+  background: linear-gradient(90deg, transparent, rgba(168, 106, 0, 0.1), transparent);
+}
+html.mm-dark .mm-champion-daily .mm-scan {
+  background: linear-gradient(90deg, transparent, rgba(79, 195, 224, 0.14), transparent);
+}
+html.mm-dark .mm-champion-weekly .mm-scan {
+  background: linear-gradient(90deg, transparent, rgba(242, 198, 109, 0.18), transparent);
+}
+.mm-pulse-ring {
+  --mm-pulse-from: 0.636; /* 42 ÷ 66 */
+}
+.mm-pulse-ring::before {
+  content: "";
+  position: absolute;
+  inset: -12px;
+  z-index: -1;
+  border-radius: 9999px;
+  background: var(--mm-pulse-color, rgba(79, 195, 224, 0.45));
+  pointer-events: none;
+  opacity: 0;
+  animation: mm-pulse 2.6s ease-out infinite;
+}
+@media (min-width: 1024px) {
+  .mm-pulse-ring {
+    --mm-pulse-from: 0.707; /* 58 ÷ 82 */
+  }
+}
+.mm-pulse-gold {
+  --mm-pulse-color: rgba(242, 198, 109, 0.5);
+}
+.mm-float {
+  animation: mm-float 2.4s ease-in-out infinite;
+}
+/* Coroa ♛ dourada (a mesma da celebração): gradiente #FFF1C2 → #F2C66D → #C98616 com brilho. */
+.mm-crown {
+  background: linear-gradient(180deg, #fff1c2 0%, #f2c66d 50%, #c98616 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  filter: drop-shadow(0 0 6px rgba(242, 198, 109, 0.6));
+  animation: mm-float 2.4s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .mm-scan,
+  .mm-pulse-ring::before,
+  .mm-float,
+  .mm-crown {
+    animation: none;
+  }
 }

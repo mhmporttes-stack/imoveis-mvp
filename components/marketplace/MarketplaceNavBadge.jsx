@@ -3,8 +3,9 @@
 import { useEffect, useState } from "react";
 import { CountBadge } from "@/components/ui/Badge";
 
-// Contador de não lidas do Chat do Marketplace no menu (MKT-2). Consulta a cada 60 s com a aba visível.
-export default function MarketplaceNavBadge({ className = "" }) {
+// Não lidas do Chat do Marketplace (MKT-2), pelo escopo do servidor (/api/admin/marketplace-chat/unread →
+// countMarketplaceUnread). Consulta a cada 60 s com a aba visível. Fonte única do contador: menu e atalho do cabeçalho.
+export function useMarketplaceUnreadCount() {
   const [count, setCount] = useState(0);
   useEffect(() => {
     let alive = true;
@@ -22,5 +23,11 @@ export default function MarketplaceNavBadge({ className = "" }) {
       clearInterval(timer);
     };
   }, []);
+  return count;
+}
+
+// Contador de não lidas do Chat do Marketplace no menu (MKT-2).
+export default function MarketplaceNavBadge({ className = "" }) {
+  const count = useMarketplaceUnreadCount();
   return <CountBadge count={count} className={className} label={`${count} mensagens não lidas no Marketplace`} />;
 }

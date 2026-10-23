@@ -30,8 +30,8 @@ import { CLIENT_STATUS, isAwaitingSimulationStatus } from "@/lib/client-status";
 import { AUTO_SIMULATION_REVIEW_ENABLED } from "@/lib/simulation-auto-review-core.mjs";
 import AutoReviewTypeVote, { useAutoReviewState } from "@/components/AutoReviewTypeVote";
 import RedoAutoSimulationButton from "@/components/RedoAutoSimulationButton";
-import { AUTO_PRESENTATION_LOCKED_MESSAGE } from "@/lib/simulation-status-lock-core.mjs";
-import { fetchDocumentsImage, saveOrShareImage } from "@/components/clients/documentsImageFile";
+import { AUTO_PRESENTATION_LOCK_ENABLED, AUTO_PRESENTATION_LOCKED_MESSAGE } from "@/lib/simulation-status-lock-core.mjs";
+import { canCopyImage, copyImageToClipboard, fetchDocumentsImage, saveOrShareImage } from "@/components/clients/documentsImageFile";
 import { getPropertyPreferenceDetails, getPropertyPreferenceSummary } from "@/lib/property-preference-display";
 import {
   booleanLabel,
@@ -51,6 +51,7 @@ import StatusReasonDialog from "./StatusReasonDialog";
 import CooledHandoffCard from "@/components/cooled/CooledHandoffCard";
 import CooledChatHistory from "@/components/cooled/CooledChatHistory";
 import { useBasicMode, useWhatsappBlocked } from "@/components/WhatsappAccessProvider";
+import { toWhatsAppDigits } from "@/lib/phone-utils";
 import { ACTIVITY_TYPE_OPTIONS, TAG_COLORS, clientPhone, formatAgo, formatFullDateTime, formatWhen, getScheduleDraft, getUrgencySignal } from "./client-format";
 
 
@@ -182,7 +183,7 @@ export default function ClientSheet({ client, list, open, onClose, canManage, ca
 
           {/* Cadastro */}
           <Section title="Cadastro">
-            <RegistrationDetails client={client} />
+            <RegistrationDetails client={client} list={list} />
           </Section>
 
           {isOwner ? (
@@ -483,7 +484,7 @@ function SimulationSummary({ client, list }) {
         {AUTO_SIMULATION_REVIEW_ENABLED && client.simulation?.id
           ? <AutomaticTypeReviews simulationId={client.simulation.id} types={automatic.types || []} onFinished={() => list.fetchClients({ silent: true })} />
           : null}
-        <p className="mt-2 text-xs font-semibold text-muted">{AUTO_PRESENTATION_LOCKED_MESSAGE}</p>
+        {AUTO_PRESENTATION_LOCK_ENABLED ? <p className="mt-2 text-xs font-semibold text-muted">{AUTO_PRESENTATION_LOCKED_MESSAGE}</p> : null}
       </div>
     );
   }
@@ -604,7 +605,7 @@ function TagChip({ tag }) {
   );
 }
 
-function RegistrationDetails({ client }) {
+function RegistrationDetails({ client, list }) {
   const registration = client.registration;
   if (!registration) return <p className="text-sm text-ink-2">Cadastro completo ainda não localizado para este cliente.</p>;
   const filled = hasSimulationData(registration);
@@ -615,7 +616,7 @@ function RegistrationDetails({ client }) {
   return (
     <div className="space-y-5">
       <dl className="grid grid-cols-2 gap-x-4 gap-y-3 text-sm">
-        <Item label="Telefone" value={clientPhone(client)} />
+        <ClientWhatsappItem key={client.id} client={client} list={list} />
         <Item label="Cadastrado em" value={formatDateTimeBR(registration.createdAt)} />
         <Item label="Último contato" value={client.lastWhatsappContactAt ? formatAgo(client.lastWhatsappContactAt) : "Nunca contatado"} />
         {registration.lastFormSubmittedAt ? <Item label="Novo formulário" value={formatAgo(registration.lastFormSubmittedAt)} highlight /> : null}
@@ -674,9 +675,48 @@ function Item({ label, value, highlight = false }) {
   );
 }
 
+// MKT-2 (dono, 2026-10-23): cliente sem WhatsApp (ex.: veio do Chat do Marketplace) — o corretor preenche aqui. O servidor
+// valida (número válido, nunca da equipe, escopo do cliente) e registra na linha do tempo. Depois de salvar, "Chamar no
+// WhatsApp" usa o MESMO botão do card (list.openWhatsApp: Chat se conectado, senão WhatsApp Web/app — WA-13a); só abre a
+// conversa, nunca envia. Cliente que já tem telefone continua como antes (só leitura).
+function ClientWhatsappItem({ client, list }) {
+  const whatsappBlocked = useWhatsappBlocked();
+  const [added, setAdded] = useState(false);
+  const registration = client.registration;
+  const hasPhone = Boolean(toWhatsAppDigits(registration?.phoneNormalized || registration?.phone));
+  if (hasPhone && !added) return <Item label="Telefone" value={clientPhone(client)} />;
+  if (!hasPhone) {
+    return (
+      <EditableItem
+        label="WhatsApp do cliente"
+        registrationId={registration?.id}
+        field="phone"
+        initialValue=""
+        placeholder="(14) 99999-9999"
+        type="tel"
+        onSave={async (value) => { await list.saveClientWhatsapp(client, value); setAdded(true); }}
+      />
+    );
+  }
+  return (
+    <div className="col-span-2 min-w-0 sm:col-span-1">
+      <dt className="text-xs text-muted">WhatsApp do cliente</dt>
+      <dd className="mt-0.5 flex flex-wrap items-center gap-2 font-medium text-ink">
+        {clientPhone(client)}
+        {whatsappBlocked ? null : (
+          <Button size="sm" onClick={() => list.openWhatsApp(client)} disabled={list.busyClientId === client.id}>
+            <MessageCircle className="h-4 w-4" aria-hidden="true" /> Chamar no WhatsApp
+          </Button>
+        )}
+      </dd>
+    </div>
+  );
+}
+
 // E-mail e PIS não vêm de nenhum formulário público — o corretor preenche
 // aqui para a documentação/CCA (mesma chamada do componente antigo).
-function EditableItem({ label, registrationId, field, initialValue, placeholder, type = "text" }) {
+// `onSave` (opcional): gravação própria do campo (ex.: WhatsApp do cliente); lança erro com a mensagem para a tela.
+function EditableItem({ label, registrationId, field, initialValue, placeholder, type = "text", onSave = null }) {
   const [editing, setEditing] = useState(false);
   const [value, setValue] = useState(initialValue || "");
   const [saved, setSaved] = useState(initialValue || "");
@@ -691,13 +731,17 @@ function EditableItem({ label, registrationId, field, initialValue, placeholder,
     setBusy(true);
     setError("");
     try {
-      const response = await fetch(`/api/simulation-registrations/${registrationId}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ [field]: value })
-      });
-      const data = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(data.error);
+      if (onSave) {
+        await onSave(value);
+      } else {
+        const response = await fetch(`/api/simulation-registrations/${registrationId}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ [field]: value })
+        });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(data.error);
+      }
       setSaved(value);
       setEditing(false);
     } catch (saveError) {
@@ -753,8 +797,9 @@ export function DocumentsListDialog({ target, onCancel, onConfirm }) {
   const [imageFile, setImageFile] = useState(null);
   const [imageState, setImageState] = useState("idle"); // idle | loading | ready | error | done
   const [copyState, setCopyState] = useState("idle"); // idle | done | error
+  const [mediaState, setMediaState] = useState("idle"); // idle | done | fallback ("Copiar mídia")
 
-  useEffect(() => { setCopyState("idle"); }, [target]);
+  useEffect(() => { setCopyState("idle"); setMediaState("idle"); }, [target]);
 
   // "Copiar texto" (dono, 2026-10-20): a mesma lista personalizada, em texto, para o corretor colar onde precisar. Copiar
   // não é enviar: nada é registrado na jornada nem muda o status.
@@ -789,6 +834,25 @@ export function DocumentsListDialog({ target, onCancel, onConfirm }) {
       if (result !== "cancelled") setImageState("done");
     } catch {
       setImageState("error");
+    }
+  }
+
+  // "Copiar mídia" (dono, 2026-10-22): copia a imagem da lista para colar no WhatsApp Web/app. Nenhum await antes do
+  // clipboard.write (o Safari/iOS exige o gesto): o arquivo vai como Promise. Sem suporte ou recusado → "Baixar imagem".
+  async function copyImage() {
+    if (!canCopyImage()) {
+      setMediaState("fallback");
+      await saveImage();
+      return;
+    }
+    const pending = imageFile ? Promise.resolve(imageFile) : fetchDocumentsImage(manualLink);
+    try {
+      await copyImageToClipboard(pending);
+      setMediaState("done");
+      if (!imageFile) pending.then((file) => { setImageFile(file); setImageState("ready"); }).catch(() => {});
+    } catch {
+      setMediaState("fallback");
+      await saveImage();
     }
   }
 
@@ -827,10 +891,18 @@ export function DocumentsListDialog({ target, onCancel, onConfirm }) {
           ) : external ? (
             <div className="mt-2 text-xs text-muted" data-documents-list-manual="">
               <p>Sua restrição do WhatsApp está validada: o envio é feito pelo WhatsApp do seu aparelho. O WhatsApp vai abrir só com o texto: o link do WhatsApp não anexa imagem. Baixe a imagem e anexe você mesmo na conversa.</p>
+              <div className="mt-2 flex flex-wrap items-center gap-x-5">
               {/* Nunca <a download>: no app do iPhone ele abre a pré-visualização sem botão de voltar. */}
-              <button type="button" onClick={saveImage} disabled={imageState === "loading"} className="mt-2 inline-flex min-h-touch items-center font-semibold text-navy underline disabled:opacity-60" data-documents-list-image="">
+              <button type="button" onClick={saveImage} disabled={imageState === "loading"} className="inline-flex min-h-touch items-center font-semibold text-navy underline disabled:opacity-60" data-documents-list-image="">
                 {imageState === "loading" ? "Preparando a imagem…" : imageState === "done" ? "Imagem pronta — baixar de novo" : "Baixar imagem da lista"}
               </button>
+              {/* "Copiar mídia" (dono, 2026-10-22): a imagem vai para a área de transferência; é só colar na conversa. */}
+              <button type="button" onClick={copyImage} className="inline-flex min-h-touch items-center font-semibold text-navy underline" data-documents-list-copy-image="">
+                Copiar mídia
+              </button>
+              </div>
+              {mediaState === "done" ? <p role="status" className="mt-1 font-semibold text-success" data-documents-list-image-copied="">Imagem copiada. Cole na conversa do cliente.</p> : null}
+              {mediaState === "fallback" ? <p role="status" className="mt-1 text-ink-2">Este aparelho não deixa copiar imagem: use a imagem baixada (ou compartilhada) e anexe na conversa.</p> : null}
               {imageState === "error" ? <p role="alert" className="mt-1 text-danger">Não foi possível gerar a imagem. Toque para tentar de novo.</p> : null}
             </div>
           ) : (

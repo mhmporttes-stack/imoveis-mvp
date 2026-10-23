@@ -39,6 +39,187 @@ Copie o modelo abaixo (uma entrada por bloco):
 ```
 
 ## Registro
+
+### 2026-10-23 — Henry não para de falar quando o dono interrompe ("para", "Henry" ou falando por cima)
+- **Data:** 2026-10-23
+- **Sintoma:** com o Henry falando no computador, o dono diz "para" ou fala por cima e ele continua; às vezes o microfone "ouve" o próprio Henry.
+- **Área:** Henry / Frontend
+- **Impacto:** só o dono (único usuário do Henry); computador e app de desktop. Sem perda de dado.
+- **Causa raiz:** (1) a voz passava pelo WebAudio para o anel (`createMediaElementSource` → destino), o que provavelmente desliga o cancelamento de eco do Chrome — o reconhecedor ouvia a voz dele misturada com a do dono; (2) "para" era anulado sempre que a resposta inteira tinha "para"; (3) o filtro de eco comparava com a resposta INTEIRA, inclusive palavras comuns, e descartava a fala do dono; (4) medidor com limiar alto (0,12/300 ms) e supressão de ruído; (5) no app de desktop ninguém escutava enquanto ele falava.
+- **Correção:** voz direto do `<audio>` (anel por `captureStream`), regras novas de parada/eco, medidor 0,055/150 ms sem supressão de ruído, VAD local em duas etapas (volume baixo → confirmação → para) — ver CHANGELOG_AI 2026-10-23 e HENRY-1.
+- **Arquivos/commit:** `components/henry/HenryVoiceAssistant.jsx`, `lib/henry-voice-conversation.mjs`, `components/henry/henry-vad.js` — commit deste registro
+- **Prevenção/teste:** `tests/henry-voice-conversation.test.mjs` (parada isolada, palavras comuns, eco puro da frase atual, cauda com "Henry", sem `createMediaElementSource`, VAD sem CDN).
+- **Status:** Monitorando (teste do dono no PC; iPhone sem mudança)
+
+### 2026-10-23 — Cliente agradeceu "fotos e vídeos" que não aparecem no Chat (visualização única)
+- **Data:** 2026-10-23
+- **Sintoma:** foto/vídeo/áudio que o contato mandou não aparece na conversa do WhatsApp pessoal, embora as mídias comuns do mesmo número cheguem normalmente.
+- **Área:** WhatsApp
+- **Impacto:** toda mensagem de visualização única recebida pelos números dos corretores sumia sem rastro (as enviadas pelo celular apareciam como "não decifrada").
+- **Causa raiz:** o WhatsApp não entrega visualização única a aparelho conectado; o Baileys 6.7.24 gera um stub sem conteúdo com `key.isViewOnce`; `extractChatEvent` (serviço) devolvia null para o stub do contato. Hipótese do caso real (não comprovável retroativamente).
+- **Correção:** marcador `view_once` nos dois sentidos, sem baixar mídia (WA-35).
+- **Arquivos/commit:** `whatsapp-individual-service/src/message-extract.js`, `lib/whatsapp-individual-inbound.js` — commit deste registro
+- **Prevenção/teste:** `tests/whatsapp-view-once.test.mjs`.
+
+### 2026-10-23 — WhatsApp "conectado, mas sem receber": Gabriel parou às 12:07 e ketlin não recebe nada desde 20/10
+- **Data:** 2026-10-23
+- **Sintoma:** número aparece conectado, o CRM envia, mas nenhuma mensagem chega ao Chat (nem a do próprio celular), os envios ficam sem "entregue"; o alarme demorou 6 h; reconectar pelo QR não resolveu para a ketlin.
+- **Área:** WhatsApp individual (microsserviço Railway)
+- **Impacto:** Gabriel Nº1 (~150 recebidas/h) de 12:07 a 18:46 de 22/10 (e 21/10 das ~12h às 17:22); ketlin Nº1 desde 20/10 12:37; Bruna em 13/10.
+- **Causa raiz:** no Baileys 6.7.24 toda mensagem/recibo/notificação passa, uma por vez, pelo `processingMutex` do socket e os eventos só saem quando a tarefa termina. Uma tarefa que não termina trava tudo: telemetria mostra, a partir do momento, zero `messages.upsert`/`messages.update` (resumos `dec0`) com recibos brutos ainda chegando e o envio funcionando; 50 min depois o WhatsApp derruba com `stream:error ack` da mensagem nunca confirmada e a reentrega na reconexão (6 sockets seguidos travados no mesmo processo; só um pareamento novo destravou o Gabriel em 21/10). Espera sem prazo achada no código: downloads do Baileys (histórico e "app state") por axios sem timeout, dentro da fila. Também: mensagem que não decifra nunca é confirmada no 6.7.24 (o hash do `stream:error ack` bate com `diag_decrypt_fail` de 09:37/10:27/11:17 — é a causa das quedas de ~50 min de todos os números, §1-G). Alarme lento: piso fixo de 6 h úteis.
+- **Correção:** prazo nos downloads e nas chamadas ao CRM; NACK das não decifradas; vigia da fila (5 min) que registra o nó, confirma e reinicia a sessão sem QR; alarme proporcional (≥ 550/semana → 30 min úteis) e reinício pedido pelo CRM antes de desconectar. Detalhe: `docs/WHATSAPP.md` §1-J, `CHANGELOG_AI.md` (2026-10-23).
+- **Arquivos/commit:** `whatsapp-individual-service/src/{pipeline-guard,sessions,server,db,message-diagnostics}.js`, `lib/whatsapp-false-connection{,-core.mjs}.js` — commit desta data.
+- **Prevenção/teste:** `tests/whatsapp-pipeline-guard.test.mjs`, `tests/whatsapp-false-connection.test.mjs` (volume alto). Depois do deploy no Railway: `whatsapp_session_telemetry` com `reason in ('pipeline_stuck','diag_decrypt_nack','placeholder_req','placeholder_recovered')`; quedas `stream:error.ack` devem cair.
+- **Status:** Monitorando (depende do deploy no Railway; causa exata da tarefa presa a confirmar pelo `detail` do `pipeline_stuck`).
+
+### 2026-10-22 — Henry minimizado "escuta, mas não responde"
+- **Data:** 2026-10-22
+- **Sintoma:** com o Henry minimizado e o microfone ligado, o anel reagia à voz mas a pergunta não era respondida.
+- **Área:** Frontend / Henry
+- **Impacto:** só o dono; perguntas por voz perdidas com o ícone minimizado.
+- **Causa raiz:** minimizado exige o nome, e o Chrome corta a 1ª palavra ("Henry") da frase FINAL (sobretudo logo depois de reiniciar o reconhecimento) — o parcial tinha o nome, a final não. Somado: o reconhecimento era recriado quando a identidade de um handler mudava (deps do efeito), o que aborta a sessão e perde palavras; e a janela de conversa (20 s) só abria por chamada falada.
+- **Correção:** o parcial "arma" o trecho (`named` em `trackInterim`/`takeFinalResult`/`forceInterimFinal`; `classifyArmedUtterance`); handlers por ref e deps estáveis (`active, supported, muted, recordMode, listenMode`); janela de conversa de ~40 s depois de qualquer pergunta/resposta; minimizado mostra "Ouvi: … (diga 'Henry' antes)" no balão e na dica.
+- **Arquivos/commit:** `lib/henry-voice-conversation.mjs`, `components/henry/HenryVoiceAssistant.jsx`, `components/henry/HenryVoiceView.jsx` — commit "Henry minimizado: o nome no parcial vale…"
+- **Prevenção/teste:** `tests/henry-voice-conversation.test.mjs` (armar pelo parcial, janela de 40 s, deps estáveis).
+- **Status:** Monitorando
+
+### 2026-10-22 — Henry no iPhone: "Áudio inválido ou longo demais." e toque no Henry abre "Copiar / Pesquisar / Traduzir"
+- **Data:** 2026-10-22
+- **Sintoma:** no app do iPhone, tocar para falar devolvia "Áudio inválido ou longo demais."; tocar no anel selecionava a animação (realce azul com alças) e abria o menu do sistema.
+- **Área:** Frontend / Henry
+- **Impacto:** só o dono; voz no celular inutilizável.
+- **Causa raiz:** (1) a validação só aceitava `data:audio/<tipo>;base64,` sem espaço/aspas e no máximo 800 mil caracteres; o Safari rotula a gravação como `audio/mp4; codecs="mp4a.40.2"` (ou sem tipo / `video/mp4`) e ignora o `audioBitsPerSecond`, podendo passar de 800 mil caracteres em 20 s; a mesma frase servia para os dois casos. (2) Faltavam `user-select`/`-webkit-touch-callout` no ícone, na cena e na animação.
+- **Correção:** `checkHenryAudio` (`lib/henry-voice-providers.mjs`) aceita tipo com parâmetros, sem tipo e `video/mp4` (como `audio/mp4`), teto de 2 milhões de caracteres (corpo da rota 2,2 milhões) e devolve o motivo certo ("longa demais" só quando é longa); o navegador manda só o tipo base. Ícone/cena/canvas sem seleção nem menu do toque longo (`HENRY_NO_SELECT`, `preventTouchSelection` no pointerdown); campo de digitação continua selecionável. Texto "anel" → "Henry".
+- **Arquivos/commit:** `lib/henry-voice-providers.mjs`, `app/api/admin/henry/route.js`, `components/henry/HenryVoiceView.jsx`, `components/henry/HenryOrb.jsx`, `components/henry/HenryVoiceAssistant.jsx`, `components/henry/HenrySettingsCard.jsx` — commit "Henry no iPhone: gravação aceita…"
+- **Prevenção/teste:** `tests/henry-voice-providers.test.mjs` (Blob audio/mp4 de 300–640 KB, tipo com aspas, sem tipo, motivo da recusa, estilos anti-seleção, texto sem "anel").
+- **Status:** Monitorando (confirmar no iPhone do dono)
+
+### 2026-10-22 — Henry no celular "só responde se eu escrever" / "trava quando paro de falar"
+- **Data:** 2026-10-22
+- **Sintoma:** no app instalado no iPhone o Henry não respondia à voz (só ao texto); em outros momentos mostrava "ouvindo" e travava quando o dono parava de falar.
+- **Área:** Frontend / Henry
+- **Impacto:** só o dono; voz no celular inutilizável.
+- **Causa raiz:** o `webkitSpeechRecognition` não existe ou falha no modo standalone do iPhone; quando existe, às vezes entrega só resultados parciais e o `isFinal` nunca chega — a frase nunca era tratada.
+- **Correção:** gravação + ElevenLabs Speech to Text no celular (`henryCaptureMode`); parcial parado por 1,2 s vira final (`forceInterimFinal`).
+- **Arquivos/commit:** `components/henry/HenryVoiceAssistant.jsx`, `lib/henry-voice-conversation.mjs`, `lib/henry-voice-providers.mjs`, `app/api/admin/henry/route.js` — commit (ver `git log` 2026-10-22 "Henry: tocar para falar")
+- **Prevenção/teste:** `tests/henry-voice-conversation.test.mjs`, `tests/henry-voice-providers.test.mjs`. Risco residual: chave da ElevenLabs sem "Fala para Texto" → aviso na tela.
+- **Status:** Monitorando
+
+### 2026-10-22 — Henry ignorou pergunta com a tela cheia aberta ("Ouvi: … — diga 'Henry'")
+- **Data:** 2026-10-22
+- **Sintoma:** "Henry, quantos por cento falta para bater a meta de hoje" — status "Ouvi: 'Quantos por cento…' — diga 'Henry'" e nenhuma resposta.
+- **Área:** Frontend / Henry
+- **Impacto:** só o dono; perguntas perdidas no computador.
+- **Causa raiz:** o Chrome corta a primeira palavra depois de uma pausa; a palavra de chamada só valia no começo da frase e a tela cheia não contava como chamada.
+- **Correção:** tela cheia aberta = já chamando (`classifyOpenSceneUtterance`); nome forte em qualquer posição (`detectWakeWord`, `anywhere`); status diz quando a frase foi ignorada.
+- **Arquivos/commit:** `lib/henry-voice-core.mjs`, `lib/henry-voice-conversation.mjs`, `components/henry/HenryVoiceAssistant.jsx`
+- **Prevenção/teste:** `tests/henry-voice.test.mjs`, `tests/henry-voice-conversation.test.mjs`.
+- **Status:** Resolvido
+
+### 2026-10-22 — Henry "não tenho acesso à câmera" com a visão ligada
+- **Data:** 2026-10-22
+- **Sintoma:** "eu estou com ou sem boné?" → "essa eu não sei responder"; "vc tem acesso à câmera?" → "não tenho".
+- **Área:** Henry / Visão (HENRY-2)
+- **Impacto:** só o dono.
+- **Causa raiz:** `isVisualQuestion` não reconhecia perguntas sobre o próprio dono (sem captura de imagem) e o prompt não dizia ao modelo que a visão estava ligada.
+- **Correção:** `isVisualQuestion` ampliada; `buildHenryVisionNote` manda o estado da visão a cada pedido.
+- **Arquivos/commit:** `lib/henry-voice-core.mjs`, `lib/henry-voice.js`, `app/api/admin/henry/route.js`
+- **Prevenção/teste:** `tests/henry-voice.test.mjs`.
+- **Status:** Resolvido
+
+### 2026-10-22 — Simulação automática do site não preencheu; precisou clicar em "Refazer simulação automática"
+- **Data:** 2026-10-22
+- **Sintoma:** cliente preencheu o formulário do site e a ficha ficou sem valores; só apareceram depois de "Refazer simulação automática".
+- **Área:** Clientes / SIM-AUTO
+- **Impacto:** 1 cliente desde o início da SIM-AUTO (19/10), já resolvido pelo Refazer. Não foi publicação do dia (nenhum commit do período toca o caminho).
+- **Causa raiz:** corrida. O cliente entrou pelo "Atendimento Rápido" (só nome e WhatsApp); o dono abriu "Simulação"/"Valores" na lista, o que cria um rascunho vazio em `simulations` com o e-mail dele (`ensureSimulationId`, `components/clients/useClientList.js`). 0,3 s depois chegou o formulário completo; `saveSiteSimulationFromRegistration` só substituía linha automática ou a vazia "Cadastro do site" — o rascunho vazio de pessoa contou como "simulação do corretor" e a automática foi pulada **sem log**. O "Refazer" já tratava rascunho vazio como substituível (por isso funcionou).
+- **Correção:** régua única `automaticSimulationCanReplace` (`lib/simulation-status-lock-core.mjs`) = não é simulação real (`hasRealSimulationValues`), usada pelo site e pelo "Refazer"; pulo agora registra `Site automatic simulation skipped: manual_simulation <id>` no log.
+- **Arquivos/commit:** `lib/simulations.js`, `lib/simulation-status-lock-core.mjs`, `app/api/simulation-registrations/route.js` — commit (ver `git log` 2026-10-22 "SIM-AUTO: rascunho vazio")
+- **Prevenção/teste:** `tests/simulation-auto-status.test.mjs` (rascunho vazio de pessoa é substituído; simulação com valor nunca). Risco residual: se a tela do Gerador desse rascunho continuar aberta e for editada, o autosave dela pode gravar por cima da automática (mesmo risco que o "Refazer" já tinha).
+- **Status:** Resolvido
+
+### 2026-10-22 — Extensão do Marketplace "fica a todo momento abrindo novas guias"
+- **Data:** 2026-10-22
+- **Sintoma:** "ela fica a todo momento abrindo novas guias; às vezes estou numa página e ela abre outra".
+- **Área:** extensão do Chrome (Marketplace)
+- **Causa raiz:** a extensão criava abas na janela em que o dono estava: o "Manter acordado" (1.9.0) abria e fechava uma aba a cada 1 min; cada rodada do chat (a cada 2 min) criava e fechava sua aba; a publicação abria uma aba ATIVA; e, para abrir uma conversa, a aba do Facebook virava a ativa por alguns segundos (o Facebook não abre conversa em aba oculta).
+- **Correção:** extensão 1.9.4 — janela de trabalho própria, pequena, criada sem foco, com uma aba reutilizada; tudo acontece dentro dela; foco só pelo botão do popup. Para trabalhar atrás de outras janelas: atalho do Chrome com `--disable-features=CalculateNativeWinOcclusion --disable-backgrounding-occluded-windows` (README). Minimizada não trabalha.
+- **Arquivos/commit:** `ferramentas/marketplace-publicador/{background,popup}.js`, `lib/work-window.js` — ver `git log` (2026-10-22, "1.9.4").
+- **Prevenção/teste:** `ferramentas/marketplace-publicador/tests/work-window.test.js` (todo `tabs.create` com `windowId` da janela de trabalho; um único `focused: true`).
+- **Status:** Corrigido no código; falta o dono instalar a 1.9.4 e criar o atalho.
+
+### 2026-10-22 — Extensão do Marketplace: "A conversa não abriu em 25 s depois do clique", "passou de 210 s e foi abandonada"
+- **Data:** 2026-10-22
+- **Sintoma:** o dono recebeu avisos de erro da extensão; `marketplace_diagnostics` (kind `thread`, `open_conversation`) com uma falha a cada ~30 min desde 20/10: "A conversa não abriu em 20–26 s depois do clique (confiável) na linha nome" (`nao_abriu`/`sem_painel`), "Etapa 'página do Facebook (mp-inbox-read)' passou de 210 s e foi abandonada" e, até 21/10 à tarde, "Etapa 'mp-inbox-open-read' passou de 240 s". Respostas do Chat Marketplace "não enviadas" (aviso Importante, 1 por mensagem) com "A conversa não abriu…" e "Conversa não encontrada na caixa do Marketplace".
+- **Área:** Chat Marketplace / extensão do Chrome
+- **Impacto:** leitura e envio intermitentes (funcionam em parte do dia); conversa que falhava era tentada a cada 2 min.
+- **Causa raiz:** (1) o PC rodava a **1.9.0**: o zip `ferramentas/marketplace-publicador.zip` não foi regerado na 1.9.1 nem na 1.9.2, então essas correções nunca chegaram ao PC (todos os diagnósticos de 22/10 dizem `version: 1.9.0`). (2) O Facebook **não mudou o layout**: quando a conversa abre, os retratos têm `role=log`, `role=article`, `data-message-id` e o campo de texto, como os seletores esperam. As falhas são intermitentes e batem com a página oculta para o Chrome (tela desligada/bloqueada — "Manter acordado" segura só o sistema, não a tela —, janela minimizada ou coberta): o clique não abre a conversa e os timers da página ficam segurados (até 1 min por espera), então a leitura passava do prazo de 210 s e era abandonada sem nada. Ainda falta prova direta: os diagnósticos antigos não registravam a visibilidade. (3) O erro de 240 s (`mp-inbox-open-read`) era do fluxo antigo, trocado na 1.8.10. (4) A conversa abre como janela flutuante na própria `/marketplace/inbox/`, sem link `/messages/t/<id>`: o "endereço direto" da 1.9.2 não tem de onde ler e `thread_url` segue vazio em todas as conversas.
+- **Correção:** extensão 1.9.3: não clica com a página oculta (deixa para a próxima rodada, sem contar falha); as esperas da página usam o relógio do service worker; a leitura para 30 s antes do prazo e devolve o que leu; conversa que falhou espera 4 → 8 → 15 → 30 min; diagnóstico 1 a cada 30 min por tipo de falha, com visibilidade e foco da página; erro de envio com a página oculta diz o motivo. CRM grava e mostra a versão da extensão ("Extensão 1.9.3: última leitura…"). Zip regerado.
+- **Arquivos/commit:** `ferramentas/marketplace-publicador/{background,inbox}.js`, `lib/{chat-agenda,crm-api}.js` da extensão, `ferramentas/marketplace-publicador.zip`, `app/api/marketplace/chat/sync/route.js`, `lib/marketplace-chat.js`, `components/marketplace/MarketplaceChat.jsx`. Ver `git log` (2026-10-22, "extensão 1.9.3").
+- **Prevenção/teste:** `ferramentas/marketplace-publicador/tests/{chat,crm-api}.test.js`, `tests/marketplace-extension-signal.test.mjs`. **Toda versão nova da extensão precisa regerar o zip** (ver CHANGELOG 1.9.3). Conferir a versão no Chat Marketplace.
+- **Status:** Corrigido no código; falta o dono instalar a 1.9.3. Confirmar a causa da página oculta pelo campo `view.visibility` dos próximos diagnósticos (`aba_oculta`/`nao_abriu`).
+
+### 2026-10-22 — Fila de espera da roleta parada: clientes elegíveis não eram entregues
+- **Data:** 2026-10-22
+- **Sintoma:** clientes "na roleta" (fila de espera, guardados com o dono) não saíam para nenhum corretor; última entrega da fila comum em 17/10 11:52.
+- **Área:** Roleta (ROL-2b)
+- **Impacto:** 7 clientes elegíveis (inclusive em atendimento/documentação) parados de 17/10 a 22/10; a fila de reativação (FUN-15l) não foi afetada.
+- **Causa raiz:** `reassignPendingRouletteLeads` pegava só os 25 mais antigos (filtrando status no SQL) e SÓ DEPOIS descartava os em bloqueio de 30 dias da Prospecção (`available_after`). Os 30 primeiros da fila estavam bloqueados até 06–18/11: ocupavam o lote inteiro em toda rodada e ninguém atrás deles era alcançado.
+- **Correção:** decisão do dono ("bloqueados de 30 dias não seguram a fila"): o entregador lê a fila inteira e `planWaitingQueue` monta o lote de 25 sem os bloqueados; eles continuam com o dono e voltam à fila sozinhos quando o bloqueio vence. Lista de Clientes usa a mesma função (posição "Roleta · Nº na fila").
+- **Arquivos/commit:** `lib/pending-roulette-core.mjs`, `lib/lead-distribution.js` — ver `git log` (2026-10-22, "bloqueados de 30 dias")
+- **Prevenção/teste:** `tests/roulette-queue-position.test.mjs` (30 bloqueados na frente + 7 elegíveis atrás → os 7 entregues). Risco residual: link pessoal/canal direto ainda ocupam o lote (hoje 0 na fila).
+- **Status:** Resolvido (conferir saída dos 7 nas rodadas seguintes)
+
+### 2026-10-22 — Cliente do Marketplace transferido mesmo com o corretor tendo respondido
+- **Data:** 2026-10-22
+- **Sintoma:** conversa do Marketplace recebida pela roleta foi redistribuída para outra corretora, embora o corretor tivesse respondido pelo Chat do Marketplace dentro do prazo.
+- **Área:** Roleta / Marketplace (MKT-2e)
+- **Impacto:** corretor perde o cliente que já atendeu sempre que o envio pela extensão falha; caso real: corretor respondeu às 08:38, envio falhou, a redistribuição rodou às 11:08 e a mensagem só saiu às 11:12 após reprocessar.
+- **Causa raiz:** o prazo só era segurado por `last_human_reply_at` (resposta já enviada) ou por mensagem na fila (`queued`/`sending`); `pendingRepliesByConversation` ignorava status `failed`, então a resposta escrita com envio falho não contava.
+- **Correção:** qualquer resposta humana escrita pelo CRM depois da entrega (outbound com `sender_user_id`, qualquer status) segura o cliente (`humanRepliesByConversation` + `shouldRedistribute({ humanReplySince })`); mensagem interna continua não contando. Decisão do dono 2026-10-22. Nenhum dado alterado (devolver o cliente ao corretor é decisão do dono).
+- **Arquivos/commit:** `lib/marketplace-chat.js`, `lib/marketplace-chat-core.mjs` — ver `git log` (2026-10-22, "fidelizado")
+- **Prevenção/teste:** `tests/marketplace-chat-core.test.mjs` (envio falho segura; interna não segura; resposta anterior à entrega não segura).
+- **Status:** Resolvido
+### 2026-10-22 — Resposta do corretor no Chat Marketplace "Falhou — A conversa não abriu em 20 s depois do clique"
+- **Data:** 2026-10-22
+- **Sintoma:** resposta do Gabriel Ribeiro ficou "Falhou — A conversa não abriu em 20 s depois do clique (aba em /marketplace/inbox/)"; outras com "Não confirmei a mensagem na conversa" e "No tab with id". Corretores não têm acesso ao Facebook.
+- **Área:** Chat Marketplace / extensão
+- **Impacto:** 5 respostas não enviadas (de 50); corretor sem saída a não ser o dono.
+- **Causa raiz:** envio abria a conversa clicando na lista (20 s, aba oculta), a confirmação dependia da direção das 3 últimas mensagens (às vezes errada) e a aba da rodada podia sumir; o servidor só tentava 2 vezes e mostrava o erro técnico.
+- **Correção:** endereço direto da conversa, espera de 45 s com a aba visível, aba recriada, confirmação pelo texto "por Você", 3 tentativas com intervalo, confirmação pelo eco, "Tentar de novo" do corretor, alerta ao admin; reprocessamento manual das falhas.
+- **Arquivos/commit:** `ferramentas/marketplace-publicador/{background,inbox}.js`, `lib/marketplace-chat{,-core}.{js,mjs}`, rotas de retry e reprocessamento
+- **Prevenção/teste:** `tests/marketplace-chat-core.test.mjs`, `ferramentas/marketplace-publicador/tests/estrutura-real.test.js`
+- **Status:** Resolvido no código; falhas atuais dependem do acionamento do reprocessamento
+### 2026-10-22 — "Debora iniciou esta conversa." e sugestão de resposta rápida aparecem como mensagem da cliente
+- **Data:** 2026-10-22
+- **Sintoma:** no Chat Marketplace a conversa da Debora mostrava como da cliente o aviso "Debora iniciou esta conversa." e "Sim, você tem interesse?" (22/10 06:33), que ninguém enviou — era uma sugestão do painel "Envie uma resposta rápida". Também: o dono abriu a conversa e o contador de não lidas sumiu.
+- **Área:** Chat Marketplace / extensão
+- **Impacto:** conversas importadas com aviso/painel; contador zerado por quem só olhava.
+- **Causa raiz:** o leitor aceitava `role=article` sem `data-message-id` e, sem linhas no log, caía na leitura por geometria, que pega qualquer texto (painel, chips); `getMarketplaceConversation` zerava `unread_count` para qualquer pessoa que abrisse.
+- **Correção:** só balão com `data-message-id`; painel e avisos ignorados (extensão 1.9.1 e servidor); renormalização apaga o que não tem id do Facebook numa conversa que tem; abrir marca lida só para o corretor atribuído/associado (`marksReadOnOpen`).
+- **Arquivos/commit:** `ferramentas/marketplace-publicador/{selectors,inbox}.js`, `lib/marketplace-chat-core.mjs`, `lib/marketplace-chat.js`, `lib/whatsapp-chat-scope.mjs`
+- **Prevenção/teste:** `tests/marketplace-chat-core.test.mjs`, `ferramentas/marketplace-publicador/tests/estrutura-real.test.js` (strings do caso)
+- **Status:** Resolvido no código; dados antigos dependem do acionamento da rota com `apply=1`
+### 2026-10-22 — Cliente do Marketplace não troca de corretor quando fica sem resposta
+- **Data:** 2026-10-22
+- **Sintoma:** a redistribuição automática do Chat Marketplace (troca de corretor depois do prazo sem resposta) estava parada sem ninguém saber; a conversa ficava com quem recebeu.
+- **Área:** Chat Marketplace / Roleta
+- **Impacto:** toda conversa do Marketplace entregue pela roleta desde 20/10 (nenhuma redistribuída).
+- **Causa raiz:** (1) a busca das conversas vencidas filtrava `client_id is null` (`processMarketplaceDistribution`, desde c803db8), mas desde 36e145c toda conversa distribuída vira cliente na hora — a condição nunca era verdadeira; (2) a checagem só rodava dentro da sincronização da extensão (sem cron), então com a extensão fechada nada rodava; (3) erros de gravação da conversa eram ignorados (`update` sem checar `error`). Nenhum log/alerta acusava. Confirmação por consulta em produção não feita nesta sessão (sem acesso ao banco daqui) — diagnóstico pelo código.
+- **Correção:** MKT-2e: filtro por origem da atribuição (`assignment_source = roulette`), prazo da regra "REDISTRIBUIÇÃO DE LEADS", job no cron `scheduled-activities`, sinal do job + alerta Importante aos admins quando fica > 10 min sem sucesso, gravações que lançam erro.
+- **Arquivos/commit:** `lib/marketplace-chat.js`, `lib/marketplace-chat-core.mjs`, `lib/crm-automations.js`, `app/api/cron/scheduled-activities/route.js`, `app/api/cron/whatsapp-flows/route.js`, `supabase/migrations/20261022150000_marketplace_assignment_source.sql`
+- **Prevenção/teste:** `tests/marketplace-chat-core.test.mjs` (prazo vencido, sem elegível → fila, 1ª carga fora, trava contra o filtro `client_id`); monitoramento `checkMarketplaceRedistributionStalled`.
+- **Status:** Resolvido no código; depende de aplicar a migration 20261022150000 (até lá o job acusa erro e o alerta aparece).
+### 2026-10-21 — Conversa do Marketplace com "Pressione Enter, Mensagem enviada … por …" e foto do cliente como anexo
+- **Data:** 2026-10-21
+- **Sintoma:** no Chat Marketplace (Rafael/Tânia) cada mensagem aparecia como "Pressione Enter, Mensagem enviada 10:18 por Você: …", mensagens nossas como do cliente, a foto de perfil como anexo, balões vazios "por Rafael", "Rafael está aguardando a sua resposta." como mensagem do cliente e mensagens de 28/09 depois das de hoje. Também: conversas gravadas sem mensagem (upsert batia num índice único parcial, 42P10 — corrigido em 7b4b373).
+- **Área:** Chat Marketplace / extensão
+- **Impacto:** todas as conversas importadas até 21/10 (Rafael 11, Tânia 9 mensagens).
+- **Causa raiz:** o leitor usa o aria-label do balão (texto de acessibilidade do Facebook) como corpo; direção vinha de marcadores visuais; imagem ≥ 80 px de origem do avatar passava como anexo; hora era inventada a partir da última atividade.
+- **Correção:** `normalizeFacebookMessage`/`parseFacebookWhen` (`lib/marketplace-chat-core.mjs`) extraem texto, hora e QUEM ("Você"/"You" = nossa) na sincronização; avatar e avisos descartados; ordem pela hora real. Já gravado: `renormalizeMarketplaceMessages` (rota manual `/api/cron/marketplace-messages-renormalize`, `?apply=1`). Extensão 1.8.11 não pega avatar como anexo.
+- **Arquivos/commit:** `lib/marketplace-chat-core.mjs`, `lib/marketplace-chat.js`, `app/api/cron/marketplace-messages-renormalize/route.js`, `ferramentas/marketplace-publicador/inbox.js`
+- **Prevenção/teste:** `tests/marketplace-chat-core.test.mjs` (strings exatas do caso)
+- **Status:** Resolvido no código; dados antigos dependem do acionamento da rota com `apply=1`
 ### 2026-10-20 — Pedido da lista de documentos respondido com o menu de boas-vindas
 - **Data:** 2026-10-20
 - **Sintoma:** cliente mandou ao oficial o texto pronto "…Pode me mandar a lista do meu caso? Código do atendimento: MM-…" e o robô respondeu "Boa tarde… Como podemos te ajudar?" com os botões Fazer simulação / Já sou cliente / Tenho uma dúvida.
@@ -579,3 +760,9 @@ Copie o modelo abaixo (uma entrada por bloco):
 - **Sintoma:** no Chat a barra inferior ficava alta com faixa branca embaixo (ou cortada pela metade); nas outras telas, normal.
 - **Causa raiz (medida no aparelho: tela 956, `innerHeight` 894, safe-area do topo 62):** com a página do Chat SEM rolagem (`html` 100% + `overflow: hidden`), o iOS encolhe a janela do app pela altura da barra de status; os 62 pt de baixo ficam fora do app. Telas que rolam não têm o defeito.
 - **Correção:** `html.chat-app-mode` com `min-height: calc(100% + env(safe-area-inset-top))` e `overflow-y: auto` (`app/globals.css`). Rede de segurança em `components/AdminBottomNav.jsx` (`--mm-fixed-drop`) mede o fim visível e desce a barra se o iOS voltar a encurtar o fixo.
+
+## 2026-10-21 — Chat do Marketplace: conversas chegam sem nenhuma mensagem
+
+- **Sintoma:** a extensão abria e lia as conversas do Marketplace, mas o popup mostrava "não chegou ao CRM (Não foi possível sincronizar.)"; `marketplace_conversations` com linhas e `marketplace_messages` vazia.
+- **Causa raiz:** o upsert de mensagens (`lib/marketplace-chat.js`, `onConflict: "conversation_id,external_id"`) falhava no Postgres com "there is no unique or exclusion constraint matching the ON CONFLICT specification" (PostgREST 400): o único índice único era parcial (`where external_id is not null`), e ON CONFLICT só casa com índice parcial quando recebe o mesmo predicado.
+- **Correção:** índice único completo `marketplace_messages_conversation_external_key` (migration `20261021223000_marketplace_messages_external_unique_full.sql`); NULLs seguem distintos. Achado pelos logs do Postgres (`query_logs`), não pela extensão.

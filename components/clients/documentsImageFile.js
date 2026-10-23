@@ -53,3 +53,17 @@ export async function saveOrShareImage(file) {
   setTimeout(() => URL.revokeObjectURL(url), 30000);
   return "downloaded";
 }
+
+// "Copiar mídia" (dono, 2026-10-22): copia a IMAGEM da lista para a área de transferência, para colar no WhatsApp
+// Web/app quando o envio não sai pelo Chat. No Safari/iOS o ClipboardItem precisa nascer DENTRO do toque: por isso ele
+// recebe a PROMISE do arquivo (não o arquivo já baixado depois de um await), senão o navegador recusa por falta de gesto.
+export function canCopyImage() {
+  return typeof window !== "undefined" && typeof window.ClipboardItem === "function" && typeof navigator !== "undefined" && typeof navigator.clipboard?.write === "function";
+}
+
+// `fileOrPromise`: File/Blob da lista ou a Promise dele. Erro (sem permissão, formato recusado) sobe para quem chamou
+// decidir o plano B (baixar/compartilhar).
+export async function copyImageToClipboard(fileOrPromise) {
+  const png = Promise.resolve(fileOrPromise).then((blob) => (blob.type === "image/png" ? blob : new Blob([blob], { type: "image/png" })));
+  await navigator.clipboard.write([new window.ClipboardItem({ "image/png": png })]);
+}

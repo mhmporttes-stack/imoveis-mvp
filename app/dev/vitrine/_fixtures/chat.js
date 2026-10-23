@@ -342,7 +342,8 @@ function listConversations({ url }) {
   return { conversations: rows };
 }
 
-function summary() {
+// Também é a fonte do contador do Chat nas outras telas da vitrine (_fixtures/comum.js): o mesmo número em todas.
+export function summary() {
   const rows = visibleConversations();
   const unread = rows.filter((row) => row.unreadCount > 0);
   const waiting = rows.filter((row) => row.waiting?.kind === "awaiting_us");

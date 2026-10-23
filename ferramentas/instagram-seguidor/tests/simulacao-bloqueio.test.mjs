@@ -76,7 +76,7 @@ test('busca de origem com 400 + require_login NÃO pausa; plano B (pesquisa) ach
   assert.equal(e.pausaAte, null);
   assert.equal(e.esfriarAte, null);
   assert.equal(e.semSessao, false);
-  assert.equal(e.fila.length, 108);
+  assert.equal(e.fila.length, 120); // 1.1.0: privados entram na fila
   // Perfil que não existe em nenhum dos 3 métodos: erro com trecho, sem pausa
   const r2 = await ext.mensagem({ tipo: 'buscarOrigem', username: 'naoexiste' });
   assert.equal(r2.ok, false);
@@ -140,8 +140,8 @@ test('busca: lista v1 vazia → plano B (GraphQL) preenche a fila', { timeout: 6
   assert.equal(r.ok, true, r.erro);
   assert.equal(r.resultado.via, 'graphql');
   assert.equal(r.resultado.lidos, 120);
-  assert.equal(r.resultado.adicionados, 108);
-  assert.equal(r.resultado.pulados.privado, 12);
+  assert.equal(r.resultado.adicionados, 120);
+  assert.equal(r.resultado.pulados.privado, undefined, 'privados não são mais pulados por padrão');
   mock.timers.reset();
 });
 
@@ -186,7 +186,8 @@ test('fila curta: continua a lista do MESMO perfil sozinha, devagar e só na jan
   assert.ok(ids.every((id) => !e.seguidos[id]));
   assert.ok(e.fila.length >= 15, `fila ficou com ${e.fila.length}`);
   assert.ok(e.cursorOrigem.totais.lidos > 36);
-  assert.ok(e.cursorOrigem.totais.pulados.privado > 0);
+  assert.equal(e.cursorOrigem.totais.pulados.privado, undefined);
+  assert.ok(Object.values(e.seguidos).some((s) => s.status === 'solicitado'), 'privados viram Solicitado');
   mock.timers.reset();
 });
 

@@ -16,6 +16,7 @@ import { runCaptacaoUploadCleanupIfDue } from "@/lib/captacao-upload-cleanup";
 import { processDueArrival } from "@/lib/alexa-arrival";
 import { reconcileExpectedReceiptActivities } from "@/lib/financial";
 import { runCooledClientsFlow } from "@/lib/cooled-clients";
+import { runProspectingAutoReturnJob } from "@/lib/prospecting-auto-return";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -134,6 +135,16 @@ export async function GET(request) {
       console.error("Falha ao reconciliar o Particular automático.", autoPrivateError);
     }
 
+    // Retorno automático de 7 dias da Prospecção (dono, 2026-10-22: saiu das leituras de tela, pode atrasar até 2 min).
+    // Antes da rede de segurança abaixo, que entrega ao dono no mesmo ciclo quem foi devolvido (FUN-11). Com trava.
+    let prospectingAutoReturn = null;
+    try {
+      prospectingAutoReturn = await runProspectingAutoReturnJob();
+    } catch (autoReturnError) {
+      console.error("Falha no retorno automático da Prospecção.", autoReturnError);
+      prospectingAutoReturn = { error: autoReturnError?.message || "Falha no retorno automático." };
+    }
+
     // Fila de espera da roleta (regra do dono, 2026-09-30): distribui pro
     // primeiro corretor on-line quem ficou sem responsável porque, na hora
     // da criação, ninguém estava on-line. Roda ANTES da rede de segurança
@@ -155,6 +166,18 @@ export async function GET(request) {
     } catch (reactivationError) {
       console.error("Falha na fila de reativação dos clientes transferidos.", reactivationError);
       cooledReactivation = { error: reactivationError?.message || "Falha na fila de reativação." };
+    }
+
+    // Chat do Marketplace (MKT-2e, dono 2026-10-22): fila de espera + troca de corretor quando a conversa da roleta fica
+    // sem resposta no prazo da roleta. Antes só rodava quando a extensão sincronizava. Grava o sinal do job (monitorado
+    // pelo cron whatsapp-flows); nunca derruba o resto do cron.
+    let marketplaceRedistribution = null;
+    try {
+      const { runMarketplaceRedistributionJob } = await import("@/lib/marketplace-chat");
+      marketplaceRedistribution = await runMarketplaceRedistributionJob();
+    } catch (marketplaceError) {
+      console.error("Falha na redistribuição do Chat do Marketplace.", marketplaceError);
+      marketplaceRedistribution = { error: marketplaceError?.message || "Falha na redistribuição do Marketplace." };
     }
 
     // Rede de segurança da regra "nenhum cliente sem responsável": pega
@@ -209,8 +232,10 @@ export async function GET(request) {
       automations,
       expectedReceipts,
       sponsoredLeads,
+      prospectingAutoReturn,
       pendingRouletteAssignment,
       cooledReactivation,
+      marketplaceRedistribution,
       orphanReassignment,
       captacaoUploadCleanup,
       cooledClients

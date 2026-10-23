@@ -1,93 +1,93 @@
 /* GERADO por .claude/design/tools/gerar-tema-escuro.mjs — não editar à mão (ajustes: app/admin-theme.css). */
 /* Modo escuro do painel (dono, 2026-10-16). Só vale com html.mm-dark (components/admin-theme.js). */
 html.mm-dark {
-  --mm-mist: 12 24 39;
-  --mm-line: 39 59 83;
-  --mm-navy: 234 241 250;
-  --mm-ink: 220 229 239;
-  --mm-ink-2: 179 192 207;
-  --mm-muted: 148 164 183;
-  --mm-faint: 110 128 150;
-  --mm-brand: 125 179 248;
-  --mm-success: 92 212 154;
-  --mm-success-soft: 16 41 31;
-  --mm-success-line: 31 75 55;
-  --mm-success-strong: 23 168 100;
-  --mm-warning: 244 188 92;
-  --mm-warning-soft: 42 33 17;
-  --mm-warning-line: 87 65 24;
-  --mm-warning-strong: 221 125 18;
-  --mm-danger: 255 148 136;
-  --mm-danger-soft: 51 25 27;
-  --mm-danger-line: 95 43 44;
-  --mm-danger-strong: 229 72 58;
-  --mm-info: 134 186 255;
-  --mm-info-soft: 21 48 79;
-  --mm-info-line: 40 83 131;
-  --mm-info-strong: 59 130 224;
-  --mm-neutral: 179 192 207;
-  --mm-neutral-soft: 27 44 64;
-  --mm-neutral-line: 44 64 88;
-  --mm-neutral-strong: 211 220 230;
-  --mm-slate-50: 22 39 59;
-  --mm-slate-100: 27 44 64;
-  --mm-slate-200: 39 59 83;
-  --mm-slate-300: 54 75 100;
-  --mm-slate-400: 140 156 176;
-  --mm-slate-500: 163 177 194;
-  --mm-slate-600: 184 196 210;
-  --mm-slate-700: 205 214 225;
-  --mm-slate-800: 226 232 240;
-  --mm-slate-900: 241 245 249;
-  --mm-slate-950: 248 250 252;
-  --mm-gray-50: 22 39 59;
-  --mm-gray-100: 27 44 64;
-  --mm-gray-200: 39 59 83;
-  --mm-gray-300: 54 75 100;
-  --mm-gray-400: 140 156 176;
-  --mm-gray-500: 163 177 194;
-  --mm-gray-600: 184 196 210;
-  --mm-gray-700: 205 214 225;
-  --mm-gray-800: 226 232 240;
-  --mm-gray-900: 241 245 249;
-  --mm-gray-950: 248 250 252;
-  --mm-zinc-50: 22 39 59;
-  --mm-zinc-100: 27 44 64;
-  --mm-zinc-200: 39 59 83;
-  --mm-zinc-300: 54 75 100;
-  --mm-zinc-400: 140 156 176;
-  --mm-zinc-500: 163 177 194;
-  --mm-zinc-600: 184 196 210;
-  --mm-zinc-700: 205 214 225;
-  --mm-zinc-800: 226 232 240;
-  --mm-zinc-900: 241 245 249;
-  --mm-zinc-950: 248 250 252;
-  --mm-stone-50: 22 39 59;
-  --mm-stone-100: 27 44 64;
-  --mm-stone-200: 39 59 83;
-  --mm-stone-300: 54 75 100;
-  --mm-stone-400: 140 156 176;
-  --mm-stone-500: 163 177 194;
-  --mm-stone-600: 184 196 210;
-  --mm-stone-700: 205 214 225;
-  --mm-stone-800: 226 232 240;
-  --mm-stone-900: 241 245 249;
-  --mm-stone-950: 248 250 252;
-  --mm-neutral-50: 22 39 59;
-  --mm-neutral-100: 27 44 64;
-  --mm-neutral-200: 39 59 83;
-  --mm-neutral-300: 54 75 100;
-  --mm-neutral-400: 140 156 176;
-  --mm-neutral-500: 163 177 194;
-  --mm-neutral-600: 184 196 210;
-  --mm-neutral-700: 205 214 225;
-  --mm-neutral-800: 226 232 240;
-  --mm-neutral-900: 241 245 249;
-  --mm-neutral-950: 248 250 252;
-  --mm-red-50: 47 38 56;
-  --mm-red-100: 62 41 57;
-  --mm-red-200: 89 45 58;
-  --mm-red-300: 124 50 61;
+  --mm-mist: 7 17 31;
+  --mm-line: 26 49 80;
+  --mm-navy: 230 237 246;
+  --mm-ink: 230 237 246;
+  --mm-ink-2: 201 214 230;
+  --mm-muted: 157 176 200;
+  --mm-faint: 126 147 174;
+  --mm-brand: 127 216 236;
+  --mm-success: 61 213 152;
+  --mm-success-soft: 15 46 34;
+  --mm-success-line: 27 78 58;
+  --mm-success-strong: 31 179 122;
+  --mm-warning: 242 198 109;
+  --mm-warning-soft: 42 35 18;
+  --mm-warning-line: 90 71 24;
+  --mm-warning-strong: 217 154 30;
+  --mm-danger: 240 113 106;
+  --mm-danger-soft: 58 23 22;
+  --mm-danger-line: 106 42 40;
+  --mm-danger-strong: 224 82 74;
+  --mm-info: 127 216 236;
+  --mm-info-soft: 15 42 71;
+  --mm-info-line: 36 82 122;
+  --mm-info-strong: 79 195 224;
+  --mm-neutral: 201 214 230;
+  --mm-neutral-soft: 19 38 63;
+  --mm-neutral-line: 31 58 92;
+  --mm-neutral-strong: 230 237 246;
+  --mm-slate-50: 15 31 53;
+  --mm-slate-100: 19 38 63;
+  --mm-slate-200: 26 49 80;
+  --mm-slate-300: 36 66 106;
+  --mm-slate-400: 126 147 174;
+  --mm-slate-500: 157 176 200;
+  --mm-slate-600: 179 195 215;
+  --mm-slate-700: 201 214 230;
+  --mm-slate-800: 220 229 240;
+  --mm-slate-900: 230 237 246;
+  --mm-slate-950: 243 247 251;
+  --mm-gray-50: 15 31 53;
+  --mm-gray-100: 19 38 63;
+  --mm-gray-200: 26 49 80;
+  --mm-gray-300: 36 66 106;
+  --mm-gray-400: 126 147 174;
+  --mm-gray-500: 157 176 200;
+  --mm-gray-600: 179 195 215;
+  --mm-gray-700: 201 214 230;
+  --mm-gray-800: 220 229 240;
+  --mm-gray-900: 230 237 246;
+  --mm-gray-950: 243 247 251;
+  --mm-zinc-50: 15 31 53;
+  --mm-zinc-100: 19 38 63;
+  --mm-zinc-200: 26 49 80;
+  --mm-zinc-300: 36 66 106;
+  --mm-zinc-400: 126 147 174;
+  --mm-zinc-500: 157 176 200;
+  --mm-zinc-600: 179 195 215;
+  --mm-zinc-700: 201 214 230;
+  --mm-zinc-800: 220 229 240;
+  --mm-zinc-900: 230 237 246;
+  --mm-zinc-950: 243 247 251;
+  --mm-stone-50: 15 31 53;
+  --mm-stone-100: 19 38 63;
+  --mm-stone-200: 26 49 80;
+  --mm-stone-300: 36 66 106;
+  --mm-stone-400: 126 147 174;
+  --mm-stone-500: 157 176 200;
+  --mm-stone-600: 179 195 215;
+  --mm-stone-700: 201 214 230;
+  --mm-stone-800: 220 229 240;
+  --mm-stone-900: 230 237 246;
+  --mm-stone-950: 243 247 251;
+  --mm-neutral-50: 15 31 53;
+  --mm-neutral-100: 19 38 63;
+  --mm-neutral-200: 26 49 80;
+  --mm-neutral-300: 36 66 106;
+  --mm-neutral-400: 126 147 174;
+  --mm-neutral-500: 157 176 200;
+  --mm-neutral-600: 179 195 215;
+  --mm-neutral-700: 201 214 230;
+  --mm-neutral-800: 220 229 240;
+  --mm-neutral-900: 230 237 246;
+  --mm-neutral-950: 243 247 251;
+  --mm-red-50: 42 32 49;
+  --mm-red-100: 58 35 50;
+  --mm-red-200: 85 40 53;
+  --mm-red-300: 121 47 57;
   --mm-red-400: 248 113 113;
   --mm-red-500: 239 68 68;
   --mm-red-600: 248 113 113;
@@ -95,10 +95,10 @@ html.mm-dark {
   --mm-red-800: 254 202 202;
   --mm-red-900: 254 226 226;
   --mm-red-950: 254 242 242;
-  --mm-orange-50: 48 45 50;
-  --mm-orange-100: 64 50 48;
-  --mm-orange-200: 92 60 44;
-  --mm-orange-300: 129 73 39;
+  --mm-orange-50: 44 38 43;
+  --mm-orange-100: 60 45 41;
+  --mm-orange-200: 89 55 38;
+  --mm-orange-300: 126 69 34;
   --mm-orange-400: 251 146 60;
   --mm-orange-500: 249 115 22;
   --mm-orange-600: 251 146 60;
@@ -106,10 +106,10 @@ html.mm-dark {
   --mm-orange-800: 254 215 170;
   --mm-orange-900: 255 237 213;
   --mm-orange-950: 255 247 237;
-  --mm-amber-50: 48 50 48;
-  --mm-amber-100: 63 59 45;
-  --mm-amber-200: 91 74 40;
-  --mm-amber-300: 127 94 33;
+  --mm-amber-50: 43 44 41;
+  --mm-amber-100: 59 53 39;
+  --mm-amber-200: 87 69 35;
+  --mm-amber-300: 124 90 29;
   --mm-amber-400: 251 191 36;
   --mm-amber-500: 245 158 11;
   --mm-amber-600: 251 191 36;
@@ -117,10 +117,10 @@ html.mm-dark {
   --mm-amber-800: 253 230 138;
   --mm-amber-900: 254 243 199;
   --mm-amber-950: 255 251 235;
-  --mm-yellow-50: 46 53 48;
-  --mm-yellow-100: 61 63 45;
-  --mm-yellow-200: 87 80 39;
-  --mm-yellow-300: 122 104 32;
+  --mm-yellow-50: 42 47 41;
+  --mm-yellow-100: 57 57 38;
+  --mm-yellow-200: 84 76 34;
+  --mm-yellow-300: 119 100 28;
   --mm-yellow-400: 250 204 21;
   --mm-yellow-500: 234 179 8;
   --mm-yellow-600: 250 204 21;
@@ -128,10 +128,10 @@ html.mm-dark {
   --mm-yellow-800: 254 240 138;
   --mm-yellow-900: 254 249 195;
   --mm-yellow-950: 254 252 232;
-  --mm-lime-50: 33 56 50;
-  --mm-lime-100: 41 68 48;
-  --mm-lime-200: 54 88 44;
-  --mm-lime-300: 73 116 39;
+  --mm-lime-50: 28 50 43;
+  --mm-lime-100: 37 62 41;
+  --mm-lime-200: 51 84 38;
+  --mm-lime-300: 70 112 34;
   --mm-lime-400: 163 230 53;
   --mm-lime-500: 132 204 22;
   --mm-lime-600: 163 230 53;
@@ -139,10 +139,10 @@ html.mm-dark {
   --mm-lime-800: 217 249 157;
   --mm-lime-900: 236 252 203;
   --mm-lime-950: 247 254 231;
-  --mm-green-50: 20 55 59;
-  --mm-green-100: 21 67 62;
-  --mm-green-200: 23 86 67;
-  --mm-green-300: 26 112 73;
+  --mm-green-50: 16 49 52;
+  --mm-green-100: 17 61 56;
+  --mm-green-200: 20 81 61;
+  --mm-green-300: 23 109 69;
   --mm-green-400: 74 222 128;
   --mm-green-500: 34 197 94;
   --mm-green-600: 74 222 128;
@@ -150,10 +150,10 @@ html.mm-dark {
   --mm-green-800: 187 247 208;
   --mm-green-900: 220 252 231;
   --mm-green-950: 240 253 244;
-  --mm-emerald-50: 18 54 64;
-  --mm-emerald-100: 18 64 69;
-  --mm-emerald-200: 17 82 78;
-  --mm-emerald-300: 17 106 90;
+  --mm-emerald-50: 13 48 57;
+  --mm-emerald-100: 14 59 63;
+  --mm-emerald-200: 14 78 73;
+  --mm-emerald-300: 14 103 86;
   --mm-emerald-400: 52 211 153;
   --mm-emerald-500: 16 185 129;
   --mm-emerald-600: 52 211 153;
@@ -161,10 +161,10 @@ html.mm-dark {
   --mm-emerald-800: 167 243 208;
   --mm-emerald-900: 209 250 229;
   --mm-emerald-950: 236 253 245;
-  --mm-teal-50: 18 54 69;
-  --mm-teal-100: 18 64 76;
-  --mm-teal-200: 19 82 90;
-  --mm-teal-300: 19 106 108;
+  --mm-teal-50: 14 47 62;
+  --mm-teal-100: 14 58 70;
+  --mm-teal-200: 15 77 84;
+  --mm-teal-300: 16 102 104;
   --mm-teal-400: 45 212 191;
   --mm-teal-500: 20 184 166;
   --mm-teal-600: 45 212 191;
@@ -172,10 +172,10 @@ html.mm-dark {
   --mm-teal-800: 153 246 228;
   --mm-teal-900: 204 251 241;
   --mm-teal-950: 240 253 250;
-  --mm-cyan-50: 16 53 75;
-  --mm-cyan-100: 16 64 86;
-  --mm-cyan-200: 14 81 105;
-  --mm-cyan-300: 12 105 130;
+  --mm-cyan-50: 12 47 68;
+  --mm-cyan-100: 12 58 79;
+  --mm-cyan-200: 11 77 99;
+  --mm-cyan-300: 10 101 126;
   --mm-cyan-400: 34 211 238;
   --mm-cyan-500: 6 182 212;
   --mm-cyan-600: 34 211 238;
@@ -183,10 +183,10 @@ html.mm-dark {
   --mm-cyan-800: 165 243 252;
   --mm-cyan-900: 207 250 254;
   --mm-cyan-950: 236 254 255;
-  --mm-sky-50: 17 51 77;
-  --mm-sky-100: 17 60 90;
-  --mm-sky-200: 17 76 111;
-  --mm-sky-300: 16 97 140;
+  --mm-sky-50: 13 45 70;
+  --mm-sky-100: 13 55 83;
+  --mm-sky-200: 13 71 106;
+  --mm-sky-300: 13 93 136;
   --mm-sky-400: 56 189 248;
   --mm-sky-500: 14 165 233;
   --mm-sky-600: 56 189 248;
@@ -194,10 +194,10 @@ html.mm-dark {
   --mm-sky-800: 186 230 253;
   --mm-sky-900: 224 242 254;
   --mm-sky-950: 240 249 255;
-  --mm-blue-50: 23 46 79;
-  --mm-blue-100: 26 53 92;
-  --mm-blue-200: 31 65 115;
-  --mm-blue-300: 38 80 146;
+  --mm-blue-50: 19 40 72;
+  --mm-blue-100: 22 48 86;
+  --mm-blue-200: 28 60 110;
+  --mm-blue-300: 35 76 142;
   --mm-blue-400: 96 165 250;
   --mm-blue-500: 59 130 246;
   --mm-blue-600: 96 165 250;
@@ -205,10 +205,10 @@ html.mm-dark {
   --mm-blue-800: 191 219 254;
   --mm-blue-900: 219 234 254;
   --mm-blue-950: 239 246 255;
-  --mm-indigo-50: 29 43 78;
-  --mm-indigo-100: 34 48 91;
-  --mm-indigo-200: 44 56 114;
-  --mm-indigo-300: 57 67 144;
+  --mm-indigo-50: 24 37 71;
+  --mm-indigo-100: 30 42 85;
+  --mm-indigo-200: 41 51 108;
+  --mm-indigo-300: 54 63 140;
   --mm-indigo-400: 129 140 248;
   --mm-indigo-500: 99 102 241;
   --mm-indigo-600: 129 140 248;
@@ -216,10 +216,10 @@ html.mm-dark {
   --mm-indigo-800: 199 210 254;
   --mm-indigo-900: 224 231 255;
   --mm-indigo-950: 238 242 255;
-  --mm-violet-50: 34 42 79;
-  --mm-violet-100: 42 46 92;
-  --mm-violet-200: 57 53 115;
-  --mm-violet-300: 76 62 146;
+  --mm-violet-50: 29 35 72;
+  --mm-violet-100: 38 40 86;
+  --mm-violet-200: 53 48 110;
+  --mm-violet-300: 73 58 142;
   --mm-violet-400: 167 139 250;
   --mm-violet-500: 139 92 246;
   --mm-violet-600: 167 139 250;
@@ -227,10 +227,10 @@ html.mm-dark {
   --mm-violet-800: 221 214 254;
   --mm-violet-900: 237 233 254;
   --mm-violet-950: 245 243 255;
-  --mm-purple-50: 38 41 79;
-  --mm-purple-100: 48 44 93;
-  --mm-purple-200: 66 50 116;
-  --mm-purple-300: 90 58 147;
+  --mm-purple-50: 33 35 72;
+  --mm-purple-100: 44 39 86;
+  --mm-purple-200: 63 46 110;
+  --mm-purple-300: 87 55 142;
   --mm-purple-400: 192 132 252;
   --mm-purple-500: 168 85 247;
   --mm-purple-600: 192 132 252;
@@ -238,10 +238,10 @@ html.mm-dark {
   --mm-purple-800: 233 213 255;
   --mm-purple-900: 243 232 255;
   --mm-purple-950: 250 245 255;
-  --mm-fuchsia-50: 44 39 78;
-  --mm-fuchsia-100: 58 41 91;
-  --mm-fuchsia-200: 82 46 113;
-  --mm-fuchsia-300: 114 51 143;
+  --mm-fuchsia-50: 40 33 71;
+  --mm-fuchsia-100: 54 36 85;
+  --mm-fuchsia-200: 78 41 108;
+  --mm-fuchsia-300: 111 48 139;
   --mm-fuchsia-400: 232 121 249;
   --mm-fuchsia-500: 217 70 239;
   --mm-fuchsia-600: 232 121 249;
@@ -249,10 +249,10 @@ html.mm-dark {
   --mm-fuchsia-800: 245 208 254;
   --mm-fuchsia-900: 250 232 255;
   --mm-fuchsia-950: 253 244 255;
-  --mm-pink-50: 46 39 67;
-  --mm-pink-100: 62 42 74;
-  --mm-pink-200: 88 46 86;
-  --mm-pink-300: 123 52 102;
+  --mm-pink-50: 42 33 60;
+  --mm-pink-100: 58 36 67;
+  --mm-pink-200: 84 41 80;
+  --mm-pink-300: 120 49 97;
   --mm-pink-400: 244 114 182;
   --mm-pink-500: 236 72 153;
   --mm-pink-600: 244 114 182;
@@ -260,10 +260,10 @@ html.mm-dark {
   --mm-pink-800: 251 207 232;
   --mm-pink-900: 252 231 243;
   --mm-pink-950: 253 242 248;
-  --mm-rose-50: 47 38 59;
-  --mm-rose-100: 63 40 62;
-  --mm-rose-200: 90 43 67;
-  --mm-rose-300: 126 48 73;
+  --mm-rose-50: 43 32 52;
+  --mm-rose-100: 59 34 56;
+  --mm-rose-200: 87 39 61;
+  --mm-rose-300: 124 44 69;
   --mm-rose-400: 251 113 133;
   --mm-rose-500: 244 63 94;
   --mm-rose-600: 251 113 133;
@@ -271,82 +271,80 @@ html.mm-dark {
   --mm-rose-800: 254 205 211;
   --mm-rose-900: 255 228 230;
   --mm-rose-950: 255 241 242;
-  --mm-surface: #122236;
-  --mm-surface-raised: #1a2a3d;
-  --mm-page: #0C1827;
+  --mm-surface: #0D1B2E;
+  --mm-surface-raised: #152335;
+  --mm-page: #07111F;
 }
 
-:where(html.mm-dark) .after\:bg-white::after { background-color: rgb(18 34 54 / 1); }
-:where(html.mm-dark) .bg-\[\#9DB79A\] { background-color: rgb(41 62 67 / 1); }
-:where(html.mm-dark) .bg-\[\#B4BEC4\] { background-color: rgb(37 54 72 / 1); }
-:where(html.mm-dark) .bg-\[\#C9EFC1\] { background-color: rgb(27 58 54 / 1); }
-:where(html.mm-dark) .bg-\[\#CFE9C7\] { background-color: rgb(30 55 57 / 1); }
-:where(html.mm-dark) .bg-\[\#D9E9FA\] { background-color: rgb(19 44 72 / 1); }
-:where(html.mm-dark) .bg-\[\#D9FDD3\] { background-color: rgb(22 55 52 / 1); }
-:where(html.mm-dark) .bg-\[\#DCEBFF\] { background-color: rgb(19 42 71 / 1); }
-:where(html.mm-dark) .bg-\[\#E2F0FF\] { background-color: rgb(19 42 69 / 1); }
-:where(html.mm-dark) .bg-\[\#E3F6EA\] { background-color: rgb(22 50 60 / 1); }
-:where(html.mm-dark) .bg-\[\#E7F8EC\] { background-color: rgb(22 49 58 / 1); }
-:where(html.mm-dark) .bg-\[\#E8F0FE\] { background-color: rgb(19 40 69 / 1); }
-:where(html.mm-dark) .bg-\[\#E9F2FF\] { background-color: rgb(19 40 68 / 1); }
-:where(html.mm-dark) .bg-\[\#EAF2FB\] { background-color: rgb(20 42 68 / 1); }
-:where(html.mm-dark) .bg-\[\#EAF2FE\] { background-color: rgb(19 40 68 / 1); }
-:where(html.mm-dark) .bg-\[\#EAF2FF\] { background-color: rgb(19 40 68 / 1); }
-:where(html.mm-dark) .bg-\[\#F0F2F5\] { background-color: rgb(25 42 63 / 1); }
-:where(html.mm-dark) .bg-\[\#F3F8FF\] { background-color: rgb(19 40 66 / 1); }
-:where(html.mm-dark) .bg-\[\#F4F8FC\] { background-color: rgb(21 41 65 / 1); }
-:where(html.mm-dark) .bg-\[\#F4F8FD\] { background-color: rgb(20 40 66 / 1); }
-:where(html.mm-dark) .bg-\[\#F4F9FF\] { background-color: rgb(19 40 66 / 1); }
-:where(html.mm-dark) .bg-\[\#F5FAFF\] { background-color: rgb(19 41 66 / 1); }
-:where(html.mm-dark) .bg-\[\#F6F5F3\] { background-color: rgb(29 42 59 / 1); }
-:where(html.mm-dark) .bg-\[\#F7F9FC\] { background-color: rgb(22 40 63 / 1); }
-:where(html.mm-dark) .bg-\[\#F7FAFF\] { background-color: rgb(19 39 66 / 1); }
-:where(html.mm-dark) .bg-\[\#F8FBFF\] { background-color: rgb(19 39 65 / 1); }
-:where(html.mm-dark) .bg-\[\#FFF1BF\] { background-color: rgb(44 53 51 / 1); }
-:where(html.mm-dark) .bg-\[\#FFF3D6\] { background-color: rgb(39 48 52 / 1); }
-:where(html.mm-dark) .bg-\[\#FFF5C4\] { background-color: rgb(43 53 51 / 1); }
-:where(html.mm-dark) .bg-\[\#FFF9E9\] { background-color: rgb(35 45 52 / 1); }
-:where(html.mm-dark) .bg-\[\#d9fdd3\] { background-color: rgb(22 55 52 / 1); }
-:where(html.mm-dark) .bg-\[\#efeae2\] { background-color: rgb(34 45 58 / 1); }
-:where(html.mm-dark) .bg-\[\#f4f6fa\] { background-color: rgb(23 40 63 / 1); }
-:where(html.mm-dark) .bg-\[\#f4f7fb\] { background-color: rgb(22 40 64 / 1); }
-:where(html.mm-dark) .bg-\[\#f6f9fd\] { background-color: rgb(20 40 65 / 1); }
-:where(html.mm-dark) .bg-\[\#f8fbff\] { background-color: rgb(19 39 65 / 1); }
+:where(html.mm-dark) .after\:bg-white::after { background-color: rgb(13 27 46 / 1); }
+:where(html.mm-dark) .bg-\[\#9DB79A\] { background-color: rgb(37 57 61 / 1); }
+:where(html.mm-dark) .bg-\[\#B4BEC4\] { background-color: rgb(33 48 66 / 1); }
+:where(html.mm-dark) .bg-\[\#C9EFC1\] { background-color: rgb(22 52 47 / 1); }
+:where(html.mm-dark) .bg-\[\#CFE9C7\] { background-color: rgb(25 49 50 / 1); }
+:where(html.mm-dark) .bg-\[\#D9E9FA\] { background-color: rgb(15 37 65 / 1); }
+:where(html.mm-dark) .bg-\[\#D9FDD3\] { background-color: rgb(18 48 44 / 1); }
+:where(html.mm-dark) .bg-\[\#DCEBFF\] { background-color: rgb(15 36 63 / 1); }
+:where(html.mm-dark) .bg-\[\#E3F6EA\] { background-color: rgb(18 44 52 / 1); }
+:where(html.mm-dark) .bg-\[\#E7F8EC\] { background-color: rgb(17 43 51 / 1); }
+:where(html.mm-dark) .bg-\[\#E8F0FE\] { background-color: rgb(15 33 61 / 1); }
+:where(html.mm-dark) .bg-\[\#E9F2FF\] { background-color: rgb(15 34 61 / 1); }
+:where(html.mm-dark) .bg-\[\#EAF2FB\] { background-color: rgb(15 35 61 / 1); }
+:where(html.mm-dark) .bg-\[\#EAF2FE\] { background-color: rgb(15 34 61 / 1); }
+:where(html.mm-dark) .bg-\[\#EAF2FF\] { background-color: rgb(15 33 61 / 1); }
+:where(html.mm-dark) .bg-\[\#F0F2F5\] { background-color: rgb(21 35 55 / 1); }
+:where(html.mm-dark) .bg-\[\#F3F8FF\] { background-color: rgb(14 33 59 / 1); }
+:where(html.mm-dark) .bg-\[\#F4F8FC\] { background-color: rgb(16 35 58 / 1); }
+:where(html.mm-dark) .bg-\[\#F4F8FD\] { background-color: rgb(15 34 59 / 1); }
+:where(html.mm-dark) .bg-\[\#F4F9FF\] { background-color: rgb(14 34 59 / 1); }
+:where(html.mm-dark) .bg-\[\#F5FAFF\] { background-color: rgb(14 34 59 / 1); }
+:where(html.mm-dark) .bg-\[\#F6F5F3\] { background-color: rgb(24 36 51 / 1); }
+:where(html.mm-dark) .bg-\[\#F7F9FC\] { background-color: rgb(17 33 56 / 1); }
+:where(html.mm-dark) .bg-\[\#F7FAFF\] { background-color: rgb(14 32 58 / 1); }
+:where(html.mm-dark) .bg-\[\#F8FBFF\] { background-color: rgb(14 33 58 / 1); }
+:where(html.mm-dark) .bg-\[\#FFF1BF\] { background-color: rgb(40 47 44 / 1); }
+:where(html.mm-dark) .bg-\[\#FFF3D6\] { background-color: rgb(35 42 45 / 1); }
+:where(html.mm-dark) .bg-\[\#FFF5C4\] { background-color: rgb(39 47 44 / 1); }
+:where(html.mm-dark) .bg-\[\#d9fdd3\] { background-color: rgb(18 48 44 / 1); }
+:where(html.mm-dark) .bg-\[\#efeae2\] { background-color: rgb(29 39 51 / 1); }
+:where(html.mm-dark) .bg-\[\#f4f6fa\] { background-color: rgb(18 34 56 / 1); }
+:where(html.mm-dark) .bg-\[\#f4f7fb\] { background-color: rgb(17 34 57 / 1); }
+:where(html.mm-dark) .bg-\[\#f6f9fd\] { background-color: rgb(15 33 58 / 1); }
+:where(html.mm-dark) .bg-\[\#f8fbff\] { background-color: rgb(14 33 58 / 1); }
 :where(html.mm-dark) .bg-amber-600 { background-color: rgb(217 119 6 / 1); }
 :where(html.mm-dark) .bg-blue-600 { background-color: rgb(37 99 235 / 1); }
-:where(html.mm-dark) .bg-brand { background-color: rgb(47 116 208 / 1); }
+:where(html.mm-dark) .bg-brand { background-color: rgb(28 110 154 / 1); }
 :where(html.mm-dark) .bg-emerald-600 { background-color: rgb(5 150 105 / 1); }
-:where(html.mm-dark) .bg-navy { background-color: rgb(36 87 143 / 1); }
-:where(html.mm-dark) .bg-navy\/40 { background-color: rgb(3 9 18 / 0.4); }
-:where(html.mm-dark) .bg-navy\/50 { background-color: rgb(3 9 18 / 0.5); }
-:where(html.mm-dark) .bg-navy\/55 { background-color: rgb(3 9 18 / 0.55); }
-:where(html.mm-dark) .bg-navy\/60 { background-color: rgb(3 9 18 / 0.6); }
-:where(html.mm-dark) .bg-navy\/70 { background-color: rgb(3 9 18 / 0.7); }
-:where(html.mm-dark) .bg-navy\/85 { background-color: rgb(3 9 18 / 0.85); }
-:where(html.mm-dark) .bg-navy\/90 { background-color: rgb(3 9 18 / 0.9); }
+:where(html.mm-dark) .bg-navy { background-color: rgb(28 91 133 / 1); }
+:where(html.mm-dark) .bg-navy\/40 { background-color: rgb(2 6 13 / 0.4); }
+:where(html.mm-dark) .bg-navy\/50 { background-color: rgb(2 6 13 / 0.5); }
+:where(html.mm-dark) .bg-navy\/55 { background-color: rgb(2 6 13 / 0.55); }
+:where(html.mm-dark) .bg-navy\/60 { background-color: rgb(2 6 13 / 0.6); }
+:where(html.mm-dark) .bg-navy\/70 { background-color: rgb(2 6 13 / 0.7); }
+:where(html.mm-dark) .bg-navy\/85 { background-color: rgb(2 6 13 / 0.85); }
+:where(html.mm-dark) .bg-navy\/90 { background-color: rgb(2 6 13 / 0.9); }
 :where(html.mm-dark) .bg-pink-600 { background-color: rgb(219 39 119 / 1); }
 :where(html.mm-dark) .bg-red-600 { background-color: rgb(220 38 38 / 1); }
 :where(html.mm-dark) .bg-red-700 { background-color: rgb(185 28 28 / 1); }
 :where(html.mm-dark) .bg-red-800 { background-color: rgb(153 27 27 / 1); }
 :where(html.mm-dark) .bg-slate-950\/65 { background-color: rgb(27 42 62 / 0.65); }
-:where(html.mm-dark) .bg-white { background-color: rgb(18 34 54 / 1); }
-:where(html.mm-dark) .bg-white\/70 { background-color: rgb(18 34 54 / 0.7); }
-:where(html.mm-dark) .bg-white\/75 { background-color: rgb(18 34 54 / 0.75); }
-:where(html.mm-dark) .bg-white\/80 { background-color: rgb(18 34 54 / 0.8); }
-:where(html.mm-dark) .bg-white\/85 { background-color: rgb(18 34 54 / 0.85); }
-:where(html.mm-dark) .bg-white\/90 { background-color: rgb(18 34 54 / 0.9); }
-:where(html.mm-dark) .bg-white\/95 { background-color: rgb(18 34 54 / 0.95); }
-:where(html.mm-dark) .border-\[\#A9C8EC\] { border-color: rgb(26 58 97 / 1); }
-:where(html.mm-dark) .border-\[\#C9DDF6\] { border-color: rgb(23 57 100 / 1); }
-:where(html.mm-dark) .border-\[\#DCE5F4\] { border-color: rgb(30 56 93 / 1); }
-:where(html.mm-dark) .border-\[\#E9CB73\] { border-color: rgb(75 73 49 / 1); }
-:where(html.mm-dark) .border-\[\#E9EDEF\] { border-color: rgb(43 62 80 / 1); }
-:where(html.mm-dark) .border-white { border-color: #122236; }
-:where(html.mm-dark) .from-navy { --tw-gradient-from: rgb(36 87 143 / 1) var(--tw-gradient-from-position); --tw-gradient-to: transparent var(--tw-gradient-to-position); --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to); }
-:where(html.mm-dark) .peer:checked ~ .peer-checked\:bg-brand { background-color: rgb(47 116 208 / 1); }
+:where(html.mm-dark) .bg-white { background-color: rgb(13 27 46 / 1); }
+:where(html.mm-dark) .bg-white\/70 { background-color: rgb(13 27 46 / 0.7); }
+:where(html.mm-dark) .bg-white\/75 { background-color: rgb(13 27 46 / 0.75); }
+:where(html.mm-dark) .bg-white\/80 { background-color: rgb(13 27 46 / 0.8); }
+:where(html.mm-dark) .bg-white\/85 { background-color: rgb(13 27 46 / 0.85); }
+:where(html.mm-dark) .bg-white\/90 { background-color: rgb(13 27 46 / 0.9); }
+:where(html.mm-dark) .bg-white\/95 { background-color: rgb(13 27 46 / 0.95); }
+:where(html.mm-dark) .bg-white\/\[0\.94\] { background-color: rgb(13 27 46 / 0.94); }
+:where(html.mm-dark) .border-\[\#DCE5F4\] { border-color: rgb(26 51 87 / 1); }
+:where(html.mm-dark) .border-\[\#E9EDEF\] { border-color: rgb(39 57 75 / 1); }
+:where(html.mm-dark) .border-\[\#F0D9A6\] { border-color: rgb(70 65 43 / 1); }
+:where(html.mm-dark) .border-\[\#F2C66D\] { border-color: rgb(72 64 42 / 1); }
+:where(html.mm-dark) .border-\[\#F2C66D\]\/70 { border-color: rgb(72 64 42 / 0.7); }
+:where(html.mm-dark) .border-white { border-color: #0D1B2E; }
+:where(html.mm-dark) .from-navy { --tw-gradient-from: rgb(28 91 133 / 1) var(--tw-gradient-from-position); --tw-gradient-to: transparent var(--tw-gradient-to-position); --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to); }
+:where(html.mm-dark) .peer:checked ~ .peer-checked\:bg-brand { background-color: rgb(28 110 154 / 1); }
 :where(html.mm-dark) .placeholder\:text-\[\#54656F\]::placeholder { color: rgb(194 203 209 / 1); }
-:where(html.mm-dark) .ring-white { --tw-ring-color: #122236; }
-:where(html.mm-dark) .stroke-\[\#2370BC\] { stroke: rgb(160 194 227 / 1); }
+:where(html.mm-dark) .ring-white { --tw-ring-color: #0D1B2E; }
 :where(html.mm-dark) .text-\[\#027eb5\] { color: rgb(177 215 232 / 1); }
 :where(html.mm-dark) .text-\[\#06361C\] { color: rgb(215 244 228 / 1); }
 :where(html.mm-dark) .text-\[\#0A5C30\] { color: rgb(212 242 226 / 1); }
@@ -357,40 +355,35 @@ html.mm-dark {
 :where(html.mm-dark) .text-\[\#0D3B66\] { color: rgb(206 224 241 / 1); }
 :where(html.mm-dark) .text-\[\#0E2257\] { color: rgb(212 220 243 / 1); }
 :where(html.mm-dark) .text-\[\#111B21\] { color: rgb(221 232 238 / 1); }
-:where(html.mm-dark) .text-\[\#176BC4\] { color: rgb(162 194 228 / 1); }
 :where(html.mm-dark) .text-\[\#1D6FE8\] { color: rgb(144 176 223 / 1); }
 :where(html.mm-dark) .text-\[\#1F4CB3\] { color: rgb(165 185 229 / 1); }
-:where(html.mm-dark) .text-\[\#2370BC\] { color: rgb(160 194 227 / 1); }
 :where(html.mm-dark) .text-\[\#2563EB\] { color: rgb(139 165 221 / 1); }
 :where(html.mm-dark) .text-\[\#25D366\] { color: rgb(149 224 177 / 1); }
 :where(html.mm-dark) .text-\[\#3B4A54\] { color: rgb(209 217 223 / 1); }
 :where(html.mm-dark) .text-\[\#54656F\] { color: rgb(194 203 209 / 1); }
 :where(html.mm-dark) .text-\[\#667781\] { color: rgb(184 193 199 / 1); }
 :where(html.mm-dark) .text-\[\#6B4A00\] { color: rgb(242 232 209 / 1); }
-:where(html.mm-dark) .text-\[\#9B6419\] { color: rgb(233 210 178 / 1); }
-:where(html.mm-dark) .text-\[\#B77C17\] { color: rgb(230 207 167 / 1); }
-:where(html.mm-dark) .to-brand { --tw-gradient-to: rgb(47 116 208 / 1) var(--tw-gradient-to-position); }
-:where(html.mm-dark) .focus-within\:bg-white:focus-within { background-color: rgb(18 34 54 / 1); }
-:where(html.mm-dark) .focus\:bg-white:focus { background-color: rgb(18 34 54 / 1); }
-:where(html.mm-dark) .group:hover .group-hover\:bg-brand { background-color: rgb(47 116 208 / 1); }
-:where(html.mm-dark) .group:hover .group-hover\:bg-white { background-color: rgb(18 34 54 / 1); }
-:where(html.mm-dark) .hover\:bg-\[\#D9FDD3\]:hover { background-color: rgb(22 55 52 / 1); }
-:where(html.mm-dark) .hover\:bg-\[\#E4E7EA\]:hover { background-color: rgb(29 45 64 / 1); }
-:where(html.mm-dark) .hover\:bg-\[\#E9F2FF\]:hover { background-color: rgb(19 40 68 / 1); }
-:where(html.mm-dark) .hover\:bg-\[\#EDF6FF\]:hover { background-color: rgb(19 41 67 / 1); }
-:where(html.mm-dark) .hover\:bg-\[\#F4F9FF\]:hover { background-color: rgb(19 40 66 / 1); }
-:where(html.mm-dark) .hover\:bg-\[\#F5F6F6\]:hover { background-color: rgb(30 45 64 / 1); }
-:where(html.mm-dark) .hover\:bg-\[\#FFF4D8\]:hover { background-color: rgb(39 48 52 / 1); }
-:where(html.mm-dark) .hover\:bg-brand:hover { background-color: rgb(47 116 208 / 1); }
-:where(html.mm-dark) .hover\:bg-brand\/90:hover { background-color: rgb(47 116 208 / 0.9); }
+:where(html.mm-dark) .text-\[\#A86A00\] { color: rgb(234 215 183 / 1); }
+:where(html.mm-dark) .to-brand { --tw-gradient-to: rgb(28 110 154 / 1) var(--tw-gradient-to-position); }
+:where(html.mm-dark) .focus-within\:bg-white:focus-within { background-color: rgb(13 27 46 / 1); }
+:where(html.mm-dark) .focus\:bg-white:focus { background-color: rgb(13 27 46 / 1); }
+:where(html.mm-dark) .group:hover .group-hover\:bg-brand { background-color: rgb(28 110 154 / 1); }
+:where(html.mm-dark) .group:hover .group-hover\:bg-white { background-color: rgb(13 27 46 / 1); }
+:where(html.mm-dark) .hover\:bg-\[\#D9FDD3\]:hover { background-color: rgb(18 48 44 / 1); }
+:where(html.mm-dark) .hover\:bg-\[\#E4E7EA\]:hover { background-color: rgb(24 38 57 / 1); }
+:where(html.mm-dark) .hover\:bg-\[\#E9F2FF\]:hover { background-color: rgb(15 34 61 / 1); }
+:where(html.mm-dark) .hover\:bg-\[\#F4F9FF\]:hover { background-color: rgb(14 34 59 / 1); }
+:where(html.mm-dark) .hover\:bg-\[\#F5F6F6\]:hover { background-color: rgb(25 38 56 / 1); }
+:where(html.mm-dark) .hover\:bg-brand:hover { background-color: rgb(28 110 154 / 1); }
+:where(html.mm-dark) .hover\:bg-brand\/90:hover { background-color: rgb(28 110 154 / 0.9); }
 :where(html.mm-dark) .hover\:bg-emerald-600:hover { background-color: rgb(5 150 105 / 1); }
 :where(html.mm-dark) .hover\:bg-emerald-700:hover { background-color: rgb(4 120 87 / 1); }
-:where(html.mm-dark) .hover\:bg-navy:hover { background-color: rgb(36 87 143 / 1); }
-:where(html.mm-dark) .hover\:bg-navy\/90:hover { background-color: rgb(36 87 143 / 0.9); }
+:where(html.mm-dark) .hover\:bg-navy:hover { background-color: rgb(28 91 133 / 1); }
+:where(html.mm-dark) .hover\:bg-navy\/90:hover { background-color: rgb(28 91 133 / 0.9); }
 :where(html.mm-dark) .hover\:bg-pink-700:hover { background-color: rgb(190 24 93 / 1); }
 :where(html.mm-dark) .hover\:bg-red-600:hover { background-color: rgb(220 38 38 / 1); }
 :where(html.mm-dark) .hover\:bg-red-700:hover { background-color: rgb(185 28 28 / 1); }
-:where(html.mm-dark) .hover\:bg-white:hover { background-color: rgb(18 34 54 / 1); }
+:where(html.mm-dark) .hover\:bg-white:hover { background-color: rgb(13 27 46 / 1); }
 :where(html.mm-dark) .hover\:text-\[\#08508A\]:hover { color: rgb(193 217 237 / 1); }
 :where(html.mm-dark) .hover\:text-\[\#0D3B66\]:hover { color: rgb(206 224 241 / 1); }
 :where(html.mm-dark) .hover\:text-\[\#111B21\]:hover { color: rgb(221 232 238 / 1); }

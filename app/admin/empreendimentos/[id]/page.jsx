@@ -16,7 +16,7 @@ export default async function EditPropertyPage({ params, searchParams }) {
   if (!canManageProperties()) {
     return (
       <main className="bg-mist py-14">
-        <section className="container-page rounded-[28px] border border-line bg-white p-10 shadow-soft">
+        <section className="container-page rounded-panel border border-line bg-white p-10 shadow-soft">
           <p className="text-sm font-black uppercase tracking-[0.18em] text-brand">Edicao</p>
           <h1 className="mt-3 text-5xl font-black text-navy">Edicao desativada em producao</h1>
           <p className="mt-4 max-w-2xl text-lg leading-8 text-muted">

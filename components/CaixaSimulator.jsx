@@ -85,7 +85,7 @@ function Row({ label, value, strong = false }) {
 // "Entrada necessária" (e a falta de entrada) não aparecem aqui (dono, 2026-10-19); o cálculo segue no motor e no voto.
 function ResultCard({ title, data }) {
   return (
-    <section className="min-w-0 rounded-[24px] border border-blue-100 bg-white p-4" data-result={title}>
+    <section className="min-w-0 rounded-panel border border-line bg-white p-4" data-result={title}>
       <h3 className="text-xs font-black uppercase tracking-[0.18em] text-brand">{title}</h3>
       <dl className="mt-2">
         <Row label="Valor do imóvel" value={`${moneyWhole(data.propertyValue)} · ${data.faixa}`} />
@@ -157,12 +157,12 @@ export default function CaixaSimulator() {
   return (
     <section className="container-page max-w-3xl space-y-5">
       <header className="space-y-1">
-        <p className="text-sm font-black uppercase tracking-[0.18em] text-brand">Marília/SP</p>
-        <h1 className="text-[clamp(1.65rem,7vw,1.875rem)] font-black leading-tight text-navy">Simulador Caixa</h1>
-        <p className="text-sm text-muted">Simulação rápida. Não cria cliente nem envia nada.</p>
+        {/* Título no cabeçalho do painel (visual novo): aqui só para leitor de tela. */}
+        <h1 className="sr-only">Simulador Caixa</h1>
+        <p className="text-sm text-muted">Marília/SP · simulação rápida. Não cria cliente nem envia nada.</p>
       </header>
 
-      <div className="space-y-3 rounded-[24px] border border-blue-100 bg-[#F5FAFF] p-4 sm:p-5">
+      <div className="space-y-3 rounded-panel border border-line bg-white p-4 sm:p-5">
         <div className={`${ROW} grid-cols-2`}>
           <Select label="Simulação" value={answers.joint} options={TYPE_OPTIONS} onChange={(value) => update("joint", value)} />
           <label className={LABEL}>
@@ -186,9 +186,9 @@ export default function CaixaSimulator() {
       </div>
 
       {!ready ? (
-        <p className="rounded-[20px] border border-line bg-white p-4 text-sm font-semibold text-muted">Informe a renda e a data de nascimento para ver o resultado.</p>
+        <p className="rounded-panel border border-line bg-white p-4 text-sm font-semibold text-muted">Informe a renda e a data de nascimento para ver o resultado.</p>
       ) : !result.eligible ? (
-        <p className="rounded-[20px] border border-amber-200 bg-amber-50 p-4 text-sm font-bold text-ink" data-not-eligible={result.reason}>{result.message}</p>
+        <p className="rounded-panel border border-amber-200 bg-amber-50 p-4 text-sm font-bold text-ink" data-not-eligible={result.reason}>{result.message}</p>
       ) : (
         <div className="space-y-3">
           <div className="grid gap-3 md:grid-cols-2">
@@ -224,7 +224,7 @@ export default function CaixaSimulator() {
           </div>
 
           {currentVote?.vote === "down" && currentVote.id ? (
-            <div className="rounded-[20px] border border-line bg-white p-4" data-caixa-values="">
+            <div className="rounded-panel border border-line bg-white p-4" data-caixa-values="">
               <p className="text-xs font-bold text-muted">Opcional: valores que a Caixa deu.</p>
               <div className="mt-2 grid grid-cols-2 items-end gap-x-3 gap-y-3">
                 <Money label="Renda usada" value={caixa.income} onChange={(value) => setCaixa((c) => ({ ...c, income: value }))} />

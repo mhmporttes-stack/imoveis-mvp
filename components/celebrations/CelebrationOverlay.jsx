@@ -1,42 +1,41 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import dynamic from "next/dynamic";
 import { motion } from "motion/react";
+import scene from "@/components/scenes/scenes.module.css";
 
-// Cenas carregadas sob demanda (lazy) — o CRM inteiro não paga o custo dessas
+// Cena carregada sob demanda (lazy) — o CRM inteiro não paga o custo das
 // animações; só quem realmente vai ver um reconhecimento baixa o código dela.
-// Novo gatilho com cena própria: importe aqui e registre em SCENE_BY_TRIGGER.
-const Scene100 = dynamic(() => import("./scenes/Scene100"), { ssr: false });
-const GenericScene = dynamic(() => import("./scenes/GenericScene"), { ssr: false });
+const RecognitionScene = dynamic(() => import("./scenes/RecognitionScene"), { ssr: false });
 
-const SCENE_BY_TRIGGER = {
-  daily_goal_100: Scene100
-};
-
-// Duração total de cada cena (4-6s, pedido do dono) — cenas ainda não
-// migradas (GenericScene) seguem a duração por tipo de animação.
-const SCENE_DURATION_MS = { daily_goal_100: 5300 };
-const GENERIC_DURATION_MS = { confete: 4000, fogos: 4500, moedas: 4000, coroa: 4000, combo_200: 5000 };
-
-// Casca do overlay: fundo fixo em tela cheia, fecha sozinho ou por toque/
-// clique (nunca trava o CRM), e delega todo o resto (fundo, herói, texto,
-// partículas) pra cena escolhida por gatilho. previewMode = true é usado
-// pelo botão "Testar" do admin: mesmo componente, nenhuma chamada de rede,
-// nenhum evento gravado.
-export default function CelebrationOverlay({ message, animation = "confete", triggerKey, onDismiss, previewMode = false }) {
-  const Scene = (triggerKey && SCENE_BY_TRIGGER[triggerKey]) || null;
-  const duration = Scene ? SCENE_DURATION_MS[triggerKey] : (GENERIC_DURATION_MS[animation] || 4000);
+// Casca do overlay: tela cheia no fundo do tema. [REGRA OFICIAL DE NEGÓCIO —
+// dono, 2026-10-22, RAN-9] NÃO fecha sozinha: fica parada até o corretor tocar
+// (para tirar print/story). Fecha por toque/clique em qualquer lugar, pelo
+// botão do rodapé ou Esc — nunca trava o CRM. previewMode = true é usado pelo
+// botão "Testar" do admin: mesmo componente, nenhuma chamada de rede, nenhum
+// evento gravado.
+export default function CelebrationOverlay({ message, animation = "confete", triggerKey, onDismiss, previewMode = false, userName = "", userPhotoUrl = "" }) {
+  const rootRef = useRef(null);
 
   useEffect(() => {
-    const timer = setTimeout(() => onDismiss?.(), duration);
-    return () => clearTimeout(timer);
-  }, [duration, onDismiss]);
+    const onKeyDown = (event) => {
+      if (event.key === "Escape") onDismiss?.();
+    };
+    document.addEventListener("keydown", onKeyDown);
+    // Foco na própria cena (sem anel visível, para não sujar o print); Tab chega ao botão de fechar.
+    const focusTimer = setTimeout(() => rootRef.current?.focus({ preventScroll: true }), 300);
+    return () => {
+      document.removeEventListener("keydown", onKeyDown);
+      clearTimeout(focusTimer);
+    };
+  }, [onDismiss]);
 
   return (
     <motion.div
-      className="fixed inset-0 z-[200]"
-      style={{ "--cel-gold": "#F4C86B", "--cel-gold-bright": "#FFE9A8", "--cel-brand": "#1769D1", "--cel-navy": "#0D3B66" }}
+      ref={rootRef}
+      tabIndex={-1}
+      className={`${scene.theme} fixed inset-0 z-[200] outline-none`}
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
@@ -46,17 +45,15 @@ export default function CelebrationOverlay({ message, animation = "confete", tri
       aria-modal="true"
       aria-label="Reconhecimento"
     >
-      {Scene ? <Scene message={message} /> : <GenericScene message={message} animation={animation} />}
-      <button
-        type="button"
-        onClick={(event) => {
-          event.stopPropagation();
-          onDismiss?.();
-        }}
-        className="absolute right-4 top-[calc(1rem+env(safe-area-inset-top))] z-10 rounded-full border border-white/20 bg-white/10 px-4 py-2 text-xs font-bold text-white/85 backdrop-blur transition hover:bg-white/20"
-      >
-        {previewMode ? "Fechar prévia" : "Fechar"}
-      </button>
+      <RecognitionScene
+        message={message}
+        animation={animation}
+        triggerKey={triggerKey}
+        userName={userName}
+        userPhotoUrl={userPhotoUrl}
+        previewMode={previewMode}
+        closeLabel={previewMode ? "Fechar prévia" : "Só você vê · toque na tela para fechar"}
+      />
     </motion.div>
   );
 }

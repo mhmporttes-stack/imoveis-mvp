@@ -15,7 +15,7 @@ O painel administrativo pode ser instalado no iPhone pelo Safari usando **Compar
 - Botão de instalar o app para corretores acessando pelo navegador do celular: no Android/Chrome captura o evento `beforeinstallprompt` e mostra um botão real ("Instalar app") que dispara a instalação nativa; no iPhone/Safari (que não dispara esse evento) mantém a orientação manual de Compartilhar > Adicionar à Tela de Início, com a mesma apresentação visual.
 - Detecção de atualização disponível.
 - Renovação periódica da sessão administrativa via `/api/admin/session`.
-- Navegação de app no celular (< 768px): barra inferior fixa `components/AdminBottomNav.jsx` (4 destinos por perfil + "Mais"), respeitando a área segura do iPhone; o menu do topo só aparece do tablet para cima. Detalhes: `.claude/skills/design-crm/references/sistema-visual.md` §4.1.
+- Navegação de app no celular (< 768px): barra inferior fixa `components/AdminBottomNav.jsx` (4 destinos por perfil + Chat Marketplace ao lado do Chat desde 2026-10-21 + "Mais"), respeitando a área segura do iPhone; o menu do topo só aparece do tablet para cima. Detalhes: `.claude/skills/design-crm/references/sistema-visual.md` §4.1.
 
 ## Segurança Do Cache
 
@@ -32,6 +32,29 @@ Somente recursos estáticos seguros são armazenados, como:
 - assets institucionais;
 - arquivos estáticos do Next.js;
 - página offline sem dados privados.
+
+Desde 2026-10-22 (velocidade, etapa 2), os arquivos de `/_next/static/*` (hash do conteúdo no nome) ficam no cache sem versão `painel-matheus-next-static` (máx. 600 entradas, os mais antigos saem), que sobrevive às publicações; os demais ficam em `painel-matheus-v4-<build>-static`, apagado a cada deploy. Trava: `tests/sw-next-static-cache.test.mjs`.
+
+## Velocidade, etapa 3 (2026-10-22)
+
+- Troca de tela: `loading.jsx` com `components/AdminRouteLoading.jsx` em cada seção de `app/admin`, menos Meta Diária, `/admin/simulacoes` (cenas), Chat e Alexa. Não criar `app/admin/loading.jsx` (cobriria os destinos das cenas). Trava: `tests/painel-velocidade-etapa3.test.mjs`.
+- Avisos globais (Mensagem do Dia, Celebração, Supervisão, Central de Alertas): `components/DeferredPanelGates.jsx` (`next/dynamic` + ocioso).
+- Login e redefinir senha: código em `app/painel-acesso/` (layout leve); `proxy.js` reescreve `/admin/login` e `/admin/reset-password` para lá — a URL vista pelo usuário, pelo `usePathname` e pelo service worker continua `/admin/...`.
+
+## Pré-carregamento do painel (AdminWarmup)
+
+Dono, 2026-10-22: botões do app prontos antes do toque, Clientes primeiro. `components/AdminWarmup.jsx` (montado em `app/admin/layout.jsx`) roda no celular e no computador, 2 s depois que o painel abre, um item por vez com o navegador ocioso e o app visível:
+
+1. **Clientes** — rota inteira (`router.prefetch(href, { kind: "full" })`) + 1ª página da lista padrão (`/api/simulation-registrations/list?page=1&pageSize=20`).
+2. **Barra inferior do perfil** (`warmupTargets` no layout) **+ atalhos do cabeçalho** (Chat, Chat Marketplace, Agenda), com os dados que as telas já guardam por conta: lista do Chat (`?warm=1`, sem recibo/lida), lista do Marketplace, números do Desempenho (admin geral) e mês atual da Agenda.
+3. **Todos os itens do menu do perfil** (`getAdminMenuGroups` — o mesmo do menu lateral e do "Mais"), na ordem do menu, 1,2 s entre um e outro.
+
+Regras (`components/admin-warmup-plan.mjs`, teste `tests/admin-warmup-plan.test.mjs`):
+- Só rota (sem montar a tela no servidor): Meta Diária (MD-16), Anúncios (abrir chama a Meta e grava miniaturas), Início e Alexa.
+- Janela: barra/cabeçalho refeitos no máximo a cada 5 min (validade da tela pré-carregada no Next) e menu a cada 30 min — só quando a pessoa volta ao app ou troca de tela, nunca por relógio. Dados só se ainda não estão na memória (a tela atualiza ao abrir de qualquer jeito).
+- Economia de dados / 2G: só as rotas da barra e do cabeçalho, sem montar tela, sem dados e sem menu.
+- Memória por conta real + efetiva (`components/chat-view-cache.js`), só na memória da aba; sair e "Alterar conta" limpam tudo (inclusive as marcas de "já aqueceu", `sessionStorage` `mm-warmup:v2:*`) e chamam `router.refresh()`, que descarta as telas guardadas pelo Next.
+- Nenhuma consulta nova no servidor: pré-carregar uma tela é o mesmo que abri-la (só leitura).
 
 ## Login Persistente
 

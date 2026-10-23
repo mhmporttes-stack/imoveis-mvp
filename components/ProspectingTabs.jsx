@@ -4,6 +4,7 @@ import { useState } from "react";
 import ProspectingManager from "@/components/ProspectingManager";
 import BrokerBasesOverview from "@/components/BrokerBasesOverview";
 import ProspectingManualLists from "@/components/ProspectingManualLists";
+import { tabClasses } from "@/components/ui/Tabs";
 
 // "Base da Imobiliária" é a prospecção compartilhada de sempre (sem nenhuma
 // mudança de comportamento). A segunda aba muda conforme quem está logado:
@@ -32,22 +33,22 @@ export default function ProspectingTabs({ initialCompanyContacts = [], isAdmin =
 
   return (
     <section className="container-page space-y-5">
-      <div className="flex flex-wrap gap-2">
+      <div className="mm-noscroll flex gap-1.5 overflow-x-auto py-1" role="tablist" aria-label="Bases da prospecção">
         <button
           type="button"
+          role="tab"
+          aria-selected={tab === "company"}
           onClick={() => selectTab("company")}
-          className={`min-h-10 rounded-full border px-4 text-sm font-extrabold transition ${
-            tab === "company" ? "border-brand bg-blue-50 text-brand" : "border-navy/10 bg-white text-navy hover:border-brand"
-          }`}
+          className={tabClasses(tab === "company")}
         >
           Base da Imobiliária
         </button>
         <button
           type="button"
+          role="tab"
+          aria-selected={tab === "mine"}
           onClick={() => selectTab("mine")}
-          className={`min-h-10 rounded-full border px-4 text-sm font-extrabold transition ${
-            tab === "mine" ? "border-brand bg-blue-50 text-brand" : "border-navy/10 bg-white text-navy hover:border-brand"
-          }`}
+          className={tabClasses(tab === "mine")}
         >
           {secondTabLabel}
         </button>

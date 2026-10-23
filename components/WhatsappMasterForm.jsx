@@ -50,7 +50,7 @@ export default function WhatsappMasterForm({ initialSettings, environment }) {
   }
 
   return (
-    <section className="container-page rounded-[28px] border border-line bg-white p-6 shadow-soft">
+    <section className="container-page rounded-panel border border-line bg-white p-6 shadow-soft">
       <div className={`mb-6 flex items-center gap-3 rounded-2xl px-4 py-4 font-black ${connected ? "bg-emerald-50 text-emerald-800" : "bg-red-50 text-red-700"}`}>
         {connected ? <CheckCircle2 className="h-6 w-6" /> : <CircleX className="h-6 w-6" />}
         {connected ? "Conectado" : settings.connectionStatus === "not_configured" ? "Não configurado" : "Desconectado"}

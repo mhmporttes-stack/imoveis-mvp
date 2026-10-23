@@ -7,6 +7,22 @@
 </head>
 <body class="popup">
   <h1>Marketplace</h1>
+  <section id="work" class="cartao">
+    <p><strong>Janela de trabalho:</strong> <span id="work-text">verificando…</span></p>
+    <details>
+      <summary>Como deixar a janela trabalhar atrás das outras</summary>
+      <p>Minimizada ela não trabalha (o Facebook não abre conversa). Atrás de outras janelas trabalha se o Chrome for aberto por este atalho:</p>
+      <ol>
+        <li>Feche o Chrome por completo (todas as janelas; se houver ícone do Chrome perto do relógio, clique com o botão direito › Sair).</li>
+        <li>Botão direito no atalho do Chrome (área de trabalho ou barra de tarefas › botão direito em Google Chrome) › Propriedades.</li>
+        <li>No campo Destino, depois de <code>chrome.exe"</code>, acrescente um espaço e: <code>--disable-features=CalculateNativeWinOcclusion --disable-backgrounding-occluded-windows</code></li>
+        <li>OK e abra o Chrome sempre por esse atalho. Aqui deve aparecer "visível" mesmo com a janela atrás das outras.</li>
+      </ol>
+    </details>
+  </section>
+  <div class="botoes">
+    <button id="work-open" type="button" class="secundario">Abrir janela de trabalho</button>
+  </div>
   <section id="status" class="cartao"></section>
   <div class="botoes">
     <button id="pause" type="button"></button>

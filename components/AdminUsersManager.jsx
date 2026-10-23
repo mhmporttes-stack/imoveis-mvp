@@ -217,7 +217,7 @@ export default function AdminUsersManager({ initialUsers = [], counts = {}, canM
 
   return (
     <section className="container-page grid gap-6">
-      <form onSubmit={createUser} className="rounded-[28px] border border-line bg-white p-6 shadow-soft">
+      <form onSubmit={createUser} className="rounded-panel border border-line bg-white p-6 shadow-soft">
         <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
           <div>
             <p className="text-sm font-black uppercase tracking-[0.18em] text-brand">Novo usuário</p>
@@ -265,8 +265,8 @@ export default function AdminUsersManager({ initialUsers = [], counts = {}, canM
           const userCounts = counts[user.id] || { total: 0, today: 0 };
           const isActive = user.status !== "inactive";
           return (
-            <article key={user.id} className="rounded-[28px] border border-line bg-white p-6 shadow-soft">
-              {editingId === user.id && editForm ? <form className="mb-6 rounded-[20px] border border-brand/20 bg-mist p-4" onSubmit={saveUser}>
+            <article key={user.id} className="rounded-panel border border-line bg-white p-6 shadow-soft">
+              {editingId === user.id && editForm ? <form className="mb-6 rounded-panel border border-brand/20 bg-mist p-4" onSubmit={saveUser}>
                 <div className="mb-4 flex flex-wrap items-center gap-4">
                   <Avatar name={user.name} photoUrl={user.photoUrl} size={64} />
                   <div className="flex flex-wrap items-center gap-2">
@@ -370,7 +370,7 @@ export default function AdminUsersManager({ initialUsers = [], counts = {}, canM
         })}
 
         {!sortedUsers.length ? (
-          <article className="rounded-[28px] border border-line bg-white p-8 text-center font-black text-navy shadow-soft">
+          <article className="rounded-panel border border-line bg-white p-8 text-center font-black text-navy shadow-soft">
             Nenhum usuário cadastrado.
           </article>
         ) : null}
@@ -378,7 +378,7 @@ export default function AdminUsersManager({ initialUsers = [], counts = {}, canM
 
       {deleteDialog ? (
         <div className="fixed inset-0 z-50 flex items-end justify-center bg-navy/50 p-3 sm:items-center sm:p-4" onPointerDown={(event) => event.target === event.currentTarget && !deleteDialog.busy && setDeleteDialog(null)}>
-          <div role="dialog" aria-modal="true" aria-label="Excluir usuário" className="max-h-[92dvh] w-full max-w-lg overflow-y-auto rounded-[28px] border border-line bg-white p-5 shadow-soft sm:p-6">
+          <div role="dialog" aria-modal="true" aria-label="Excluir usuário" className="max-h-[92dvh] w-full max-w-lg overflow-y-auto rounded-panel border border-line bg-white p-5 shadow-soft sm:p-6">
             <div className="flex items-start justify-between gap-3">
               <div>
                 <p className="text-sm font-black uppercase tracking-[0.18em] text-red-700">Excluir usuário</p>

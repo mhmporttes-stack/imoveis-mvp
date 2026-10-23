@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { CheckCircle2, CircleX, Clock, LoaderCircle, RefreshCw, Send, Upload } from "lucide-react";
 import { CostsSection, PerformanceSection, useFinanceReport } from "@/components/WhatsappDisparoInsights";
+import { tabClasses } from "@/components/ui/Tabs";
 
 const SECTIONS = [
   { key: "campaign", label: "Nova campanha" },
@@ -60,21 +61,20 @@ export default function WhatsappDisparoManager() {
   }, []);
 
   return (
-    <section className="container-page mt-6 space-y-6 rounded-[28px] border border-line bg-white p-6 shadow-soft">
+    <section className="container-page mt-6 space-y-6 rounded-panel border border-line bg-white p-6 shadow-soft">
       <div>
         <p className="text-sm font-black uppercase tracking-[0.12em] text-navy">Disparo</p>
         <p className="mt-1 text-sm text-muted">Campanhas em massa por WhatsApp usando templates oficiais aprovados pela Meta.</p>
       </div>
 
-      <div className="flex w-fit flex-wrap gap-1.5 rounded-xl border border-navy/[0.07] bg-mist/60 p-1">
+      <div className="mm-noscroll flex gap-1.5 overflow-x-auto py-1" role="group" aria-label="Seções do disparo">
         {SECTIONS.map((item) => (
           <button
             key={item.key}
             type="button"
             onClick={() => setSection(item.key)}
-            className={`rounded-[10px] px-4 py-1.5 text-center text-[13px] font-black transition ${
-              section === item.key ? "bg-navy text-white" : "text-navy hover:bg-white"
-            }`}
+            aria-pressed={section === item.key}
+            className={tabClasses(section === item.key)}
           >
             {item.label}
           </button>

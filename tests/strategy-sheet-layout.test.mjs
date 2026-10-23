@@ -75,15 +75,15 @@ test("causa real: a raiz não rola para o lado e os botões do Próximo passo nu
   assert.match(buttons, /min-width:\s*0/);
 });
 
-test("gráfico do saldo: sem amortização vermelho, com amortização verde, cabe na largura e respeita movimento reduzido", () => {
+test("gráfico (dono, 2026-10-22): sem amortização vermelho, com amortização dourado (sem verde), cabe na largura, movimento reduzido", () => {
   const chart = read("components/presentation/StrategyBalanceChart.jsx");
   assert.match(jsx, /<StrategyBalanceChart comparison=\{comparison\}/);
-  assert.match(rule(".stPathSem"), /stroke:\s*#b42318/i, "Sem amortização = vermelho (danger da paleta)");
-  assert.match(rule(".stPathCom"), /stroke:\s*#067647/i, "Com amortização = verde (success)");
-  assert.match(rule(".stPlot"), /min-width:\s*0/);
+  assert.match(rule(".stPathSem"), /stroke:\s*#F0716A/i, "Sem amortização = vermelho");
+  assert.match(rule(".stPathCom"), /stroke:\s*#E8B85C/i, "Com amortização = dourado");
+  assert.doesNotMatch(css.slice(css.indexOf("Projeção de quitação")), /#067647/i, "nada de verde no gráfico");
   assert.match(rule(".stPlotWrap"), /minmax\(0,\s*1fr\)/, "coluna do gráfico encolhe (nunca largura fixa)");
-  assert.match(css, /prefers-reduced-motion: reduce\) \{ \.stDraw[^}]*animation:\s*none/);
-  for (const selector of [".stYAxis span", ".stXAxis span", ".stPayoff"]) {
+  assert.match(css, /prefers-reduced-motion: reduce\) \{ \.stDraw, \.stBand, \.stDot, \.stGap \{ animation: none/);
+  for (const selector of [".stXAxis", ".stGap", ".stLegend"]) {
     const size = Number(/font-size:\s*(\d+(?:\.\d+)?)px/.exec(rule(selector))?.[1]);
     assert.ok(size >= 12, `${selector} com texto ≥ 12px (${size})`);
   }
@@ -92,41 +92,50 @@ test("gráfico do saldo: sem amortização vermelho, com amortização verde, ca
   assert.match(chart, /<p className=\{styles\.stSrOnly\}>\{summary\}<\/p>/, "resumo para leitor de tela");
 });
 
-test("gráfico (dono, 2026-10-19): linhas iguais só com cor diferente, sobe de R$ 0, anos nas pontas, cena de 2,4 s com pulso", () => {
+test("gráfico (dono, 2026-10-22): de baixo para cima, curvas suaves a cada 24 meses, bolinha no topo de cada linha e 'N anos a menos' centralizado", () => {
   const chart = read("components/presentation/StrategyBalanceChart.jsx");
-  assert.match(css, /\.stPathSem, \.stPathCom \{[^}]*stroke-width:\s*3/, "mesma espessura nas duas linhas");
-  assert.doesNotMatch(rule(".stPathSem"), /dasharray/, "sem amortização também sólida");
   assert.match(chart, /const toPaid = \(\[month, balance\]\) => \[month, start - balance\]/, "eixo = valor quitado (financiado − saldo do motor)");
-  assert.match(chart, /yearsLessText\(/, "\"N anos a menos\" na faixa");
-  assert.match(rule(".stDraw"), /animation:\s*stReveal 2\.4s /, "cada linha sobe em 2,4 s");
-  assert.match(css, /@keyframes stPulse/);
-  assert.match(css, /prefers-reduced-motion: reduce\) \{ \.stDraw, \.stBand, \.stDot, \.stPayoff, \.stGap \{ animation: none/);
-});
-
-test("gráfico (dono, 2026-10-19, 2ª rodada): vermelha sobe, depois a verde, depois a faixa; cena repete a cada mudança", () => {
-  const chart = read("components/presentation/StrategyBalanceChart.jsx");
-  // relógio: vermelha termina em 2,4 s; verde começa quando a vermelha termina e termina em 4,8 s; faixa/"a menos" depois
-  assert.match(chart, /const SEM_END = DRAW_SECONDS;/);
-  assert.match(chart, /const COM_END = 2 \* DRAW_SECONDS;/);
-  assert.match(chart, /styles\.stDrawCom\}`\} style=\{at\(SEM_END\)\}/, "verde só começa quando a vermelha termina");
-  assert.match(chart, /className=\{styles\.stBand\} style=\{at\(COM_END\)\}/, "faixa verde depois da linha verde");
-  assert.match(chart, /styles\.stGapBeside\}`\}[\s\S]*?at\(COM_END \+ 0\.3\)/, "\"a menos\" depois da linha verde");
-  assert.match(rule(".stDrawCom"), /animation-delay:\s*var\(--d/);
-  assert.match(rule(".stBand"), /animation:\s*stFadeIn/);
-  // repetição: o resultado muda → remonta a cena (key) parada e toca após ~400 ms sem nova mudança
-  assert.match(chart, /const RESTART_MS = 400;/);
-  assert.match(chart, /key=\{scene\.run\}/);
-  assert.match(chart, /setTimeout\(\(\) => setScene\(\(prev\) => \(\{ \.\.\.prev, armed: true \}\)\), RESTART_MS\)/);
-  assert.match(chart, /seen && scene\.armed \? "" : styles\.stWaiting/, "primeira vez: só quando aparece na tela");
-  assert.match(css, /\.stWaiting \.stDraw, \.stWaiting \.stBand[^}]*animation-play-state:\s*paused/);
-  // pontas só com os anos, sem "quitado em"
-  assert.doesNotMatch(chart, /quitado em<\/small>|<small>/);
-  assert.match(chart, /formatRoundedYears\(com\.months\)/);
+  assert.match(chart, /const SAMPLE_EVERY = 24;/);
+  assert.match(chart, /function smooth\(points\)/, "Catmull-Rom → Bézier");
+  assert.match(chart, /pathLength="1"/);
+  assert.match(chart, /<circle cx=\{f1\(comEnd\[0\]\)\} cy=\{TOP\}/, "bolinha quando a dourada bate no topo");
+  assert.match(chart, /<circle cx=\{f1\(semEnd\[0\]\)\} cy=\{TOP\}[^>]*styles\.stDotSem/, "bolinha vermelha quando a vermelha bate no topo (dono, 2026-10-22)");
+  assert.match(chart, /const specX = \(comEndX \+ W\) \/ 2;/, "x no meio do vão no topo (fim da dourada → fim da vermelha)");
+  assert.match(chart, /const specY = \(TOP \+ \(yAt\(sem, specX\) \?\? BASE\)\) \/ 2;/, "y no meio entre o topo e a linha vermelha");
+  assert.match(chart, /const GAP_CLEAR = 12;/, "folga mínima de 12 px de cada linha");
+  assert.match(chart, /const GAP_FONTS = \[13, 12, 11\];/, "fonte um pouco menor se não couber");
+  assert.match(rule(".stGap"), /translate\(-50%, -50%\)/, "texto centralizado no ponto calculado");
   assert.match(chart, /yearsLessText\(sem\.months, com\.months\)/);
+  assert.match(chart, /Área dourada = tempo que você ganha/);
+  assert.match(chart, /Sem amortização \(\{formatRoundedYears\(sem\.months\)\}\)/);
+  // ritmo (dono, 2026-10-22: "muito rápido"): desenho POR TEMPO, só com o gráfico ≥ 60% visível (IntersectionObserver, uma vez)
+  assert.match(chart, /new IntersectionObserver\(/);
+  assert.match(chart, /threshold: \[0\.6\]/);
+  assert.match(chart, /typeof IntersectionObserver === "undefined"\) \{\s*setPlay\(true\)/, "sem IntersectionObserver: começa ao abrir a folha");
+  assert.doesNotMatch(css, /animation-timeline: --stplot|view-timeline-name: --stplot/, "desenho não é mais guiado pela rolagem");
+  assert.match(css, /\.stDraw \{ stroke-dasharray: 1; stroke-dashoffset: 0; animation: stDraw 3\.6s [^;]*both paused; \}/, "vermelha ~3,6 s");
+  assert.match(css, /\.stDrawCom \{ animation-duration: 2\.6s; \}/, "dourada ~2,6 s");
+  assert.match(css, /\.stBand \{ animation: stFadeIn [\d.]+s ease 2\.6s both paused; \}/, "área depois da dourada");
+  assert.match(css, /\.stDot \{ animation: stDotJump 0\.6s ease-out 2\.6s both paused; \}/);
+  assert.match(css, /\.stDotSem \{ animation-delay: 3\.6s; \}/);
+  assert.match(css, /\.stGap \{ animation: stFadeIn [\d.]+s ease 4\.2\d?s both paused; \}/, "texto depois das duas bolinhas");
+  assert.match(css, /\.stPlotWrap\[data-play\] \.stDraw[^{]*\{ animation-play-state: running; \}/);
+  assert.match(css, /@keyframes stDotJump \{[\s\S]*?translateY\(-8px\) scale\(1\.35\)[\s\S]*?scale\(0\.9\)[\s\S]*?scale\(1\)/, "efeito de pulo");
+  assert.match(rule(".stDot"), /transform-box:\s*fill-box;\s*transform-origin:\s*center/);
+  // pontas só com os anos arredondados; PDF continua com a mesma regra
+  assert.match(chart, /formatRoundedYears\(/);
   const pdf = read("lib/payment-strategy-pdf.mjs");
   assert.match(pdf, /yearsLessText\(comparison\.sem\.months, comparison\.com\.months\)/);
   assert.match(pdf, /formatRoundedYears\(comparison\.com\.months\)/);
-  assert.doesNotMatch(pdf, /formatDuration\(comparison\.sem\.months - comparison\.com\.months\)/);
+});
+
+test("folha da Estratégia (dono, 2026-10-22): 'Você economiza' em ouro, 'Quando você quita' e blocos que sobem ao rolar", () => {
+  assert.match(jsx, /Você economiza/);
+  assert.match(jsx, /a menos de juros/);
+  assert.match(jsx, /Quando você quita/);
+  assert.match(rule(".stWhenSem"), /background:\s*#F0716A/i, "barra sem amortização vermelha");
+  assert.match(css, /@supports \(animation-timeline: view\(\)\) \{\s*\.stReveal \{ animation: stRevealUp linear both; animation-timeline: view\(\)/);
+  assert.match(rule(".stReveal"), /animation:\s*stRevealUp 0\.8s/, "fallback por tempo");
 });
 
 // Ajustes do dono (2026-10-19, PRES-24): gráfico é PROJEÇÃO (o cliente nem assinou) e o 13º não tem mais seletor de mês.

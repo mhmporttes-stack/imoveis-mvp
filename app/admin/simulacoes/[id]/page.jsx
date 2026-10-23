@@ -12,7 +12,7 @@ import { isBasicMode } from "@/lib/whatsapp-access-core.mjs";
 import RedoAutoSimulationButton from "@/components/RedoAutoSimulationButton";
 import SimulationScenarios from "@/components/SimulationScenarios";
 import { AUTO_SIMULATION_REVIEW_ENABLED } from "@/lib/simulation-auto-review-core.mjs";
-import { AUTO_PRESENTATION_LOCKED_MESSAGE, isAutomaticSimulationSource } from "@/lib/simulation-status-lock-core.mjs";
+import { AUTO_PRESENTATION_LOCKED_MESSAGE, isAutoPresentationLocked, isAutomaticSimulationSource } from "@/lib/simulation-status-lock-core.mjs";
 import { simulationFieldSuggestions, todayInSaoPaulo } from "@/lib/financiamento-estimativa-core.mjs";
 
 export const dynamic = "force-dynamic";
@@ -48,7 +48,7 @@ export default async function EditSimulationPage({ params }) {
       {/* Modo básico (automação desativada): sem apresentação interativa; o lançamento dos valores segue. */}
       {/* Simulação automática ainda não conferida (dono, 2026-10-19): só uma linha discreta perto do link; a conferência é
           por tipo (👍/👎 abaixo do imóvel novo e do usado, na Etapa B) e o link só libera com todos conferidos. */}
-      {AUTO_SIMULATION_REVIEW_ENABLED && isAutomaticSimulationSource(simulation.createdBy) ? (
+      {AUTO_SIMULATION_REVIEW_ENABLED && isAutoPresentationLocked(simulation.createdBy) ? (
         <p className="container-page mb-2 text-xs font-semibold text-muted" data-auto-review-line="">{AUTO_PRESENTATION_LOCKED_MESSAGE}</p>
       ) : null}
       {isBasicMode(auth.profile) ? null : <SimulationPresentationPanel simulationId={simulation.id} />}

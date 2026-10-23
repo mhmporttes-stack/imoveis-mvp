@@ -3,6 +3,8 @@ import { NextResponse } from "next/server";
 const ADMIN_ACCESS_COOKIE = "mm_admin_access_token";
 const ADMIN_REFRESH_COOKIE = "mm_admin_refresh_token";
 const PUBLIC_ADMIN_PATHS = ["/admin/login", "/admin/reset-password"];
+// Pasta interna das telas acima (app/painel-acesso) — ver o rewrite no início de proxy().
+const PAINEL_ACESSO_PREFIX = "/painel-acesso";
 // Link da apresentação interativa da simulação: /s/<token> (24 caracteres base62 com maiúscula, minúscula e dígito;
 // lib/simulation-presentation-core.mjs). O ref curto de corretor (/s/mhm, /s/1) é sempre minúsculo e continua na
 // rota de redirecionamento de sempre; só o formato do token é reescrito para a página pública. Os dois subcaminhos
@@ -24,6 +26,19 @@ export function proxy(request) {
   }
   if (pathname.startsWith("/apresentacao/")) return privatePresentationResponse(NextResponse.next());
   if (pathname.startsWith("/s/")) return NextResponse.next(); // ref curto de corretor: comportamento de sempre
+  // Telas de entrada do painel (velocidade, etapa 3, 2026-10-22): o código mora em app/painel-acesso (layout leve, sem o
+  // JS do painel); o endereço público continua /admin/login e /admin/reset-password. Endereço interno digitado direto
+  // volta para o público (uma URL só para cada tela).
+  if (pathname === PAINEL_ACESSO_PREFIX || pathname.startsWith(`${PAINEL_ACESSO_PREFIX}/`)) {
+    const publicUrl = request.nextUrl.clone();
+    publicUrl.pathname = `/admin${pathname.slice(PAINEL_ACESSO_PREFIX.length)}`;
+    return noStoreResponse(NextResponse.redirect(publicUrl));
+  }
+  if (isPublicAdminPath(pathname)) {
+    const target = request.nextUrl.clone();
+    target.pathname = `${PAINEL_ACESSO_PREFIX}${pathname.slice("/admin".length)}`;
+    return noStoreResponse(NextResponse.rewrite(target));
+  }
   const isAdminPath = pathname.startsWith("/admin");
   const isApiPath = pathname.startsWith("/api");
   const isAcademyPath = pathname.startsWith("/academia");
@@ -80,5 +95,5 @@ function noStoreResponse(response) {
 }
 
 export const config = {
-  matcher: ["/admin/:path*", "/api/:path*", "/academia/:path*", "/s/:path*", "/apresentacao/:path*"]
+  matcher: ["/admin/:path*", "/api/:path*", "/academia/:path*", "/s/:path*", "/apresentacao/:path*", "/painel-acesso/:path*"]
 };

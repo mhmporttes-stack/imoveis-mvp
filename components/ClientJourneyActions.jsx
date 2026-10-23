@@ -49,7 +49,7 @@ const CATEGORY_BY_TYPE = {
   created: "sistema", legacy_status: "status", status: "status", status_reason: "status", notify: "jornada", regenerate: "jornada",
   responsible_transferred: "atribuicao", data_updated: "sistema", form_resubmitted: "sistema", ad_reentry: "sistema", tag_added: "sistema", tag_removed: "sistema",
   activity_scheduled: "atividades", activity_completed: "atividades", activity_rescheduled: "atividades", activity_deleted: "atividades",
-  sale_registered: "status", document_forecast_set: "atividades", documents_list_sent: "atividades", appointment_scheduled: "atividades", appointment_requested: "atividades", presentation_sent: "atividades", presentation_link_copied: "atividades", presentation_approval_on: "atividades", presentation_approval_off: "atividades",
+  sale_registered: "status", document_forecast_set: "atividades", documents_list_sent: "atividades", appointment_scheduled: "atividades", appointment_requested: "atividades", presentation_sent: "atividades", simulation_auto_sent: "atividades", simulation_auto_send_scheduled: "sistema", simulation_auto_send_pending: "sistema", simulation_auto_send_failed: "sistema", simulation_auto_send_skipped: "sistema", client_voice_audio_sent: "atividades", client_voice_audio_failed: "sistema", client_voice_audio_skipped: "sistema", presentation_link_copied: "atividades", presentation_approval_on: "atividades", presentation_approval_off: "atividades",
   "distribution:assigned": "atribuicao", "distribution:auto_transferred": "atribuicao", responsible_assigned: "atribuicao",
   "prospecting:claimed": "atividades", "prospecting:edited": "sistema", "prospecting:unblocked": "sistema",
   "prospecting:returned_to_queue": "atividades", "prospecting:prospecting_started": "atividades", "prospecting:in_service": "atividades",
@@ -126,8 +126,8 @@ function eventTitleAndDescription(event, context = {}) {
     case "distribution:assigned":
       // Cliente que esperava um corretor on-line e a roleta entregou depois (não é a 1ª atribuição).
       if (d.fromWaitingQueue) return { title: "DISTRIBUÍDO PELA ROLETA", description: [`Distribuído para: ${d.toName || "—"}`, "Motivo: primeiro corretor on-line depois da espera"] };
-      if (d.heldByOwner) return { title: "ATRIBUIÇÃO INICIAL", description: [`Distribuído para: ${d.toName || "—"}`, "Motivo: nenhum corretor on-line — fica com o dono até a roleta entregar ao primeiro corretor on-line"] };
-      if (!d.toName) return { title: "ATRIBUIÇÃO INICIAL", description: ["Distribuído para: ninguém (nenhum corretor on-line)", "Motivo: aguardando a roleta entregar ao primeiro corretor on-line"] };
+      if (d.heldByOwner) return { title: "ATRIBUIÇÃO INICIAL", description: [`Distribuído para: ${d.toName || "—"}`, "Motivo: nenhum corretor liberado na roleta — fica com o dono até a roleta entregar ao primeiro corretor liberado"] };
+      if (!d.toName) return { title: "ATRIBUIÇÃO INICIAL", description: ["Distribuído para: ninguém (nenhum corretor liberado)", "Motivo: aguardando a roleta entregar ao primeiro corretor liberado"] };
       return { title: "ATRIBUIÇÃO INICIAL", description: [`Distribuído para: ${d.toName}`, "Motivo: Distribuição automática"] };
     case "distribution:auto_transferred":
       return { title: "TRANSFERÊNCIA AUTOMÁTICA", description: [`${d.fromName || "—"} → ${d.toName || "—"}`, d.reason ? `Motivo: ${d.reason}` : "Motivo: Prazo de atendimento excedido"] };
@@ -138,7 +138,7 @@ function eventTitleAndDescription(event, context = {}) {
     case "tag_removed":
       return { title: "TAG REMOVIDA", description: [d.tagName ? `"${d.tagName}"` : ""] };
     case "data_updated":
-      return { title: "DADOS ATUALIZADOS", description: (d.fields || []).map((f) => f.field === "phone" && f.fromLast4 ? `Telefone: final ${f.fromLast4} → final ${f.toLast4}` : `${FIELD_LABEL[f.field] || f.field} atualizado(a)`) };
+      return { title: "DADOS ATUALIZADOS", description: (d.fields || []).map((f) => f.field === "phone" && f.fromLast4 ? `Telefone: final ${f.fromLast4} → final ${f.toLast4}` : f.field === "phone" && f.toLast4 ? `WhatsApp adicionado: final ${f.toLast4}` : `${FIELD_LABEL[f.field] || f.field} atualizado(a)`) };
     case "ad_reentry":
       return d.side === "new"
         ? { title: "REENTRADA POR ANÚNCIO", description: [d.campaignName ? `Campanha: ${d.campaignName}` : "", "Cliente já existia e voltou por um anúncio"].filter(Boolean) }
@@ -163,6 +163,24 @@ function eventTitleAndDescription(event, context = {}) {
       return { title: "LISTA DE DOCUMENTOS ENVIADA", description: ["Lista de documentos enviada"] };
     case "presentation_sent":
       return { title: "APRESENTAÇÃO DA SIMULAÇÃO ENVIADA", description: ["Apresentação da simulação enviada"] };
+    // Envio automático da simulação (SIM-AUTO-ENVIO, dono 2026-10-23): o texto vem gravado no evento (canal/motivo).
+    case "simulation_auto_sent":
+      return { title: "SIMULAÇÃO ENVIADA AUTOMATICAMENTE", description: [d.text || "Simulação enviada automaticamente"] };
+    case "simulation_auto_send_scheduled":
+      return { title: "ENVIO AUTOMÁTICO DA SIMULAÇÃO PROGRAMADO", description: [d.text || "Envio automático da simulação programado"] };
+    case "simulation_auto_send_pending":
+      return { title: "ENVIO AUTOMÁTICO DA SIMULAÇÃO PENDENTE", description: [d.text || "Envio automático da simulação pendente"] };
+    case "simulation_auto_send_failed":
+      return { title: "ENVIO AUTOMÁTICO DA SIMULAÇÃO FALHOU", description: [d.text || "Envio automático da simulação falhou"] };
+    case "simulation_auto_send_skipped":
+      return { title: "SIMULAÇÃO NÃO ENVIADA AUTOMATICAMENTE", description: [d.text || "Simulação não enviada automaticamente"] };
+    // Áudio com a voz do dono (VOZ-1, dono 2026-10-23): automação, não atendimento humano. Texto gravado no evento.
+    case "client_voice_audio_sent":
+      return { title: "ÁUDIO ENVIADO AUTOMATICAMENTE", description: [d.text || "Áudio enviado automaticamente"] };
+    case "client_voice_audio_failed":
+      return { title: "ÁUDIO AUTOMÁTICO FALHOU", description: [d.text || "Áudio automático não enviado"] };
+    case "client_voice_audio_skipped":
+      return { title: "ÁUDIO AUTOMÁTICO NÃO ENVIADO", description: [d.text || "Áudio automático não enviado"] };
     case "document_received_offline":
       return { title: "1º DOCUMENTO RECEBIDO POR FORA", description: [d.text || "1º documento recebido fora do CRM"] };
     case "document_received_offline_undone":
@@ -353,7 +371,7 @@ export default function ClientJourneyActions({ registration, canManage, responsi
 
       {open ? createPortal(
         <dialog ref={openAsModal} className="fixed inset-0 z-[100] m-0 flex h-full w-full max-w-none max-h-none items-center justify-center border-0 bg-navy/60 p-3 sm:p-4" aria-label="Jornada e histórico" onClose={() => setOpen(false)} onMouseDown={(event) => { if (event.target === event.currentTarget) setOpen(false); }}>
-          <div className="flex max-h-[92svh] w-full max-w-3xl flex-col overflow-hidden rounded-[24px] bg-white shadow-2xl sm:max-h-[88svh] sm:rounded-[28px]" onMouseDown={(event) => event.stopPropagation()}>
+          <div className="flex max-h-[92svh] w-full max-w-3xl flex-col overflow-hidden rounded-panel bg-white shadow-2xl sm:max-h-[88svh] sm:rounded-panel" onMouseDown={(event) => event.stopPropagation()}>
             {/* Cabeçalho fixo: resumo do cliente */}
             <div className="shrink-0 border-b border-line bg-white p-5 sm:p-6">
               <div className="flex items-start justify-between gap-3">

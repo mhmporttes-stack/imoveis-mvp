@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { FileText, Image as ImageIcon, Link2, Loader2, MessageSquareText, Plus, Send, Settings2, Trash2, X, Zap } from "lucide-react";
+import { SHORTCUT_CHANNEL_LABEL } from "@/lib/chat-shortcut-channel.mjs";
 
 const KIND_ICON = { text: MessageSquareText, image: ImageIcon, document: FileText, simulation_link: Link2 };
 const KIND_LABEL = { text: "Texto", image: "Imagem", document: "Documento", simulation_link: "Link de simulação" };
@@ -144,11 +145,14 @@ export default function WhatsappChatShortcuts({ conversationId, canManage, disab
   );
 }
 
-function ManageShortcuts({ onClose }) {
+// Gestão dos atalhos (também aberta pelo Chat do Marketplace). Canal (MKT-2f, dono, 2026-10-22): onde o atalho aparece —
+// Chat do WhatsApp, Chat do Marketplace (só texto) ou os dois.
+export function ManageShortcuts({ onClose }) {
   const [items, setItems] = useState(null);
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
   const [kind, setKind] = useState("text");
+  const [channel, setChannel] = useState("whatsapp");
   const [label, setLabel] = useState("");
   const [body, setBody] = useState("");
   const [file, setFile] = useState(null);
@@ -172,6 +176,7 @@ function ManageShortcuts({ onClose }) {
       form.append("label", label);
       form.append("kind", kind);
       form.append("body", body);
+      form.append("channel", kind === "text" ? channel : "whatsapp");
       if (file) form.append("file", file);
       const response = await fetch("/api/admin/whatsapp-chat/shortcuts", { method: "POST", body: form });
       const data = await response.json().catch(() => ({}));
@@ -187,6 +192,14 @@ function ManageShortcuts({ onClose }) {
     }
   }
 
+  async function changeChannel(item, value) {
+    setError("");
+    const response = await fetch(`/api/admin/whatsapp-chat/shortcuts/${item.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ channel: value }) });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) setError(data.error || "Não foi possível mudar o canal do atalho.");
+    load();
+  }
+
   async function remove(item) {
     if (!window.confirm(`Excluir o atalho "${item.label}"?`)) return;
     await fetch(`/api/admin/whatsapp-chat/shortcuts/${item.id}`, { method: "DELETE" });
@@ -197,7 +210,7 @@ function ManageShortcuts({ onClose }) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-navy/50 p-4" onPointerDown={(event) => event.target === event.currentTarget && onClose()}>
-      <div className="max-h-[88dvh] w-full max-w-lg overflow-y-auto rounded-[28px] border border-line bg-white p-6 shadow-soft">
+      <div className="max-h-[88dvh] w-full max-w-lg overflow-y-auto rounded-panel border border-line bg-white p-6 shadow-soft">
         <div className="mb-4 flex items-center justify-between">
           <h3 className="text-xl font-black text-navy">Atalhos do Chat</h3>
           <button type="button" onClick={onClose} aria-label="Fechar" className="rounded-full p-2 text-muted hover:bg-mist"><X className="h-5 w-5" /></button>
@@ -214,6 +227,11 @@ function ManageShortcuts({ onClose }) {
                   <span className="block truncate text-sm font-extrabold text-navy">{item.label}</span>
                   <span className="block truncate text-[11px] font-bold text-muted">{KIND_LABEL[item.kind]}{item.mediaName ? ` · ${item.mediaName}` : ""}</span>
                 </span>
+                {item.kind === "text" ? (
+                  <select value={item.channel || "whatsapp"} onChange={(event) => changeChannel(item, event.target.value)} aria-label={`Onde aparece ${item.label}`} className="h-8 max-w-[9rem] shrink-0 rounded-lg border border-line bg-white px-1 text-[11px] font-bold text-navy">
+                    {Object.entries(SHORTCUT_CHANNEL_LABEL).map(([value, text]) => <option key={value} value={value}>{text}</option>)}
+                  </select>
+                ) : null}
                 <button type="button" onClick={() => remove(item)} aria-label={`Excluir ${item.label}`} className="rounded-full p-2 text-red-500 hover:bg-red-50"><Trash2 className="h-4 w-4" /></button>
               </li>
             );
@@ -226,6 +244,12 @@ function ManageShortcuts({ onClose }) {
           <select value={kind} onChange={(event) => { setKind(event.target.value); setFile(null); }} className="h-10 w-full rounded-xl border border-line bg-white px-3 text-sm font-bold text-navy outline-none focus:border-brand">
             {Object.entries(KIND_LABEL).map(([value, text]) => <option key={value} value={value}>{text}</option>)}
           </select>
+          {kind === "text" ? (
+            <select value={channel} onChange={(event) => setChannel(event.target.value)} aria-label="Onde o atalho aparece" className="h-10 w-full rounded-xl border border-line bg-white px-3 text-sm font-bold text-navy outline-none focus:border-brand">
+              {Object.entries(SHORTCUT_CHANNEL_LABEL).map(([value, text]) => <option key={value} value={value}>Aparece em: {text}</option>)}
+            </select>
+          ) : null}
+          {kind === "text" && channel !== "whatsapp" ? <p className="text-[11px] font-bold text-muted">No Marketplace o texto é colado na caixa para editar. Use [nome], [anúncio] e [corretor] para preencher sozinho. Até 2.000 caracteres.</p> : null}
           <textarea value={body} onChange={(event) => setBody(event.target.value)} rows={3} placeholder={kind === "text" ? "Texto da mensagem" : "Legenda / mensagem (opcional)"} className="w-full rounded-xl border border-line px-3 py-2 text-sm font-semibold text-navy outline-none focus:border-brand" />
           {needsFile ? (
             <input type="file" accept={kind === "image" ? "image/jpeg,image/png" : ".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt"} onChange={(event) => setFile(event.target.files?.[0] || null)} className="block w-full text-xs font-bold text-muted" />

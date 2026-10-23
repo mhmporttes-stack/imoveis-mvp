@@ -109,11 +109,14 @@ Quando o dono mandar fotos de um imóvel, usar sempre este modelo. Exemplo: `car
 - **Final:** versão clara, o dono com a chave, "Gostou? Vem conhecer de perto. Me chama no Direct ou no WhatsApp" e o CRECI.
 - **Valor:** só entra se o dono pedir. Nunca inventar número de quartos ou área; perguntar.
 
+## Capa do Marketplace (dono, 2026-10-22)
+A capa publicada no Marketplace é **a mesma capa do Instagram, só que sem a foto do dono** (tirar o `<img src="img/apontando.png">`). Salvar como `carrosseis/<pasta>/capa-marketplace.jpg` junto com o carrossel de todo imóvel novo.
+
 ## Imóvel no CRM (dono, 2026-10-15)
 - **Atualizado pelo dono em 2026-10-15:** todo imóvel de carrossel **vai para o site sempre** (`properties` com `is_published=true`), sem esperar o ok. Valor só entra quando o dono mandar. **Se o dono mudar qualquer coisa no post (texto, foto, ordem, dado), corrigir o carrossel aqui e atualizar o cadastro no site também**, para os dois ficarem iguais.
 - Fluxo antigo (substituído pela linha acima): tratar as fotos, montar o carrossel, o dono manda o valor e as condições (só para o CRM) e dá **ok**; aí cadastrar em `properties` com `is_published=false`.
 - **Fotos do CRM = lâminas do carrossel, na mesma ordem** (capa primeiro), em JPEG 1080×1350 com menos de 1,5 MB cada (limite do bucket `property-media`). Upload pelo segredo de rede `claude-fotos` (só `/storage/v1/`); o cadastro em si é feito via MCP Supabase.
-- **Código:** todo imóvel novo ganha um código de 4 dígitos na coluna `properties.code`, que aparece como chip "COD…" no painel; **nunca no título**. Daqui para frente, o código aparece pequeno no carrossel **só no selo de localização, em cima** — **nunca embaixo, ao lado do @** (dono, 2026-10-18). Ao copiar o HTML de um carrossel anterior, remover o `<span class="hcod">`. Códigos usados: 4352 (Cavalari), 4353 (Terra Nova), 4354 (Palmital), 4355 (Terra Verde), 4356 (Praça Esmeraldas), 4357 (Terra Verde piscina).
+- **Código:** todo imóvel novo ganha um código de 4 dígitos na coluna `properties.code`, que aparece como chip "COD…" no painel; **nunca no título**. Daqui para frente, o código aparece pequeno no carrossel **só no selo de localização, em cima** — **nunca embaixo, ao lado do @** (dono, 2026-10-18). Ao copiar o HTML de um carrossel anterior, remover o `<span class="hcod">`. Códigos usados: 4352 (Cavalari), 4353 (Terra Nova), 4354 (Palmital), 4355 (Terra Verde), 4356 (Praça Esmeraldas), 4357 (Terra Verde piscina), 4358 (Aquários Riviera), 4359 (Nova Marília).
 - **Contato do imóvel (dono, 2026-10-16):** no cadastro, guardar nome, telefone e se é Proprietário ou Corretor (campos internos, nunca no site). Se o dono mandar só o nome e esse contato já existir em outro imóvel, reaproveitar telefone e tipo dele.
 - Postar no Instagram: a integração Windsor publica carrossel (máx. 10 imagens), foto, story e Reels, **só com "sim" do dono por post**; agendamento via lembrete da sessão.
   - Como funciona (2026-10-17): a conta foi reconectada no Windsor **pelo Facebook** (pelo Instagram só lê). As imagens precisam de URL pública em JPEG: salvar em `carrosseis/<pasta>/ig/*.jpg`, dar push e usar `raw.githubusercontent.com/mhmporttes-stack/imoveis-mvp/<commit>/...`.
@@ -123,7 +126,7 @@ Quando o dono mandar fotos de um imóvel, usar sempre este modelo. Exemplo: `car
 - Logo do MCMV para fundo claro: `assets/mcmv-logo-cor.png`.
 
 ## Fila de postagem (dono, 2026-10-15)
-Depois de toda legenda, perguntar **"Vai postar agora?"**. Se a resposta for não, colocar o post em `docs/posicionamento/FILA-POSTAGEM.md`. Quando o dono pedir "o que tenho para postar?", listar por carrossel claro, carrossel azul e imóvel, e reenviar o que ele escolher.
+**Imóvel (dono, 2026-10-22): não perguntar — publicar direto** em Instagram, site/CRM e Marketplace (skill `/publicar-imovel`). Para os demais posts (carrossel de conteúdo), depois de toda legenda, perguntar **"Vai postar agora?"**. Se a resposta for não, colocar o post em `docs/posicionamento/FILA-POSTAGEM.md`. Quando o dono pedir "o que tenho para postar?", listar por carrossel claro, carrossel azul e imóvel, e reenviar o que ele escolher.
 
 ## Acervo de fotos do dono (já recortadas, prontas para usar)
 **Usar sempre a versão em alta de `assets/boneco-3d/realista-hd/`** (mesmos nomes, 2160×2700; dono, 2026-10-19: as originais de 1080 px deixavam o rosto "lavado" ao ampliar). Feita com o modelo 4xNomosWebPhoto (ESRGAN, HuggingFace `nesaorg/4xNomosWebPhoto_esrgan_fp32_opset17`, ampliado 4× e reduzido para 2×). Foto nova do acervo → gerar também a versão `realista-hd/`. Entrega no Instagram: JPG 1080×1350 (`exportar-instagram.py`).

@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { BookOpen, Copy, Loader2, Pencil, Plus, Power, Trash2, X } from "lucide-react";
+import { Copy, Loader2, Pencil, Plus, Power, Trash2, X } from "lucide-react";
 import { GUIDE_KINDS, GUIDE_KIND_KEYS } from "@/lib/attendance-guide-core.mjs";
 
 const KIND_TONE = {
@@ -83,10 +83,11 @@ export default function GuideManager({ initialGuides }) {
 
   return (
     <section className="container-page space-y-4">
-      <div className="flex flex-wrap items-start justify-between gap-3 rounded-[28px] border border-line bg-white p-6 shadow-soft">
+      <div className="flex flex-wrap items-start justify-between gap-3 rounded-panel border border-line bg-white p-6 shadow-soft">
         <div className="max-w-2xl">
-          <h2 className="flex items-center gap-2 text-2xl font-black text-navy"><BookOpen className="h-6 w-6 text-brand" />Guia de Atendimento</h2>
-          <p className="mt-1 text-sm font-semibold text-muted">
+          {/* O título "Guia de Atendimento" já está no cabeçalho do painel (visual novo): aqui só para leitor de tela. */}
+          <h2 className="sr-only">Guia de Atendimento</h2>
+          <p className="text-sm text-muted">
             A árvore de decisão que aparece ao lado do Chat: o corretor escolhe o que o cliente respondeu e vê a orientação, o argumento e a mensagem pronta. Cada guia abre sozinho conforme a origem do cliente (Prospecção, Lead ou Orgânico). Alterações só chegam aos corretores quando você clica em <strong>Publicar</strong>.
           </p>
         </div>
@@ -100,7 +101,7 @@ export default function GuideManager({ initialGuides }) {
           const status = statusOf(guide);
           const busy = busyId === guide.id;
           return (
-            <article key={guide.id} className="rounded-[24px] border border-line bg-white p-5 shadow-soft">
+            <article key={guide.id} className="rounded-panel border border-line bg-white p-5 shadow-soft">
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
                   <Link href={`/admin/guia-atendimento/${guide.id}`} className="block truncate text-lg font-black text-navy hover:text-brand">{guide.name}</Link>
@@ -133,7 +134,7 @@ export default function GuideManager({ initialGuides }) {
 
       {creating ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-navy/40 p-4" onClick={() => setCreating(false)}>
-          <div className="w-full max-w-md rounded-[24px] bg-white p-6 shadow-soft" onClick={(event) => event.stopPropagation()}>
+          <div className="w-full max-w-md rounded-panel bg-white p-6 shadow-soft" onClick={(event) => event.stopPropagation()}>
             <div className="flex items-center justify-between">
               <h3 className="text-lg font-black text-navy">Novo guia</h3>
               <button type="button" onClick={() => setCreating(false)} className="rounded-full p-2 hover:bg-mist" aria-label="Fechar"><X className="h-4 w-4" /></button>

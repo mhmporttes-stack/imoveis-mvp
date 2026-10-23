@@ -289,7 +289,7 @@ export default function ClientDocumentsModal({ client, conversationId = "", canS
     >
       <div
         ref={dropRef}
-        className="flex max-h-[92svh] w-full max-w-4xl flex-col overflow-hidden rounded-[24px] bg-white shadow-2xl sm:max-h-[88svh] sm:rounded-[28px]"
+        className="flex max-h-[92svh] w-full max-w-4xl flex-col overflow-hidden rounded-panel bg-white shadow-2xl sm:max-h-[88svh] sm:rounded-panel"
         onMouseDown={(event) => event.stopPropagation()}
         onDragOver={(event) => event.preventDefault()}
         onDrop={(event) => { event.preventDefault(); startUpload(event.dataTransfer.files); }}
@@ -453,7 +453,7 @@ function PdfDownloadModal({ clientId, onClose }) {
 
   return (
     <div className="fixed inset-0 z-[110] flex items-center justify-center bg-navy/70 p-4" onMouseDown={onClose}>
-      <div className="w-full max-w-md rounded-[24px] bg-white p-6 shadow-2xl" onMouseDown={(event) => event.stopPropagation()}>
+      <div className="w-full max-w-md rounded-panel bg-white p-6 shadow-2xl" onMouseDown={(event) => event.stopPropagation()}>
         {state === "loading" ? (
           <div className="flex flex-col items-center gap-3 py-6 text-center">
             <LoaderCircle className="h-8 w-8 animate-spin text-brand" />
@@ -536,7 +536,7 @@ function BrokerAlertModal({ alert, onClose }) {
 
   return (
     <div className="fixed inset-0 z-[110] flex items-center justify-center bg-navy/70 p-4" onMouseDown={onClose}>
-      <div className="w-full max-w-md rounded-[24px] bg-white p-6 shadow-2xl" onMouseDown={(event) => event.stopPropagation()}>
+      <div className="w-full max-w-md rounded-panel bg-white p-6 shadow-2xl" onMouseDown={(event) => event.stopPropagation()}>
         {alert.empty ? (
           <div className="text-center">
             <CheckCircle2 className="mx-auto h-10 w-10 text-emerald-600" />
@@ -876,7 +876,7 @@ function CcaSubmissionFlow({ clientId, batchId, onClose }) {
 
   return (
     <div className="fixed inset-0 z-[110] flex items-center justify-center bg-navy/70 p-4" onMouseDown={onClose}>
-      <div className="w-full max-w-md rounded-[24px] bg-white p-6 shadow-2xl" onMouseDown={(event) => event.stopPropagation()}>
+      <div className="w-full max-w-md rounded-panel bg-white p-6 shadow-2xl" onMouseDown={(event) => event.stopPropagation()}>
         {done ? (
           <div className="text-center">
             <CheckCircle2 className="mx-auto h-10 w-10 text-emerald-600" />

@@ -1,7 +1,7 @@
-/* Paleta: mesmos tokens reais do site (tailwind.config.cjs) — navy
-   #0D3B66 e brand #1769D1 — não é uma identidade visual nova, só uma
-   composição mais profunda das MESMAS cores institucionais, sobre fundo
-   escuro em vez de sobre branco. */
+/* Mensagem do dia — visual novo (protótipo aprovado pelo dono em 2026-10-22). Cores: variáveis --scene-* de
+   components/scenes/scenes.module.css (claro/escuro). Ordem da cena: logo → "Bom dia, {nome}:" digitado devagar →
+   letras da frase voam, cravam e são soldadas (começam junto com a saudação) → "boom" → fonte, linha, abertura,
+   data → "Começar o dia". Tempos calculados no componente (--boom/--after/--bye/--cta). */
 
 .overlay {
   position: fixed;
@@ -11,200 +11,149 @@
   place-items: center;
   overflow-y: auto;
   overflow-x: hidden;
-  padding: env(safe-area-inset-top, 0) env(safe-area-inset-right, 0) env(safe-area-inset-bottom, 0) env(safe-area-inset-left, 0);
-  background:
-    radial-gradient(ellipse 60% 46% at 50% 30%, rgba(23, 105, 209, 0.30), transparent 68%),
-    radial-gradient(ellipse 120% 70% at 50% 105%, #071b30 0%, transparent 60%),
-    linear-gradient(180deg, #0a2c4d 0%, #0d3b66 42%, #082849 100%);
-  animation: overlayIn .6s ease both;
+  padding: max(20px, env(safe-area-inset-top, 0)) 16px max(20px, env(safe-area-inset-bottom, 0));
+  background: var(--scene-bg);
+  animation: overlayIn 0.6s ease both;
 }
-.overlay.closing { animation: overlayOut .5s ease both; }
+.overlay.closing { animation: overlayOut 0.5s ease both; }
 @keyframes overlayIn { from { opacity: 0; } to { opacity: 1; } }
 @keyframes overlayOut { from { opacity: 1; } to { opacity: 0; } }
 
-/* Formas abstratas extremamente discretas — só CSS, sem imagem. Dois
-   círculos desfocados nos cantos (profundidade) + um brilho central suave
-   atrás do texto principal. Isolados num wrapper próprio com
-   overflow:hidden: os círculos usam offsets negativos para "sangrar" para
-   fora dos cantos, e sem esse recorte eles inflam o scrollHeight do
-   .overlay (que precisa de overflow-y:auto para textos muito longos),
-   criando uma rolagem fantasma que não corresponde a conteúdo real. */
-.backdrop {
-  position: absolute;
-  inset: 0;
-  overflow: hidden;
-  pointer-events: none;
-  z-index: 0;
-}
-.backdrop::before,
-.backdrop::after {
-  content: "";
-  position: absolute;
-  border-radius: 50%;
-  filter: blur(90px);
-  opacity: .14;
-}
-.backdrop::before { width: 420px; height: 420px; top: -140px; left: -110px; background: #1769d1; }
-.backdrop::after { width: 480px; height: 480px; bottom: -180px; right: -120px; background: #3d8bf0; }
-
 .glow {
-  position: absolute;
-  top: 6%;
+  position: fixed;
   left: 50%;
-  width: min(70vw, 620px);
-  height: min(70vw, 620px);
-  transform: translateX(-50%);
-  background: radial-gradient(circle, rgba(110, 175, 245, .30), transparent 70%);
-  filter: blur(30px);
+  top: 50%;
+  width: min(120vw, 560px);
+  height: min(120vw, 560px);
+  margin: calc(min(120vw, 560px) / -2) 0 0 calc(min(120vw, 560px) / -2);
+  border-radius: 999px;
+  background: radial-gradient(circle, var(--scene-accent-soft), transparent 70%);
+  pointer-events: none;
+  animation: glow 5s ease-in-out infinite;
 }
+@keyframes glow { 0%, 100% { opacity: 0.45; } 50% { opacity: 1; } }
 
 .frame {
   position: relative;
-  z-index: 1;
-  width: min(100%, 860px);
-  margin: auto;
-  padding: clamp(28px, 6vh, 64px) 28px clamp(24px, 5vh, 48px);
+  width: 100%;
+  max-width: 640px;
+  box-sizing: border-box;
+  padding: 36px 32px 32px;
+  border-radius: 24px;
+  background: var(--scene-surface);
+  border: 1px solid var(--scene-hero-border);
+  box-shadow: var(--scene-shadow);
   text-align: center;
-  --main-min: 2rem;
-  --main-pref: 3.6vw;
-  --main-max: 4.6rem;
+  animation: intro 1.4s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  --main-min: 1.6rem;
+  --main-pref: 4.4vw;
+  --main-max: 2.4rem;
 }
-.frame[data-length="medium"] { --main-min: 1.85rem; --main-pref: 2.8vw; --main-max: 3.6rem; }
-.frame[data-length="long"] { --main-min: 1.6rem; --main-pref: 2.1vw; --main-max: 2.7rem; }
+.frame[data-length="short"] { --main-min: 1.9rem; --main-pref: 6vw; --main-max: 2.6rem; }
+.frame[data-length="medium"] { --main-min: 1.6rem; --main-pref: 4.6vw; --main-max: 2.2rem; }
+.frame[data-length="long"] { --main-min: 1.35rem; --main-pref: 3.8vw; --main-max: 1.9rem; }
+@keyframes intro { from { opacity: 0; transform: translateY(24px); } to { opacity: 1; transform: none; } }
 
-/* Telas largas porém baixas (notebook 1366x768, 1280x720, 1024x768) —
-   altura, não só largura, precisa reduzir a tipografia e o ritmo
-   vertical para tudo continuar cabendo sem cortar nada. Valores absolutos
-   por faixa (em vez de calc(var(--main-max) * fator) empilhado em duas
-   media queries) de propósito: encadear duas sobrescritas da MESMA custom
-   property, cada uma referenciando a si mesma via var(), cria uma
-   referência circular quando as duas media queries ficam ativas ao mesmo
-   tempo (telas com altura <= 700px) — o navegador invalida a propriedade
-   inteira nesse caso, e font-size: clamp(...) cai silenciosamente para o
-   padrão do navegador (16px). Valor absoluto por breakpoint evita o ciclo. */
-@media (max-height: 820px) {
-  .frame { --main-max: 3.68rem; padding-top: 20px; padding-bottom: 18px; }
-  .frame[data-length="medium"] { --main-max: 2.88rem; }
-  .frame[data-length="long"] { --main-max: 2.16rem; }
+/* No claro, a perna clara do "M" sumia no cartão branco: disco navy discreto atrás do símbolo (asset intocado).
+   No escuro o disco é transparente (logo sem fundo). */
+.logoDisc {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 84px;
+  height: 84px;
+  margin: 0 auto;
+  border-radius: 999px;
+  background: var(--scene-logo-disc);
+  animation: intro 1.2s cubic-bezier(0.2, 0.8, 0.2, 1) both;
 }
-@media (max-height: 700px) {
-  .frame { --main-max: 3.128rem; }
-  .frame[data-length="medium"] { --main-max: 2.448rem; }
-  .frame[data-length="long"] { --main-max: 1.836rem; }
-}
+.logo { display: block; width: 58px; height: auto; margin-top: 2px; }
+:global(html.mm-dark) .logo { width: 72px; }
 
-.kicker {
-  font-family: system-ui, sans-serif;
-  font-size: clamp(11px, .9vw + 8px, 13px);
-  font-weight: 700;
-  letter-spacing: .28em;
+.greeting { margin: 18px 0 0; }
+.typed {
+  display: inline-block;
+  overflow: hidden;
+  white-space: nowrap;
+  vertical-align: bottom;
+  max-width: calc(var(--chars) * (1ch + 0.14em) + 0.2em);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
-  color: rgba(214, 229, 250, .78);
-  opacity: 0;
-  transform: translateY(10px);
-  transition: opacity .9s ease, transform .9s ease;
+  color: var(--scene-accent-text);
+  animation: type 2.6s steps(var(--chars)) 0.6s both;
 }
-.kicker.visible { opacity: 1; transform: translateY(0); }
+@keyframes type { from { max-width: 0; } }
 
 .mainText {
+  position: relative;
+  margin: 18px 0 0;
   font-family: var(--font-daily-message), Georgia, serif;
-  font-weight: 600;
   font-size: clamp(var(--main-min), var(--main-pref), var(--main-max));
-  line-height: 1.28;
-  color: #ffffff;
-  max-width: 46ch;
-  margin: 20px auto 0;
-  overflow-wrap: anywhere;
-  opacity: 0;
-  transform: translateY(16px);
-  transition: opacity 1s ease, transform 1s ease;
+  line-height: 1.3;
+  font-weight: 700;
+  letter-spacing: -0.005em;
+  color: var(--scene-text);
+  text-wrap: balance;
 }
-.mainText.visible { opacity: 1; transform: translateY(0); }
-
-.sourceText {
-  margin-top: clamp(14px, 2.4vh, 24px);
-  font-size: clamp(13px, .6vw + 11px, 16px);
-  font-weight: 600;
-  letter-spacing: .09em;
-  text-transform: uppercase;
-  color: rgba(203, 222, 248, .85);
-  opacity: 0;
-  transform: translateY(10px);
-  transition: opacity .85s ease, transform .85s ease;
+/* Padrão (protótipo): Manrope 800 ~30px. */
+.uiFont {
+  font-family: var(--font-ui), system-ui, sans-serif;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  line-height: 1.32;
 }
-.sourceText.visible { opacity: 1; transform: translateY(0); }
+.frame[data-length="short"] .uiFont { font-size: clamp(1.75rem, 7vw, 2.15rem); }
+.frame[data-length="medium"] .uiFont { font-size: clamp(1.5rem, 6vw, 1.875rem); }
+.frame[data-length="long"] .uiFont { font-size: clamp(1.3rem, 5vw, 1.6rem); }
 
+.sourceText,
+.openingMessage,
+.date,
+.divider { animation: rise 1.2s cubic-bezier(0.2, 0.8, 0.2, 1) var(--after) both; }
+.sourceText { margin: 14px 0 0; font-size: 14px; font-weight: 700; color: var(--scene-accent-text); }
 .divider {
-  width: 40px;
-  height: 1px;
-  background: rgba(255, 255, 255, .28);
-  margin: clamp(22px, 3.2vh, 38px) auto;
-  opacity: 0;
-  transform: translateY(8px);
-  transition: opacity .8s ease, transform .8s ease;
+  height: 2px;
+  width: 60%;
+  margin: 18px auto 0;
+  background: linear-gradient(90deg, transparent, var(--scene-accent), transparent);
+  transform-origin: center;
+  animation-name: line;
 }
-.divider.visible { opacity: 1; transform: translateY(0); }
+.openingMessage { margin: 16px auto 0; max-width: 46ch; font-size: 15px; line-height: 1.6; color: var(--scene-text2); animation-delay: var(--bye); }
+.date { margin: 14px 0 0; font-size: 13px; font-weight: 500; letter-spacing: 0; word-spacing: 0.04em; color: var(--scene-muted); animation-delay: var(--bye); }
+@keyframes rise { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+@keyframes line { from { transform: scaleX(0); } to { transform: scaleX(1); } }
 
-.openingMessage {
-  font-family: system-ui, sans-serif;
-  font-size: clamp(14px, .9vw + 12px, 17px);
-  font-weight: 700;
-  letter-spacing: .035em;
-  line-height: 1.75;
-  color: #ffffff;
-  max-width: 520px;
-  margin: 0 auto;
-  overflow-wrap: anywhere;
-  opacity: 0;
-  transform: translateY(10px);
-  transition: opacity .8s ease, transform .8s ease;
-}
-.openingMessage.visible { opacity: 1; transform: translateY(0); }
-
-.actions {
-  margin-top: clamp(26px, 4vh, 46px);
-  opacity: 0;
-  transform: translateY(10px);
-  transition: opacity .7s ease, transform .7s ease;
-}
-.actions.visible { opacity: 1; transform: translateY(0); }
-
+.actions { margin-top: 24px; animation: rise 1.2s ease var(--cta) both; }
 .cta {
-  min-width: 220px;
-  padding: 16px 38px;
-  border-radius: 999px;
-  background: linear-gradient(135deg, #1769d1, #2e86f0);
-  color: #ffffff;
-  font-size: 13px;
-  font-weight: 700;
-  letter-spacing: .12em;
-  border: 1px solid rgba(255, 255, 255, .18);
-  box-shadow: 0 18px 40px rgba(6, 24, 46, .45);
-  transition: transform .3s ease, box-shadow .3s ease, filter .3s ease;
+  min-height: 48px;
+  padding: 0 32px;
+  border: 0;
+  border-radius: 12px;
+  background: var(--scene-accent);
+  color: var(--scene-on-accent);
+  font-size: 15px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: transform 120ms cubic-bezier(0.2, 0, 0, 1), filter 150ms ease;
 }
-.cta:hover { transform: translateY(-2px); box-shadow: 0 22px 48px rgba(6, 24, 46, .55); filter: brightness(1.08); }
-.cta:focus-visible { outline: 2px solid #9cc4f2; outline-offset: 4px; }
-.cta:disabled { opacity: .6; cursor: not-allowed; transform: none; }
-
-.previewHint {
-  margin-top: 14px;
-  font-size: 12px;
-  color: rgba(214, 229, 250, .7);
-}
+.cta:hover { filter: brightness(1.06); }
+.cta:active:not(:disabled) { transform: scale(0.97); }
+.cta:focus-visible { outline: 3px solid var(--scene-accent-soft); outline-offset: 3px; }
+.cta:disabled { cursor: default; }
+.previewHint { margin: 10px 0 0; font-size: 12.5px; font-weight: 500; letter-spacing: 0; color: var(--scene-muted); }
 
 @media (max-width: 540px) {
-  .frame { padding-left: 22px; padding-right: 22px; }
-  .mainText { max-width: 32ch; }
-  .openingMessage { max-width: 340px; }
+  .frame { padding: 28px 20px 24px; border-radius: 20px; }
   .cta { width: 100%; }
-  .glow { top: 3%; }
 }
 
+/* Pulou a entrada (toque) ou pediu menos movimento: tudo aparece no lugar, sem deslocamento. */
+.still .frame, .still .logoDisc, .still .typed, .still .sourceText, .still .openingMessage,
+.still .date, .still .divider, .still .actions { animation: none; }
 @media (prefers-reduced-motion: reduce) {
-  .overlay, .overlay.closing { animation: none; }
-  .kicker, .mainText, .sourceText, .divider, .openingMessage, .actions {
-    transition: opacity .3s ease;
-    opacity: 1;
-    transform: none;
-  }
+  .overlay, .overlay.closing, .glow, .frame, .logoDisc, .typed, .sourceText, .openingMessage, .date, .divider, .actions { animation: none !important; }
 }

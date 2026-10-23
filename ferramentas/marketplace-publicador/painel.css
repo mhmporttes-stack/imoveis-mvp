@@ -22,3 +22,8 @@ a { color: var(--brand); }
 .rodape { margin-top: 10px; color: var(--muted); }
 img.print { display: block; width: 100%; margin-top: 4px; border: 1px solid var(--line); border-radius: 6px; }
 .feedback { margin: 8px 0 0; font-weight: 600; color: var(--navy); min-height: 1em; }
+#work { border-color: #f5d38f; background: #fff7e6; }
+#work[data-ok="1"] { border-color: var(--line); background: #ecfdf3; }
+#work details { margin-top: 4px; }
+#work ol { padding-left: 18px; margin: 4px 0; }
+#work code { font-size: 11px; word-break: break-all; }

@@ -6,10 +6,13 @@ import { cx } from "./cx";
 // navegação (vira <Link>) e `onClick` para ação (vira <button>). Nunca
 // <div onClick>. `loading` mostra o spinner no próprio botão e bloqueia
 // clique duplo.
+// Visual novo (dono, 2026-10-22): principal no azul de destaque (#1B7FB0 no claro, ciano #4FC3E0 com texto
+// azul-noite no escuro), secundário na superfície com borda, controles com raio 12px (rounded-control) e texto forte.
 const VARIANTS = {
-  primary: "bg-navy text-white hover:bg-[#0A3156] active:bg-[#082A4A] disabled:bg-faint",
-  secondary: "border border-navy/15 bg-white text-navy hover:border-brand/40 hover:bg-info-soft disabled:text-faint",
-  ghost: "text-navy hover:bg-navy/[0.06] disabled:text-faint",
+  // Desabilitado = a mesma cor esmaecida (opacidade 50%), igual aos botões antigos do painel (crítica de 2026-10-22).
+  primary: "bg-accent-strong font-extrabold text-on-accent hover:brightness-110 active:brightness-95 disabled:opacity-50 disabled:brightness-100",
+  secondary: "border border-line bg-white font-bold text-ink hover:border-accent-line hover:bg-accent-soft disabled:text-faint",
+  ghost: "font-bold text-ink hover:bg-navy/[0.06] disabled:text-faint",
   danger: "bg-danger-strong text-white hover:bg-danger disabled:bg-faint",
   "danger-ghost": "text-danger hover:bg-danger-soft disabled:text-faint"
 };
@@ -24,8 +27,8 @@ const SIZES = {
 export function buttonClasses({ variant = "primary", size = "md", block = false, className = "" } = {}) {
   return cx(
     "inline-flex select-none items-center justify-center whitespace-nowrap font-semibold [&>svg]:shrink-0",
-    "transition-[background-color,border-color,color,transform] duration-150 ease-out-ui",
-    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2",
+    "transition-[background-color,border-color,color,transform,filter] duration-150 ease-out-ui",
+    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-mist",
     "active:scale-[0.97] disabled:cursor-not-allowed disabled:active:scale-100 motion-reduce:transition-none motion-reduce:active:scale-100",
     VARIANTS[variant] || VARIANTS.primary,
     SIZES[size] || SIZES.md,

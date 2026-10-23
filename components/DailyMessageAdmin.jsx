@@ -6,7 +6,7 @@ import DailyMessageDispatch from "./DailyMessageDispatch";
 
 const FONT_OPTIONS = [
   { value: "playfair_display", label: "Playfair Display" },
-  { value: "cormorant_garamond", label: "Cormorant Garamond" },
+  { value: "cormorant_garamond", label: "Padrão do painel (Manrope)" },
   { value: "libre_baskerville", label: "Libre Baskerville" },
   { value: "lora", label: "Lora" },
   { value: "cinzel", label: "Cinzel" }

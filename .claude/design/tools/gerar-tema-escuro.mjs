@@ -17,32 +17,35 @@ const ROOT = path.resolve(path.dirname(new URL(import.meta.url).pathname), "../.
 const require = createRequire(path.join(ROOT, "package.json"));
 const twColors = require("tailwindcss/colors");
 
-// ---------- Paleta escura (decisão do Designer; azul-marinho da marca, nunca preto puro) ----------
-const PAGE = "#0C1827"; // fundo das telas (mist)
-const SURFACE = "#122236"; // cartões, cabeçalho, barras (bg-white)
-const LINE = "#273B53";
+// ---------- Paleta escura ----------
+// Visual novo do painel (dono, 2026-10-22, protótipo aprovado): azul-noite em camadas (fundo #07111F · superfície
+// #0D1B2E · borda #1A3150), texto #E6EDF6 → #7E93AE e destaque ciano #4FC3E0 (texto de link #7FD8EC).
+// Antes (2026-10-16): fundo #0C1827 · superfície #122236.
+const PAGE = "#07111F"; // fundo das telas (mist)
+const SURFACE = "#0D1B2E"; // cartões, cabeçalho, barras (bg-white)
+const LINE = "#1A3150";
 
 const TOKENS = {
   mist: PAGE,
   line: LINE,
-  navy: "#EAF1FA", // texto principal/títulos (text-navy é o texto mais usado do painel)
-  ink: "#DCE5EF",
-  "ink-2": "#B3C0CF",
-  muted: "#94A4B7",
-  faint: "#6E8096",
-  brand: "#7DB3F8", // link/realce sobre escuro; o fundo sólido bg-brand é tratado à parte
-  success: "#5CD49A", "success-soft": "#10291F", "success-line": "#1F4B37", "success-strong": "#17A864",
-  warning: "#F4BC5C", "warning-soft": "#2A2111", "warning-line": "#574118", "warning-strong": "#DD7D12",
-  danger: "#FF9488", "danger-soft": "#33191B", "danger-line": "#5F2B2C", "danger-strong": "#E5483A",
-  info: "#86BAFF", "info-soft": "#15304F", "info-line": "#285383", "info-strong": "#3B82E0",
-  neutral: "#B3C0CF", "neutral-soft": "#1B2C40", "neutral-line": "#2C4058", "neutral-strong": "#D3DCE6"
+  navy: "#E6EDF6", // texto principal/títulos (text-navy é o texto mais usado do painel)
+  ink: "#E6EDF6",
+  "ink-2": "#C9D6E6",
+  muted: "#9DB0C8",
+  faint: "#7E93AE",
+  brand: "#7FD8EC", // link/realce sobre escuro; o fundo sólido bg-brand é tratado à parte
+  success: "#3DD598", "success-soft": "#0F2E22", "success-line": "#1B4E3A", "success-strong": "#1FB37A",
+  warning: "#F2C66D", "warning-soft": "#2A2312", "warning-line": "#5A4718", "warning-strong": "#D99A1E",
+  danger: "#F0716A", "danger-soft": "#3A1716", "danger-line": "#6A2A28", "danger-strong": "#E0524A",
+  info: "#7FD8EC", "info-soft": "#0F2A47", "info-line": "#24527A", "info-strong": "#4FC3E0",
+  neutral: "#C9D6E6", "neutral-soft": "#13263F", "neutral-line": "#1F3A5C", "neutral-strong": "#E6EDF6"
 };
 
-const SOLID = { navy: "#24578F", brand: "#2F74D0", ink: "#2C3E55" }; // fundos sólidos (com texto branco)
-const OVERLAY = "3 9 18"; // véu de modal/foto
+const SOLID = { navy: "#1C5B85", brand: "#1C6E9A", ink: "#22344D" }; // fundos sólidos (com texto branco)
+const OVERLAY = "2 6 13"; // véu de modal/foto
 const GRAYS = ["slate", "gray", "zinc", "stone", "neutral"];
 const PALETTES = ["slate", "gray", "zinc", "stone", "neutral", "red", "orange", "amber", "yellow", "lime", "green", "emerald", "teal", "cyan", "sky", "blue", "indigo", "violet", "purple", "fuchsia", "pink", "rose"];
-const GRAY_DARK = { 50: "#16273B", 100: "#1B2C40", 200: "#273B53", 300: "#364B64", 400: "#8C9CB0", 500: "#A3B1C2", 600: "#B8C4D2", 700: "#CDD6E1", 800: "#E2E8F0", 900: "#F1F5F9", 950: "#F8FAFC" };
+const GRAY_DARK = { 50: "#0F1F35", 100: "#13263F", 200: "#1A3150", 300: "#24426A", 400: "#7E93AE", 500: "#9DB0C8", 600: "#B3C3D7", 700: "#C9D6E6", 800: "#DCE5F0", 900: "#E6EDF6", 950: "#F3F7FB" };
 
 // ---------- cor ----------
 const hexToRgb = (hex) => {

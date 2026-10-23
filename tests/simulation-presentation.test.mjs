@@ -135,7 +135,7 @@ test("proxy.js: só o formato do token é reescrito; ref curto, admin e api segu
   // não exige login para /s ou /apresentacao e não afrouxou o resto
   assert.match(source, /isAdminPath && !isPublicAdminPath\(pathname\)/);
   assert.match(source, /PUBLIC_ADMIN_PATHS = \["\/admin\/login", "\/admin\/reset-password"\]/);
-  assert.match(source, /matcher: \["\/admin\/:path\*", "\/api\/:path\*", "\/academia\/:path\*", "\/s\/:path\*", "\/apresentacao\/:path\*"\]/);
+  assert.match(source, /matcher: \["\/admin\/:path\*", "\/api\/:path\*", "\/academia\/:path\*", "\/s\/:path\*", "\/apresentacao\/:path\*", "\/painel-acesso\/:path\*"\]/);
 });
 
 // ---------- formatação ----------

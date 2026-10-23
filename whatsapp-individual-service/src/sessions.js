@@ -1,4 +1,4 @@
-import makeWASocket, { Browsers, downloadMediaMessage, encodeSignedDeviceIdentity, encodeWAMessage, fetchLatestBaileysVersion, generateMessageIDV2, jidDecode, jidNormalizedUser, makeCacheableSignalKeyStore } from "@whiskeysockets/baileys";
+import makeWASocket, { Browsers, downloadMediaMessage, encodeSignedDeviceIdentity, encodeWAMessage, extractImageThumb, fetchLatestBaileysVersion, generateMessageIDV2, jidDecode, jidNormalizedUser, makeCacheableSignalKeyStore, prepareWAMessageMedia } from "@whiskeysockets/baileys";
 import pino from "pino";
 import QRCode from "qrcode";
 import { pendingWrites, useSupabaseAuthState } from "./auth-state.js";
@@ -12,8 +12,10 @@ import { connectCooldownError, createConnectLimitGate } from "./connect-limit.js
 import { buildOnDemandRequest, classifyHistoryProtocol, createOnDemandRegistry, describePeerNode, onDemandVariants, HISTORY_SYNC_ON_DEMAND, ON_DEMAND_MAX_COUNT, ON_DEMAND_MAX_VIDEOS, ON_DEMAND_MEDIA_KINDS } from "./history-on-demand.js";
 import { createKeyedMutex } from "./session-mutex.js";
 import { telemetry } from "./telemetry.js";
-import { createMessageDiagnostics, describeDecryptFailure, describeRetryReceipt, hashMessageId } from "./message-diagnostics.js";
+import { createMessageDiagnostics, describeDecryptFailure, describeRetryReceipt, DIAG_REASON, hashMessageId } from "./message-diagnostics.js";
 import { createSentMessageCache, decideSendRetry, mediaTypeOf, MANUAL_RESEND_LIMIT, SEND_RETRY_REASON } from "./send-retry.js";
+import { buildLinkPreview, firstUrl } from "./link-preview.js";
+import { DECRYPT_NACK_DELAY_MS, NACK_UNHANDLED_ERROR, PIPELINE_CHECK_INTERVAL_MS, PIPELINE_RESTART_LIMIT, PIPELINE_RESTART_WINDOW_MS, PLACEHOLDER_BATCH_MAX, PLACEHOLDER_DELAY_MS, buildAckStanza, buildPlaceholderResendRequest, createNodeTracker, createRateWindow, decidePipelineAction, describeNode, monitorMutex, placeholderKeyFor, shouldNackFailedDecrypt, snapshotNode } from "./pipeline-guard.js";
 
 // Liga/desliga a sincronização de histórico (ver onHistorySync) sem precisar
 // mudar código — o lote de histórico grande estava travando o webhook do CRM
@@ -440,7 +442,10 @@ async function startSocket(userId, entry, { phoneNumber, trigger = "manual" } = 
     // Reenvio quando um aparelho pede de novo (recibo retry, 2026-10-16): o Baileys só reenvia se achar a mensagem aqui.
     // Só as enviadas pelo /send, em memória (send-retry.js); fora do cache = undefined, como antes.
     // 2026-10-19: espera o envio em andamento do mesmo id (o pedido chega antes de o sendMessage terminar).
-    getMessage: async (key) => sentMessages.wait(userId, key?.id)
+    getMessage: async (key) => sentMessages.wait(userId, key?.id),
+    // Prazo para os downloads HTTP do Baileys (histórico, "app state", mídia): o 6.7.24 usa axios sem timeout e o
+    // download roda DENTRO da fila de processamento — um download parado travava todas as mensagens (2026-10-23).
+    options: { timeout: BAILEYS_HTTP_TIMEOUT_MS }
   });
   entry.sock = sock;
 
@@ -462,12 +467,16 @@ async function startSocket(userId, entry, { phoneNumber, trigger = "manual" } = 
     if (entry.sock && entry.sock !== sock) return;
     return onConnectionUpdate(userId, entry, sock, update);
   });
+  // Defesas da fila de processamento (2026-10-23, pipeline-guard.js): confirmação de mensagem que não decifrou, pedido do
+  // conteúdo ao celular e vigia de tarefa presa (reinicia a sessão sem QR).
+  const guard = attachPipelineGuard(userId, entry, sock, diag);
   sock.ev.on("messages.upsert", ({ messages }) => {
     for (const msg of messages || []) {
       try {
         const fields = describeDecryptFailure(msg);
         if (fields && diag.track(fields.reason)) telemetry.record(userId, "history_sync", fields);
       } catch { /* só diagnóstico */ }
+      try { guard.onUpsert(msg); } catch { /* nunca derruba o socket */ }
     }
   });
   sock.ev.on("messages.upsert", ({ messages, type }) => onMessagesUpsert(userId, messages, type));
@@ -596,6 +605,168 @@ async function resolvePairingNumber(userId, digits) {
     sock.ev.on("connection.update", onUpdate);
     setTimeout(finish, 10_000);
   });
+}
+
+const BAILEYS_HTTP_TIMEOUT_MS = 60_000;
+
+// Defesas da fila de processamento do socket (2026-10-23 — casos Gabriel Nº1 e ketlin Nº1, "conectado sem receber").
+// Regras puras e o porquê em pipeline-guard.js. Nada aqui envia mensagem a contato: só <ack> de nós recebidos e o pedido
+// "peer" ao PRÓPRIO celular do corretor (mesmo caminho do histórico sob demanda).
+function attachPipelineGuard(userId, entry, sock, diag) {
+  const tracker = createNodeTracker();
+  let current = null;
+  for (const tag of ["message", "receipt", "notification"]) {
+    try {
+      // prependListener: roda ANTES do Baileys, que enfileira a tarefa no mesmo instante — assim a tarefa sabe o nó.
+      sock.ws.prependListener(`CB:${tag}`, (node) => {
+        try {
+          if (tag === "message") tracker.remember(node);
+          current = snapshotNode(node);
+          queueMicrotask(() => { current = null; });
+        } catch { /* só observação */ }
+      });
+    } catch { /* sem prependListener: segue sem saber o nó */ }
+  }
+  const monitor = monitorMutex(sock.processingMutex, { currentNode: () => current });
+  const isCurrent = () => !retiredSockets.has(sock) && entry.sock === sock;
+  const sendAck = async (node, errorCode) => {
+    const stanza = buildAckStanza(node, { errorCode, meId: sock.authState?.creds?.me?.id || "" });
+    if (!stanza || !sock.ws?.isOpen) return false;
+    await sock.sendNode(stanza);
+    return true;
+  };
+
+  // Ids já decifrados neste socket (recuperação e "não confirmar o que já chegou"). Limitado.
+  const decrypted = new Set();
+  const requested = new Set();
+  const rememberDecrypted = (id) => {
+    if (decrypted.size > 5000) decrypted.clear();
+    decrypted.add(id);
+  };
+
+  // 3. Pedido do conteúdo ao celular (em lotes, com limite por hora).
+  const placeholderLimit = createRateWindow();
+  const pending = new Map();
+  let placeholderTimer = null;
+  const flushPlaceholders = async () => {
+    placeholderTimer = null;
+    const keys = [...pending.values()].filter((key) => !decrypted.has(key.id));
+    pending.clear();
+    if (!keys.length || !isCurrent() || !sock.ws?.isOpen) return;
+    const granted = placeholderLimit.take(keys.length);
+    for (let index = 0; index < granted; index += PLACEHOLDER_BATCH_MAX) {
+      const chunk = keys.slice(index, Math.min(granted, index + PLACEHOLDER_BATCH_MAX));
+      const built = buildPlaceholderResendRequest(chunk);
+      if (!built) continue;
+      try {
+        await sendRawPeerRequest(sock, built);
+        for (const key of chunk) {
+          requested.add(key.id);
+          if (diag.track(DIAG_REASON.PLACEHOLDER_REQUEST)) telemetry.record(userId, "history_sync", { reason: DIAG_REASON.PLACEHOLDER_REQUEST, trigger: key.fromMe ? "from_me" : "from_contact", detail: `id_${hashMessageId(key.id)}` });
+        }
+      } catch (error) {
+        console.warn(`[${userId}] Falha ao pedir ao celular o conteúdo de mensagens não decifradas:`, error.message);
+      }
+    }
+  };
+
+  // 2. Vigia: tarefa da fila parada há mais de PIPELINE_STUCK_MS -> registra, confirma o nó preso e reinicia a sessão.
+  if (!entry.pipelineRestarts) entry.pipelineRestarts = [];
+  let reported = null;
+  const interval = setInterval(() => {
+    if (!isCurrent()) { clearInterval(interval); return; }
+    if (!monitor || !sock.ws?.isOpen) return;
+    const running = monitor.oldestRunning();
+    const decision = decidePipelineAction({ running, restarts: entry.pipelineRestarts });
+    if (!decision.stuck || reported === running) return;
+    reported = running;
+    const what = describeNode(decision.ackNode || running.node);
+    console.warn(`[${userId}] Fila de mensagens parada há ${Math.round(decision.stuckMs / 1000)} s (${what}).${decision.restart ? " Reiniciando a sessão (sem QR)." : " Limite de reinícios da hora atingido."}`);
+    telemetry.record(userId, "history_sync", {
+      reason: "pipeline_stuck",
+      kind: decision.restart ? "restart" : "limit",
+      detail: what,
+      trigger: decision.ackNode ? `id_${hashMessageId(decision.ackNode.attrs.id)}` : "",
+      delayMs: decision.stuckMs
+    });
+    (async () => {
+      // Confirma o nó preso: sem isso o WhatsApp o reentrega na reconexão e o socket novo trava de novo.
+      if (decision.ackNode) {
+        if (decision.ackNode.tag === "message") tracker.markAcked(decision.ackNode.attrs.id);
+        await sendAck(decision.ackNode, decision.ackNode.tag === "message" ? NACK_UNHANDLED_ERROR : 0).catch(() => false);
+      }
+      if (decision.restart) {
+        entry.pipelineRestarts.push(Date.now());
+        await restartLiveSocket(userId, entry, sock);
+      }
+    })().catch((error) => console.error(`[${userId}] Falha ao tratar a fila parada:`, error?.message || error));
+  }, PIPELINE_CHECK_INTERVAL_MS);
+  interval.unref?.();
+
+  return {
+    onUpsert(msg) {
+      const id = String(msg?.key?.id || "");
+      if (!id) return;
+      if (Number(msg.messageStubType) !== 2) {
+        if (msg.message) {
+          rememberDecrypted(id);
+          if (requested.delete(id) && diag.track(DIAG_REASON.PLACEHOLDER_RECOVERED)) {
+            telemetry.record(userId, "history_sync", { reason: DIAG_REASON.PLACEHOLDER_RECOVERED, trigger: msg.key?.fromMe ? "from_me" : "from_contact", detail: `id_${hashMessageId(id)}` });
+          }
+        }
+        return;
+      }
+      // 1. Não decifrou: confirma (NACK 500) depois do pedido de reenvio do Baileys, se ninguém confirmou nem chegou decifrada.
+      const node = tracker.get(id);
+      if (shouldNackFailedDecrypt(msg, node)) {
+        const timer = setTimeout(() => {
+          if (!isCurrent() || tracker.isAcked(id) || decrypted.has(id)) return;
+          tracker.markAcked(id);
+          sendAck(node, NACK_UNHANDLED_ERROR).then((sent) => {
+            if (sent && diag.track(DIAG_REASON.DECRYPT_NACK)) telemetry.record(userId, "history_sync", { reason: DIAG_REASON.DECRYPT_NACK, detail: `id_${hashMessageId(id)}` });
+          }).catch(() => {});
+        }, DECRYPT_NACK_DELAY_MS);
+        timer.unref?.();
+      }
+      const key = placeholderKeyFor(msg);
+      if (key && !requested.has(key.id) && !pending.has(key.id)) {
+        pending.set(key.id, key);
+        if (!placeholderTimer) {
+          placeholderTimer = setTimeout(() => { flushPlaceholders().catch(() => {}); }, PLACEHOLDER_DELAY_MS);
+          placeholderTimer.unref?.();
+        }
+      }
+    }
+  };
+}
+
+// Reinicia o socket ATUAL da sessão com as mesmas credenciais (sem logout, sem QR): o vigia da fila e o CRM (conexão
+// "sem receber") usam. O socket velho é aposentado (o fechamento dele não conta como queda) e a reconexão segue o
+// caminho do reinício normal (trigger "restart").
+async function restartLiveSocket(userId, entry, sock) {
+  const retired = await sessionLocks.run(userId, async () => {
+    if (!sock || entry.sock !== sock || retiredSockets.has(sock)) return false;
+    clearRetryTimer(entry);
+    entry.sock = null;
+    await retireSocket(sock);
+    return true;
+  });
+  if (!retired) return false;
+  connectSession(userId, { trigger: "restart" }).catch((error) => onAutoReconnectFailure(userId, entry, error));
+  return true;
+}
+
+// Pedido do CRM (conexão marcada "sem receber"): reinicia a sessão conectada, dentro do mesmo limite por hora do vigia.
+export async function restartSession(userId) {
+  const entry = sockets.get(userId);
+  if (!entry?.sock || entry.status !== "connected") return { restarted: false, status: entry?.status || "disconnected" };
+  const now = Date.now();
+  entry.pipelineRestarts = (entry.pipelineRestarts || []).filter((at) => now - at < PIPELINE_RESTART_WINDOW_MS);
+  if (entry.pipelineRestarts.length >= PIPELINE_RESTART_LIMIT) return { restarted: false, status: entry.status, reason: "limit" };
+  entry.pipelineRestarts.push(now);
+  const restarted = await restartLiveSocket(userId, entry, entry.sock);
+  if (restarted) telemetry.record(userId, "history_sync", { reason: "pipeline_restart", kind: "crm" });
+  return { restarted, status: entry.status };
 }
 
 async function onConnectionUpdate(userId, entry, sock, update) {
@@ -1240,6 +1411,29 @@ function keyFor(jid, id, fromMe) {
 }
 
 // quoted (opcional): { id, fromMe, text } — resposta citada a uma mensagem.
+// Prévia do link (link-preview.js). Miniatura em alta (enviada ao servidor de mídia do WhatsApp, como faz o app) e, se
+// isso falhar, a miniatura pequena local. Nunca lança: null = envia sem prévia.
+async function prepareLinkPreview(userId, sock, text) {
+  const makeThumbnail = async (buffer) => {
+    try {
+      const { imageMessage } = await prepareWAMessageMedia({ image: buffer }, { upload: sock.waUploadToServer, mediaTypeOverride: "thumbnail-link", options: { timeout: 8_000 } });
+      return { jpegThumbnail: imageMessage?.jpegThumbnail ? Buffer.from(imageMessage.jpegThumbnail) : undefined, highQualityThumbnail: imageMessage || undefined };
+    } catch {
+      const thumb = await extractImageThumb(buffer, 192);
+      return { jpegThumbnail: thumb?.buffer };
+    }
+  };
+  let result;
+  try {
+    result = await buildLinkPreview({ text, makeThumbnail });
+  } catch (error) {
+    result = { preview: null, reason: "erro" };
+  }
+  telemetry.record(userId, "history_sync", { reason: "link_preview", kind: result.preview ? (result.reason === "ok" ? "ok" : "partial") : "none", trigger: result.reason });
+  if (result.reason !== "ok") console.warn(`[${userId}] Prévia do link ${result.preview ? "sem imagem" : "não gerada"} (${result.reason}); mensagem enviada assim mesmo.`);
+  return result.preview || null;
+}
+
 export async function sendMessage(userId, { to, text, media, quoted }) {
   const sock = connectedSocket(userId);
   const recipient = await checkRecipient(sock, to);
@@ -1255,12 +1449,16 @@ export async function sendMessage(userId, { to, text, media, quoted }) {
   }
   // Id escolhido ANTES do envio (2026-10-19): o pedido de reenvio do celular chega antes de o sendMessage do Baileys
   // terminar (ele grava as chaves no banco depois de mandar) — com o id marcado como "em andamento", o pedido espera.
+  // Texto com link (apresentação /s/<token>, Chat, Meta Diária...): espera a prévia ficar pronta antes de enviar (dono,
+  // 2026-10-23). Sem prévia (prazo, página fora, sem og:title) a mensagem sai do mesmo jeito, sem o cartão.
+  const content = buildContent(text, media);
+  if (!media?.url && firstUrl(text)) content.linkPreview = await prepareLinkPreview(userId, sock, text);
   const messageId = generateMessageIDV2(sock.user?.id);
   options.messageId = messageId;
   sentMessages.begin(userId, messageId);
   let result;
   try {
-    result = await sock.sendMessage(jid, buildContent(text, media), options);
+    result = await sock.sendMessage(jid, content, options);
   } catch (error) {
     sentMessages.abandon(userId, messageId);
     throw error;

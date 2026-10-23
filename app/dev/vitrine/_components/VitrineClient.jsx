@@ -1,14 +1,18 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import AdminBottomNav from "@/components/AdminBottomNav";
 import AdminMenu from "@/components/AdminMenu";
+import AdminTopBar from "@/components/AdminTopBar";
+import AdminScrollReveal from "@/components/motion/AdminScrollReveal";
 import ClientWorkspace from "@/components/clients/ClientWorkspace";
 import DailyGoalDashboard from "@/components/DailyGoalDashboard";
 import DailyGoalCompensationNotice from "@/components/DailyGoalCompensationNotice";
 import PerformanceOverviewDashboard from "@/components/PerformanceOverviewDashboard";
 import TeamDailyPerformance from "@/components/TeamDailyPerformance";
 import WhatsappChat from "@/components/WhatsappChat";
+import MarketplaceChat from "@/components/marketplace/MarketplaceChat";
+import * as chatMarketplace from "../_fixtures/chat-marketplace";
 import SupervisionMessageGate from "@/components/supervision/SupervisionMessageGate";
 import { installMockFetch } from "../_lib/mock-fetch";
 import { FONTES } from "../_lib/fonts";
@@ -30,6 +34,20 @@ import * as financeiroSaude from "../_fixtures/financeiro-saude";
 import AdminFinancialDashboard from "@/components/AdminFinancialDashboard";
 import * as financeiroVendas from "../_fixtures/financeiro-vendas";
 import AutoClick from "./AutoClick";
+import ActivityCalendar from "@/components/ActivityCalendar";
+import CaixaSimulator from "@/components/CaixaSimulator";
+import AdminUsersManager from "@/components/AdminUsersManager";
+import CampaignsManager from "@/components/CampaignsManager";
+import AdminAiUsageDashboard from "@/components/AdminAiUsageDashboard";
+import DailyGoalAdmin from "@/components/DailyGoalAdmin";
+import AutomationRulesManager from "@/components/AutomationRulesManager";
+import CrmNotificationsList from "@/components/CrmNotificationsList";
+import ProspectingTabs from "@/components/ProspectingTabs";
+import AdminViewAsSelector from "@/components/AdminViewAsSelector";
+import DocumentAiRulesManager from "@/components/DocumentAiRulesManager";
+import GuideManager from "@/components/guide/GuideManager";
+import AdminPropertyList from "@/components/AdminPropertyList";
+import * as telas from "../_fixtures/telas";
 import ManualBrowser from "@/components/manual/ManualBrowser";
 import ManualAdmin from "@/components/manual/ManualAdmin";
 import * as manual from "../_fixtures/manual";
@@ -39,11 +57,43 @@ import CooledClientsInbox from "@/components/cooled/CooledClientsInbox";
 import NotificationHistoryButton from "@/components/alerts/NotificationHistoryButton";
 import WhatsappIndividualStatus from "@/components/WhatsappIndividualStatus";
 import GoogleContactsStatus from "@/components/GoogleContactsStatus";
+import Cenas from "./Cenas";
+import PainelInicio, { InicioFunil, InicioFunilCarregando, InicioKpisMes, InicioKpisMesCarregando } from "@/components/inicio/PainelInicio";
+import * as inicio from "../_fixtures/inicio";
 
 // Cada tela reproduz o <main> da página real (app/admin/...) com o
 // componente real e dados 100% fictícios. Ao criar uma tela nova aqui,
 // espelhe o wrapper da página correspondente.
 const TELAS = {
+  inicio: {
+    // Início (INI-1, dono, 2026-10-22). ?variante=vazio (dia sem pendências) | carregando (mês ainda chegando).
+    path: "/admin/inicio",
+    titulo: "Início (resumo do dia)",
+    active: "inicio",
+    rotas: [],
+    render: (perfil, variante) => {
+      const { data, month } = inicio.dataFor(perfil, variante);
+      const loading = variante === "carregando";
+      return (
+        <main className="min-h-screen bg-mist pb-14 pt-3 md:pt-6">
+          <PainelInicio
+            data={data}
+            monthKpis={loading ? <InicioKpisMesCarregando /> : <InicioKpisMes month={month} />}
+            funnel={loading ? <InicioFunilCarregando /> : <InicioFunil month={month} />}
+          />
+        </main>
+      );
+    }
+  },
+  cenas: {
+    // Cenas do visual novo (?variante=mensagem|mensagem-longa|reconhecimento:gatilho:animação|meta).
+    path: "/admin/meta-diaria",
+    titulo: "Cenas (Mensagem do dia, Reconhecimento, anel da Meta)",
+    active: "daily-goal",
+    rotas: metaDiaria.routes,
+    semMenu: true,
+    render: (perfil, variante) => <Cenas variante={variante} />
+  },
   online: {
     path: "/admin/desempenho/online",
     titulo: "Supervisão › Online",
@@ -51,7 +101,9 @@ const TELAS = {
     rotas: online.routes,
     render: () => (
       <main className="min-h-screen bg-mist py-14">
-        <OnlinePresenceBoard initialPresence={online.presence} />
+        {/* Só no navegador: os horários fictícios são relativos à hora atual e o servidor da vitrine renderiza segundos
+            antes — na virada do minuto o texto divergia e o Next acusava erro de hidratação (só na vitrine). */}
+        <ClientOnly><OnlinePresenceBoard initialPresence={online.presence} /></ClientOnly>
       </main>
     )
   },
@@ -67,6 +119,98 @@ const TELAS = {
       </main>
     )
   },
+  // Telas repaginadas no visual novo (frente C, 2026-10-22): wrapper igual ao <main> da página real.
+  agenda: {
+    path: "/admin/calendario",
+    titulo: "Agenda",
+    active: "calendar",
+    rotas: telas.routes,
+    render: () => (<main className="min-h-screen bg-mist py-14"><ActivityCalendar /></main>)
+  },
+  "simulador-caixa": {
+    path: "/admin/simulador-caixa",
+    titulo: "Simulador Caixa",
+    active: "caixa-simulator",
+    rotas: [],
+    render: () => (<main className="min-h-screen bg-mist py-14"><CaixaSimulator /></main>)
+  },
+  corretores: {
+    path: "/admin/corretores",
+    titulo: "Corretores › Usuários",
+    active: "brokers",
+    rotas: [],
+    render: () => (<main className="bg-mist py-14"><AdminUsersManager {...telas.props.usuarios} /></main>)
+  },
+  "gerador-links": {
+    path: "/admin/gerador-de-links",
+    titulo: "Gerador de Links",
+    active: "campaign-links",
+    rotas: telas.routes,
+    render: () => (<main className="bg-mist py-14"><CampaignsManager {...telas.props.campanhas} /></main>)
+  },
+  "gastos-ia": {
+    path: "/admin/gastos-ia",
+    titulo: "Gastos de IA",
+    active: "ai-usage",
+    rotas: [],
+    render: () => (<main className="bg-mist py-14"><AdminAiUsageDashboard {...telas.props.gastosIa} /></main>)
+  },
+  "meta-gestao": {
+    path: "/admin/meta-diaria/gestao",
+    titulo: "Meta Diária › Gestão",
+    active: "daily-goal-admin",
+    rotas: [],
+    render: () => (<main className="min-h-screen bg-mist py-14"><DailyGoalAdmin {...telas.props.metaGestao} /></main>)
+  },
+  automacoes: {
+    path: "/admin/automacoes",
+    titulo: "Automações › Regras",
+    active: "automations",
+    rotas: [],
+    render: () => (<main className="min-h-screen bg-mist py-14"><AutomationRulesManager {...telas.props.automacoes} /></main>)
+  },
+  notificacoes: {
+    path: "/admin/notificacoes",
+    titulo: "Notificações",
+    active: "notifications",
+    rotas: [],
+    render: () => (<main className="min-h-screen bg-mist py-14"><CrmNotificationsList {...telas.props.notificacoes} /></main>)
+  },
+  prospeccao: {
+    path: "/admin/prospeccao",
+    titulo: "Prospecção",
+    active: "prospecting",
+    rotas: telas.routes,
+    render: () => (<main className="min-h-screen bg-mist py-14"><ProspectingTabs {...telas.props.prospeccao} /></main>)
+  },
+  "alterar-conta": {
+    path: "/admin/corretores",
+    titulo: "Corretores › Alterar conta",
+    active: "brokers",
+    rotas: [],
+    render: () => (<main className="bg-mist py-14"><AdminViewAsSelector {...telas.extras.alterarConta} /></main>)
+  },
+  "regras-ia": {
+    path: "/admin/documentacao/regras",
+    titulo: "Documentação › Regras da IA",
+    active: "document-rules",
+    rotas: [],
+    render: () => (<main className="min-h-screen bg-mist py-14"><DocumentAiRulesManager {...telas.extras.regrasIa} /></main>)
+  },
+  guia: {
+    path: "/admin/guia-atendimento",
+    titulo: "Guia de Atendimento",
+    active: "attendance-guide",
+    rotas: [],
+    render: () => (<main className="min-h-screen bg-mist py-14"><GuideManager {...telas.extras.guias} /></main>)
+  },
+  imoveis: {
+    path: "/admin",
+    titulo: "Imóveis (cadastro)",
+    active: "properties",
+    rotas: [],
+    render: () => (<main className="min-h-screen bg-mist py-14"><AdminPropertyList {...telas.extras.imoveis} /></main>)
+  },
   "ranking-topo": {
     // Cabeçalho do ranking como em app/admin/layout.jsx (?variante=completo|sem-dia|vazio|posicao).
     path: "/admin/simulacoes",
@@ -78,7 +222,7 @@ const TELAS = {
       <>
         <div className="mm-app-hide">
           <header className="admin-ranking-header flex min-h-12 flex-wrap items-center justify-center gap-2 border-b border-line bg-white px-3 pt-[env(safe-area-inset-top)] sm:min-h-14 sm:px-6">
-            <TopRankingBadge weeklyIndicator={<WhatsappIndividualStatus align="end" />} dailyIndicator={<><CooledClientsInbox align="end" /><NotificationHistoryButton align="end" /><GoogleContactsStatus align="end" /></>} />
+            <TopRankingBadge weeklyIndicator={<WhatsappIndividualStatus align="end" />} dailyIndicator={<GoogleContactsStatus align="end" />} />
           </header>
         </div>
         <main className="bg-mist pb-14 pt-3 md:pt-14">
@@ -113,6 +257,17 @@ const TELAS = {
     render: (perfil) => (
       <main className="bg-mist pt-3 md:pt-6">
         <WhatsappChat appMode {...chat.propsFor(perfil)} />
+      </main>
+    )
+  },
+  "chat-marketplace": {
+    path: "/admin/chat/marketplace",
+    titulo: "Chat Marketplace",
+    active: "marketplace-chat",
+    rotas: chatMarketplace.routes,
+    render: (perfil) => (
+      <main className="bg-mist pt-3 md:pt-6">
+        <MarketplaceChat {...chatMarketplace.propsFor(perfil)} />
       </main>
     )
   },
@@ -266,6 +421,14 @@ const TELAS = {
   }
 };
 
+function ClientOnly({ children }) {
+  const [ready, setReady] = useState(false);
+  useEffect(() => setReady(true), []);
+  return ready ? children : null;
+}
+
+const PAPEIS = { admin: "Administrador geral", gestor: "Gestor", corretor: "Corretor", associado: "Associado" };
+
 const PERFIS = {
   admin: { isAdmin: true },
   gestor: { isManager: true },
@@ -280,7 +443,7 @@ export default function VitrineClient({ tela, perfil, estado, limpo, fonte, vari
 
   // Instalado durante o render (antes dos efeitos dos filhos dispararem
   // o primeiro fetch). Idempotente.
-  installMockFetch([...(atual?.rotas || []), ...comum.routes], estado);
+  installMockFetch([...(atual?.rotas || []), ...rankingTopo.routes, ...comum.routes], estado);
 
   useEffect(() => {
     document.body.classList.add("admin-scroll-fix");
@@ -305,14 +468,22 @@ export default function VitrineClient({ tela, perfil, estado, limpo, fonte, vari
   return (
     <>
       {!limpo ? <BarraDev tela={tela} perfil={perfilValido} estado={estado} fonte={fonteValida} /> : null}
+      {/* Casca do painel como em app/admin/layout.jsx (visual novo, 2026-10-22): menu lateral, cabeçalho e ranking. */}
       {!atual.semMenu ? (
-        <div className="bg-mist pt-6">
-          <div className="container-page">
-            <AdminMenu active={atual.active} {...PERFIS[perfilValido]} />
+        <>
+          <AdminMenu {...PERFIS[perfilValido]} currentPath={atual.path || ""} user={{ name: "Matheus Demo", photoUrl: "", roleLabel: PAPEIS[perfilValido] }} />
+          <div className="mm-app-hide">
+            <AdminTopBar {...PERFIS[perfilValido]} currentPath={atual.path || ""} canViewAs={perfilValido === "admin"} extraShortcuts={<>{perfilValido === "admin" || perfilValido === "gestor" ? <CooledClientsInbox align="end" variant="topbar" /> : null}<NotificationHistoryButton align="end" variant="topbar" /></>} />
+            {atual.path?.startsWith("/admin/chat") ? null : (
+              <header className="admin-ranking-header container-page flex flex-wrap items-center gap-2">
+                <TopRankingBadge weeklyIndicator={<WhatsappIndividualStatus align="end" />} dailyIndicator={<GoogleContactsStatus align="end" />} />
+              </header>
+            )}
           </div>
-        </div>
+        </>
       ) : null}
-      {atual.render(perfilValido, variante)}
+      <div id="vitrine-root">{atual.render(perfilValido, variante)}</div>
+      {atual.path?.startsWith("/admin/chat") ? null : <AdminScrollReveal rootId="vitrine-root" />}
       <AdminBottomNav {...PERFIS[perfilValido]} currentPath={atual.path || ""} />
     </>
   );

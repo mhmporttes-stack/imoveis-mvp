@@ -1,0 +1,289 @@
+/* Cenas do painel (visual novo aprovado pelo dono em 2026-10-22): Mensagem do dia, Reconhecimento, anel da Meta
+   Diária, Central de Alertas e Supervisão. As cores ficam em variáveis próprias (--scene-*) com claro/escuro
+   (html.mm-dark), para as cenas não dependerem dos tokens globais do painel. Paleta: prototipo-crm (renderVals).
+   Só a paleta institucional (azul + branco); dourado só na coroa/confete do reconhecimento. */
+
+.theme {
+  --scene-bg: #F3F6FA;
+  --scene-surface: #FFFFFF;
+  --scene-surface2: #F6F8FB;
+  --scene-border: #DCE4EE;
+  --scene-hero-border: #C7DEEC;
+  --scene-text: #0E1E33;
+  --scene-text2: #2C3E57;
+  --scene-muted: #5A6B82;
+  --scene-accent: #1B7FB0;
+  --scene-accent-text: #126A95;
+  --scene-accent-soft: rgba(27, 127, 176, 0.12);
+  --scene-on-accent: #FFFFFF;
+  --scene-track: #E4EAF2;
+  --scene-chip: #E6F1F8;
+  --scene-chip-text: #145F86;
+  --scene-good: #11845A;
+  --scene-bad: #C93A33;
+  --scene-bad-soft: rgba(201, 58, 51, 0.12);
+  --scene-overlay: rgba(15, 30, 50, 0.38);
+  --scene-shadow: 0 18px 40px rgba(14, 30, 51, 0.14);
+  --scene-logo-filter: none;
+  --scene-logo-disc: #0D3B66;
+  /* Solda no claro: parte do azul da marca com halo ciano (branco some no fundo claro). */
+  --weld-c0: #1B7FB0;
+  --weld-c1: #2A8FB8;
+  --weld-s0: 0 0 4px #6FE3FF, 0 0 10px #1E9BFF;
+  --weld-s1: 0 0 3px #8FE9FF, 0 0 8px #2FA8FF;
+  --fly-blur: 4px;
+  --scene-confetti-light: #9FD3EE;
+  --crown-a: #F2C66D;
+  --crown-b: #D9A23A;
+  --crown-c: #A86A00;
+  color: var(--scene-text);
+  letter-spacing: normal;
+  word-spacing: normal;
+}
+
+:global(html.mm-dark) .theme {
+  --scene-bg: #07111F;
+  --scene-surface: #0D1B2E;
+  --scene-surface2: #0B1828;
+  --scene-border: #1A3150;
+  --scene-hero-border: #1F4268;
+  --scene-text: #E6EDF6;
+  --scene-text2: #C9D6E6;
+  --scene-muted: #9DB0C8;
+  --scene-accent: #4FC3E0;
+  --scene-accent-text: #7FD8EC;
+  --scene-accent-soft: rgba(79, 195, 224, 0.14);
+  --scene-on-accent: #04121F;
+  --scene-track: #172C47;
+  --scene-chip: #13304F;
+  --scene-chip-text: #9FD6EA;
+  --scene-good: #3DD598;
+  --scene-bad: #F0716A;
+  --scene-bad-soft: rgba(240, 113, 106, 0.14);
+  --scene-overlay: rgba(3, 10, 20, 0.72);
+  --scene-shadow: 0 18px 40px rgba(0, 0, 0, 0.45);
+  --scene-logo-filter: none;
+  --scene-logo-disc: transparent;
+  --weld-c0: #FFFFFF;
+  --weld-c1: #BFF1FF;
+  --weld-s0: 0 0 6px #E6FBFF, 0 0 14px #6FE3FF, 0 0 28px #1E9BFF;
+  --weld-s1: 0 0 4px #8FE9FF, 0 0 16px #2FA8FF;
+  --fly-blur: 10px;
+  --scene-confetti-light: #FFFFFF;
+  --crown-a: #FFF1C2;
+  --crown-b: #F2C66D;
+  --crown-c: #C98616;
+}
+
+/* ---------- Letras soldadas: cada letra voa de um ponto, crava e é soldada (brilho ciano → cor do texto) ---------- */
+.word { display: inline-block; white-space: nowrap; margin-right: 0.27em; }
+.word:last-child { margin-right: 0; }
+.letter {
+  display: inline-block;
+  opacity: 0;
+  animation:
+    sceneFly 0.62s cubic-bezier(0.55, 0, 0.35, 1) var(--d) both,
+    sceneWeld 0.8s ease-out calc(var(--d) + var(--lag, 560ms)) both;
+}
+.boom { transform-origin: center; animation: sceneBoom 0.7s cubic-bezier(0.3, 1.6, 0.5, 1) var(--boom, 0ms) both; }
+
+@keyframes sceneFly {
+  0% { opacity: 0; transform: translate(var(--x), var(--y)) rotate(var(--r)) scale(3.2); filter: blur(var(--fly-blur, 10px)); }
+  62% { opacity: 1; transform: translate(0, 0) rotate(0) scale(1.18); filter: blur(0); }
+  74% { transform: scale(0.78); }
+  86% { transform: scale(1.06); }
+  100% { opacity: 1; transform: none; filter: none; }
+}
+@keyframes sceneWeld {
+  0% { color: var(--weld-c0); text-shadow: var(--weld-s0); }
+  35% { color: var(--weld-c1); text-shadow: var(--weld-s1); }
+  100% { color: var(--scene-text); text-shadow: none; }
+}
+@keyframes sceneBoom {
+  0% { transform: scale(1); }
+  35% { transform: scale(1.09); text-shadow: 0 0 22px rgba(79, 195, 224, 0.55); }
+  70% { transform: scale(0.985); }
+  100% { transform: scale(1); text-shadow: none; }
+}
+
+/* Pular a animação (toque durante a entrada) ou menos movimento: tudo já no lugar. */
+.still .letter, .still .boom { animation: none; opacity: 1; }
+
+/* ---------- Anel da Meta Diária com a foto do corretor ---------- */
+.metaRing { --meta-ring-size: 160px; position: relative; width: var(--meta-ring-size); height: var(--meta-ring-size); flex: 0 0 auto; }
+.metaRing svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; transform: rotate(-90deg); }
+.metaPhoto {
+  position: absolute; inset: calc(var(--meta-ring-size) * 0.106); border-radius: 999px; overflow: hidden;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--scene-chip); color: var(--scene-chip-text); font-weight: 800; font-size: calc(var(--meta-ring-size) * 0.1875);
+}
+.metaPhoto img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.metaTipArm { position: absolute; inset: 0; pointer-events: none; }
+.metaTip {
+  position: absolute; left: 50%; top: -1px; width: 16px; height: 16px; margin-left: -8px; border-radius: 999px;
+  background: radial-gradient(circle, #FFFFFF 0 25%, #9FE9FF 45%, rgba(79, 195, 224, 0) 72%);
+  box-shadow: 0 0 12px 4px rgba(79, 195, 224, 0.85), 0 0 26px 8px rgba(30, 155, 255, 0.45);
+}
+.metaPill {
+  position: absolute; right: -6px; bottom: 6px; min-width: 52px; padding: 3px 10px; border-radius: 999px; text-align: center;
+  font-size: 14px; font-weight: 800; font-variant-numeric: tabular-nums; line-height: 20px;
+  background: var(--scene-accent); color: var(--scene-on-accent); box-shadow: 0 0 0 3px var(--scene-surface);
+}
+.metaPill:not(.metaPill100) { animation: scenePillIn 0.45s cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+.metaPillDone { background: var(--scene-good); color: var(--scene-on-accent); }
+/* Anel menor (cards da visão da equipe): pílula e faísca proporcionais. */
+.metaRingCompact .metaPill { right: -4px; bottom: 2px; min-width: 46px; padding: 2px 8px; font-size: 13px; line-height: 18px; }
+.metaRingCompact .metaTip { width: 14px; height: 14px; margin-left: -7px; }
+@keyframes scenePillIn { from { opacity: 0; transform: scale(0.8); } to { opacity: 1; transform: none; } }
+.metaPill100 {
+  background: #FFFFFF; color: #04121F; box-shadow: 0 0 0 3px var(--scene-surface), 0 0 14px rgba(79, 195, 224, 0.9);
+  opacity: 0; transform: scale(0.6);
+}
+.metaPill100.on { animation: scenePill100 0.9s cubic-bezier(0.3, 1.6, 0.5, 1) both; }
+.metaHop { animation: sceneHop 0.6s ease both; }
+@keyframes scenePill100 {
+  0% { opacity: 0; transform: scale(0.6); }
+  35% { opacity: 1; transform: scale(1.15); }
+  55%, 75% { opacity: 1; transform: scale(1); }
+  100% { opacity: 0; transform: scale(0.85); }
+}
+@keyframes sceneHop {
+  0% { transform: none; }
+  30% { transform: translateY(-12px) scale(1.07); }
+  60% { transform: none; }
+  78% { transform: translateY(-4px); }
+  100% { transform: none; }
+}
+
+/* ---------- Central de Alertas / Supervisão ---------- */
+.dialogCard {
+  position: relative; overflow: hidden; border-radius: 20px;
+  background: var(--scene-surface); border: 1px solid var(--scene-border); box-shadow: var(--scene-shadow); color: var(--scene-text);
+}
+.badRail { height: 4px; background: var(--scene-bad); }
+.importantSeal {
+  display: inline-flex; align-items: center; min-height: 22px; padding: 0 10px; border-radius: 999px;
+  background: var(--scene-bad-soft); color: var(--scene-bad); font-size: 11px; font-weight: 800; letter-spacing: 0.08em;
+}
+.counter {
+  display: inline-flex; align-items: center; min-height: 22px; padding: 0 9px; border-radius: 999px;
+  background: var(--scene-chip); color: var(--scene-chip-text);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 11px; font-weight: 600;
+}
+.muted { color: var(--scene-muted); }
+/* Texto auxiliar pequeno: peso 500 e espaçamento normal (legível a 11–13px). */
+.note { font-size: 12.5px; font-weight: 500; letter-spacing: 0; word-spacing: 0.04em; line-height: 1.45; color: var(--scene-muted); }
+.text2 { color: var(--scene-text2); }
+.title { color: var(--scene-text); }
+.bubble {
+  border-radius: 14px 14px 14px 4px; background: var(--scene-surface2); color: var(--scene-text);
+  border: 1px solid var(--scene-border);
+}
+.field {
+  width: 100%; border-radius: 12px; border: 1px solid var(--scene-border); background: var(--scene-surface2); color: var(--scene-text);
+  outline: none;
+}
+.field::placeholder { color: var(--scene-muted); }
+.field:focus-visible { border-color: var(--scene-accent); box-shadow: 0 0 0 3px var(--scene-accent-soft); }
+.panel {
+  border-radius: 12px; border: 1px solid var(--scene-border); background: var(--scene-surface2); color: var(--scene-text2);
+}
+.choice { border-radius: 12px; border: 1px solid var(--scene-border); background: var(--scene-surface); color: var(--scene-text); }
+.choiceOn { border-color: var(--scene-accent); background: var(--scene-accent-soft); }
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 48px; padding: 0 18px;
+  border-radius: 12px; font-size: 15px; font-weight: 800; cursor: pointer;
+  transition: transform 120ms cubic-bezier(0.2, 0, 0, 1), background-color 150ms ease, opacity 150ms ease;
+}
+.btn:active:not(:disabled) { transform: scale(0.97); }
+.btn:disabled { opacity: 0.55; cursor: not-allowed; }
+.btn:focus-visible { outline: 3px solid var(--scene-accent-soft); outline-offset: 2px; }
+.btnPrimary { border: 0; background: var(--scene-accent); color: var(--scene-on-accent); }
+.btnSecondary { border: 1px solid var(--scene-border); background: var(--scene-surface); color: var(--scene-text); }
+.spinner {
+  width: 16px; height: 16px; border-radius: 999px; border: 2px solid currentColor; border-right-color: transparent;
+  animation: sceneSpin 0.7s linear infinite;
+}
+@keyframes sceneSpin { to { transform: rotate(360deg); } }
+
+/* Informativo: entra pela direita, barra de tempo de 5 s (para quando o aviso pausa). */
+.toast {
+  position: relative; overflow: hidden; border-radius: 16px;
+  background: var(--scene-surface); border: 1px solid var(--scene-border); box-shadow: var(--scene-shadow); color: var(--scene-text);
+}
+.toastIcon {
+  flex: 0 0 34px; width: 34px; height: 34px; border-radius: 999px; display: inline-flex; align-items: center; justify-content: center;
+  background: var(--scene-chip); color: var(--scene-accent-text);
+}
+.kicker { font-size: 11px; font-weight: 800; letter-spacing: 0.08em; color: var(--scene-accent-text); text-transform: uppercase; }
+.toastBar {
+  position: absolute; left: 0; right: 0; bottom: 0; height: 3px; background: var(--scene-accent); transform-origin: left;
+  animation: sceneToastBar var(--toast-ms, 5000ms) linear both;
+}
+.toastBarPaused { animation-play-state: paused; }
+@keyframes sceneToastBar { from { transform: scaleX(1); } to { transform: scaleX(0); } }
+.toastClose { color: var(--scene-muted); }
+.toastClose:hover { background: var(--scene-surface2); color: var(--scene-text); }
+.link { color: var(--scene-accent-text); font-weight: 700; }
+.doneLayer { background: color-mix(in srgb, var(--scene-surface) 95%, transparent); }
+.doneCheck { background: var(--scene-good); color: #FFFFFF; }
+
+/* ---------- Entrada em sequência com quique (Desempenho, 2026-10-22) ----------
+   Contêiner com sceneStaggerProps() (useSceneInView.js) + itens com .item/.itemBar/.lineRise/.pop e --i (posição).
+   data-scene: wait = escondido esperando entrar na tela; play = toca; still = sem movimento (aparece direto).
+   Só transform/opacity/clip-path; fill "backwards": ao terminar o item volta ao estilo normal (hover etc. seguem valendo
+   e nenhum transform fica preso — docs/INCIDENTES.md, 2026-10-12). Tempos próprios por cena (--scene-step/--scene-dur),
+   independentes de --mm-motion-*. */
+.stagger { --scene-step: 120ms; --scene-dur: 600ms; --scene-rise: 14px; --scene-hop: 6px; --scene-ease: cubic-bezier(0.2, 0.8, 0.2, 1); }
+.stagger[data-scene="wait"] .item,
+.stagger[data-scene="wait"] .itemBar,
+.stagger[data-scene="wait"] .lineRise,
+.stagger[data-scene="wait"] .pop { opacity: 0; }
+.stagger[data-scene="play"] .item {
+  animation: sceneRiseHop var(--scene-dur) var(--scene-ease) calc(var(--i, 0) * var(--scene-step)) backwards;
+}
+/* Barra do funil: cresce da esquerda (cortina) enquanto a linha sobe com o quique. */
+.stagger[data-scene="play"] .itemBar {
+  animation:
+    sceneRiseHop var(--scene-dur) var(--scene-ease) calc(var(--i, 0) * var(--scene-step)) backwards,
+    sceneWipe calc(var(--scene-dur) * 0.9) cubic-bezier(0.16, 1, 0.3, 1) calc(var(--i, 0) * var(--scene-step)) backwards;
+}
+/* Linha de gráfico (SVG): sobe a partir da base do gráfico (--origin) com o mesmo quique. */
+.lineRise { transform-box: view-box; transform-origin: var(--origin, 0 100%); }
+.stagger[data-scene="play"] .lineRise {
+  animation: sceneGrowUp var(--scene-dur) var(--scene-ease) calc(var(--i, 0) * var(--scene-step)) backwards;
+}
+/* Detalhe que aparece no fim da linha (seta de variação): logo depois que a linha termina de entrar. */
+.stagger[data-scene="play"] .pop {
+  animation: scenePillIn 0.45s cubic-bezier(0.3, 1.6, 0.5, 1) calc(var(--i, 0) * var(--scene-step) + var(--scene-dur) * 0.8) backwards;
+}
+@keyframes sceneRiseHop {
+  0% { opacity: 0; transform: translateY(var(--scene-rise)); }
+  45% { opacity: 1; transform: translateY(calc(var(--scene-hop) * -1)); }
+  68% { transform: translateY(0); }
+  84% { transform: translateY(calc(var(--scene-hop) * -0.35)); }
+  100% { opacity: 1; transform: none; }
+}
+@keyframes sceneWipe {
+  from { clip-path: inset(0 100% 0 0); }
+  to { clip-path: inset(0 0 0 0); }
+}
+@keyframes sceneGrowUp {
+  0% { opacity: 0; transform: scaleY(0); }
+  50% { opacity: 1; transform: scaleY(1.08); }
+  72% { transform: scaleY(0.97); }
+  86% { transform: scaleY(1.02); }
+  100% { opacity: 1; transform: none; }
+}
+/* Variação no fim de cada linha do histórico: verde subiu, vermelho caiu (com seta — não depende só da cor). */
+.delta { display: inline-flex; align-items: center; gap: 2px; font-weight: 800; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.deltaUp { color: var(--scene-good); }
+.deltaDown { color: var(--scene-bad); }
+.deltaFlat { color: var(--scene-muted); }
+
+@media (prefers-reduced-motion: reduce) {
+  .letter, .boom, .metaHop, .metaPill, .metaPill100.on, .toastBar { animation: none !important; }
+  .letter { opacity: 1; }
+  .toastBar { display: none; }
+  .stagger .item, .stagger .itemBar, .stagger .lineRise, .stagger .pop { animation: none !important; opacity: 1 !important; }
+}

@@ -5,5 +5,5 @@ import JourneySettings from "@/components/JourneySettings";
 export const dynamic = "force-dynamic";
 export default async function Page() {
   await requireBrokerManagementPage();
-  return <><header className="container-page py-8"><h1 className="text-3xl font-black text-navy">Minha Jornada</h1></header><AdminSectionNav active="client-journey" /><JourneySettings initial={await getJourneySettings()} /></>;
+  return <><h1 className="sr-only">Minha Jornada</h1><AdminSectionNav active="client-journey" /><JourneySettings initial={await getJourneySettings()} /></>;
 }

@@ -121,11 +121,10 @@ test("conversa: direção por h2/link de perfil/role=status, id do Facebook e ho
     ["inbound", "Olá, ainda está disponível?"],
     ["inbound", "Aceita financiamento?"], // sem marcador: herda o anterior
     ["outbound", "Sim! Posso te ligar?"],
-    ["outbound", "Aceita sim."],
-    ["outbound", "Sem id"]
+    ["outbound", "Aceita sim."]
+    // "Sem id" (sem data-message-id) não é mensagem desde a 1.9.1.
   ]);
   assert.equal(rows[0].externalId, "fb:mid.$aaa");
-  assert.equal(rows[4].externalId, "");
   assert.equal(rows[0].at, "2026-10-20T13:00:00.000Z");
   assert.equal(rows[2].at, "2026-10-20T15:55:00.000Z");
   // Geometria só entra quando não há marcador.
@@ -134,7 +133,7 @@ test("conversa: direção por h2/link de perfil/role=status, id do Facebook e ho
   assert.equal(geo[0].direction, "inbound");
   const messages = MP.buildMessages("t1", rows);
   assert.equal(messages[0].externalId, "fb:mid.$aaa");
-  assert.match(messages[4].externalId, /^h:/); // sem data-message-id: hash estável
+  assert.equal(messages.length, 4);
 });
 
 test("conversa: painel do chat, botão de fechar e janela não vira item; merge de janelas por id", () => {
@@ -254,7 +253,137 @@ test("inbox.js 1.8.8: conversa que não abre devolve diagnóstico open_conversat
   assert.ok(diagnostic.clicked.item);
   assert.doesNotMatch(JSON.stringify(diagnostic), /Ana Teste|Casa 2 quartos|disponível/);
   const bg = readFileSync(new URL("../background.js", import.meta.url), "utf8");
-  assert.match(bg, /type: "mp-inbox-open-read"/);
+  assert.match(bg, /type: "mp-inbox-prepare-open"/);
   assert.match(bg, /postDiagnostic\(config, "thread", diagnostic\)/);
   assert.doesNotMatch(bg.slice(bg.indexOf("async function readThread"), bg.indexOf("function MP_PATH")), /waitTabSettled/, "não espera a aba carregar depois do clique");
+});
+
+// 1.8.9: leitor chamado por executeScript (valor direto, exceção vira objeto) e retrato direto da página.
+test("inbox.js 1.8.9: __mpInbox.handle devolve o resultado e transforma exceção em { ok:false, error, stack }", async () => {
+  const win = chatWindow("Ana Teste", "Casa 2 quartos", [inbound("mid.$aaa", "Ana Teste", "Olá")]);
+  await loadInbox(fakeDocument(h("body", {}, h("div", { role: "main" }), win)));
+  const ok = await globalThis.__mpInbox.handle({ type: "mp-inbox-read", threadKey: "n1", contactName: "Ana Teste" });
+  assert.equal(ok.ok, true, ok.error);
+  globalThis.document = null; // página quebrada: o leitor lança
+  const broken = await globalThis.__mpInbox.handle({ type: "mp-inbox-read", threadKey: "n1" });
+  assert.equal(broken.ok, false);
+  assert.ok(broken.error);
+  assert.equal(typeof broken.stack, "string");
+});
+
+test("inbox.js 1.8.9: linhas lidas mas nenhuma mensagem válida é falha (não vai conversa vazia ao CRM)", async () => {
+  const win = chatWindow("Ana Teste", "Casa 2 quartos", [outbound("mid.$s", "Você enviou uma foto.")]);
+  const send = await loadInbox(fakeDocument(h("body", {}, h("div", { role: "main" }), win)));
+  MP.inbox.systemTexts.push("Você enviou uma foto.");
+  try {
+    const result = await send({ type: "mp-inbox-read", threadKey: "n1", contactName: "Ana Teste" });
+    assert.equal(result.ok, false);
+    assert.match(result.error, /nenhuma mensagem reconhecida \(1 linha\(s\) lidas, todas descartadas/);
+  } finally {
+    MP.inbox.systemTexts.pop();
+  }
+  const bg = readFileSync(new URL("../background.js", import.meta.url), "utf8");
+  assert.match(bg, /!conversation\.messages\.length/);
+});
+
+test("background 1.8.9: executeScript no frame principal (ISOLATED) e retrato anonimizado direto da página", () => {
+  const bg = readFileSync(new URL("../background.js", import.meta.url), "utf8");
+  assert.match(bg, /target: \{ tabId, allFrames: false \}, world: "ISOLATED", func: callInboxInPage/);
+  assert.doesNotMatch(bg, /sendWithTimeout\((tabId|tab\.id), \{ type: "mp-inbox-/, "leitor só por executeScript");
+  const source = bg.slice(bg.indexOf("function pageSnapshot()"), bg.indexOf("async function takeSnapshot"));
+  const pageSnapshot = new Function(`${source}; return pageSnapshot;`)();
+  const win = chatWindow("Ana Teste", "Casa 2 quartos", [inbound("mid.$aaa", "Ana Teste", "Olá, ainda está disponível?")]);
+  globalThis.document = fakeDocument(h("body", {}, h("div", { role: "main" }), h("div", { role: "dialog" }, win)));
+  globalThis.location = { href: "https://www.facebook.com/marketplace/t/123456789/", origin: "https://www.facebook.com", pathname: "/marketplace/t/123456789/" };
+  const snap = pageSnapshot();
+  assert.equal(snap.path, "/marketplace/t/:id/");
+  assert.deepEqual([snap.counts.logs, snap.counts.articles, snap.counts.messageIds, snap.counts.dialogs], [1, 1, 1, 1]);
+  assert.ok(snap.trees.length >= 1);
+  const json = JSON.stringify(snap);
+  assert.doesNotMatch(json, /Ana Teste|Casa 2 quartos|disponível|123456789/);
+  assert.match(json, /"r":"log"/);
+});
+
+// 1.8.10: diagnóstico real — clique sem efeito (sintético ou no botão de menu dentro do item).
+test("inbox.js 1.8.10: prepara o clique na linha do NOME, fora do botão de menu interno, e informa os atributos", async () => {
+  const item = h("div", { role: "button", tabindex: "0", "data-testid": "mwthreadlist-item" },
+    h("svg", {}, h("image", { width: "60", height: "60" })),
+    h("div", {}, h("span", {}, h("span", {}, "Ana Teste"), h("span", {}, " · "), h("span", {}, "Casa 2 quartos")), h("span", {}, "Ainda está disponível?")),
+    h("div", { role: "button", tabindex: "0", "aria-label": "Mais opções da conversa" }, h("span", {}, "Mais"))
+  );
+  item.append(h("img", { src: "https://scontent.example/thumb.jpg" }));
+  const send = await loadInbox(fakeDocument(h("body", {}, h("div", { role: "main" }, item))));
+  const threadKey = MP.itemKey("Ana Teste", "Casa 2 quartos");
+  const prep = await send({ type: "mp-inbox-prepare-open", threadKey, contactName: "Ana Teste" });
+  assert.equal(prep.ok, true, prep.error);
+  assert.equal(prep.by, "nome");
+  assert.equal(prep.innerButtons, 1);
+  assert.ok(Number.isFinite(prep.x) && Number.isFinite(prep.y));
+  assert.ok(prep.attrNames.includes("data-testid"));
+  assert.equal(prep.threadId, "");
+  const state = await send({ type: "mp-inbox-open-state", contactName: "Ana Teste" });
+  assert.deepEqual([state.found, state.path, state.logs], [null, "/marketplace/inbox/", 0]);
+  const diag = await send({ type: "mp-inbox-open-diagnostic", before: "https://www.facebook.com/marketplace/inbox/", waitedMs: 20000 });
+  assert.ok(diag.attrNames.includes("data-testid"));
+  assert.doesNotMatch(JSON.stringify(diag), /Ana Teste|Casa 2 quartos|disponível/);
+});
+
+test("background 1.8.10: clique confiável pelo depurador, aba visível só durante a conversa, espera no background", () => {
+  const bg = readFileSync(new URL("../background.js", import.meta.url), "utf8");
+  const flow = bg.slice(bg.indexOf("async function openAndReadByClick"), bg.indexOf("async function readThread"));
+  assert.match(flow, /const focus = await focusTab\(tabId\);/);
+  assert.match(flow, /await trustedClick\(tabId, prep\.x, prep\.y\)/);
+  assert.match(flow, /finally \{\s*await focus\.restore\(\);/);
+  assert.match(bg, /withTimeout\(chrome\.debugger\.sendCommand/);
+  // Último recurso pelo endereço só lê se a janela aberta tiver o nome do contato (nunca outra conversa).
+  assert.match(flow, /state\.found === "painel" \? await readOpenThread/);
+});
+
+// Caso Debora (2026-10-22): aviso "iniciou esta conversa" e painel de respostas rápidas viravam mensagem da cliente.
+test("1.9.1: aviso do sistema e painel \"Envie uma resposta rápida\" não viram mensagem; só data-message-id conta", async () => {
+  const notice = h("div", { "data-virtualized": "false" }, h("div", { role: "article" }, h("div", { dir: "auto" }, "Debora iniciou esta conversa.")));
+  const quick = h("div", {},
+    h("span", {}, "Envie uma resposta rápida"),
+    h("span", {}, "Toque em uma resposta para enviá-la ao comprador."),
+    h("div", { role: "button", tabindex: "0" }, h("span", {}, "Sim, você tem interesse?")),
+    h("div", { role: "button", tabindex: "0" }, h("span", {}, "Informarei você caso haja mudanças."))
+  );
+  const win = chatWindow("Debora Teste", "Casa", [
+    separator("06:30"),
+    notice,
+    inbound("mid.$d1", "Debora Teste", "Olá, ainda está disponível?"),
+    inbound("mid.$d2", "Debora Teste", "Debora iniciou esta conversa."),
+    quick
+  ]);
+  const send = await loadInbox(fakeDocument(h("body", {}, h("div", { role: "main" }), win)));
+  const result = await send({ type: "mp-inbox-read", threadKey: "n1", contactName: "Debora Teste" });
+  assert.equal(result.ok, true, result.error);
+  assert.deepEqual(result.messages.map((m) => [m.externalId, m.direction, m.body]), [["fb:mid.$d1", "inbound", "Olá, ainda está disponível?"]]);
+  for (const text of ["Debora iniciou esta conversa.", "Você iniciou esta conversa.", "Debora marcou o item como vendido", "Debora está aguardando a sua resposta.", "Você pode enviar mensagens para este vendedor", "Debora started this conversation.", "Envie uma resposta rápida"]) {
+    assert.equal(MP.isSystemMessage(text), true, text);
+  }
+  for (const text of ["Sim, você tem interesse?", "Você pode me mandar o endereço?", "Ainda está disponível?"]) assert.equal(MP.isSystemMessage(text), false, text);
+});
+
+// 1.9.2 — envio pelo CRM (dono, 2026-10-22: corretores dependem 100% dele).
+test("1.9.2: leitura guarda o endereço direto da conversa; envio abre por ele, espera 45 s, recria a aba e não reenvia sem confirmação", async () => {
+  const win = chatWindow("Ana Teste", "Casa 2 quartos", [inbound("mid.$aaa", "Ana Teste", "Olá")]);
+  win.append(h("a", { href: "/messages/t/1234567890123/", role: "link", "aria-label": "Abrir no Messenger" }));
+  const send = await loadInbox(fakeDocument(h("body", {}, h("div", { role: "main" }), win)));
+  const result = await send({ type: "mp-inbox-read", threadKey: "n1", contactName: "Ana Teste" });
+  assert.equal(result.ok, true, result.error);
+  assert.equal(result.threadUrl, "https://www.facebook.com/messages/t/1234567890123/");
+  const bg = readFileSync(new URL("../background.js", import.meta.url), "utf8");
+  assert.match(bg, /threadUrl: thread\.threadUrl \|\| read\?\.threadUrl \|\| ""/);
+  const sendFn = bg.slice(bg.indexOf("async function sendOutbound"), bg.indexOf("async function ensureRoundTab"));
+  assert.ok(sendFn.indexOf('message.threadUrl || "").startsWith(FB_PREFIX)') < sendFn.indexOf("readInbox(tabId)"), "endereço direto primeiro");
+  assert.match(bg, /const SEND_OPEN_WAIT_MS = 45 \* 1000;/);
+  assert.match(sendFn, /focus = await focusTab\(tabId\)/);
+  assert.match(sendFn, /finally \{\s*if \(focus\) await focus\.restore\(\)/);
+  assert.match(bg, /tab = await ensureRoundTab\(tab, round\);/);
+  const { outboundResultBody } = await import("../lib/chat-agenda.js");
+  assert.deepEqual(outboundResultBody({ ok: false, sentAttempted: true, unconfirmed: true, error: "Não confirmei" }), { status: "failed", error: "Não confirmei", retry: false, unconfirmed: true });
+  assert.equal(outboundResultBody({ ok: false, sentAttempted: false, error: "A conversa não abriu" }).retry, true);
+  const inboxSource = readFileSync(new URL("../inbox.js", import.meta.url), "utf8");
+  assert.match(inboxSource, /by you/);
 });

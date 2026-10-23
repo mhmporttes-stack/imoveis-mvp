@@ -1,6 +1,7 @@
 import AdminSectionNav from "@/components/AdminSectionNav";
 import AutomationRulesManager from "@/components/AutomationRulesManager";
 import AlertCenterAdmin from "@/components/alerts/AlertCenterAdmin";
+import ClientVoiceAudioSettings from "@/components/ClientVoiceAudioSettings";
 import CelebrationsManager from "@/components/celebrations/CelebrationsManager";
 import DailyMessageAdmin from "@/components/DailyMessageAdmin";
 import LeadDistributionDashboard from "@/components/LeadDistributionDashboard";
@@ -25,10 +26,11 @@ import { getWhatsappMasterDisplaySettings, getWhatsappMasterEnvironmentStatus, l
 import { listWhatsappAutomationReplies } from "@/lib/whatsapp-automation-replies";
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { tabClasses } from "@/components/ui/Tabs";
 
 export const dynamic = "force-dynamic";
 
-const TABS = ["rules", "roulette", "daily-message", "incentivo", "alertas", "whatsapp-master", "flows", "disparos"];
+const TABS = ["rules", "roulette", "daily-message", "incentivo", "alertas", "audio-voz", "whatsapp-master", "flows", "disparos"];
 
 export default async function AutomationsPage({ searchParams }) {
   const auth = await requireBrokerManagementPage("/admin/simulacoes");
@@ -84,6 +86,9 @@ export default async function AutomationsPage({ searchParams }) {
         flows ? <FlowsManager initialFlows={flows} /> : <p className="container-page rounded-2xl bg-red-50 px-4 py-3 font-bold text-red-700">Não foi possível carregar os fluxos. Verifique se a migration dos Fluxos foi aplicada no banco.</p>
       ) : tab === "alertas" ? (
         isGeneralAdminAuth(auth) ? <AlertCenterAdmin /> : <p className="container-page rounded-2xl bg-white px-4 py-3 text-sm font-semibold text-navy">A Central de Alertas é configurada pelo administrador geral.</p>
+      ) : tab === "audio-voz" ? (
+        // Áudio com a voz do dono (VOZ-1, dono 2026-10-23): só o admin geral configura (a API também exige).
+        isGeneralAdminAuth(auth) ? <ClientVoiceAudioSettings /> : <p className="container-page rounded-2xl bg-white px-4 py-3 text-sm font-semibold text-navy">O áudio com voz é configurado pelo administrador geral.</p>
       ) : tab === "disparos" ? (
         <WhatsappDisparoManager />
       ) : (
@@ -130,6 +135,7 @@ const SUBMENU_ITEMS = [
   { key: "daily-message", label: "Mensagem do Dia", href: "/admin/automacoes?tab=daily-message" },
   { key: "incentivo", label: "Incentivo", href: "/admin/automacoes?tab=incentivo" },
   { key: "alertas", label: "Alertas", href: "/admin/automacoes?tab=alertas" },
+  { key: "audio-voz", label: "Áudio com voz", href: "/admin/automacoes?tab=audio-voz" },
   { key: "whatsapp-master", label: "WhatsApp Master", href: "/admin/automacoes?tab=whatsapp-master" },
   { key: "flows", label: "Fluxos", href: "/admin/automacoes?tab=flows" },
   { key: "disparos", label: "Disparos", href: "/admin/automacoes?tab=disparos" }
@@ -137,9 +143,9 @@ const SUBMENU_ITEMS = [
 
 function AutomationSubmenu({ active }) {
   return (
-    <nav className="container-page mb-4 flex flex-wrap justify-center gap-1.5 rounded-xl border border-navy/[0.07] bg-white p-1 shadow-[0_1px_2px_rgba(13,59,102,0.04)]">
+    <nav aria-label="Automações" className="container-page mm-noscroll mb-4 flex gap-1.5 overflow-x-auto py-1">
       {SUBMENU_ITEMS.map((item) => (
-        <Link key={item.key} href={item.href} className={`rounded-[10px] px-4 py-1.5 text-center text-[13px] font-black ${active === item.key ? "bg-navy text-white" : "text-navy"}`}>
+        <Link key={item.key} href={item.href} aria-current={active === item.key ? "page" : undefined} className={tabClasses(active === item.key)}>
           {item.label}
         </Link>
       ))}

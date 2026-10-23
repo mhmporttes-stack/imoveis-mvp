@@ -155,7 +155,7 @@ export default function WhatsappProfileEditor() {
   }
 
   return (
-    <section className="container-page mt-6 rounded-[28px] border border-line bg-white p-6 shadow-soft">
+    <section className="container-page mt-6 rounded-panel border border-line bg-white p-6 shadow-soft">
       <div className="mb-5 flex flex-wrap items-start justify-between gap-3">
         <div>
           <h2 className="text-2xl font-black text-navy">Perfil do WhatsApp</h2>

@@ -19,6 +19,9 @@ import {
 import Avatar from "@/components/Avatar";
 import { readViewerData, saveViewerData } from "@/components/chat-view-cache";
 import { PERFORMANCE_CACHE_NAME } from "@/components/panel-cache-names";
+import scene from "@/components/scenes/scenes.module.css";
+import SceneCount from "@/components/scenes/SceneCount";
+import { sceneIndex, sceneStaggerProps, useSceneInView } from "@/components/scenes/useSceneInView";
 
 const PERIODS = [
   { value: "today", label: "Hoje" },
@@ -59,6 +62,16 @@ const TREND_GRANULARITIES = [
   { value: "week", label: "Semana a semana" },
   { value: "month", label: "Mês a mês" }
 ];
+// Tempos das cenas desta tela (pedido do dono, 2026-10-22) — próprios, não mexem em --mm-motion-*.
+// Cards da Visão geral: saltinho curto em cascata. Funil: uma etapa por vez, de cima para baixo, número contando.
+// Histórico: uma linha por vez, ritmo para dar para acompanhar, seta de variação no fim de cada uma.
+const KPI_SCENE = { stepMs: 90, durationMs: 620, rise: 14, hop: 5 };
+const FUNNEL_SCENE = { stepMs: 200, durationMs: 640, rise: 12, hop: 5 };
+const FUNNEL_COUNT_MS = 650;
+const TREND_SCENE = { stepMs: 150, durationMs: 600, rise: 12, hop: 5 };
+// Funil e histórico ficam dentro de blocos que entram por rolagem (1,1 s): a cena começa com o bloco quase no lugar.
+const BLOCK_SCENE_DELAY_MS = 300;
+
 const TREND_COLORS = ["#2563eb", "#16a34a", "#d97706", "#db2777", "#7c3aed", "#0891b2", "#dc2626", "#65a30d"];
 
 export default function PerformanceOverviewDashboard({ initialOverview, initialError = "", viewerKey = "" }) {
@@ -139,6 +152,12 @@ export default function PerformanceOverviewDashboard({ initialOverview, initialE
       .sort((a, b) => a.name.localeCompare(b.name, "pt-BR"))
   ), [team]);
   const periodQuery = useMemo(() => buildPeriodQuery(period, startDate, endDate), [period, startDate, endDate]);
+  // Cenas: tocam ao entrar na tela e de novo quando chega outro período (ou outro filtro), nunca numa atualização
+  // silenciosa do mesmo período.
+  const rangeKey = `${overview?.range?.startDate || ""}|${overview?.range?.endDate || ""}`;
+  const funnelSceneKey = `${rangeKey}|${funnelBrokerIds.join(",")}|${funnel.length}`;
+  const kpiRef = useRef(null);
+  const kpiPhase = useSceneInView(kpiRef, { replayKey: overview ? rangeKey : "" });
 
   async function loadOverview(signal, { silent = false } = {}) {
     if (!silent) setLoading(true);
@@ -211,7 +230,7 @@ export default function PerformanceOverviewDashboard({ initialOverview, initialE
 
   return (
     <section className="container-page space-y-6">
-      <div className="rounded-[28px] border border-navy/10 bg-white p-4 shadow-soft md:p-7">
+      <div className="rounded-panel border border-navy/10 bg-white p-4 shadow-soft md:p-7">
         {/* Celular: título à esquerda e "Atualizar" à direita na mesma linha
             (economiza uma linha inteira); do md para cima, layout original. */}
         <div className="flex items-start justify-between gap-3 md:flex-col md:items-stretch md:gap-5 lg:flex-row lg:items-center">
@@ -269,14 +288,15 @@ export default function PerformanceOverviewDashboard({ initialOverview, initialE
         </div>
       )}
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {KPI_CARDS.map((card) => (
-          <KpiCard key={card.key} card={card} value={metrics[card.key]} />
+      {/* data-no-reveal: os cards têm a própria cena (saltinho em cascata), sem somar com a entrada por rolagem. */}
+      <div ref={kpiRef} data-no-reveal {...sceneStaggerProps(kpiPhase, { ...KPI_SCENE, className: "grid gap-4 sm:grid-cols-2 lg:grid-cols-4" })}>
+        {KPI_CARDS.map((card, index) => (
+          <KpiCard key={card.key} card={card} value={metrics[card.key]} index={index} />
         ))}
       </div>
 
       <div className="grid gap-5 lg:grid-cols-[1.65fr_1fr]">
-        <article className="rounded-[28px] border border-navy/10 bg-white p-5 shadow-soft md:p-7">
+        <article className="rounded-panel border border-navy/10 bg-white p-5 shadow-soft md:p-7">
           <p className="text-xs font-extrabold uppercase tracking-[0.35em] text-brand">Ranking da equipe</p>
           <h3 className="mt-2 text-2xl font-extrabold text-navy">Quem mais produziu no período</h3>
 
@@ -323,7 +343,7 @@ export default function PerformanceOverviewDashboard({ initialOverview, initialE
           </div>
         </article>
 
-        <article className="rounded-[28px] border border-navy/10 bg-white p-5 shadow-soft md:p-7">
+        <article className="rounded-panel border border-navy/10 bg-white p-5 shadow-soft md:p-7">
           <p className="text-xs font-extrabold uppercase tracking-[0.35em] text-brand">Precisa de atenção</p>
           <h3 className="mt-2 text-2xl font-extrabold text-navy">Situações para agir agora</h3>
 
@@ -345,7 +365,7 @@ export default function PerformanceOverviewDashboard({ initialOverview, initialE
         </article>
       </div>
 
-      <article className="rounded-[28px] border border-navy/10 bg-white p-5 shadow-soft md:p-7">
+      <article className="rounded-panel border border-navy/10 bg-white p-5 shadow-soft md:p-7">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <p className="text-xs font-extrabold uppercase tracking-[0.35em] text-brand">Ranking histórico</p>
@@ -388,7 +408,7 @@ export default function PerformanceOverviewDashboard({ initialOverview, initialE
         <TeamTrendChart trend={trend} loading={trendLoading} />
       </article>
 
-      <article className="rounded-[28px] border border-navy/10 bg-white p-5 shadow-soft md:p-7">
+      <article className="rounded-panel border border-navy/10 bg-white p-5 shadow-soft md:p-7">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <p className="text-xs font-extrabold uppercase tracking-[0.35em] text-brand">Funil comercial</p>
@@ -411,10 +431,10 @@ export default function PerformanceOverviewDashboard({ initialOverview, initialE
           </div>
         </div>
 
-        <FunnelChart funnel={funnel} range={overview?.range} />
+        <FunnelChart funnel={funnel} range={overview?.range} replayKey={funnelSceneKey} />
       </article>
 
-      <article className="rounded-[28px] border border-navy/10 bg-white p-5 shadow-soft md:p-7">
+      <article className="rounded-panel border border-navy/10 bg-white p-5 shadow-soft md:p-7">
         <p className="text-xs font-extrabold uppercase tracking-[0.35em] text-brand">Equipe</p>
         <h3 className="mt-2 text-2xl font-extrabold text-navy">Desempenho por corretor no período</h3>
 
@@ -433,12 +453,13 @@ export default function PerformanceOverviewDashboard({ initialOverview, initialE
   );
 }
 
-function KpiCard({ card, value }) {
+function KpiCard({ card, value, index = 0 }) {
   const Icon = card.icon;
   return (
     <Link
       href={card.href}
-      className={`rounded-[22px] border bg-white p-4 shadow-soft transition hover:-translate-y-0.5 hover:shadow-md ${TONE_CLASSES[card.tone]?.split(" ")[0] || "border-navy/10"}`}
+      style={sceneIndex(index)}
+      className={`${scene.item} rounded-panel border bg-white p-4 shadow-soft transition hover:-translate-y-0.5 hover:shadow-md ${TONE_CLASSES[card.tone]?.split(" ")[0] || "border-navy/10"}`}
     >
       <div className="flex items-center justify-between gap-3">
         <span className="text-xs font-extrabold uppercase tracking-[0.1em] text-slate-500">{card.title}</span>
@@ -669,9 +690,37 @@ function findFunnelBottleneck(funnel) {
 // painel), este componente só desenha. Largura cresce com a quantidade de
 // buckets (visão "dia a dia" fica larga de propósito) e rola horizontalmente
 // em telas pequenas em vez de espremer os pontos.
+// Variação de cada linha para a seta do fim: último período COMPLETO × o anterior (o período atual ainda está em
+// andamento — compará-lo com um período inteiro mostraria "caiu" em todo começo de mês/semana/dia). Só subtrai
+// pontos que o gráfico já mostra; nenhum cálculo de pontuação novo.
+function getTrendDelta(points) {
+  if (!Array.isArray(points) || points.length < 3) return null;
+  const last = Number(points[points.length - 2] || 0);
+  const previous = Number(points[points.length - 3] || 0);
+  return { last, previous, diff: last - previous };
+}
+
+function TrendDelta({ delta, index }) {
+  if (!delta) return null;
+  const { diff } = delta;
+  const tone = diff > 0 ? scene.deltaUp : diff < 0 ? scene.deltaDown : scene.deltaFlat;
+  const text = diff > 0 ? `▲ +${formatInteger(diff)}` : diff < 0 ? `▼ −${formatInteger(Math.abs(diff))}` : "= 0";
+  const spoken = diff > 0 ? `subiu ${formatInteger(diff)} pontos` : diff < 0 ? `caiu ${formatInteger(Math.abs(diff))} pontos` : "sem variação";
+  return (
+    <span className={`${scene.theme} ${scene.delta} ${scene.pop} ${tone}`} style={sceneIndex(index)} title={`${formatInteger(delta.previous)} → ${formatInteger(delta.last)} pts`}>
+      <span aria-hidden="true">{text}</span>
+      <span className="sr-only">{spoken}</span>
+    </span>
+  );
+}
+
 function TeamTrendChart({ trend, loading }) {
   const buckets = trend?.buckets || [];
   const series = trend?.series || [];
+  const sceneRef = useRef(null);
+  // Cena nova a cada histórico carregado (granularidade/corretores diferentes).
+  const trendKey = `${buckets[0]?.startDate || ""}|${buckets.length}|${series.map((line) => line.brokerId).join(",")}`;
+  const phase = useSceneInView(sceneRef, { replayKey: buckets.length ? trendKey : "", delayMs: BLOCK_SCENE_DELAY_MS });
 
   if (!loading && !buckets.length) {
     return <p className="mt-6 rounded-2xl bg-blue-50 p-4 text-sm font-bold text-slate-600">Sem dados para montar o histórico ainda.</p>;
@@ -694,9 +743,12 @@ function TeamTrendChart({ trend, loading }) {
   const xFor = (index) => paddingLeft + stepX * index;
   const yFor = (value) => paddingTop + plotHeight - (value / maxPoints) * plotHeight;
   const gridFractions = [0, 0.25, 0.5, 0.75, 1];
+  const baselineY = paddingTop + plotHeight;
+  const closedLast = buckets.length >= 3 ? buckets[buckets.length - 2] : null;
+  const closedPrevious = buckets.length >= 3 ? buckets[buckets.length - 3] : null;
 
   return (
-    <div className="mt-5">
+    <div ref={sceneRef} {...sceneStaggerProps(phase, { ...TREND_SCENE, className: "mt-5" })}>
       <div className="overflow-x-auto">
         <svg width={chartWidth} height={height} viewBox={`0 0 ${chartWidth} ${height}`} role="img" aria-label="Pontuação da equipe ao longo do tempo">
           {gridFractions.map((fraction) => {
@@ -721,7 +773,7 @@ function TeamTrendChart({ trend, loading }) {
             const color = TREND_COLORS[seriesIndex % TREND_COLORS.length];
             const path = line.points.map((value, index) => `${index === 0 ? "M" : "L"}${xFor(index)},${yFor(value)}`).join(" ");
             return (
-              <g key={line.brokerId}>
+              <g key={line.brokerId} className={scene.lineRise} style={sceneIndex(seriesIndex, { "--origin": `0px ${baselineY}px` })}>
                 <path d={path} fill="none" stroke={color} strokeWidth={2.5} strokeLinejoin="round" strokeLinecap="round" />
                 {line.points.map((value, index) => (
                   <circle key={index} cx={xFor(index)} cy={yFor(value)} r={3} fill={color}>
@@ -740,13 +792,19 @@ function TeamTrendChart({ trend, loading }) {
 
       <div className="mt-4 flex flex-wrap gap-3">
         {series.map((line, seriesIndex) => (
-          <span key={line.brokerId} className="inline-flex items-center gap-2 rounded-full border border-navy/10 px-3 py-1 text-xs font-extrabold text-navy">
+          <span key={line.brokerId} className={`${scene.item} inline-flex items-center gap-2 rounded-full border border-navy/10 px-3 py-1 text-xs font-extrabold text-navy`} style={sceneIndex(seriesIndex)}>
             <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: TREND_COLORS[seriesIndex % TREND_COLORS.length] }} />
             {line.name}
+            <TrendDelta delta={getTrendDelta(line.points)} index={seriesIndex} />
           </span>
         ))}
         {!series.length && <p className="text-sm font-bold text-slate-500">Nenhum corretor ativo encontrado.</p>}
       </div>
+      {series.length > 0 && closedLast && closedPrevious && (
+        <p className="mt-2 text-xs font-semibold text-slate-500">
+          Setas: {closedLast.label} comparado a {closedPrevious.label} (último período completo).
+        </p>
+      )}
     </div>
   );
 }
@@ -791,7 +849,7 @@ function countRangeDays(range) {
   return Number.isFinite(diff) ? Math.round(diff / 86400000) + 1 : null;
 }
 
-function FunnelChart({ funnel, range }) {
+function FunnelChart({ funnel, range, replayKey = "" }) {
   const boundaries = useMemo(() => getFunnelBoundaries(funnel.length), [funnel.length]);
   const bottleneck = useMemo(() => findFunnelBottleneck(funnel), [funnel]);
   // Base da coluna "Desde …" (pedido do dono, 2026-10-16): escolhida no seletor
@@ -799,6 +857,8 @@ function FunnelChart({ funnel, range }) {
   // as contagens que já vêm prontas do servidor.
   const [baseKey, setBaseKey] = useState("");
   const [openTipKey, setOpenTipKey] = useState("");
+  const sceneRef = useRef(null);
+  const phase = useSceneInView(sceneRef, { replayKey: funnel.length ? replayKey : "", delayMs: BLOCK_SCENE_DELAY_MS });
 
   useEffect(() => {
     setBaseKey(readStoredFunnelBase());
@@ -858,7 +918,11 @@ function FunnelChart({ funnel, range }) {
     </div>
 
     <div
-      className="mt-3 grid grid-cols-[minmax(80px,1fr)_minmax(0,1.8fr)_auto_auto] items-center gap-x-2 gap-y-1 sm:grid-cols-[minmax(120px,1fr)_minmax(0,3.2fr)_auto_auto] sm:gap-x-5 sm:gap-y-1.5"
+      ref={sceneRef}
+      {...sceneStaggerProps(phase, {
+        ...FUNNEL_SCENE,
+        className: "mt-3 grid grid-cols-[minmax(80px,1fr)_minmax(0,1.8fr)_auto_auto] items-center gap-x-2 gap-y-1 sm:grid-cols-[minmax(120px,1fr)_minmax(0,3.2fr)_auto_auto] sm:gap-x-5 sm:gap-y-1.5"
+      })}
     >
       <span aria-hidden="true" />
       <span aria-hidden="true" />
@@ -894,6 +958,7 @@ function FunnelChart({ funnel, range }) {
         const sinceRatio = index > baseIndex && baseValue > 0 ? value / baseValue : null;
         const sinceText = `${formatInteger(value)} de ${formatInteger(baseValue)}`;
         const tipOpen = openTipKey === stage.key;
+        const rowStyle = sceneIndex(index);
 
         return (
           <div key={stage.key} className="contents">
@@ -902,7 +967,8 @@ function FunnelChart({ funnel, range }) {
               onClick={() => chooseBase(stage.key)}
               aria-pressed={isBase}
               title={isBase ? "Base da conversão" : `Calcular a conversão desde ${stage.label}`}
-              className={`min-h-8 min-w-0 py-0.5 text-left text-[11px] font-extrabold leading-tight transition hover:text-brand sm:min-h-11 sm:text-sm sm:leading-normal ${
+              style={rowStyle}
+              className={`${scene.item} min-h-8 min-w-0 py-0.5 text-left text-[11px] font-extrabold leading-tight transition hover:text-brand sm:min-h-11 sm:text-sm sm:leading-normal ${
                 isBase ? "text-brand" : "text-navy"
               }`}
             >
@@ -913,7 +979,8 @@ function FunnelChart({ funnel, range }) {
 
             <Link
               href={buildFunnelStageHref(stage.key)}
-              className="group relative flex h-8 items-center justify-center sm:h-11"
+              style={rowStyle}
+              className={`${scene.itemBar} group relative flex h-8 items-center justify-center sm:h-11`}
               aria-label={`${stage.label}: ${formatInteger(stage.value)} — ver clientes`}
             >
               <span
@@ -923,17 +990,23 @@ function FunnelChart({ funnel, range }) {
                   clipPath: `polygon(${insetTop}% 0, ${100 - insetTop}% 0, ${100 - insetBottom}% 100%, ${insetBottom}% 100%)`
                 }}
               >
-                <span className={`text-xs font-black tracking-tight sm:text-lg ${color.text}`} style={color.ink ? { color: color.ink } : undefined}>
-                  {formatInteger(stage.value)}
+                <span className={`text-xs font-black tabular-nums tracking-tight sm:text-lg ${color.text}`} style={color.ink ? { color: color.ink } : undefined}>
+                  <SceneCount
+                    value={stage.value}
+                    phase={phase}
+                    delayMs={index * FUNNEL_SCENE.stepMs + 120}
+                    durationMs={FUNNEL_COUNT_MS}
+                    format={formatInteger}
+                  />
                 </span>
               </span>
             </Link>
 
-            <span className="text-right text-[11px] font-black tabular-nums text-navy sm:text-sm" title={stepTitle}>
+            <span className={`${scene.item} text-right text-[11px] font-black tabular-nums text-navy sm:text-sm`} style={rowStyle} title={stepTitle}>
               {stepLabel}
             </span>
 
-            <span className="text-right text-[11px] font-black tabular-nums sm:text-sm">
+            <span className={`${scene.item} text-right text-[11px] font-black tabular-nums sm:text-sm`} style={rowStyle}>
               {isBase ? (
                 <span className="font-extrabold text-brand" title={`${base.label}: ${formatInteger(baseValue)}`}>Base</span>
               ) : sinceRatio === null ? (

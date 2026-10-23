@@ -53,7 +53,7 @@ test("simulação automática não conta como simulação real (trava, pontuaç�
 });
 
 import { AUTO_SIMULATION_REVIEW_ENABLED, buildAutoSnapshot, buildCorrectedSnapshot, parseCaixaIncome } from "../lib/simulation-auto-review-core.mjs";
-import { AUTO_PRESENTATION_LOCKED_MESSAGE } from "../lib/simulation-status-lock-core.mjs";
+import { AUTO_PRESENTATION_LOCK_ENABLED, AUTO_PRESENTATION_LOCKED_MESSAGE, isAutoPresentationLocked } from "../lib/simulation-status-lock-core.mjs";
 import { estimateFinancing } from "../lib/financiamento-estimativa-core.mjs";
 
 const source = (file) => readFileSync(new URL(`../${file}`, import.meta.url), "utf8");
@@ -75,12 +75,20 @@ test("conferência: retrato do site com entradas e saídas (novo e usado) e valo
   assert.equal(parseCaixaIncome("abc"), null);
 });
 
-test("link da apresentação travado até a conferência (servidor e tela)", () => {
+test("trava do link até a conferência: revogada pelo dono em 2026-10-23, mantida desligada por uma chave única", () => {
   assert.equal(AUTO_PRESENTATION_LOCKED_MESSAGE, "Confira 👍/👎 em cada imóvel para liberar o link.");
+  // "Remova essa regra já validamos e os valores batem" (dono, 2026-10-23): link/imagem/envio da automática liberados.
+  assert.equal(AUTO_PRESENTATION_LOCK_ENABLED, false);
+  assert.equal(isAutoPresentationLocked("Simulação automática do site"), false);
+  assert.equal(isAutoPresentationLocked("corretor@exemplo.com"), false);
+  // A conferência 👍/👎 continua disponível (só não bloqueia).
+  assert.equal(AUTO_SIMULATION_REVIEW_ENABLED, true);
   const presentation = source("lib/simulation-presentation.js");
   assert.match(presentation, /export async function ensurePresentation\(\{ simulation, userId \}\) \{\s*assertPresentationAllowed\(simulation\);/);
   assert.match(presentation, /export async function regeneratePresentation\(\{ simulation, userId \}\) \{\s*assertPresentationAllowed\(simulation\);/);
   assert.match(presentation, /simulacao_automatica_nao_conferida/);
+  assert.match(presentation, /if \(isAutoPresentationLocked\(simulation\?\.createdBy\)\) throw new AutoPresentationLockedError\(\);/);
+  assert.match(presentation, /if \(isAutoPresentationLocked\(simulation\.createdBy\)\) return notFound\(PRESENTATION_UPDATING_REASON\);/);
   assert.doesNotMatch(source("app/api/simulation-registrations/route.js"), /ensurePresentation/);
   assert.match(source("app/api/simulations/[id]/conferencia/route.js"), /assertCanAccessResponsibleUser/);
 });
@@ -94,7 +102,7 @@ test("usado: subsídio zero acima de R$ 2.850 (Caixa zera); Gerador sem a opçã
 
 test("conferência por tipo na aba da simulação (Gerador) e na ficha, com a linha curta; marca automática nunca volta pelo formulário", () => {
   const page = source("app/admin/simulacoes/[id]/page.jsx");
-  assert.match(page, /isAutomaticSimulationSource\(simulation\.createdBy\) \? \([\s\S]{0,200}\{AUTO_PRESENTATION_LOCKED_MESSAGE\}/);
+  assert.match(page, /isAutoPresentationLocked\(simulation\.createdBy\) \? \([\s\S]{0,200}\{AUTO_PRESENTATION_LOCKED_MESSAGE\}/);
   assert.match(source("components/SimulationGenerator.jsx"), /<AutoReviewTypeVote[\s\S]{0,80}type=\{key\}/);
   assert.match(source("components/clients/ClientSheet.jsx"), /<AutoReviewTypeVote[\s\S]{0,120}type=\{item\.type\}/);
   const review = source("components/AutoReviewTypeVote.jsx");
@@ -149,9 +157,9 @@ test("cenários: gravados no site, no refazer e no Salvar do corretor; usar cen�
   assert.match(route, /assertCanAccessResponsibleUser/);
 });
 
-test("aba da simulação: Enviar bloqueado na automática, Salvar só para nova/automática, sugestões de prazo e taxa", async () => {
+test("aba da simulação: Enviar segue a chave da trava (desligada desde 2026-10-23), Salvar só para nova/automática, sugestões de prazo e taxa", async () => {
   const generator = source("components/SimulationGenerator.jsx");
-  assert.match(generator, /async function sendPresentationToWhatsApp\(\) \{[\s\S]{0,400}isAutomaticSimulationSource\(formRef\.current\?\.createdBy\)[\s\S]{0,80}AUTO_PRESENTATION_LOCKED_MESSAGE/);
+  assert.match(generator, /async function sendPresentationToWhatsApp\(\) \{[\s\S]{0,400}isAutoPresentationLocked\(formRef\.current\?\.createdBy\)[\s\S]{0,80}AUTO_PRESENTATION_LOCKED_MESSAGE/);
   assert.match(generator, /\{!form\.id \|\| isAutomaticSimulationSource\(form\.createdBy\) \? \(/);
   assert.match(source("lib/simulations.js"), /mergeWindowMinutes: 30/);
   const { simulationFieldSuggestions } = await import("../lib/financiamento-estimativa-core.mjs");
@@ -190,4 +198,25 @@ test("/s/<token> de simulação automática aguardando conferência: aviso amig�
   const lib = source("lib/simulation-presentation.js");
   assert.match(lib, /PRESENTATION_UPDATING_REASON = "simulacao_automatica_nao_conferida"/);
   assert.match(lib, /export async function getPublicPresentation\(token, options = \{\}\) \{\n  return \(await resolvePublicPresentation\(token, options\)\)\.dto;/);
+});
+
+// Incidente 2026-10-22: rascunho vazio criado ao abrir "Simulação"/"Valores" na lista (created_by = e-mail de quem abriu)
+// 0,3 s antes do formulário do site bloqueava a simulação automática em silêncio. Mesma régua do "Refazer".
+import { automaticSimulationCanReplace } from "../lib/simulation-status-lock-core.mjs";
+
+test("SIM-AUTO: site substitui rascunho vazio (inclusive de pessoa), nunca simulação com valor salva por pessoa", () => {
+  assert.equal(automaticSimulationCanReplace(null), true);
+  assert.equal(automaticSimulationCanReplace({ created_by: "dono@exemplo.com", financing_value: null, subsidy_value: "0.00" }), true);
+  assert.equal(automaticSimulationCanReplace({ created_by: "Cadastro do site", financing_value: 0, subsidy_value: 0 }), true);
+  assert.equal(automaticSimulationCanReplace({ created_by: AUTOMATIC_SIMULATION_SOURCE, financing_value: "167779.22", subsidy_value: "12086.00" }), true);
+  assert.equal(automaticSimulationCanReplace({ created_by: "corretor@exemplo.com", financing_value: "150000.00", subsidy_value: 0 }), false);
+  assert.equal(automaticSimulationCanReplace({ created_by: "corretor@exemplo.com", financing_value: 0, subsidy_value: "5000" }), false);
+  const sims = readFileSync(new URL("../lib/simulations.js", import.meta.url), "utf8");
+  const site = sims.slice(sims.indexOf("export async function saveSiteSimulationFromRegistration"), sims.indexOf("async function latestRegistrationSimulationRow"));
+  assert.match(site, /automaticSimulationCanReplace\(existing\)/);
+  const redo = sims.slice(sims.indexOf("export async function redoAutomaticSimulation"));
+  assert.match(redo, /const manual = !automaticSimulationCanReplace\(existing\);/);
+  // Pulo nunca é silencioso: a rota registra o motivo (sem dado pessoal).
+  const route = readFileSync(new URL("../app/api/simulation-registrations/route.js", import.meta.url), "utf8");
+  assert.match(route, /if \(saved\.skipped\) console\.warn\("Site automatic simulation skipped:"/);
 });

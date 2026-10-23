@@ -56,5 +56,27 @@ $('btnRetomar').addEventListener('click', async () => { const { e } = await lerT
 $('btnRetomarAgora').addEventListener('click', async () => { const { e } = await lerTudo(); if (await retomarAgora(e)) render(); });
 $('btnPainel').addEventListener('click', () => chrome.runtime.openOptionsPage());
 
+// Janela de trabalho (1.1.0): situação + botão (única vez em que ela vem para a frente).
+async function renderJanela() {
+  try {
+    const r = await enviar('situacaoJanela');
+    $('textoJanela').textContent = r && r.texto ? r.texto : (r && r.erro) || '—';
+  } catch (err) {
+    $('textoJanela').textContent = `Erro: ${err.message}`;
+  }
+}
+$('btnAbrirJanela').addEventListener('click', async () => {
+  $('btnAbrirJanela').disabled = true;
+  try {
+    const r = await enviar('abrirJanela');
+    if (r && r.ok === false) $('textoJanela').textContent = `Erro: ${r.erro}`;
+  } finally {
+    $('btnAbrirJanela').disabled = false;
+    renderJanela();
+  }
+});
+
 chrome.storage.onChanged.addListener(render);
 render();
+renderJanela();
+setInterval(renderJanela, 5000);

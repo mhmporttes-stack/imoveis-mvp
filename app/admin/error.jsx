@@ -12,7 +12,7 @@ export default function AdminError({ error, reset }) {
 
   return (
     <main className="flex min-h-[70vh] items-center justify-center bg-mist px-4 py-14">
-      <section className="w-full max-w-md rounded-[24px] border border-line bg-white p-8 text-center shadow-soft">
+      <section className="w-full max-w-md rounded-panel border border-line bg-white p-8 text-center shadow-soft">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src="/assets/matheus-machado-symbol.png" alt="Matheus Machado Corretor de Imóveis" width={56} height={56} className="mx-auto h-14 w-14 object-contain" />
         <h1 className="mt-5 text-2xl font-black text-navy">Algo deu errado nesta tela</h1>

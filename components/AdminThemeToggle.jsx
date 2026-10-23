@@ -28,6 +28,43 @@ export default function AdminThemeToggle({ variant = "row", className = "" }) {
   const label = dark ? "Modo claro" : "Modo escuro";
   const hint = dark ? "Voltar às telas com fundo branco" : "Telas com fundo escuro";
 
+  // Visual novo (dono, 2026-10-22): "icon" = só o sol/lua no cabeçalho; "button" = botão "Aparência" da folha "Mais".
+  if (variant === "icon") {
+    return (
+      <button
+        type="button"
+        onClick={toggle}
+        aria-label={dark ? "Ativar modo claro" : "Ativar modo escuro"}
+        title={label}
+        className={cx(
+          "inline-flex h-touch w-touch shrink-0 items-center justify-center rounded-control border border-line bg-white text-ink transition-colors hover:border-accent-line hover:bg-accent-soft",
+          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent",
+          className
+        )}
+      >
+        <Icon className="h-5 w-5" strokeWidth={1.9} aria-hidden="true" />
+      </button>
+    );
+  }
+
+  if (variant === "button") {
+    return (
+      <button
+        type="button"
+        onClick={toggle}
+        aria-label={dark ? "Aparência: ativar modo claro" : "Aparência: ativar modo escuro"}
+        className={cx(
+          "inline-flex min-h-touch items-center justify-center gap-2 rounded-control border border-line bg-white px-4 text-sm font-bold text-ink transition-colors hover:border-accent-line hover:bg-accent-soft",
+          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent",
+          className
+        )}
+      >
+        <Icon className="h-[18px] w-[18px]" strokeWidth={1.9} aria-hidden="true" />
+        Aparência · {label}
+      </button>
+    );
+  }
+
   if (variant === "pill") {
     return (
       <button

@@ -7,7 +7,7 @@ export default function FinancingSimulationSection() {
   return (
     <section
       aria-labelledby="financing-simulation-title"
-      className="mb-6 rounded-[28px] border border-line bg-white p-5 shadow-soft md:p-7"
+      className="mb-6 rounded-panel border border-line bg-white p-5 shadow-soft md:p-7"
     >
       <div className="grid gap-6 xl:grid-cols-[1fr_auto] xl:items-start">
         <div className="flex gap-4 sm:gap-5">

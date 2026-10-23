@@ -46,7 +46,7 @@ export function semFoto(usuario) {
  * privados (se a opção estiver ligada) e sem foto (se a opção estiver ligada).
  * Retorna { aceitos: [...itens da fila], pulados: { motivo: quantidade } }.
  */
-export function filtrarCandidatos(usuarios, { meuId, fila = [], vistos = {}, seguidos = {}, pularPrivados = true, pularSemFoto = false, origem = '', agora = Date.now() }) {
+export function filtrarCandidatos(usuarios, { meuId, fila = [], vistos = {}, seguidos = {}, pularPrivados = false, pularSemFoto = false, origem = '', agora = Date.now() }) {
   const naFila = new Set(fila.map((f) => String(f.id)));
   const aceitos = [];
   const pulados = {};
@@ -88,6 +88,46 @@ export function escolherParaUnfollow(seguidos, agora, dias = 3, excluir = new Se
     if (!melhor || r.seguidoEm < melhor.seguidoEm) melhor = r;
   }
   return melhor;
+}
+
+/** Texto do histórico para um "seguir" confirmado: privado pendente → "Solicitado". */
+export function rotuloSeguir(st) {
+  if (st && !st.seguindo && st.pedidoPendente) return 'Solicitado (perfil privado)';
+  return 'seguindo';
+}
+
+/** Status inicial do registro depois de um "seguir" confirmado no friendships/show. */
+export function statusAposSeguir(st) {
+  return st && !st.seguindo && st.pedidoPendente ? STATUS.SOLICITADO : STATUS.SEGUINDO;
+}
+
+/**
+ * Atualiza um registro "Solicitado" com o friendships/show (ou show_many): se a pessoa
+ * aceitou (following = true), passa a "seguindo". Retorna true se mudou.
+ */
+export function atualizarSolicitacao(registro, st, agora) {
+  if (!registro || !st || registro.status !== STATUS.SOLICITADO) return false;
+  if (!st.seguindo) return false;
+  registro.status = STATUS.SEGUINDO;
+  registro.aceitoEm = agora;
+  return true;
+}
+
+/** Texto do histórico ao deixar de seguir / cancelar a solicitação (regra dos N dias). */
+export function rotuloDeixar(st, dias) {
+  if (st && !st.seguindo && st.pedidoPendente) return `Solicitado — solicitação cancelada (não aceitou em ${dias} dias)`;
+  return `não seguiu de volta em ${dias} dias`;
+}
+
+/** Rótulo curto do status de um perfil seguido (painel). */
+export function rotuloStatus(status) {
+  return {
+    [STATUS.SEGUINDO]: 'Seguindo',
+    [STATUS.SOLICITADO]: 'Solicitado',
+    [STATUS.SEGUIU_DE_VOLTA]: 'Seguiu de volta',
+    [STATUS.DEIXADO]: 'Deixado de seguir',
+    [STATUS.NAO_SEGUE_MAIS]: 'Já não seguia',
+  }[status] || status || '';
 }
 
 /** Ids que devem ser verificados quanto ao follow-back. */

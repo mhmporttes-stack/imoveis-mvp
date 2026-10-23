@@ -18,7 +18,11 @@ export const DIAG_MAX_EVENTS_PER_REASON = 20;
 export const DIAG_REASON = Object.freeze({
   DECRYPT_FAIL: "diag_decrypt_fail",
   RETRY_RECEIPT: "diag_retry_receipt",
-  SOCKET_SUMMARY: "diag_socket_summary"
+  SOCKET_SUMMARY: "diag_socket_summary",
+  // 2026-10-23 (pipeline-guard.js): confirmação de mensagem que não decifrou, pedido do conteúdo ao celular e recuperação.
+  DECRYPT_NACK: "diag_decrypt_nack",
+  PLACEHOLDER_REQUEST: "placeholder_req",
+  PLACEHOLDER_RECOVERED: "placeholder_recovered"
 });
 
 // Hash curto e estável de um id de mensagem (o mesmo id dá o mesmo hash em qualquer evento — permite cruzar a falha de
@@ -82,8 +86,12 @@ export function createMessageDiagnostics({ maxEventsPerReason = DIAG_MAX_EVENTS_
     summary() {
       const dec = counts.get(DIAG_REASON.DECRYPT_FAIL) || 0;
       const rr = counts.get(DIAG_REASON.RETRY_RECEIPT) || 0;
-      if (!dec && !rr) return null;
-      return { reason: DIAG_REASON.SOCKET_SUMMARY, detail: `dec${dec}_rr${rr}` };
+      // Partes novas (2026-10-23) só aparecem quando há algo: ph = mensagens pedidas ao celular, rec = recuperadas,
+      // nk = confirmadas com erro (NACK) depois de não decifrar.
+      const extra = [["ph", DIAG_REASON.PLACEHOLDER_REQUEST], ["rec", DIAG_REASON.PLACEHOLDER_RECOVERED], ["nk", DIAG_REASON.DECRYPT_NACK]]
+        .map(([prefix, reason]) => (counts.get(reason) ? `_${prefix}${counts.get(reason)}` : "")).join("");
+      if (!dec && !rr && !extra) return null;
+      return { reason: DIAG_REASON.SOCKET_SUMMARY, detail: `dec${dec}_rr${rr}${extra}` };
     }
   };
 }

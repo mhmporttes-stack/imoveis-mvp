@@ -10,16 +10,17 @@ export function normalizeBaseUrl(value) {
   return url.origin;
 }
 
-function headers(key) {
-  return { Authorization: `Bearer ${key}`, "Content-Type": "application/json" };
+// X-Extension-Version (1.9.3): o CRM guarda a versão que está rodando no PC junto do sinal da extensão (MKT-2g).
+function headers(key, version = "") {
+  return { Authorization: `Bearer ${key}`, "Content-Type": "application/json", ...(version ? { "X-Extension-Version": String(version) } : {}) };
 }
 
 // Devolve { listing } | { listing: null, reason }. Nunca lança por resposta "normal" do CRM.
-export async function fetchNextListing({ baseUrl, key }, fetchImpl = fetch) {
+export async function fetchNextListing({ baseUrl, key, version }, fetchImpl = fetch) {
   if (!key) return { listing: null, reason: "sem_configuracao" };
   let response;
   try {
-    response = await fetchImpl(`${normalizeBaseUrl(baseUrl)}/api/marketplace/queue/next`, { method: "GET", headers: headers(key), cache: "no-store" });
+    response = await fetchImpl(`${normalizeBaseUrl(baseUrl)}/api/marketplace/queue/next`, { method: "GET", headers: headers(key, version), cache: "no-store" });
   } catch {
     return { listing: null, reason: "erro_crm" };
   }
@@ -29,10 +30,10 @@ export async function fetchNextListing({ baseUrl, key }, fetchImpl = fetch) {
   return data.listing ? { listing: data.listing } : { listing: null, reason: data.reason || "fila_vazia", waitUntil: data.wait_until || null };
 }
 
-export async function postResult({ baseUrl, key }, listingId, body, fetchImpl = fetch) {
+export async function postResult({ baseUrl, key, version }, listingId, body, fetchImpl = fetch) {
   const response = await fetchImpl(`${normalizeBaseUrl(baseUrl)}/api/marketplace/queue/${encodeURIComponent(listingId)}/result`, {
     method: "POST",
-    headers: headers(key),
+    headers: headers(key, version),
     body: JSON.stringify(body)
   });
   const data = await response.json().catch(() => ({}));
@@ -59,8 +60,8 @@ export async function downloadPhotos(urls = [], fetchImpl = fetch) {
 }
 
 // --- Chat do Marketplace (MKT-2) ---------------------------------------------------------------------------------
-async function callCrm({ baseUrl, key }, path, options = {}, fetchImpl = fetch) {
-  const response = await fetchImpl(`${normalizeBaseUrl(baseUrl)}${path}`, { ...options, headers: headers(key), cache: "no-store" });
+async function callCrm({ baseUrl, key, version }, path, options = {}, fetchImpl = fetch) {
+  const response = await fetchImpl(`${normalizeBaseUrl(baseUrl)}${path}`, { ...options, headers: headers(key, version), cache: "no-store" });
   const data = await response.json().catch(() => ({}));
   if (!response.ok) throw Object.assign(new Error(data.error || `CRM respondeu ${response.status}`), { status: response.status });
   return data;

@@ -5,7 +5,6 @@ import {
   Calculator,
   CalendarClock,
   CalendarPlus,
-  Check,
   ChevronDown,
   ChevronRight,
   ExternalLink,
@@ -13,13 +12,11 @@ import {
   ListChecks,
   MessageCircle,
   MoreHorizontal,
-  Pencil,
   Phone,
   Tag as TagIcon,
   Trash2,
   TriangleAlert,
-  UserRound,
-  X
+  UserRound
 } from "lucide-react";
 import Badge from "@/components/ui/Badge";
 import Button from "@/components/ui/Button";
@@ -31,7 +28,7 @@ import { hasSimulationData, incomeTypeLabel, formatCurrency } from "@/lib/simula
 import { formatMoneyBR } from "@/lib/simulation-list-utils";
 import StatusOptions from "./StatusOptions";
 import { useBasicMode, useWhatsappBlocked } from "@/components/WhatsappAccessProvider";
-import { clientPhone, formatAgo, formatWhen, getUrgencySignal, initialsOf } from "./client-format";
+import { clientPhone, formatAgo, getUrgencySignal, initialsOf } from "./client-format";
 import { OFFLINE_ACTION_LABEL, OFFLINE_CONFIRM_DESCRIPTION, OFFLINE_CONFIRM_TITLE, OFFLINE_UNDO_MS, offlineMarkLabel } from "@/lib/document-received-offline-core.mjs";
 
 // Card de cliente — padrão da Lista de clientes (híbrido aprovado pelo dono
@@ -42,8 +39,14 @@ import { OFFLINE_ACTION_LABEL, OFFLINE_CONFIRM_DESCRIPTION, OFFLINE_CONFIRM_TITL
 // situação da simulação, contato, novo formulário, tags e as ações do dia a
 // dia. A ficha fica para o secundário (cadastro completo, CCA, aviso de
 // progresso, histórico).
-const MAX_ACTIVITIES = 2;
 const MAX_TAGS = 4;
+// Botão compacto do rodapé: 24px visíveis, área de toque de 44px pelo ::before (sem mudar o layout).
+const COMPACT_BUTTON = "relative !min-h-0 h-6 min-w-0 shrink !gap-1 rounded-control px-2 text-[13px] sm:px-2.5 before:absolute before:inset-x-0 before:-inset-y-2.5 before:content-['']";
+
+// "há 6 dias" → "há 6 d" (só exibição; o texto completo vai no title).
+function shortAgo(text) {
+  return String(text || "").replace(/^há (\d+) dias$/, "há $1 d");
+}
 
 export default function ClientCard({ client, activities, responsibleName, responsibleProfile, showResponsible, busy, selected, isOwner, canReturnAssignedProspecting, list, confirmAction, onOpen }) {
   // Acesso WhatsApp bloqueado (2026-10-04): o botão WhatsApp NÃO é renderizado (o restante do card segue igual).
@@ -56,10 +59,14 @@ export default function ClientCard({ client, activities, responsibleName, respon
   const tags = Array.isArray(client.tags) ? client.tags : [];
   const agenda = buildAgenda(client, activities);
   const lastContact = client.lastWhatsappContactAt ? formatAgo(client.lastWhatsappContactAt) : "";
+  // DOC-7: a ação "Recebi documentos por fora" saiu do corpo do card para o menu "…" (dono, 2026-10-22); a etiqueta
+  // "1º documento recebido por fora · dd/mm" e o "Desfazer" (10 s) ficam na linha de selos.
+  const offline = useDocumentsOfflineMark({ client, list, confirmAction });
 
   return (
     <article
       aria-labelledby={`card-${client.id}`}
+      data-henry-client-id={client.id}
       className={cx(
         "flex min-w-0 flex-col rounded-card border bg-white transition-[border-color,box-shadow] duration-150",
         selected ? "border-brand ring-1 ring-brand" : "border-line hover:border-navy/20",
@@ -69,10 +76,17 @@ export default function ClientCard({ client, activities, responsibleName, respon
       aria-busy={busy || undefined}
     >
       {/* Cabeçalho: quem é e em que pé está */}
-      <header className="flex items-start gap-2.5 px-3.5 pt-3 sm:px-4">
+      <header className="flex items-start gap-2.5 px-3.5 pt-2.5 sm:px-4">
         <ResponsibleAvatar responsibleProfile={responsibleProfile} />
         <div className="min-w-0 flex-1">
-          <h2 id={`card-${client.id}`} className="flex min-w-0 items-baseline gap-2">
+          <h2 id={`card-${client.id}`} className="flex min-w-0 items-center gap-1.5">
+            {/* Pedido do dono (2026-10-22, card menor): agenda e "sem contato há +3 dias" viraram ícones antes do nome. */}
+            <AgendaIcon agenda={agenda} busy={busy} onOpen={onOpen} />
+            {urgency?.key === "stale" ? (
+              <span role="img" aria-label="Sem contato há mais de 3 dias" title="Sem contato há mais de 3 dias" className="inline-flex shrink-0 text-danger">
+                <TriangleAlert className="h-4 w-4" aria-hidden="true" />
+              </span>
+            ) : null}
             <button type="button" onClick={() => onOpen()} className="truncate text-left text-[15px] font-semibold leading-5 text-ink hover:text-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-1">
               {name}
             </button>
@@ -94,70 +108,77 @@ export default function ClientCard({ client, activities, responsibleName, respon
         </Button>
       </header>
 
-      <div className="flex flex-wrap items-center gap-1.5 px-3.5 pt-2 sm:px-4">
+      <div className="flex flex-wrap items-center gap-1.5 px-3.5 pt-1.5 sm:px-4">
         <StatusControl client={client} name={name} busy={busy} list={list} confirmAction={confirmAction} />
         {showResponsible ? <ResponsibleControl client={client} name={name} responsibleName={responsibleName} busy={busy} list={list} confirmAction={confirmAction} /> : null}
-        {urgency ? <Badge tone={urgency.tone} icon={TriangleAlert}>{urgency.label}</Badge> : null}
+        {urgency && urgency.key !== "stale" ? <Badge tone={urgency.tone} icon={TriangleAlert}>{urgency.label}</Badge> : null}
         {registration.lastFormSubmittedAt ? <Badge tone="info">Novo formulário {formatAgo(registration.lastFormSubmittedAt)}</Badge> : null}
         {client.sponsoredCost ? (
           <span title={client.sponsoredCost.adSpend ? `Custo estimado: gasto do anúncio de origem (${formatMoneyBR(client.sponsoredCost.adSpend)}) dividido entre os ${client.sponsoredCost.adClients} cliente(s) do CRM que vieram dele.` : "Investimento em anúncio para trazer este cliente."}>
             <Badge tone="info">Patrocinado · {formatMoneyBR(client.sponsoredCost.amount)}</Badge>
           </span>
         ) : null}
+        {client.documentsOffline ? <DocumentsOfflineAction offline={offline} busy={busy} /> : null}
       </div>
 
-      {/* Corpo: agenda, simulação e contato */}
-      <div className="mt-2.5 space-y-2 px-3.5 sm:px-4">
-        <AgendaBlock client={client} agenda={agenda} busy={busy} list={list} onOpen={onOpen} />
+      {/* Corpo: simulação e contato (contato, cadastro e tags na mesma linha) */}
+      {/* Dono, 2026-10-22: "tudo mais próximo (em altura)" — espaçamentos verticais do card enxugados. */}
+      <div className="mt-1.5 space-y-1 px-3.5 sm:px-4">
         <SimulationLine client={client} />
-        <p className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[13px] text-ink-2">
+        <div className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[13px] leading-5 text-ink-2">
+          {/* Dono, 2026-10-22: rótulos curtos ("Contato há 6 d") para contato, cadastro e tags caberem numa linha em 360–390px;
+              o texto completo fica no title. Preferência de contato vira só o ícone (com title/aria-label). */}
           {lastContact
-            ? <span>Último contato <span className="font-medium text-ink">{lastContact}</span></span>
+            ? <span title={`Último contato ${lastContact}`}>Contato <span className="font-medium text-ink">{shortAgo(lastContact)}</span></span>
             : <span className="font-medium text-warning">Sem contato</span>}
           <span aria-hidden="true" className="text-faint">·</span>
-          <span>Cadastro {formatAgo(registration.createdAt) || "sem data"}</span>
+          <span title={`Cadastro ${formatAgo(registration.createdAt) || "sem data"}`}>Cadastro {shortAgo(formatAgo(registration.createdAt)) || "sem data"}</span>
           {registration.contactPreference === "call" || registration.contactPreference === "whatsapp" ? (
             <>
               <span aria-hidden="true" className="text-faint">·</span>
-              <span className="inline-flex items-center gap-1">
-                {registration.contactPreference === "call" ? <Phone className="h-3.5 w-3.5 text-brand" aria-hidden="true" /> : <MessageCircle className="h-3.5 w-3.5 text-brand" aria-hidden="true" />}
-                prefere {registration.contactPreference === "call" ? "ligação" : "WhatsApp"}
+              <span role="img" aria-label={`Prefere ${registration.contactPreference === "call" ? "ligação" : "WhatsApp"}`} title={`Prefere ${registration.contactPreference === "call" ? "ligação" : "WhatsApp"}`} className="inline-flex text-brand">
+                {registration.contactPreference === "call" ? <Phone className="h-3.5 w-3.5" aria-hidden="true" /> : <MessageCircle className="h-3.5 w-3.5" aria-hidden="true" />}
               </span>
             </>
           ) : null}
-          {!tags.length ? <AddTagButton onClick={() => onOpen("tags")} /> : null}
-        </p>
-        {tags.length ? <TagsLine tags={tags} onEdit={() => onOpen("tags")} /> : null}
-        {client.documentsOffline ? <DocumentsOfflineAction client={client} busy={busy} list={list} confirmAction={confirmAction} /> : null}
+          {!tags.length ? <AddTagButton onClick={() => onOpen("tags")} /> : <TagsLine tags={tags} onEdit={() => onOpen("tags")} />}
+        </div>
       </div>
 
       <ProspectingStrip client={client} busy={busy} list={list} canReturnAssignedProspecting={canReturnAssignedProspecting} />
-      <div className="h-3 shrink-0" aria-hidden="true" />
+      <div className="h-2 shrink-0" aria-hidden="true" />
 
       {/* Ações do dia a dia */}
       {/* WhatsApp segue primário, mas com o mesmo tamanho de Agendar (pedido do
           dono: pesos próximos, sem o botão dominar o card). */}
-      <footer className="mt-auto flex items-center gap-2 border-t border-line px-3.5 py-2.5 sm:px-4">
-        {whatsappBlocked ? null : <Button size="sm" className="!min-h-touch px-3.5" onClick={() => list.openWhatsApp(client)} disabled={busy}>
-          <MessageCircle className="h-4 w-4" aria-hidden="true" /> WhatsApp
+      {/* Dono, 2026-10-22: botões com metade da altura (24px visíveis); a área de toque segue ≥ 44px pelo ::before (COMPACT_BUTTON). */}
+      {/* Uma linha só (crítica de 2026-10-22): no celular o "…" caía sozinho numa linha extra — agora os botões ficam mais
+          justos (gap e respiro menores abaixo de sm) e o "…" nunca quebra. */}
+      <footer className="mt-auto flex flex-nowrap items-center gap-1.5 border-t border-line px-3.5 py-1.5 sm:gap-2 sm:px-4">
+        {whatsappBlocked ? null : <Button size="sm" className={COMPACT_BUTTON} onClick={() => list.openWhatsApp(client)} disabled={busy}>
+          <MessageCircle className="h-3.5 w-3.5" aria-hidden="true" /> WhatsApp
         </Button>}
         {/* Pedido do dono (2026-10-07): o botão do card abre os valores (renomeado "Simulação"); "Agendar" foi para o menu. */}
-        <Button size="sm" variant="secondary" className="!min-h-touch px-3.5" onClick={() => list.openValues(client)} disabled={busy}>
-          <Calculator className="h-4 w-4" aria-hidden="true" /> Simulação
+        <Button size="sm" variant="secondary" className={COMPACT_BUTTON} onClick={() => list.openValues(client)} disabled={busy}>
+          <Calculator className="h-3.5 w-3.5" aria-hidden="true" /> Simulação
         </Button>
         {/* Dono, 2026-10-20: "Lista de documentos" visível no card (mesma ação da ficha: prévia com Enviar pelo Chat ou só
             "Copiar texto" + motivo quando o envio está bloqueado). Arquivado/Não contactar: o servidor recusa (409). */}
         {registration.id && ![CLIENT_STATUS.ARCHIVED, CLIENT_STATUS.DO_NOT_CONTACT].includes(client.status) ? (
-          <Button size="sm" variant="secondary" className="!min-h-touch px-3" onClick={() => list.prepareDocumentsList(client, { accessBlocked: whatsappBlocked })} disabled={busy} data-card-documents-list="" title="Lista de documentos">
-            <ListChecks className="h-4 w-4" aria-hidden="true" /> <span className="hidden sm:inline">Lista de documentos</span><span className="sm:hidden">Lista</span>
+          <Button size="sm" variant="secondary" className={COMPACT_BUTTON} onClick={() => list.prepareDocumentsList(client, { accessBlocked: whatsappBlocked })} disabled={busy} data-card-documents-list="" title="Lista de documentos">
+            {/* Rótulo curto em todas as larguras: com "Lista de documentos" o rodapé estourava a largura do card e o
+                botão "…" ficava por cima do WhatsApp (dono, 2026-10-21). O nome completo fica no title. */}
+            <ListChecks className="h-3.5 w-3.5" aria-hidden="true" /> Lista
           </Button>
         ) : null}
         <Menu
           label={`Mais ações para ${name}`}
-          trigger={<MoreHorizontal className="h-5 w-5" aria-hidden="true" />}
-          className="ml-auto"
+          trigger={<MoreHorizontal className="h-4 w-4" aria-hidden="true" />}
+          size="xs"
+          className="ml-auto shrink-0"
           items={[
             { label: "Documentação", icon: FileText, onSelect: () => onOpen("documents"), hidden: !registration.id },
+            { label: OFFLINE_ACTION_LABEL, icon: FileText, hidden: !client.documentsOffline || Boolean(offline.receivedAt) || busy, onSelect: offline.mark },
             { label: "Empreendimentos", icon: ExternalLink, hidden: basicMode, onSelect: () => list.openSimulation(client) },
             { label: "Agendar", icon: CalendarPlus, onSelect: () => onOpen("agenda") },
             { label: "Ficha completa", icon: ChevronRight, onSelect: () => onOpen() },
@@ -219,13 +240,13 @@ function StatusControl({ client, name, busy, list, confirmAction }) {
     if (ok) list.updateClientStatus(client, next);
   }
   return (
-    <span className={cx("relative inline-flex h-7 max-w-full items-center gap-1.5 rounded-chip pl-2 pr-1.5 text-xs font-medium focus-within:ring-2 focus-within:ring-brand focus-within:ring-offset-1", PILL_TONES[tone] || PILL_TONES.neutral)}>
+    <span className={cx("relative inline-flex h-6 max-w-full items-center gap-1.5 rounded-chip pl-2 pr-1.5 text-xs font-medium focus-within:ring-2 focus-within:ring-brand focus-within:ring-offset-1", PILL_TONES[tone] || PILL_TONES.neutral)}>
       <span className={cx("h-1.5 w-1.5 shrink-0 rounded-full", DOT_TONES[tone] || DOT_TONES.neutral)} aria-hidden="true" />
       <span className="truncate">{clientStatusLabel(client.status)}</span>
       <ChevronDown className="h-3.5 w-3.5 shrink-0 opacity-70" aria-hidden="true" />
       <select
         aria-label={`Etapa de ${name}: ${clientStatusLabel(client.status)}. Alterar etapa`}
-        className="absolute inset-0 h-full w-full cursor-pointer opacity-0 disabled:cursor-not-allowed"
+        className="absolute inset-x-0 -top-2.5 h-11 w-full cursor-pointer opacity-0 disabled:cursor-not-allowed"
         value={client.status}
         disabled={busy}
         onChange={(event) => change(event.target.value)}
@@ -263,13 +284,13 @@ function ResponsibleControl({ client, name, responsibleName, busy, list, confirm
     if (ok) list.updateClientResponsibleUser(client, next);
   }
   return (
-    <span className="relative inline-flex h-7 max-w-[13rem] items-center gap-1 rounded-chip border border-line bg-white pl-1.5 pr-1.5 text-xs font-medium text-ink-2 focus-within:ring-2 focus-within:ring-brand focus-within:ring-offset-1 hover:border-navy/25">
+    <span className="relative inline-flex h-6 max-w-[13rem] items-center gap-1 rounded-chip border border-line bg-white pl-1.5 pr-1.5 text-xs font-medium text-ink-2 focus-within:ring-2 focus-within:ring-brand focus-within:ring-offset-1 hover:border-navy/25">
       <UserRound className="h-3.5 w-3.5 shrink-0 text-muted" aria-hidden="true" />
-      <span className="truncate">{responsibleName}</span>
+      <span className="truncate" title={responsibleName}>{responsibleName}</span>
       <ChevronDown className="h-3.5 w-3.5 shrink-0 opacity-70" aria-hidden="true" />
       <select
         aria-label={`Responsável por ${name}: ${responsibleName}. Trocar responsável`}
-        className="absolute inset-0 h-full w-full cursor-pointer opacity-0 disabled:cursor-not-allowed"
+        className="absolute inset-x-0 -top-2.5 h-11 w-full cursor-pointer opacity-0 disabled:cursor-not-allowed"
         value={value}
         disabled={busy}
         onChange={(event) => change(event.target.value)}
@@ -316,89 +337,62 @@ function buildAgenda(client, activities) {
     .map((item) => ({ ...item, overdue: item.time < now }));
 }
 
-function AgendaBlock({ client, agenda, busy, list, onOpen }) {
-  if (!agenda.length) {
-    return (
-      <p className="flex items-center gap-2 text-[13px] text-ink-2">
-        <CalendarPlus className="h-4 w-4 shrink-0 text-faint" aria-hidden="true" />
-        Nenhuma atividade agendada
-      </p>
-    );
-  }
-  const visible = agenda.slice(0, MAX_ACTIVITIES);
-  const hidden = agenda.length - visible.length;
-  return (
-    <ul className="space-y-1" aria-label="Próximas atividades">
-      {visible.map((item) => (
-        <li key={item.key} className={cx("flex items-center gap-2 rounded-control py-0.5 pl-2.5 pr-0.5", item.overdue ? "bg-danger-soft" : "bg-mist")}>
-          <CalendarClock className={cx("h-4 w-4 shrink-0", item.overdue ? "text-danger" : "text-brand")} aria-hidden="true" />
-          <p className="flex min-w-0 flex-1 items-baseline gap-1 text-[13px] leading-5" title={item.note || undefined}>
-            <span className={cx("shrink-0 font-semibold tabular-nums", item.overdue ? "text-danger" : "text-ink")}>{item.overdue ? "Atrasada · " : ""}{formatWhen(item.at)}</span>
-            {item.note ? <span className="min-w-0 truncate text-ink-2">· {item.note}</span> : null}
-          </p>
-          {item.main ? (
-            <>
-              <SmallAction label="Concluir atividade" onClick={() => list.completeClientSchedule(client)} disabled={busy}><Check className="h-4 w-4" /></SmallAction>
-              <SmallAction label="Editar agendamento" onClick={() => onOpen("agenda")} disabled={busy}><Pencil className="h-3.5 w-3.5" /></SmallAction>
-            </>
-          ) : (
-            <>
-              <SmallAction label="Concluir atividade" onClick={() => list.completeClientActivity(client, item.id)} disabled={busy}><Check className="h-4 w-4" /></SmallAction>
-              <SmallAction label="Cancelar atividade" tone="danger" onClick={() => list.cancelClientActivity(client, item.id)} disabled={busy}><X className="h-4 w-4" /></SmallAction>
-            </>
-          )}
-        </li>
-      ))}
-      {hidden > 0 ? (
-        <li>
-          <button type="button" onClick={() => onOpen("agenda")} className="px-1 text-[13px] font-semibold text-brand hover:underline">+{hidden} {hidden === 1 ? "atividade" : "atividades"}</button>
-        </li>
-      ) : null}
-    </ul>
-  );
+// Ícone de agenda antes do nome: cinza = nada agendado, verde = atividade futura, vermelho = atrasada. O texto da
+// atividade (data + observação) fica no title/aria-label; concluir/cancelar/editar seguem na ficha (aba Agenda).
+function formatActivityStamp(value) {
+  const date = new Date(value || "");
+  if (Number.isNaN(date.getTime())) return "";
+  return new Intl.DateTimeFormat("pt-BR", { timeZone: "America/Sao_Paulo", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }).format(date).replace(",", "");
 }
 
-function SmallAction({ label, onClick, disabled, tone, children }) {
+function AgendaIcon({ agenda, busy, onOpen }) {
+  const first = agenda[0];
+  const overdueCount = agenda.filter((item) => item.overdue).length;
+  const extra = agenda.length > 1 ? ` (+${agenda.length - 1} ${agenda.length === 2 ? "atividade" : "atividades"})` : "";
+  const describe = (item) => [formatActivityStamp(item.at), item.note].filter(Boolean).join(" · ");
+  const state = !first ? "none" : overdueCount ? "overdue" : "scheduled";
+  const label = state === "none"
+    ? "Nenhuma atividade agendada. Agendar"
+    : state === "overdue"
+      ? `Atividade atrasada: ${describe(agenda.find((item) => item.overdue))}${extra}`
+      : `Atividade agendada: ${describe(first)}${extra}`;
+  const Icon = state === "none" ? CalendarPlus : CalendarClock;
   return (
     <button
       type="button"
+      onClick={() => onOpen("agenda")}
+      disabled={busy}
       aria-label={label}
       title={label}
-      onClick={onClick}
-      disabled={disabled}
+      data-agenda-state={state}
       className={cx(
-        "inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-chip transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand disabled:opacity-50",
-        tone === "danger" ? "text-danger hover:bg-white" : "text-ink-2 hover:bg-white hover:text-ink"
+        "relative inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-chip transition-colors after:absolute after:-inset-2.5 after:content-[''] hover:bg-mist focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand disabled:opacity-50",
+        state === "overdue" ? "text-danger" : state === "scheduled" ? "text-success" : "text-ink-2"
       )}
     >
-      {children}
+      <Icon className="h-4 w-4" aria-hidden="true" />
     </button>
   );
 }
 
+// Dono, 2026-10-22: título e detalhe da simulação numa linha só ("Simulação a fazer · Renda R$ … · CLT"), quebrando
+// só se faltar espaço. Mesma informação de antes.
 function SimulationLine({ client }) {
   if (client.completed && client.summary) {
     return (
-      <div className="min-w-0">
-        <p className="text-[13px] text-ink-2">
-          Poder de compra <span className="ml-1 text-base font-bold tracking-[-0.01em] text-navy tabular-nums">{formatMoneyBR(client.summary.purchasePower)}</span>
-        </p>
-        {client.summary.components?.length ? <p className="truncate text-xs leading-4 text-muted tabular-nums" title={client.summary.components.join(" · ")}>{client.summary.components.join(" · ")}</p> : null}
-      </div>
+      <p className="flex min-w-0 flex-wrap items-baseline gap-x-1.5 text-[13px] leading-5 text-ink-2">
+        <span>Poder de compra <span className="ml-1 text-base font-bold leading-5 tracking-[-0.01em] text-navy tabular-nums">{formatMoneyBR(client.summary.purchasePower)}</span></span>
+      </p>
     );
   }
   // Simulação automática do site (SIM-AUTO): mostra a estimativa no lugar de "Simulação a fazer".
   const automatic = client.summary?.automatic;
   if (automatic) {
     return (
-      <div className="min-w-0">
-        <p className="text-[13px] text-ink-2">
-          Poder de compra <span className="ml-1 text-base font-bold tracking-[-0.01em] text-navy tabular-nums">{formatMoneyBR(automatic.purchasePower)}</span>
-        </p>
-        <p className="truncate text-xs leading-4 text-muted tabular-nums">
-          {[automatic.firstInstallment > 0 ? `Parcela ${formatMoneyBR(automatic.firstInstallment)}` : "", "estimativa automática"].filter(Boolean).join(" · ")}
-        </p>
-      </div>
+      <p className="flex min-w-0 flex-wrap items-baseline gap-x-1.5 text-[13px] leading-5 text-ink-2">
+        <span>Poder de compra <span className="ml-1 text-base font-bold leading-5 tracking-[-0.01em] text-navy tabular-nums">{formatMoneyBR(automatic.purchasePower)}</span></span>
+        <DetailText>{[automatic.firstInstallment > 0 ? `Parcela ${formatMoneyBR(automatic.firstInstallment)}` : "", "estimativa automática"].filter(Boolean).join(" · ")}</DetailText>
+      </p>
     );
   }
   const registration = client.registration;
@@ -406,14 +400,23 @@ function SimulationLine({ client }) {
   const filled = registration && hasSimulationData(registration);
   const details = filled ? [
     Number(registration.primaryMonthlyIncome) > 0 ? `Renda ${formatCurrency(registration.primaryMonthlyIncome)}` : "",
-    registration.primaryIncomeType ? incomeTypeLabel(registration.primaryIncomeType) : "",
+    registration.primaryIncomeType ? incomeTypeLabel(registration.primaryIncomeType).replace(/^Regime /, "") : "",
     Number(registration.availablePurchaseResource) > 0 ? `Recurso ${formatCurrency(registration.availablePurchaseResource)}` : ""
   ].filter(Boolean) : [];
   return (
-    <div className="min-w-0">
-      <p className={cx("text-[13px] font-medium", awaiting ? "text-warning" : "text-ink-2")}>{awaiting ? "Simulação a fazer" : "Simulação ainda não realizada"}</p>
-      {details.length ? <p className="truncate text-xs leading-4 text-muted">{details.join(" · ")}</p> : null}
-    </div>
+    <p className="flex min-w-0 flex-wrap items-baseline gap-x-1.5 text-[13px] leading-5">
+      <span className={cx("font-medium", awaiting ? "text-warning" : "text-ink-2")}>{awaiting ? "Simulação a fazer" : "Simulação ainda não realizada"}</span>
+      {details.length ? <DetailText>{details.join(" · ")}</DetailText> : null}
+    </p>
+  );
+}
+
+function DetailText({ children }) {
+  return (
+    <>
+      <span aria-hidden="true" className="text-faint">·</span>
+      <span className="min-w-0 text-xs text-muted tabular-nums">{children}</span>
+    </>
   );
 }
 
@@ -426,7 +429,7 @@ function formatDayMonth(value) {
   return new Intl.DateTimeFormat("pt-BR", { timeZone: "America/Sao_Paulo", day: "2-digit", month: "2-digit" }).format(date);
 }
 
-function DocumentsOfflineAction({ client, busy, list, confirmAction }) {
+function useDocumentsOfflineMark({ client, list, confirmAction }) {
   const receivedAt = client.documentsOffline?.receivedAt || "";
   const [undoUntil, setUndoUntil] = useState(0);
   useEffect(() => {
@@ -444,26 +447,23 @@ function DocumentsOfflineAction({ client, busy, list, confirmAction }) {
     setUndoUntil(0);
     await list.setDocumentReceivedOffline(client, { undo: true });
   }
+  return { receivedAt, undoUntil, mark, undo };
+}
 
-  if (receivedAt) {
-    return (
-      <p className="flex flex-wrap items-center gap-2 text-xs" data-documents-offline="marked">
-        <span className="inline-flex items-center gap-1.5 rounded-full border border-line px-2 py-0.5 font-medium text-ink-2">
-          <FileText className="h-3.5 w-3.5 text-muted" aria-hidden="true" />
-          {offlineMarkLabel(receivedAt, formatDayMonth)}
-        </span>
-        {undoUntil ? (
-          <button type="button" onClick={undo} disabled={busy} className="inline-flex min-h-touch items-center rounded-chip px-1 font-semibold text-brand hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand disabled:opacity-50">
-            Desfazer
-          </button>
-        ) : null}
-      </p>
-    );
-  }
+function DocumentsOfflineAction({ offline, busy }) {
+  if (!offline.receivedAt) return null;
   return (
-    <Button size="sm" variant="secondary" className="!min-h-touch px-3" onClick={mark} disabled={busy} data-documents-offline="action">
-      <FileText className="h-4 w-4" aria-hidden="true" /> {OFFLINE_ACTION_LABEL}
-    </Button>
+    <span className="inline-flex flex-wrap items-center gap-1.5 text-xs" data-documents-offline="marked">
+      <span className="inline-flex h-6 items-center gap-1.5 rounded-full border border-line px-2 font-medium text-ink-2">
+        <FileText className="h-3.5 w-3.5 text-muted" aria-hidden="true" />
+        {offlineMarkLabel(offline.receivedAt, formatDayMonth)}
+      </span>
+      {offline.undoUntil ? (
+        <button type="button" onClick={offline.undo} disabled={busy} className="relative inline-flex h-6 items-center rounded-chip px-1 font-semibold text-brand after:absolute after:inset-x-0 after:-inset-y-2.5 after:content-[''] hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand disabled:opacity-50">
+          Desfazer
+        </button>
+      ) : null}
+    </span>
   );
 }
 
@@ -471,8 +471,8 @@ function AddTagButton({ onClick }) {
   return (
     <>
       <span aria-hidden="true" className="text-faint">·</span>
-      <button type="button" onClick={onClick} className="inline-flex items-center gap-1 rounded-chip font-semibold text-brand hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand">
-        <TagIcon className="h-3.5 w-3.5" aria-hidden="true" /> Adicionar tag
+      <button type="button" onClick={onClick} aria-label="Adicionar tag" title="Adicionar tag" className="relative inline-flex h-6 w-6 items-center justify-center rounded-chip text-brand after:absolute after:-inset-2.5 after:content-[''] hover:bg-info-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand">
+        <TagIcon className="h-3.5 w-3.5" aria-hidden="true" />
       </button>
     </>
   );
@@ -481,18 +481,19 @@ function AddTagButton({ onClick }) {
 function TagsLine({ tags, onEdit }) {
   const visible = tags.slice(0, MAX_TAGS);
   return (
-    <div className="flex flex-wrap items-center gap-1.5">
+    <>
+      <span aria-hidden="true" className="text-faint">·</span>
       {visible.map((tag) => (
-        <span key={tag.id} className="inline-flex max-w-[11rem] items-center gap-1.5 rounded-full border border-line px-2 py-0.5 text-xs font-medium text-ink">
+        <span key={tag.id} className="inline-flex max-w-[11rem] items-center gap-1.5 rounded-full border border-line px-2 py-0 text-xs font-medium leading-[18px] text-ink">
           <span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: tag.color || "#0D4F8B" }} aria-hidden="true" />
           <span className="truncate">{tag.name}</span>
         </span>
       ))}
       {tags.length > MAX_TAGS ? <span className="text-xs font-medium text-muted">+{tags.length - MAX_TAGS}</span> : null}
-      <button type="button" onClick={onEdit} className="inline-flex h-7 items-center gap-1 rounded-full px-2 text-xs font-semibold text-brand hover:bg-info-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand">
+      <button type="button" onClick={onEdit} className="relative inline-flex h-5 items-center gap-1 rounded-full px-2 after:absolute after:inset-x-0 after:-inset-y-3 after:content-[''] text-xs font-semibold text-brand hover:bg-info-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand">
         <TagIcon className="h-3.5 w-3.5" aria-hidden="true" /> Tags
       </button>
-    </div>
+    </>
   );
 }
 
@@ -505,7 +506,7 @@ function ProspectingStrip({ client, busy, list, canReturnAssignedProspecting }) 
   const canReturn = canReturnAssignedProspecting && registration.prospectingAssignedByUserId;
   if (!pending && !awaitingReturn && !(client.status === CLIENT_STATUS.IN_SERVICE && canReturn)) return null;
   return (
-    <div className="mx-3.5 mt-2.5 flex flex-wrap items-center gap-1.5 rounded-control bg-info-soft px-2.5 py-1.5 sm:mx-4">
+    <div className="mx-3.5 mt-1.5 flex flex-wrap items-center gap-1.5 rounded-control bg-info-soft px-2.5 py-1.5 sm:mx-4">
       <span className="mr-auto text-xs font-semibold text-info">Prospecção</span>
       {pending ? <Button size="sm" disabled={busy} onClick={() => list.handleProspectingAction(client, "prospect")}>Prospectar</Button> : null}
       {pending || awaitingReturn ? <Button size="sm" variant="secondary" disabled={busy} onClick={() => list.handleProspectingAction(client, "in_service")}>Em atendimento</Button> : null}

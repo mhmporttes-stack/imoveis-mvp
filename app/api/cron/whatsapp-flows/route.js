@@ -2,8 +2,11 @@ import { NextResponse } from "next/server";
 import { createHash, timingSafeEqual } from "crypto";
 import { processDueFlowSessions } from "@/lib/whatsapp-flows";
 import { processFormReminders } from "@/lib/whatsapp-form-reminder";
+import { processAutoSimulationSends } from "@/lib/simulation-auto-send";
+import { processWelcomeVoiceAudios } from "@/lib/client-voice-audio";
 import { checkWhatsappServiceStalled } from "@/lib/whatsapp-service-stall";
 import { checkFalseConnections } from "@/lib/whatsapp-false-connection";
+import { checkMarketplaceExtensionSignal, checkMarketplaceRedistributionStalled } from "@/lib/marketplace-chat";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -45,18 +48,44 @@ export async function GET(request) {
     console.error("Falha ao processar o lembrete do formulário.", error);
     remindersError = error;
   }
+  // Envio automático da simulação automática (SIM-AUTO-ENVIO, dono 2026-10-23) — rodado à parte: erro aqui nunca impede o
+  // resto do cron e aparece na resposta/log.
+  let autoSimulationSends = null;
+  try {
+    autoSimulationSends = await processAutoSimulationSends();
+  } catch (error) {
+    console.error("Falha ao processar o envio automático da simulação.", error);
+    autoSimulationSends = { error: "Falha ao processar o envio automático da simulação." };
+  }
+  // Boas-vindas em áudio com a voz do dono ao lead novo da roleta (VOZ-1, dono 2026-10-23). Nasce desligado; à parte: erro
+  // aqui nunca impede o resto do cron.
+  let welcomeVoiceAudios = null;
+  try {
+    welcomeVoiceAudios = await processWelcomeVoiceAudios();
+  } catch (error) {
+    console.error("Falha ao processar as boas-vindas em áudio.", error);
+    welcomeVoiceAudios = { error: "Falha ao processar as boas-vindas em áudio." };
+  }
   // Serviço do WhatsApp parado (lease sem renovar há > 5 min) -> alerta à administração. Nunca lança (WA-22).
   const serviceStall = await checkWhatsappServiceStalled();
   // Número "conectado" que não recebe (quedas 500/428 em loop ou silêncio em horário comercial): marca, avisa e pinta a tela. Nunca lança.
   const falseConnections = await checkFalseConnections();
+  // Redistribuição do Chat do Marketplace sem rodar com sucesso há > 10 min -> alerta aos admins gerais (MKT-2e). Nunca lança.
+  const marketplaceRedistribution = await checkMarketplaceRedistributionStalled();
+  // Extensão do Marketplace sem sinal há > 30 min no horário da sincronização -> aviso aos admins; volta -> aviso (MKT-2g). Nunca lança.
+  const marketplaceExtension = await checkMarketplaceExtensionSignal();
   if (flowsError || remindersError) {
     return NextResponse.json({
       error: flowsError ? "Falha ao processar os fluxos." : "Falha ao processar o lembrete do formulário.",
       ...(flows || {}),
       ...(formReminders ? { formReminders } : {}),
+      autoSimulationSends,
+      welcomeVoiceAudios,
       serviceStall,
-      falseConnections
+      falseConnections,
+      marketplaceRedistribution,
+      marketplaceExtension
     }, { status: 500 });
   }
-  return NextResponse.json({ ok: true, ...flows, formReminders, serviceStall, falseConnections });
+  return NextResponse.json({ ok: true, ...flows, formReminders, autoSimulationSends, welcomeVoiceAudios, serviceStall, falseConnections, marketplaceRedistribution, marketplaceExtension });
 }

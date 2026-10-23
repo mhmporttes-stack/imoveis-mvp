@@ -36,7 +36,7 @@ export default function AdminViewAsSelector({ users }) {
   }
 
   return (
-    <section className="container-page rounded-[28px] border border-line bg-white p-6 shadow-soft md:p-8">
+    <section className="container-page rounded-panel border border-line bg-white p-6 shadow-soft md:p-8">
       <p className="text-sm font-black uppercase tracking-[0.18em] text-brand">Acesso rápido</p>
       <h2 className="mt-2 text-3xl font-black text-navy">Alterar conta</h2>
       <p className="mt-3 max-w-2xl font-semibold text-muted">Acesse uma conta ativa sem informar novamente login e senha.</p>

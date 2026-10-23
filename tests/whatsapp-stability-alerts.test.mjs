@@ -8,7 +8,7 @@ import {
   STALL_THRESHOLD_MS, buildServiceStallDeliveries, decideServiceStall, resolveServiceStallRecipients
 } from "../lib/whatsapp-service-stall-core.mjs";
 import { alertSubjectKey } from "../lib/whatsapp-session-slots.mjs";
-import { isNotificationAllowed } from "../lib/notification-policy-core.mjs";
+import { alertPushKind, isNotificationAllowed } from "../lib/notification-policy-core.mjs";
 import { onlyOwnRows } from "../lib/crm-alerts-core.mjs";
 
 const read = (file) => readFileSync(new URL(`../${file}`, import.meta.url), "utf8");
@@ -78,7 +78,10 @@ test("alerta direto: destinatário explícito = só o dono; Importante; chamada 
 test("push do alerta direto: só o tipo whatsapp_connection passa pela política; os demais alertas continuam bloqueados", () => {
   assert.equal(isNotificationAllowed("whatsapp_connection"), true);
   const alerts = read("lib/crm-alerts.js");
-  assert.ok(alerts.includes("row.context?.push_kind === NOTIFICATION_KIND.WHATSAPP_CONNECTION"));
+  // Ponto único `alertPushKind` (lista fechada: whatsapp_connection + marketplace_extension_silent, dono 2026-10-22).
+  assert.ok(alerts.includes("const pushKind = alertPushKind(row.context);"));
+  assert.equal(alertPushKind({ push_kind: "whatsapp_connection" }), "whatsapp_connection");
+  assert.equal(alertPushKind({ push_kind: "alert" }), undefined);
   const wiring = read("lib/whatsapp-individual.js");
   assert.ok(wiring.includes("notifyBrokerOwnConnection(userId, prevRow, { status, error, slot: sessionSlot })"));
   const detection = read("lib/whatsapp-connection-alert.js");

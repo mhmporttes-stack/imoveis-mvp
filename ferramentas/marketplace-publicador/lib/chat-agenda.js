@@ -68,6 +68,22 @@ export function threadsToRead(threads = [], known = {}) {
     .slice(0, MAX_THREADS_PER_ROUND);
 }
 
+// 1ª carga (dono, 2026-10-21: "os anteriores não carregue"): conversa cuja última atividade na lista (hora/data
+// relativa da caixa: "18:34" = hoje, "Ontem"/"1 d" = ontem…) é anterior a ignoreBefore (dia, São Paulo) nem é aberta.
+// A última atividade é >= a última mensagem do cliente, então nada recente é pulado. Sem data reconhecida → lê
+// (o CRM decide). As ignoradas têm a prévia guardada: só voltam se aparecer mensagem nova.
+export function splitIgnored(threads = [], ignoreBefore = "") {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(ignoreBefore || ""))) return { keep: threads, ignored: [] };
+  const keep = [];
+  const ignored = [];
+  for (const thread of threads) {
+    const at = thread.lastActivityAt ? new Date(thread.lastActivityAt) : null;
+    if (at && Number.isFinite(at.getTime()) && saoPauloParts(at).dateKey < ignoreBefore) ignored.push(thread);
+    else keep.push(thread);
+  }
+  return { keep, ignored };
+}
+
 export function rememberPreviews(known = {}, threads = []) {
   const next = { ...known };
   for (const thread of threads) next[thread.threadKey] = thread.preview;
@@ -80,5 +96,41 @@ export function rememberPreviews(known = {}, threads = []) {
 // Corpo do retorno de um envio: só pede nova tentativa se não chegou a apertar Enter (nada saiu no Facebook).
 export function outboundResultBody(outcome = {}) {
   if (outcome.ok) return { status: "sent" };
-  return { status: "failed", error: String(outcome.error || "Falha sem descrição.").slice(0, 500), retry: !outcome.sentAttempted && !outcome.checkpoint };
+  return { status: "failed", error: String(outcome.error || "Falha sem descrição.").slice(0, 500), retry: !outcome.sentAttempted && !outcome.checkpoint, unconfirmed: Boolean(outcome.unconfirmed) };
+}
+
+// Nova tentativa espaçada por conversa (1.9.3). Diagnóstico real de 21–22/10: a mesma conversa que não abria era
+// tentada de novo a cada rodada (2 min), gastando 25 s a 3,5 min, trocando a aba do Facebook na frente e travando as
+// outras. Agora, depois de uma falha, a conversa espera 4 → 8 → 15 → 30 min (teto) antes de nova tentativa; leitura
+// bem-sucedida zera. Falha por aba oculta (Chrome sem mostrar a página) não conta: não é culpa da conversa.
+export const THREAD_RETRY_STEPS_MIN = [4, 8, 15, 30];
+
+export function threadRetryBlocked(backoff = {}, threadKey, now = new Date()) {
+  const entry = backoff?.[threadKey];
+  return Boolean(entry?.nextAt && new Date(entry.nextAt).getTime() > now.getTime());
+}
+
+export function recordThreadFailure(backoff = {}, threadKey, now = new Date()) {
+  const fails = Number(backoff?.[threadKey]?.fails || 0) + 1;
+  const minutes = THREAD_RETRY_STEPS_MIN[Math.min(fails, THREAD_RETRY_STEPS_MIN.length) - 1];
+  const next = { ...backoff, [threadKey]: { fails, nextAt: new Date(now.getTime() + minutes * 60 * 1000).toISOString() } };
+  // Guarda no máximo 100 conversas (as mais antigas saem).
+  const keys = Object.keys(next);
+  for (const key of keys.slice(0, Math.max(0, keys.length - 100))) delete next[key];
+  return next;
+}
+
+export function clearThreadFailure(backoff = {}, threadKey) {
+  if (!backoff?.[threadKey]) return backoff || {};
+  const next = { ...backoff };
+  delete next[threadKey];
+  return next;
+}
+
+// Diagnóstico de conversa que não abriu (1.9.3): no máximo 1 a cada 30 min POR TIPO de falha (antes era 1 a cada
+// 30 min no total — uma falha nova ficava escondida atrás da repetida); "aba_oculta" (causa já conhecida) 1 a cada 2 h.
+export function diagnosticDue(sentAt = {}, result = "", now = new Date()) {
+  const every = result === "aba_oculta" ? 2 * 60 * 60 * 1000 : 30 * 60 * 1000;
+  const last = new Date(sentAt?.[result] || 0).getTime();
+  return !Number.isFinite(last) || now.getTime() - last >= every;
 }

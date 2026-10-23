@@ -9,6 +9,7 @@ import Field, { inputClasses } from "@/components/ui/Field";
 import { MARKETPLACE_MAX_PHOTOS, STATUS_LABELS, facebookSummary } from "@/lib/marketplace-core.mjs";
 import { moveItem, useDragReorder } from "@/components/ui/useDragReorder";
 import { compressForUpload, uploadPhoto } from "@/components/image-upload";
+import { SettingsCard as ChatSyncSettingsCard } from "@/components/marketplace/MarketplaceChat";
 
 // Publicador do Facebook Marketplace (MKT-1). Toda regra (aprovação, fila, limites) fica no servidor
 // (lib/marketplace-core.mjs); a tela só mostra e chama /api/admin/marketplace/**.
@@ -260,8 +261,9 @@ export default function MarketplaceAdmin({ initialListings = [], ready = true, i
   return (
     <section className="container-page space-y-6">
       <header className="space-y-1">
-        <h1 className="text-[28px] font-semibold text-navy">Facebook Marketplace</h1>
-        <p className="text-sm text-muted">
+        {/* Título no cabeçalho do painel (visual novo): aqui só para leitor de tela. */}
+        <h1 className="sr-only">Facebook Marketplace</h1>
+        <p className="max-w-3xl text-sm text-muted">
           A extensão do Chrome no seu computador publica sozinha, no seu perfil do Facebook, só os anúncios que você aprovar aqui
           (até 3 por dia, um de cada vez). Editar um anúncio tira a aprovação.
         </p>
@@ -288,6 +290,8 @@ export default function MarketplaceAdmin({ initialListings = [], ready = true, i
       </Card>
 
       <GroupsCard />
+      {/* Sincronização do Chat do Marketplace (antes no topo do Chat; dono, 2026-10-22). */}
+      <ChatSyncSettingsCard />
 
       <Card as="form" onSubmit={save} className="space-y-4">
         <h2 className="text-lg font-semibold text-navy">{editingId ? "Editar anúncio" : "Novo anúncio"}</h2>

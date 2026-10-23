@@ -2,7 +2,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { ALLOWED_NOTIFICATION_KINDS, NOTIFICATION_KIND, isNotificationAllowed, notificationKindForAutomationTrigger } from "../lib/notification-policy-core.mjs";
+import { ALERT_PUSH_KINDS, ALLOWED_NOTIFICATION_KINDS, NOTIFICATION_KIND, alertPushKind, isNotificationAllowed, notificationKindForAutomationTrigger } from "../lib/notification-policy-core.mjs";
 
 const read = (file) => readFileSync(new URL(`../${file}`, import.meta.url), "utf8");
 
@@ -10,8 +10,9 @@ test("só cliente novo, atividade agendada, transferência de clientes e teste s
   // whatsapp_connection: exceção do dono (2026-10-10, WA-20) — push da queda do PRÓPRIO WhatsApp, só ao corretor dono.
   // official_chat_assigned: exceção do dono (2026-10-18, PRES-25) — conversa do oficial atribuída pelo código do atendimento.
   // documents_list_auto: exceção do dono (2026-10-20) — lista de documentos pedida no oficial (enviada sozinha ou pendente).
-  assert.deepEqual([...ALLOWED_NOTIFICATION_KINDS].sort(), ["clients_transferred", "documents_list_auto", "new_client", "official_chat_assigned", "scheduled_activity", "test", "whatsapp_connection"]);
-  for (const kind of ["new_client", "scheduled_activity", "clients_transferred", "test", "whatsapp_connection", "official_chat_assigned", "documents_list_auto"]) assert.equal(isNotificationAllowed(kind), true, kind);
+  // marketplace_extension_silent: exceção do dono (2026-10-22, MKT-2g) — extensão do Marketplace sem sinal, push aos admins.
+  assert.deepEqual([...ALLOWED_NOTIFICATION_KINDS].sort(), ["clients_transferred", "documents_list_auto", "marketplace_extension_silent", "marketplace_internal", "new_client", "official_chat_assigned", "scheduled_activity", "test", "whatsapp_connection"]);
+  for (const kind of ["new_client", "scheduled_activity", "clients_transferred", "test", "whatsapp_connection", "official_chat_assigned", "documents_list_auto", "marketplace_extension_silent", "marketplace_internal"]) assert.equal(isNotificationAllowed(kind), true, kind);
   for (const kind of ["chat_message", "chat_internal", "document_analysis", "automation", "prospecting_reply", "alert", "", undefined, null]) assert.equal(isNotificationAllowed(kind), false, String(kind));
 });
 
@@ -41,9 +42,20 @@ test("push: chamadores permitidos declaram o tipo; os demais NÃO declaram (fica
     assert.ok(!/sendPushToUser\([^)]*kind:/.test(read(file)), `${file} não pode declarar tipo permitido`);
   }
   // Central de Alertas: o push só sai com tipo permitido quando o alerta declara `push_kind` = whatsapp_connection
-  // (queda do próprio WhatsApp, dono 2026-10-10); qualquer outro valor vira "sem tipo" e continua bloqueado.
+  // (queda do próprio WhatsApp, dono 2026-10-10) ou marketplace_extension_silent (extensão do Marketplace sem sinal, dono
+  // 2026-10-22); qualquer outro valor vira "sem tipo" e continua bloqueado.
   const alerts = read("lib/crm-alerts.js");
-  assert.ok(alerts.includes("row.context?.push_kind === NOTIFICATION_KIND.WHATSAPP_CONNECTION ? NOTIFICATION_KIND.WHATSAPP_CONNECTION : undefined"));
+  assert.ok(alerts.includes("const pushKind = alertPushKind(row.context);"));
+  assert.deepEqual([...ALERT_PUSH_KINDS].sort(), ["marketplace_extension_silent", "whatsapp_connection"]);
+  assert.equal(alertPushKind({ push_kind: "whatsapp_connection" }), "whatsapp_connection");
+  assert.equal(alertPushKind({ push_kind: "marketplace_extension_silent" }), "marketplace_extension_silent");
+  for (const value of ["new_client", "official_chat_assigned", "documents_list_auto", "test", "", undefined]) assert.equal(alertPushKind({ push_kind: value }), undefined, String(value));
+  assert.equal(alertPushKind(null), undefined);
+  // Extensão do Marketplace: só o aviso "sem sinal" declara o push; o de volta (Informativo) fica só no sino.
+  const marketplace = read("lib/marketplace-chat.js");
+  assert.equal(marketplace.split("push_kind: NOTIFICATION_KIND.MARKETPLACE_EXTENSION_SILENT").length - 1, 1);
+  const back = marketplace.slice(marketplace.indexOf("// Voltou depois de um aviso"), marketplace.indexOf("EXTENSION_ALERT_STATE_ID, { episode: null"));
+  assert.ok(back.length > 0 && !back.includes("push_kind"));
   assert.ok(!/kind: "(new_client|scheduled_activity|clients_transferred|test)"/.test(alerts));
 });
 
@@ -62,4 +74,7 @@ test("sino: avisos de cliente novo usam o tipo permitido; Roleta parou/Documenta
   assert.ok(exception.includes("set search_path = public, extensions"));
   const listAuto = read("supabase/migrations/20261020240000_crm_notifications_documents_list_auto.sql");
   assert.ok(listAuto.includes("('new_client', 'scheduled_activity', 'clients_transferred', 'official_chat_assigned', 'documents_list_auto')"));
+  // marketplace_internal: exceção do dono (2026-10-22, MKT-2i) — nota interna do Chat do Marketplace. chat_internal (WhatsApp) segue fora.
+  const mktInternal = read("supabase/migrations/20261022231000_crm_notifications_marketplace_internal.sql");
+  assert.ok(mktInternal.includes("('new_client', 'scheduled_activity', 'clients_transferred', 'official_chat_assigned', 'documents_list_auto', 'marketplace_internal')"));
 });

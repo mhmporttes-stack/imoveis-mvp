@@ -9,6 +9,7 @@ import FlowNodePanel from "@/components/flows/FlowNodePanel";
 import FlowPreview from "@/components/flows/FlowPreview";
 import { NODE_META, TONES } from "@/components/flows/flow-ui";
 import { defaultNodeData, getOutputPorts, newId, validateGraph, validateTrigger } from "@/lib/whatsapp-flow-core.mjs";
+import { tabClasses } from "@/components/ui/Tabs";
 
 const HISTORY_LIMIT = 60;
 const AUTOSAVE_MS = 1000;
@@ -333,9 +334,9 @@ export default function FlowEditor({ initialFlow }) {
         <div className="ml-auto flex flex-wrap items-center gap-2">
           <button type="button" onClick={undo} disabled={!pastRef.current.length} title="Desfazer (Ctrl+Z)" aria-label="Desfazer" className="rounded-full border border-line p-2 text-navy hover:bg-mist disabled:opacity-40"><Undo2 className="h-4 w-4" /></button>
           <button type="button" onClick={redo} disabled={!futureRef.current.length} title="Refazer (Ctrl+Shift+Z)" aria-label="Refazer" className="rounded-full border border-line p-2 text-navy hover:bg-mist disabled:opacity-40"><Redo2 className="h-4 w-4" /></button>
-          <div className="flex rounded-full border border-line p-0.5">
-            <button type="button" onClick={() => setView("map")} className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-black ${view === "map" ? "bg-navy text-white" : "text-navy"}`}><MapIcon className="h-3.5 w-3.5" />Mapa</button>
-            <button type="button" onClick={() => setView("list")} className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-black ${view === "list" ? "bg-navy text-white" : "text-navy"}`}><LayoutList className="h-3.5 w-3.5" />Lista</button>
+          <div className="flex gap-1.5" role="group" aria-label="Visualização">
+            <button type="button" onClick={() => setView("map")} aria-pressed={view === "map"} className={`${tabClasses(view === "map", "sm")} gap-1.5`}><MapIcon className="h-3.5 w-3.5" />Mapa</button>
+            <button type="button" onClick={() => setView("list")} aria-pressed={view === "list"} className={`${tabClasses(view === "list", "sm")} gap-1.5`}><LayoutList className="h-3.5 w-3.5" />Lista</button>
           </div>
           <button type="button" onClick={() => setShowPreview(true)} className="inline-flex items-center gap-1.5 rounded-full border border-line px-4 py-2 text-sm font-black text-navy hover:bg-mist"><Eye className="h-4 w-4" />Pré-visualizar</button>
           {flow.publishedVersion !== null ? (

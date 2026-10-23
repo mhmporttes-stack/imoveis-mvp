@@ -56,7 +56,7 @@ test("card: admin recebe o custo real, equipe o valor inflado (2026-10-08); resu
   const query = read("lib/simulation-list-query.js");
   assert.ok(query.includes("const realCost = false;"), "card igual para todos (2026-10-09)");
   assert.ok(query.includes("filters.statusGroup === SPONSORED_TAB_KEY && isGeneralAdminAuth(auth)"));
-  assert.equal(query.split("applySponsoredCostSignal(auth, await applyChatContactSignal(supabase, items))").length - 1, 2, "as duas saídas da página");
+  assert.equal(query.split("applySponsoredCostSignal(auth, await applyChatContactSignal(supabase, items))").length - 1, 3, "as três saídas da página (inclui o filtro Roleta, 2026-10-22)");
   assert.ok(query.includes("...(sponsoredCost ? { sponsoredCost } : {})"));
   assert.ok(read("components/clients/ClientCard.jsx").includes("client.sponsoredCost ?"));
   assert.ok(read("components/clients/ClientWorkspace.jsx").includes('filters.statusGroup === "sponsored" && counters.sponsoredCost'));

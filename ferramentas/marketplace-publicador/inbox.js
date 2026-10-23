@@ -3,10 +3,27 @@
 // liga o chrome.debugger). Seletores em selectors.js (MP.inbox) — A CALIBRAR com a caixa real do dono.
 
 (function marketplaceInbox() {
-  if (globalThis.__mpInboxLoaded) return;
+  if (globalThis.__mpInboxLoaded && globalThis.__mpInbox) return;
   globalThis.__mpInboxLoaded = true;
   const MP = globalThis.MP;
-  const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+  // 1.9.3: espera pelo relógio do service worker (mensagem "mp-sleep"), com o setTimeout da página em paralelo — o que
+  // terminar primeiro. Com a aba oculta o Chrome segura os timers da página (até 1 min cada) e os prazos da leitura
+  // estouravam (erro real "passou de 210 s"); a resposta da extensão chega na hora certa. Sem resposta ok → só o timer.
+  const sleep = (ms) => new Promise((resolve) => {
+    let done = false;
+    const finish = () => {
+      if (!done) {
+        done = true;
+        resolve();
+      }
+    };
+    setTimeout(finish, ms);
+    try {
+      Promise.resolve(chrome.runtime.sendMessage({ type: "mp-sleep", ms })).then((reply) => reply?.ok && finish(), () => {});
+    } catch {
+      // extensão recarregada: fica o timer da página
+    }
+  });
   const between = (min, max) => min + Math.floor(Math.random() * (max - min + 1));
 
   function visible(element) {
@@ -247,12 +264,85 @@
       path: MP.skeletonPath(location.href),
       before: MP.skeletonPath(before),
       waitedMs,
+      visibility: document.visibilityState,
+      hasFocus: typeof document.hasFocus === "function" ? document.hasFocus() : null,
       clicked: clicked ? { item: skeleton(clicked.element, 0, { left: 150 }), href: MP.skeletonPath(clicked.href) } : null,
       counts: { dialogs: dialogs.length, logs: document.querySelectorAll('[role="log"]').length, panes: panes.length, visiblePanes: panes.filter(visible).length, textboxes: document.querySelectorAll('[role="textbox"]').length },
       dialogs,
       panes: panes.slice(0, 3).map((pane) => skeleton(pane, 0, budget)),
       truncated: budget.left <= 0
     };
+  }
+
+  // 1.8.10: ponto do clique = linha do NOME do contato. O centro do item pode cair no botão interno de menu da
+  // conversa (div[role=button] dentro do item — diagnóstico real de 21/10), e o Facebook ignora clique sintético:
+  // o clique de verdade é feito pelo background (chrome.debugger) neste ponto.
+  function nameClickPoint(element, contactName = "") {
+    const key = MP.normalize(contactName);
+    const innerButtons = [...element.querySelectorAll('[role="button"]')].filter((button) => button !== element);
+    const insideInner = (node) => innerButtons.some((button) => button.contains(node));
+    const leaves = [];
+    const walk = (node, depth) => {
+      if (depth > 40) return;
+      for (const child of node.children || []) {
+        if (/^(svg|script|style)$/i.test(child.tagName || "")) continue;
+        const own = [...(child.childNodes || [])].filter((item) => item.nodeType === 3).map((item) => item.textContent).join(" ").replace(/\s+/g, " ").trim();
+        if (own && !insideInner(child)) leaves.push({ element: child, text: own });
+        walk(child, depth + 1);
+      }
+    };
+    walk(element, 0);
+    const nameLeaf = (key && leaves.find((leaf) => MP.normalize(leaf.text).startsWith(key))) || leaves.find((leaf) => leaf.text !== "·" && MP.normalize(leaf.text).length > 1) || null;
+    const rect = (nameLeaf?.element || element).getBoundingClientRect();
+    const x = Math.round(rect.left + Math.min(rect.width / 2, 30));
+    const y = Math.round(rect.top + rect.height / 2);
+    const hit = typeof document.elementFromPoint === "function" ? document.elementFromPoint(x, y) : null;
+    return { x, y, by: nameLeaf ? (key && MP.normalize(nameLeaf.text).startsWith(key) ? "nome" : "1o texto") : "item", hitOk: hit ? element.contains(hit) && !insideInner(hit) : null, innerButtons: innerButtons.length };
+  }
+
+  // Atributos do item (só NOMES para o diagnóstico) e um id de conversa, se algum data-*/aria-controls/href revelar.
+  function itemAttributes(element) {
+    const names = new Set();
+    let threadId = "";
+    const nodes = [element, ...element.querySelectorAll("*")].slice(0, 300);
+    for (let up = element.parentElement, level = 0; up && level < 3; up = up.parentElement, level += 1) nodes.push(up);
+    for (const node of nodes) {
+      for (const attr of node.attributes || []) {
+        const name = attr.name;
+        if (name.startsWith("data-") || ["aria-controls", "aria-describedby", "aria-labelledby", "aria-owns", "id", "href"].includes(name)) names.add(name);
+        if (!threadId && (name.startsWith("data-") || name === "aria-controls" || name === "href")) threadId = MP.parseThreadKey(String(attr.value || "")) || "";
+      }
+    }
+    return { names: [...names].slice(0, 40), threadId: /^\d{6,}$/.test(threadId) ? threadId : "" };
+  }
+
+  let pendingItem = null;
+
+  // Prepara o clique (1.8.10): fecha janelas, acha o item, rola até ele e devolve o ponto — o background clica.
+  async function prepareOpen(threadKey, contactName = "") {
+    await closeOpenChats();
+    const root = listRoot();
+    const box = scrollableIn(root);
+    for (let i = 0; i < 20; i += 1) {
+      const item = findItemElements(root).find((candidate) => candidate.threadKey === threadKey);
+      if (item) {
+        item.element.scrollIntoView?.({ block: "center" });
+        await sleep(between(300, 500));
+        const attrs = itemAttributes(item.element);
+        pendingItem = { element: item.element, href: itemHrefOf(item.element) };
+        return { ok: true, ...nameClickPoint(item.element, contactName), before: location.href, itemHref: pendingItem.href, attrNames: attrs.names, threadId: attrs.threadId, iframes: document.querySelectorAll("iframe").length };
+      }
+      if (!box || box.scrollTop + box.clientHeight >= box.scrollHeight - 5) break;
+      box.scrollTop += Math.max(300, box.clientHeight * 0.8);
+      await sleep(between(900, 1500));
+    }
+    pendingItem = null;
+    return { ok: false, error: `Item da conversa não encontrado na lista (${findItemElements(root).length} itens visíveis).` };
+  }
+
+  // Checagem instantânea (o background repete a cada 0,5 s — sem depender de timer da aba, que o Chrome segura).
+  function openState(contactName = "") {
+    return { found: namedPane(contactName) ? "painel" : threadRouteWithLog() ? "rota" : null, path: MP.skeletonPath(location.href), visibility: document.visibilityState, iframes: document.querySelectorAll("iframe").length, dialogs: document.querySelectorAll('[role="dialog"]').length, logs: document.querySelectorAll('[role="log"]').length };
   }
 
   async function openItem(threadKey, contactName = "", waitMs = OPEN_WAIT_MS) {
@@ -264,7 +354,11 @@
       const item = findItemElements(root).find((candidate) => candidate.threadKey === threadKey);
       if (item) {
         const itemHref = itemHrefOf(item.element);
-        await clickElement(item.element);
+        item.element.scrollIntoView?.({ block: "center" });
+        await sleep(between(200, 400));
+        const point = nameClickPoint(item.element, contactName);
+        if (!(await trusted("click", { x: point.x, y: point.y }))) item.element.click?.();
+        await sleep(between(600, 1200));
         const startedAt = Date.now();
         const found = await waitFor(() => (namedPane(contactName) ? "painel" : threadRouteWithLog() ? "rota" : null), waitMs, 400);
         if (found) return { ok: true, opened: found, navigated: location.href !== before, url: location.href };
@@ -288,9 +382,15 @@
     return { ...read, opened };
   }
 
+  // Só anexos de verdade (1.8.11): nunca o avatar do remetente (≤ 40 px na tela, ou dentro do link do perfil).
   function bubbleAttachments(row) {
     return [...row.querySelectorAll("img")]
       .filter((img) => (img.naturalWidth || img.width || 0) >= 80 && /^https:/.test(img.src))
+      .filter((img) => {
+        const rect = img.getBoundingClientRect?.();
+        if (rect && rect.width > 0 && rect.width <= 40) return false;
+        return !img.closest?.('a[href*="/marketplace/profile/"], a[href*="/profile.php"]');
+      })
       .map((img) => ({ type: "image", url: img.src, name: "" }))
       .slice(0, 5);
   }
@@ -323,7 +423,9 @@
     let currentAt = null;
     const units = [...area.querySelectorAll(MP.inbox.messageRows)];
     const nodes = units.length ? units : [...area.querySelectorAll(MP.inbox.messageText)];
+    const panels = MP.quickReplyPanels(area);
     for (const row of nodes) {
+      if (panels.some((panel) => panel.contains?.(row))) continue;
       const textNode = units.length ? [...row.querySelectorAll(MP.inbox.messageText)].find((node) => node.innerText?.trim()) : row;
       const body = textNode ? String(textNode.innerText || "").trim() : "";
       const rect = (textNode || row).getBoundingClientRect();
@@ -348,11 +450,10 @@
 
   function readRows(scope, area, contactName = "") {
     const log = (scope || document).querySelector(MP.inbox.log);
-    if (log) {
-      const rows = MP.readLogRows(log, { contactName, directionOf: (article) => geometryDirection(article, log), attachmentsOf: bubbleAttachments });
-      if (rows.length) return rows;
-    }
-    return area ? visibleRows(area, contactName) : [];
+    // 1.9.1: com role=log, SÓ ele conta (mensagem = data-message-id). A leitura pela geometria (que pegava o painel de
+    // respostas rápidas e avisos do sistema como mensagem do cliente) fica só para a tela sem role=log.
+    if (log) return MP.readLogRows(log, { contactName, directionOf: (article) => geometryDirection(article, log), attachmentsOf: bubbleAttachments });
+    return area ? visibleRows(area, contactName).filter((row) => !MP.isSystemMessage(row.body)) : [];
   }
 
   async function closeChatWindow(win) {
@@ -373,6 +474,26 @@
 
   // Mensagens da conversa aberta, com lado pela geometria. full=true (1ª vez que a conversa é vista): sobe até o
   // início (o Messenger carrega aos poucos) e desce juntando tudo — histórico completo (dono, 2026-10-20).
+  // Endereço direto da conversa (1.9.2): a rota atual, se for /marketplace/t/… ou /messages/t/…, ou um link assim dentro
+  // da janela (cabeçalho "Abrir no Messenger"). O CRM guarda e o envio abre por ele, sem clicar na lista.
+  function conversationUrl(scope) {
+    const absolute = (href) => {
+      try {
+        const url = new URL(href, location.origin);
+        return url.origin === "https://www.facebook.com" && /^\/(marketplace\/t|messages\/t|t)\/[A-Za-z0-9_.:-]+/.test(url.pathname) ? `${url.origin}${url.pathname}` : "";
+      } catch {
+        return "";
+      }
+    };
+    const fromRoute = absolute(location.href);
+    if (fromRoute) return fromRoute;
+    for (const link of (scope || document).querySelectorAll?.('a[href*="/messages/t/"], a[href*="/marketplace/t/"]') || []) {
+      const url = absolute(link.getAttribute("href"));
+      if (url) return url;
+    }
+    return "";
+  }
+
   // maxMs (1.8.7): prazo da leitura dado pelo background; a rolagem para antes dele e devolve o que juntou.
   async function readThread(threadKey, full = false, contactName = "", maxMs = 0) {
     const deadline = maxMs > 0 ? Date.now() + maxMs : Infinity;
@@ -408,9 +529,13 @@
       rows = MP.mergeRowWindows(rows, readRows(scope, area, contactName));
     }
     const listing = scope.querySelector?.(MP.listingLink) || document.querySelector(MP.listingLink);
-    const result = rows.length
-      ? { ok: true, listingUrl: listing ? MP.cleanListingUrl(listing.href || listing.getAttribute("href")) : "", messages: MP.buildMessages(threadKey, rows).slice(full ? -500 : -60), checkpoint: pageCheckpoint() }
-      : { ok: false, error: `Conversa aberta, mas nenhuma mensagem reconhecida (${area.querySelectorAll(MP.inbox.article).length} article, ${area.querySelectorAll(MP.inbox.messageId).length} data-message-id, ${area.querySelectorAll(MP.inbox.messageRows).length} linhas, ${area.querySelectorAll(MP.inbox.messageText).length} textos na área; seletores a calibrar).`, checkpoint: pageCheckpoint() };
+    const threadUrl = conversationUrl(scope);
+    // 1.8.9: linhas lidas mas nenhuma mensagem válida (tudo texto do sistema/vazio) é FALHA — antes ia ao CRM uma
+    // conversa sem mensagens e a prévia era guardada (o histórico nunca mais era lido).
+    const messages = rows.length ? MP.buildMessages(threadKey, rows).slice(full ? -500 : -60) : [];
+    const result = messages.length
+      ? { ok: true, listingUrl: listing ? MP.cleanListingUrl(listing.href || listing.getAttribute("href")) : "", threadUrl, messages, checkpoint: pageCheckpoint() }
+      : { ok: false, error: `Conversa aberta, mas nenhuma mensagem reconhecida (${rows.length} linha(s) lidas, todas descartadas; ${area.querySelectorAll(MP.inbox.article).length} article, ${area.querySelectorAll(MP.inbox.messageId).length} data-message-id, ${area.querySelectorAll(MP.inbox.messageRows).length} linhas, ${area.querySelectorAll(MP.inbox.messageText).length} textos na área; seletores a calibrar).`, checkpoint: pageCheckpoint() };
     await closeChatWindow(win); // não acumula janelas abertas
     return result;
   }
@@ -421,6 +546,16 @@
     } catch {
       return false;
     }
+  }
+
+  // Quantas mensagens NOSSAS (saída ou rótulo "por Você"/"by You") contêm o texto, nas últimas 15 da conversa.
+  function ownMessagesWith(target, win = null) {
+    if (!target) return 0;
+    const log = (win || document).querySelector(MP.inbox.log);
+    const rows = log ? MP.readLogRows(log, { directionOf: (article) => geometryDirection(article, log) }) : [];
+    const own = (row) => row.direction === "outbound" || /\b(por voce|by you)\b/.test(MP.normalize(row.body));
+    const found = rows.slice(-15).filter((row) => own(row) && MP.normalize(row.body).includes(target)).length;
+    return found || lastOutboundTexts(5, win).filter((text) => text.includes(target)).length;
   }
 
   function lastOutboundTexts(count = 3, win = null) {
@@ -457,16 +592,20 @@
       await sleep(between(80, 260));
     }
     await sleep(between(400, 900));
-    const before = lastOutboundTexts(3, win).join("|");
+    const target = MP.normalize(flat).slice(0, 40);
+    const seenBefore = ownMessagesWith(target, win);
     if (!(await trusted("key", { key: "Enter" }))) return { ok: false, sentAttempted: false, error: "Depurador desligado: não envio com eventos simulados." };
-    const target = MP.normalize(flat);
-    const confirmed = await waitFor(() => {
-      const after = lastOutboundTexts(3, win);
-      return after.join("|") !== before && after.some((item) => item === target || item.includes(target.slice(0, 40)));
-    }, 15000, 700);
+    // 1.9.2: confirma pela própria mensagem na conversa (texto igual, "por Você"/saída), não só pelas 3 últimas de saída
+    // (a direção às vezes vinha errada e dava "Não confirmei" para mensagem que saiu). Até 30 s; depois relê uma vez.
+    let confirmed = await waitFor(() => ownMessagesWith(target, win) > seenBefore || null, 30000, 700);
+    if (!confirmed) {
+      await sleep(4000);
+      confirmed = ownMessagesWith(target, win) > seenBefore || ownMessagesWith(target, null) > seenBefore;
+    }
     if (pageCheckpoint()) return { ok: false, checkpoint: true, sentAttempted: true, error: "O Facebook mostrou verificação/limite depois do envio." };
     await closeChatWindow(win); // não acumula janelas abertas
-    return confirmed ? { ok: true, sentAttempted: true } : { ok: false, sentAttempted: true, error: "Não confirmei a mensagem na conversa (confira no Facebook)." };
+    // Sem confirmação: unconfirmed — o CRM não reenvia sozinho; confirma pelo eco na próxima leitura da conversa.
+    return confirmed ? { ok: true, sentAttempted: true } : { ok: false, sentAttempted: true, unconfirmed: true, error: "Não confirmei a mensagem na conversa (confira no Facebook)." };
   }
 
   // --- Diagnóstico de estrutura (1.8.5) ---------------------------------------------------------------------------
@@ -582,31 +721,39 @@
     };
   }
 
+  // 1.8.9: um único despachante. O background chama `globalThis.__mpInbox.handle(msg)` por
+  // chrome.scripting.executeScript (o valor volta direto; exceção vira { ok:false, error, stack } — nunca fica sem
+  // resposta). O listener de mensagem continua (testes e compatibilidade).
+  function handle(message) {
+    switch (message?.type) {
+      case "mp-inbox-list":
+        return listThreads().catch((error) => ({ threads: [], steps: [`erro ao listar: ${error.message}`], url: location.href, error: error.message, stack: String(error.stack || "").slice(0, 1500) }));
+      case "mp-inbox-diagnose":
+        return message.stage === "inbox_list" ? diagnoseList() : diagnose(message.stage);
+      case "mp-inbox-open":
+        return openItem(message.threadKey, message.contactName || "", Number(message.openWaitMs) || OPEN_WAIT_MS);
+      case "mp-inbox-prepare-open":
+        return prepareOpen(message.threadKey, message.contactName || "");
+      case "mp-inbox-open-state":
+        return openState(message.contactName || "");
+      case "mp-inbox-open-diagnostic":
+        return { ...openDiagnostic({ before: message.before || "", clicked: pendingItem, waitedMs: Number(message.waitedMs) || 0, stage: message.stage || "sem_painel" }), attrNames: pendingItem ? itemAttributes(pendingItem.element).names : [] };
+      case "mp-inbox-open-read":
+        return openAndRead(message);
+      case "mp-inbox-read":
+        return readThread(message.threadKey, message.full === true, message.contactName || "", Number(message.maxMs) || 0);
+      case "mp-inbox-send":
+        return sendText(message.text);
+      default:
+        return null;
+    }
+  }
+  const failure = (error) => ({ ok: false, error: String(error?.message || error), stack: String(error?.stack || "").slice(0, 1500) });
+  globalThis.__mpInbox = { handle: (message) => Promise.resolve().then(() => handle(message)).catch(failure) };
+
   chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
-    if (message?.type === "mp-inbox-list") {
-      listThreads().then(sendResponse, (error) => sendResponse({ threads: [], steps: [`erro ao listar: ${error.message}`], url: location.href }));
-      return true;
-    }
-    if (message?.type === "mp-inbox-diagnose") {
-      (message.stage === "inbox_list" ? diagnoseList() : diagnose(message.stage)).then(sendResponse, (error) => sendResponse({ error: error.message }));
-      return true;
-    }
-    if (message?.type === "mp-inbox-open") {
-      openItem(message.threadKey, message.contactName || "").then(sendResponse, (error) => sendResponse({ ok: false, error: error.message }));
-      return true;
-    }
-    if (message?.type === "mp-inbox-open-read") {
-      openAndRead(message).then(sendResponse, (error) => sendResponse({ ok: false, error: error.message }));
-      return true;
-    }
-    if (message?.type === "mp-inbox-read") {
-      readThread(message.threadKey, message.full === true, message.contactName || "", Number(message.maxMs) || 0).then(sendResponse, (error) => sendResponse({ ok: false, error: error.message }));
-      return true;
-    }
-    if (message?.type === "mp-inbox-send") {
-      sendText(message.text).then(sendResponse);
-      return true;
-    }
-    return false;
+    if (!String(message?.type || "").startsWith("mp-inbox-")) return false;
+    globalThis.__mpInbox.handle(message).then(sendResponse);
+    return true;
   });
 })();

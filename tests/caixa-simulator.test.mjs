@@ -92,7 +92,7 @@ test("menu: Simulador Caixa para todos os perfis, com ícone no celular", async 
   const menu = read("components/AdminMenu.jsx");
   assert.match(menu, /href: "\/admin\/simulador-caixa", label: "Simulador Caixa", key: "caixa-simulator"/);
   assert.match(menu, /CAIXA_SIMULATOR_GROUPS = new Set\(\["crm", "clientes"\]\)/);
-  assert.match(read("components/AdminBottomNav.jsx"), /"caixa-simulator": Calculator/);
+  assert.match(read("components/admin-nav-icons.js"), /"caixa-simulator": Calculator/);
 });
 
 test("página e API com guard; API recalcula no servidor; não cria cliente nem envia", () => {
@@ -113,7 +113,7 @@ test("página e API com guard; API recalcula no servidor; não cria cliente nem 
 
 test("barra do corretor/associado: Simulador no lugar da Meta; pré-carregamento do Online no admin (dono, 2026-10-19)", () => {
   const nav = read("components/AdminBottomNav.jsx");
-  assert.match(nav, /return \[DESTINATIONS\.caixaSimulator, DESTINATIONS\.clients, DESTINATIONS\.chat, DESTINATIONS\.agenda\]/);
+  assert.match(nav, /return \[DESTINATIONS\.caixaSimulator, DESTINATIONS\.clients, DESTINATIONS\.chat, DESTINATIONS\.marketplaceChat, DESTINATIONS\.agenda\]/);
   assert.match(nav, /if \(isManager\) return \[DESTINATIONS\.dailyGoal,/);
   const layout = read("app/admin/layout.jsx");
   assert.match(layout, /isAdmin \? \["\/admin\/desempenho\/online", "\/admin\/desempenho"\]/);

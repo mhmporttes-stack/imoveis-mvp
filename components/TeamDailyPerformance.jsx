@@ -19,6 +19,8 @@ const BrokerHistoryPanel = dynamic(() => import("@/components/DailyGoalAdmin").t
 import SupervisionChatDock, { SupervisionChatButton, useSupervisionInbox } from "@/components/supervision/SupervisionChatDock";
 // Compensação da janela por restrição VALIDADA (PRO-14): mesmo componente/texto da tela do corretor.
 import DailyGoalCompensationNotice from "@/components/DailyGoalCompensationNotice";
+import Kpi from "@/components/ui/Kpi";
+import MetaRing from "@/components/scenes/MetaRing";
 
 const PERIODS = [
   { value: "today", label: "Hoje" },
@@ -26,15 +28,6 @@ const PERIODS = [
   { value: "last7", label: "7 dias" },
   { value: "last30", label: "30 dias" }
 ];
-
-const RADIUS = 40;
-const CIRCUMFERENCE = 2 * Math.PI * RADIUS;
-
-function progressColor(percent) {
-  if (percent >= 100) return { stroke: "#059669", text: "text-emerald-600" };
-  if (percent >= 50) return { stroke: "#ea580c", text: "text-orange-600" };
-  return { stroke: "#dc2626", text: "text-red-600" };
-}
 
 // Painel gerencial exclusivo do administrador principal — visão consolidada
 // da equipe na Meta Diária. Reaproveita a mesma rota /admin/meta-diaria; o
@@ -115,11 +108,12 @@ export default function TeamDailyPerformance({ initialOverview, initialError = "
         <>
           <TeamSummary summary={overview.summary} />
 
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            {overview.brokers.map((broker) => (
+          <div className="grid gap-x-4 gap-y-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            {overview.brokers.map((broker, index) => (
               <BrokerCard
                 key={broker.brokerId}
                 broker={broker}
+                index={index}
                 presenceStatus={presenceById[broker.brokerId]}
                 automation={automationById[broker.brokerId]}
                 restriction={restrictionById[broker.brokerId]}
@@ -135,7 +129,7 @@ export default function TeamDailyPerformance({ initialOverview, initialError = "
           </div>
 
           {!overview.brokers.length ? (
-            <p className="rounded-[24px] border border-line bg-white p-8 text-center font-bold text-muted shadow-soft">
+            <p className="rounded-panel border border-line bg-white p-8 text-center font-bold text-muted shadow-soft">
               Nenhum corretor ativo com Meta Diária no período selecionado.
             </p>
           ) : null}
@@ -175,17 +169,14 @@ function TeamSummary({ summary }) {
     { label: "Simulações", value: summary.simulacoes }
   ];
 
+  // Visual novo (2026-10-22): indicadores em cards (components/ui/Kpi). Celular: "Meta da equipe" (ponto focal) ocupa a
+  // linha toda e os outros quatro formam uma grade 2×2 — sem a quinta caixa sozinha e meio vazia.
   return (
-    // Celular: "Meta da equipe" (ponto focal) ocupa a linha toda e os outros
-    // quatro formam uma grade 2×2 — sem a quinta caixa sozinha e meio vazia.
-    <div className="grid grid-cols-2 gap-2 rounded-[24px] border border-navy/10 bg-white p-3 shadow-soft sm:grid-cols-3 sm:gap-2.5 sm:p-5 lg:grid-cols-5">
+    <section aria-label="Indicadores da equipe" className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 sm:gap-3 lg:grid-cols-5">
       {items.map((item, index) => (
-        <div key={item.label} className={`rounded-2xl bg-mist/40 px-3 py-2 text-center sm:py-3 ${index === 0 ? "col-span-2 sm:col-span-1" : ""}`}>
-          <p className="text-[11px] font-extrabold uppercase tracking-[0.08em] text-muted">{item.label}</p>
-          <p className="mt-0.5 text-xl font-black tabular-nums text-navy sm:mt-1">{item.value}</p>
-        </div>
+        <Kpi key={item.label} label={item.label} value={item.value} tone={index === 0 ? "accent" : "default"} className={index === 0 ? "col-span-2 sm:col-span-1" : ""} />
       ))}
-    </div>
+    </section>
   );
 }
 
@@ -312,9 +303,8 @@ function formatNextDispatchCompact(automation) {
   return new Intl.DateTimeFormat("pt-BR", { timeZone: "America/Sao_Paulo", hour: "2-digit", minute: "2-digit" }).format(new Date(scheduled));
 }
 
-function BrokerCard({ broker, presenceStatus, automation, restriction, onRestrictionChanged, onClick, onRequeued, onAccessChanged, readOnly = false, chatUnread = 0, onOpenChat }) {
+function BrokerCard({ broker, index = 0, presenceStatus, automation, restriction, onRestrictionChanged, onClick, onRequeued, onAccessChanged, readOnly = false, chatUnread = 0, onOpenChat }) {
   const [requeuing, setRequeuing] = useState(false);
-  const colors = progressColor(broker.meta.percent);
   const sessionInfo = automation ? (AUTOMATION_SESSION_LABELS[automation.sessionStatus] || AUTOMATION_SESSION_LABELS.nunca_conectou) : null;
   const googleInfo = automation ? (GOOGLE_CONTACTS_STATUS_LABELS[automation.googleContactsStatus] || GOOGLE_CONTACTS_STATUS_LABELS.disconnected) : null;
   // "Rodando" só quando dá pra enviar de verdade (WhatsApp individual
@@ -369,16 +359,19 @@ function BrokerCard({ broker, presenceStatus, automation, restriction, onRestric
       onKeyDown={(event) => {
         if (event.key === "Enter" || event.key === " ") { event.preventDefault(); onClick(); }
       }}
-      className="cursor-pointer rounded-[22px] border border-line bg-white p-5 text-left shadow-[0_12px_30px_rgba(13,59,102,0.06)] transition hover:-translate-y-0.5 hover:border-brand/40"
+      // Duas linhas em subgrade (visual novo, 2026-10-22): cabeçalho e corpo — os anéis ficam na mesma altura em todos os
+      // cards da fileira, mesmo quando um cabeçalho tem mais selos ou o nome em 2 linhas.
+      className="row-span-2 grid cursor-pointer grid-rows-subgrid gap-0 rounded-panel border border-line bg-white p-5 text-left transition hover:-translate-y-0.5 hover:border-brand/40"
     >
+      <div className="min-w-0">
+      {/* A foto do corretor fica no anel da meta (abaixo); repetir o avatar aqui só duplicava o rosto. */}
       <div className="flex items-center gap-3">
-        <Avatar name={broker.name} photoUrl={broker.photoUrl} size={44} />
         <h3 className="flex min-w-0 flex-1 items-center gap-2 text-base font-black text-navy">
           <span
             aria-hidden="true"
             className={`h-3 w-3 shrink-0 rounded-full ${PRESENCE_DOT[presenceStatus] || PRESENCE_DOT.offline}`}
           />
-          <span className="min-w-0 truncate">{broker.name}</span>
+          <span className="min-w-0 line-clamp-2 [overflow-wrap:anywhere]">{broker.name}</span>
         </h3>
         {readOnly ? null : <span className="ml-auto shrink-0"><SupervisionChatButton count={chatUnread} name={broker.name} onClick={onOpenChat} /></span>}
       </div>
@@ -391,12 +384,12 @@ function BrokerCard({ broker, presenceStatus, automation, restriction, onRestric
           {/* Cabeçalho padronizado (T-50): linha 2 = só badges de status (podem quebrar linha);
               linha 3 = ícones de ação (WhatsApp + Google Contacts SEMPRE juntos, mesma posição em todo card). */}
           <div data-card-badges className="mt-2 flex flex-wrap items-center gap-1.5">
-            <span className={`rounded-full px-2 py-0.5 text-[9px] font-black ${autoClassName}`}>{autoLabel}</span>
+            <span className={`rounded-full px-2 py-0.5 text-[11px] font-extrabold ${autoClassName}`}>{autoLabel}</span>
             <WhatsappStateChip small sessionStatus={automation.sessionStatus} restriction={restriction} />
             {/* PRO-15 (dono, 2026-10-15): desconectado sem ban/restrição — a gestão gera a lista impressa deste corretor. */}
             {automation.printedListMode && !restriction ? (
-              <span title="WhatsApp desconectado (não é banimento nem restrição): sem Chat e sem Prospecção pelo CRM. Gere a lista impressa dele em Prospecção › Imprimir lista." className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-[9px] font-black text-amber-800 ring-1 ring-amber-300">
-                <Printer aria-hidden="true" className="h-2.5 w-2.5" />{PRINTED_LIST_MODE_LABEL}
+              <span title="WhatsApp desconectado (não é banimento nem restrição): sem Chat e sem Prospecção pelo CRM. Gere a lista impressa dele em Prospecção › Imprimir lista." className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-extrabold text-amber-800 ring-1 ring-amber-300">
+                <Printer aria-hidden="true" className="h-3 w-3" />{PRINTED_LIST_MODE_LABEL}
               </span>
             ) : null}
           </div>
@@ -407,28 +400,29 @@ function BrokerCard({ broker, presenceStatus, automation, restriction, onRestric
           <RestrictionValidationActions brokerId={broker.brokerId} sessionStatus={automation.sessionStatus} restriction={restriction} onChanged={onRestrictionChanged} />
           <AutomationPauseNotice automation={automation} brokerId={broker.brokerId} onResumed={onRequeued} compact />
           {broker.compensation ? <div className="mt-2"><DailyGoalCompensationNotice notice={broker.compensation} only={["credit", "until", "impacted"]} /></div> : null}
-          {automation.avgGapMinutes != null ? (
-            <p className="mt-1 text-[10px] font-bold text-muted">Média de {formatGapMinutes(automation.avgGapMinutes)} por mensagem</p>
-          ) : null}
+          {/* Linha sempre reservada (mesmo vazia): os anéis ficam na mesma altura em todos os cards. */}
+          <p className="mt-1 min-h-4 text-[11px] font-semibold leading-4 text-muted">
+            {automation.avgGapMinutes != null ? <>Média de {formatGapMinutes(automation.avgGapMinutes)} por mensagem</> : <span aria-hidden="true">&nbsp;</span>}
+          </p>
         </>
       ) : null}
 
+      </div>
+
+      <div className="min-w-0">
+      {/* Mesma cena do anel do corretor (pedido do dono, 2026-10-22): foto, anel azul subindo até 100% com a faísca,
+          pulinho no "100%" e volta ao percentual real. O número é o MESMO broker.meta.percent de antes (nenhum cálculo novo);
+          a cena começa quando o card entra na tela, levemente escalonada entre os cards. */}
       <div className="mt-4 flex items-center justify-center">
-        <div className="relative h-24 w-24 motion-reduce:[&_circle]:!transition-none">
-          <svg viewBox="0 0 100 100" className="h-full w-full -rotate-90">
-            <circle cx="50" cy="50" r={RADIUS} fill="none" stroke="#E5EAF1" strokeWidth="8" />
-            <circle
-              cx="50" cy="50" r={RADIUS} fill="none"
-              stroke={colors.stroke} strokeWidth="8" strokeLinecap="round"
-              strokeDasharray={CIRCUMFERENCE}
-              strokeDashoffset={CIRCUMFERENCE * (1 - Math.min(100, broker.meta.percent) / 100)}
-              style={{ transition: "stroke-dashoffset 0.7s ease-out, stroke 0.4s ease-out" }}
-            />
-          </svg>
-          <div className="absolute inset-0 flex items-center justify-center">
-            <span className={`text-xl font-black ${colors.text}`}>{broker.meta.percent}%</span>
-          </div>
-        </div>
+        <MetaRing
+          percent={broker.meta.percent}
+          name={broker.name}
+          photoUrl={broker.photoUrl}
+          size={132}
+          playOnView
+          delayMs={(index % 4) * 140}
+          label={`Meta diária de ${broker.name}`}
+        />
       </div>
 
       <p
@@ -438,7 +432,7 @@ function BrokerCard({ broker, presenceStatus, automation, restriction, onRestric
         {broker.meta.done} / {broker.meta.total} atividades da meta
       </p>
       {broker.meta.prospecting && broker.meta.pending ? (
-        <p className="text-center text-[10px] font-bold text-muted">
+        <p className="text-center text-xs font-semibold text-muted">
           carteira {broker.meta.prospecting.target} + pendentes {broker.meta.pending.total}
         </p>
       ) : null}
@@ -446,7 +440,7 @@ function BrokerCard({ broker, presenceStatus, automation, restriction, onRestric
       {automation ? (
         <div className="mt-1 flex items-center justify-center gap-1">
           <p className="text-center text-xs font-bold text-muted">
-            Próximo {formatNextDispatchCompact(automation)} · Enviadas hoje {(automation.sentToday || 0) + (automation.sentUnconfirmedToday || 0)}
+            Próximo {formatNextDispatchCompact(automation)} · <span className="whitespace-nowrap">Enviadas hoje {(automation.sentToday || 0) + (automation.sentUnconfirmedToday || 0)}</span>
           </p>
           {automation.enabled && !readOnly ? (
             <button
@@ -455,7 +449,7 @@ function BrokerCard({ broker, presenceStatus, automation, restriction, onRestric
               disabled={requeuing}
               title="Reorganizar fila de disparos (cancela pendentes/atrasados e reagenda do zero)"
               aria-label="Reorganizar fila de disparos"
-              className="shrink-0 rounded-full p-1 text-muted transition hover:bg-mist hover:text-brand disabled:opacity-50"
+              className="relative shrink-0 rounded-full p-1 text-muted transition before:absolute before:-inset-2.5 before:content-[''] hover:bg-mist hover:text-brand disabled:opacity-50"
             >
               <ListRestart className={`h-3.5 w-3.5 ${requeuing ? "animate-spin" : ""}`} />
             </button>
@@ -480,7 +474,7 @@ function BrokerCard({ broker, presenceStatus, automation, restriction, onRestric
             : "Clientes que estão em cadência (aguardando 1ª ou 2ª tentativa). O teto limita a entrada de contatos novos."}
         >
           Carteira ativa {broker.wallet.current}/{broker.wallet.limit}
-          <span className="ml-1 font-bold text-muted">(aguardando 1ª:{broker.wallet.byAttempt.first} · 2ª:{broker.wallet.byAttempt.second})</span>
+          <span className="ml-1 inline-block whitespace-nowrap font-bold text-muted">(aguardando 1ª: {broker.wallet.byAttempt.first} · 2ª: {broker.wallet.byAttempt.second})</span>
         </p>
       ) : null}
 
@@ -493,6 +487,7 @@ function BrokerCard({ broker, presenceStatus, automation, restriction, onRestric
       <p className="mt-3 text-center text-xs font-extrabold uppercase tracking-[0.08em] text-brand">
         Conversão {formatRate(broker.conversao)}
       </p>
+      </div>
     </div>
   );
 }
@@ -500,7 +495,7 @@ function BrokerCard({ broker, presenceStatus, automation, restriction, onRestric
 function MiniStat({ label, value }) {
   return (
     <div>
-      <p className="text-[10px] font-extrabold uppercase tracking-[0.06em] text-muted">{label}</p>
+      <p className="text-[11px] font-extrabold uppercase tracking-[0.06em] text-muted">{label}</p>
       <p className="text-sm font-black text-navy">{value}</p>
     </div>
   );
@@ -532,7 +527,7 @@ function BrokerDetailDrawer({ brokerId, period, automation, restriction, onRestr
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-navy/40 backdrop-blur-sm sm:items-center" onClick={onClose}>
       <div
-        className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-t-[28px] bg-white p-6 shadow-2xl sm:rounded-[28px]"
+        className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-t-[28px] bg-white p-6 shadow-2xl sm:rounded-panel"
         onClick={(event) => event.stopPropagation()}
       >
         <div className="mb-4 flex items-center justify-between">
@@ -623,14 +618,14 @@ function AutomationSection({ automation, restriction, onRestrictionChanged, onAu
       </div>
 
       <div className="flex flex-wrap items-center gap-1.5">
-        <span className={`rounded-full px-2 py-0.5 text-[10px] font-black ${autoClassName}`}>{autoLabel}</span>
+        <span className={`rounded-full px-2 py-0.5 text-[11px] font-black ${autoClassName}`}>{autoLabel}</span>
         <WhatsappStateChip sessionStatus={automation.sessionStatus} restriction={restriction} />
         <IntegrationStatusIcon kind="whatsapp" align="start" tone={whatsappCardIconTone({ silent: automation.sessionSilent === true, sessionStatus: automation.sessionStatus, openRestriction: restriction ? { validation_status: restriction.validationStatus } : null })} label={`WhatsApp: ${automation.sessionSilent ? "Conectado, mas sem receber" : sessionInfo.label}`} />
         <IntegrationStatusIcon kind="google" align="start" tone={googleContactsTone(automation.googleContactsStatus)} label={`Google Contacts: ${(GOOGLE_CONTACTS_STATUS_LABELS[automation.googleContactsStatus] || GOOGLE_CONTACTS_STATUS_LABELS.disconnected).label}`} />
       </div>
       <RestrictionValidationActions brokerId={brokerId} sessionStatus={automation.sessionStatus} restriction={restriction} onChanged={onRestrictionChanged} />
       <AutomationPauseNotice automation={automation} brokerId={brokerId} onResumed={onAutomationChanged} />
-      <p className="mt-1 text-[10px] font-bold text-muted">{WHATSAPP_BADGE_LEGEND}</p>
+      <p className="mt-1 text-[11px] font-bold text-muted">{WHATSAPP_BADGE_LEGEND}</p>
       {automation.googleContactsEmail ? <p className="mt-1 text-[11px] font-bold text-muted">{automation.googleContactsEmail}</p> : null}
 
       {automation.enabled ? (
@@ -704,7 +699,7 @@ function AutomationPauseNotice({ automation, brokerId, onResumed, compact = fals
   return (
     <div className={`${compact ? "mt-2" : "mt-3"} rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-left`} onClick={(event) => event.stopPropagation()}>
       <p className={`${compact ? "text-[11px]" : "text-xs"} font-bold text-amber-900`}>{info.reason}</p>
-      <p className="mt-0.5 text-[10px] font-bold text-amber-800">
+      <p className="mt-0.5 text-[11px] font-bold text-amber-800">
         {moment ? `Desde ${moment} · ` : ""}Por: {info.by}
       </p>
       <button
@@ -881,7 +876,7 @@ function FunnelArrow({ rate }) {
 function CompareRow({ label, brokerValue, teamValue }) {
   return (
     <div className="rounded-2xl border border-line bg-white px-3 py-2.5 text-center shadow-[0_6px_16px_rgba(13,59,102,0.05)]">
-      <p className="text-[10px] font-extrabold uppercase tracking-[0.06em] text-muted">{label}</p>
+      <p className="text-[11px] font-extrabold uppercase tracking-[0.06em] text-muted">{label}</p>
       <p className="mt-1 text-sm font-black text-navy">{formatRate(brokerValue)}</p>
       <p className="text-[11px] font-bold text-muted">Equipe {formatRate(teamValue)}</p>
     </div>
@@ -940,7 +935,7 @@ function WhatsappAccessControl({ brokerId, blocked, readOnly, onChanged }) {
     <div className="mt-3" onClick={(event) => event.stopPropagation()}>
       <div className="flex items-center justify-between gap-3 rounded-xl bg-mist/60 px-3 py-2">
         <div className="min-w-0">
-          <p className="text-[10px] font-black uppercase tracking-wide text-muted">Automação</p>
+          <p className="text-[11px] font-black uppercase tracking-wide text-muted">Automação</p>
           <p className={`text-xs font-black ${blocked ? "text-red-700" : "text-emerald-700"}`}>
             <span aria-hidden="true">●</span> {blocked ? "Desativada · CRM básico" : "Ativa · CRM completo"}
           </p>

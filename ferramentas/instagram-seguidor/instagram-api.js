@@ -11,6 +11,7 @@
 // =====================================================================
 
 import { classificarErro, trechoSeguro } from './lib/regras.js';
+import { TAMANHO_JANELA, CHAVE_JANELA, acharJanelaTrabalho, podeCriarJanela, ehUrlInstagram, descreverJanela } from './lib/janela-trabalho.js';
 
 export const BASE = 'https://www.instagram.com';
 export const IG_APP_ID_WEB = '936619743392459';
@@ -42,7 +43,7 @@ export class ErroInstagram extends Error {
   constructor(tipo, mensagem, { status = 0, endpoint = '', corpo = '' } = {}) {
     super(mensagem);
     this.name = 'ErroInstagram';
-    this.tipo = tipo; // 'limite' | 'sessao' | 'nao_encontrado' | 'mudanca_api' | 'aba' | 'incerto' | 'outro'
+    this.tipo = tipo; // 'limite' | 'sessao' | 'nao_encontrado' | 'mudanca_api' | 'aba' | 'sem_janela' | 'incerto' | 'outro'
     this.status = status;
     this.endpoint = endpoint;
     this.corpo = String(corpo || '').slice(0, 500);
@@ -278,7 +279,7 @@ export function criarApiInstagram({ executar, obterCsrf = async () => '' }) {
 
     /**
      * SEGUIR: POST friendships/create. Só conta como seguido se o friendships/show
-     * confirmar (following ou pedido pendente). Se não confirmar, tenta UMA vez o
+     * confirmar (following ou pedido pendente — perfil privado: outgoing_request = "Solicitado"). Se não confirmar, tenta UMA vez o
      * endpoint legado /web/friendships/{id}/follow/ e confere de novo.
      */
     async seguir(id, username = '') {
@@ -291,7 +292,11 @@ export function criarApiInstagram({ executar, obterCsrf = async () => '' }) {
       });
     },
 
-    /** DEIXAR DE SEGUIR: friendships/destroy → legado /web/friendships/{id}/unfollow/. */
+    /**
+     * DEIXAR DE SEGUIR: friendships/destroy → legado /web/friendships/{id}/unfollow/.
+     * Também CANCELA uma solicitação pendente (perfil privado): só confirma quando o
+     * friendships/show mostra following E outgoing_request falsos.
+     */
     async deixarDeSeguir(id, username = '') {
       return acaoEscrita({
         nome: 'deixar de seguir',
@@ -433,7 +438,8 @@ export async function requisicaoNaPagina(url, metodo, corpo, cabecalhos, referer
   }
 }
 
-const CHAVE_ABA = 'abaInstagramId';
+// Chave da versão 1.0.x (aba fixada na janela do dono). Não é mais usada: só é apagada.
+const CHAVE_ABA_ANTIGA = 'abaInstagramId';
 
 async function esperarCarregar(tabId, limiteMs = 30000) {
   const aba = await chrome.tabs.get(tabId);
@@ -451,30 +457,81 @@ async function esperarCarregar(tabId, limiteMs = 30000) {
   });
 }
 
-/** Reutiliza uma aba do instagram.com ou abre uma fixada, em segundo plano. */
-export async function garantirAbaInstagram() {
-  const salvo = (await chrome.storage.local.get(CHAVE_ABA))[CHAVE_ABA];
-  if (salvo) {
-    try {
-      const aba = await chrome.tabs.get(salvo);
-      if (aba && aba.url && aba.url.startsWith(`${BASE}/`)) {
-        await esperarCarregar(aba.id);
-        return aba.id;
+async function listarJanelas() {
+  try {
+    return await chrome.windows.getAll({ populate: true, windowTypes: ['normal'] });
+  } catch {
+    return [];
+  }
+}
+
+let janelaPendente = null;
+
+/**
+ * Janela de trabalho (1.1.0, mesmo padrão do marketplace-publicador): janela PEQUENA só da
+ * extensão, com UMA aba do instagram.com reutilizada sempre (guardada em
+ * chrome.storage.local.janelaTrabalho). Nunca abre/usa aba na janela do dono, nunca puxa foco
+ * (focused:false) e a aba não é descartada pelo Chrome (autoDiscardable:false). Se o dono
+ * fechar, reabre sem foco na próxima ação. Sem NENHUMA janela do Chrome aberta, não cria
+ * (lança ErroInstagram 'sem_janela' — quem chama só espera). `criar: false` só procura.
+ */
+export async function garantirAbaInstagram({ criar = true } = {}) {
+  if (janelaPendente) return janelaPendente;
+  janelaPendente = (async () => {
+    const guardada = (await chrome.storage.local.get(CHAVE_JANELA))[CHAVE_JANELA];
+    const janelas = await listarJanelas();
+    const achada = acharJanelaTrabalho(janelas, guardada);
+    if (achada) {
+      if (achada.windowId !== guardada?.windowId || achada.tabId !== guardada?.tabId) {
+        await chrome.storage.local.set({ [CHAVE_JANELA]: { windowId: achada.windowId, tabId: achada.tabId } });
       }
-    } catch { /* aba fechada */ }
-  }
-  const abertas = await chrome.tabs.query({ url: `${BASE}/*` });
-  let aba = abertas.find((a) => a.pinned) || abertas[0];
-  if (!aba) {
-    try {
-      aba = await chrome.tabs.create({ url: `${BASE}/`, pinned: true, active: false });
-    } catch (e) {
-      throw new ErroInstagram('aba', `Não consegui abrir a aba do Instagram (há uma janela do Chrome aberta?): ${e.message || e}`);
+      const aba = await chrome.tabs.get(achada.tabId);
+      // O dono navegou para fora do Instagram nessa aba: volta para o instagram.com (sem foco).
+      if (!ehUrlInstagram(aba.url || aba.pendingUrl)) await chrome.tabs.update(aba.id, { url: `${BASE}/` });
+      await esperarCarregar(aba.id);
+      return aba.id;
     }
-  }
-  await chrome.storage.local.set({ [CHAVE_ABA]: aba.id });
-  await esperarCarregar(aba.id);
-  return aba.id;
+    if (!criar) return null;
+    if (!podeCriarJanela(janelas)) {
+      throw new ErroInstagram('sem_janela', 'Nenhuma janela do Chrome aberta — a extensão espera abrir uma (não cria janela sozinha).');
+    }
+    let win;
+    try {
+      win = await chrome.windows.create({ url: `${BASE}/`, type: 'normal', focused: false, state: 'normal', ...TAMANHO_JANELA });
+    } catch (e) {
+      throw new ErroInstagram('aba', `Não consegui abrir a janela de trabalho do Instagram: ${e.message || e}`);
+    }
+    const aba = (win.tabs && win.tabs[0]) || (await chrome.tabs.query({ windowId: win.id }))[0];
+    await chrome.storage.local.set({ [CHAVE_JANELA]: { windowId: win.id, tabId: aba.id } });
+    await chrome.storage.local.remove?.(CHAVE_ABA_ANTIGA);
+    await chrome.tabs.update(aba.id, { autoDiscardable: false }).catch(() => {});
+    await esperarCarregar(aba.id);
+    return aba.id;
+  })().finally(() => { janelaPendente = null; });
+  return janelaPendente;
+}
+
+/** Há janela do Chrome onde trabalhar (a de trabalho ou alguma outra, para criá-la)? */
+export async function haJanelaParaTrabalhar() {
+  return podeCriarJanela(await listarJanelas());
+}
+
+/** Botão do popup (pedido explícito do dono): única vez em que a janela vem para a frente. */
+export async function abrirJanelaTrabalho() {
+  const tabId = await garantirAbaInstagram();
+  const aba = await chrome.tabs.get(tabId);
+  await chrome.windows.update(aba.windowId, { focused: true, state: 'normal' });
+  await chrome.tabs.update(tabId, { active: true });
+  return { ok: true };
+}
+
+/** Situação da janela de trabalho para o popup (nunca cria). */
+export async function situacaoJanelaTrabalho() {
+  const tabId = await garantirAbaInstagram({ criar: false }).catch(() => null);
+  if (!tabId) return descreverJanela({ existe: false });
+  const aba = await chrome.tabs.get(tabId).catch(() => null);
+  const win = aba ? await chrome.windows.get(aba.windowId).catch(() => ({})) : {};
+  return descreverJanela({ existe: Boolean(aba), estado: win.state });
 }
 
 /** Executor real: roda `requisicaoNaPagina` na aba do Instagram. */

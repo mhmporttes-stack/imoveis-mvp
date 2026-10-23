@@ -150,7 +150,7 @@ export default function TestimonialForm({ testimonial, canPublish = false }) {
   }
 
   return (
-    <form onSubmit={submit} className="container-page grid gap-8 rounded-[28px] border border-line bg-white p-8 shadow-soft">
+    <form onSubmit={submit} className="container-page grid gap-8 rounded-panel border border-line bg-white p-8 shadow-soft">
       <section className="grid gap-5 lg:grid-cols-2">
         <Field label="Nome do cliente" value={form.clientName} onChange={(value) => update("clientName", value)} required />
         <Field label="Identificação curta" value={form.clientDescription} onChange={(value) => update("clientDescription", value)} placeholder="Cliente comprador" />
@@ -255,10 +255,10 @@ function Preview({ testimonial }) {
   return (
     <section className="rounded-3xl border border-line bg-[#F8FBFF] p-6">
       <p className="text-sm font-black uppercase tracking-[0.18em] text-brand">Prévia</p>
-      <article className="mt-5 overflow-hidden rounded-[24px] border border-line bg-white shadow-soft">
+      <article className="mt-5 overflow-hidden rounded-panel border border-line bg-white shadow-soft">
         {mediaImage ? (
           <div className="bg-[#F8FBFF] px-6 pt-6">
-            <div className="relative mx-auto aspect-[9/16] w-full max-w-[360px] overflow-hidden rounded-[24px] bg-mist shadow-soft">
+            <div className="relative mx-auto aspect-[9/16] w-full max-w-[360px] overflow-hidden rounded-panel bg-mist shadow-soft">
               <Image src={mediaImage} alt={`Prévia de ${testimonial.clientName || "depoimento"}`} fill className="object-cover" unoptimized />
             {testimonial.mediaType === "video_upload" || testimonial.mediaType === "video_url" ? (
               <span className="absolute inset-0 grid place-items-center bg-navy/20 text-white">

@@ -7,7 +7,7 @@ import { MessageCircle } from "lucide-react";
 export default function ProspectingConnectGate({ message }) {
   return (
     <section className="container-page">
-      <div role="status" className="mx-auto max-w-xl rounded-[24px] border border-amber-200 bg-amber-50 p-8 text-center shadow-soft">
+      <div role="status" className="mx-auto max-w-xl rounded-panel border border-amber-200 bg-amber-50 p-8 text-center shadow-soft">
         <MessageCircle className="mx-auto h-8 w-8 text-amber-700" aria-hidden="true" />
         <p className="mt-3 text-lg font-black text-navy">{message}</p>
         <button

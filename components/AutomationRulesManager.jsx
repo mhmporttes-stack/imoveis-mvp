@@ -12,6 +12,7 @@ import {
   AUTOMATION_WHATSAPP_VARIABLES,
   optionLabel
 } from "@/lib/crm-automation-options";
+import Kpi from "@/components/ui/Kpi";
 
 const AUTOMATION_EMAIL = "mhmporttes@gmail.com";
 const TEMPLATE_STATUS_LABEL = { APPROVED: "aprovado", PENDING: "em análise", REJECTED: "rejeitado" };
@@ -84,7 +85,7 @@ export default function AutomationRulesManager({ initialRules = [], users = [], 
 
   return (
     <section className="container-page space-y-5">
-      <div className="grid gap-3 sm:grid-cols-3">
+      <div className="grid grid-cols-3 gap-2 sm:gap-3">
         <Metric label="Total de regras" value={totals.all} />
         <Metric label="Ativas" value={totals.active} tone="active" />
         <Metric label="Inativas" value={totals.inactive} />
@@ -99,7 +100,7 @@ export default function AutomationRulesManager({ initialRules = [], users = [], 
 
       <div className="space-y-3">
         {rules.map((rule) => (
-          <article className="rounded-[24px] border border-line bg-white p-5 shadow-soft" key={rule.id}>
+          <article className="rounded-panel border border-line bg-white p-5 shadow-soft" key={rule.id}>
             <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-center">
               <div className="min-w-0">
                 <div className="flex flex-wrap items-center gap-2">
@@ -123,7 +124,7 @@ export default function AutomationRulesManager({ initialRules = [], users = [], 
             </div>
           </article>
         ))}
-        {!rules.length ? <p className="rounded-[24px] border border-line bg-white p-8 text-center font-bold text-muted">Nenhuma regra configurada.</p> : null}
+        {!rules.length ? <p className="rounded-panel border border-line bg-white p-8 text-center font-bold text-muted">Nenhuma regra configurada.</p> : null}
       </div>
     </section>
   );
@@ -143,7 +144,7 @@ function RuleEditor({ draft, onChange, onClose, onSave, saving, users, whatsappT
     ...(mode === "immediate" ? { delayValue: 0 } : {})
   });
   return (
-    <div className="rounded-[28px] border border-brand/20 bg-white p-6 shadow-premium [&_input]:min-h-12 [&_input]:w-full [&_input]:rounded-2xl [&_input]:border [&_input]:border-line [&_input]:bg-white [&_input]:px-4 [&_select]:min-h-12 [&_select]:w-full [&_select]:rounded-2xl [&_select]:border [&_select]:border-line [&_select]:bg-white [&_select]:px-4 [&_textarea]:min-h-28 [&_textarea]:w-full [&_textarea]:rounded-2xl [&_textarea]:border [&_textarea]:border-line [&_textarea]:bg-white [&_textarea]:p-4">
+    <div className="rounded-panel border border-brand/20 bg-white p-6 shadow-premium [&_input]:min-h-12 [&_input]:w-full [&_input]:rounded-2xl [&_input]:border [&_input]:border-line [&_input]:bg-white [&_input]:px-4 [&_select]:min-h-12 [&_select]:w-full [&_select]:rounded-2xl [&_select]:border [&_select]:border-line [&_select]:bg-white [&_select]:px-4 [&_textarea]:min-h-28 [&_textarea]:w-full [&_textarea]:rounded-2xl [&_textarea]:border [&_textarea]:border-line [&_textarea]:bg-white [&_textarea]:p-4">
       <div className="flex items-center justify-between gap-3"><h2 className="text-2xl font-black text-navy">{draft.id ? "Editar regra" : "Nova regra"}</h2><button className="icon-button" onClick={onClose} type="button" aria-label="Fechar"><X className="h-5 w-5" /></button></div>
       <div className="mt-6 grid max-w-3xl gap-5">
         <Field label="Nome da regra"><input value={draft.name} onChange={(event) => update({ name: event.target.value })} /></Field>
@@ -258,7 +259,8 @@ function TargetFields({ action, onChange, users }) {
 
 function EditorGroup({ title, onAdd, children }) { return <div className="mt-6"><div className="mb-3 flex items-center justify-between"><h3 className="text-lg font-black text-navy">{title}</h3><button className="inline-flex items-center gap-1 text-sm font-black text-brand" onClick={onAdd} type="button"><Plus className="h-4 w-4" />Adicionar</button></div><div className="space-y-3">{children}</div></div>; }
 function Field({ label, children }) { return <label className="grid gap-2 text-sm font-black text-navy">{label}{children}</label>; }
-function Metric({ label, value, tone }) { return <div className={`rounded-[22px] border bg-white p-5 shadow-soft ${tone === "active" ? "border-emerald-200" : "border-line"}`}><p className="text-3xl font-black text-navy">{value}</p><p className="mt-1 text-sm font-bold text-muted">{label}</p></div>; }
+// Visual novo (2026-10-22): indicador no padrão único components/ui/Kpi (rótulo em cima, número, nota).
+function Metric({ label, value, tone }) { return <Kpi label={label} value={value} tone={tone === "active" ? "success" : "default"} />; }
 function SmallButton({ children, danger, onClick }) { return <button className={`inline-flex h-10 items-center gap-1.5 rounded-full border bg-white px-4 text-sm font-black transition hover:bg-mist ${danger ? "border-red-200 text-red-700" : "border-line text-navy"}`} onClick={onClick} type="button">{children}</button>; }
 function option(item) { return <option key={item.value} value={item.value}>{item.label}</option>; }
 function replaceAt(items, index, value) { return items.map((item, itemIndex) => itemIndex === index ? value : item); }

@@ -11,12 +11,17 @@ function secret() {
   return process.env.WHATSAPP_INDIVIDUAL_SERVICE_SECRET || "";
 }
 
+const CRM_CALL_TIMEOUT_MS = 20_000;
+
 async function call(method, path, body) {
   const url = `${baseUrl()}${path}`;
   const response = await fetch(url, {
     method,
     headers: { "Content-Type": "application/json", "X-Service-Secret": secret() },
-    body: body !== undefined ? JSON.stringify(body) : undefined
+    body: body !== undefined ? JSON.stringify(body) : undefined,
+    // Prazo (2026-10-23): a gravação das chaves roda dentro da fila de mensagens do Baileys (keys.set) — sem prazo, uma
+    // chamada pendurada segurava a fila. A rota do CRM tem maxDuration 15 s.
+    signal: AbortSignal.timeout(CRM_CALL_TIMEOUT_MS)
   });
   const payload = await response.json().catch(() => ({}));
   if (!response.ok || payload?.error) {

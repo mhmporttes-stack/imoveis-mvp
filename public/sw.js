@@ -7,6 +7,12 @@
 // apaga o anterior), em vez de depender de alguém lembrar de bumpar "v4" à mão.
 const CACHE_VERSION = "painel-matheus-v4-mu70r0so";
 const STATIC_CACHE = `${CACHE_VERSION}-static`;
+// Velocidade (2026-10-22, etapa 2): os arquivos de /_next/static/* têm o hash do conteúdo no nome (mesmo endereço =
+// mesmo conteúdo, para sempre), então ficam num cache SEM versão que sobrevive às publicações — antes cada deploy
+// apagava tudo e o app baixava de novo até os arquivos que não mudaram. O resto (ícones, offline.html, assets) continua
+// no cache versionado, limpo a cada publicação. Limite de entradas para o cache não crescer sem fim (os mais antigos saem).
+const NEXT_STATIC_CACHE = "painel-matheus-next-static";
+const NEXT_STATIC_MAX_ENTRIES = 600;
 const STATIC_ASSETS = [
   "/offline.html",
   "/icons/favicon-32-mm.png",
@@ -29,7 +35,8 @@ self.addEventListener("activate", (event) => {
   event.waitUntil(
     caches
       .keys()
-      .then((keys) => Promise.all(keys.filter((key) => !key.startsWith(CACHE_VERSION)).map((key) => caches.delete(key))))
+      .then((keys) => Promise.all(keys.filter((key) => !key.startsWith(CACHE_VERSION) && key !== NEXT_STATIC_CACHE).map((key) => caches.delete(key))))
+      .then(trimNextStaticCache)
       .then(() => self.clients.claim())
   );
 });
@@ -170,10 +177,19 @@ async function cacheFirst(request) {
 
   const response = await fetch(request);
   if (response.ok) {
-    const cache = await caches.open(STATIC_CACHE);
+    const isNextStatic = new URL(request.url).pathname.startsWith("/_next/static/");
+    const cache = await caches.open(isNextStatic ? NEXT_STATIC_CACHE : STATIC_CACHE);
     cache.put(request, response.clone());
   }
   return response;
+}
+
+// cache.keys() devolve na ordem de inserção: apaga os mais antigos além do limite.
+async function trimNextStaticCache() {
+  const cache = await caches.open(NEXT_STATIC_CACHE);
+  const keys = await cache.keys();
+  const excess = keys.length - NEXT_STATIC_MAX_ENTRIES;
+  if (excess > 0) await Promise.all(keys.slice(0, excess).map((key) => cache.delete(key)));
 }
 
 async function networkFirstNavigation(request) {

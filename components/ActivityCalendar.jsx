@@ -1,14 +1,19 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { AlertTriangle, Cake, CalendarClock, CalendarDays, CheckCircle2, ChevronLeft, ChevronRight, Clock, MessageCircle, Plus, UserRound, X } from "lucide-react";
 import { toWhatsAppDigits } from "@/lib/phone-utils";
 import { ConfirmReceiptModal, RescheduleReceiptModal } from "@/components/ReceiptActionModals";
+import { tabClasses } from "@/components/ui/Tabs";
+import { readViewerData, saveViewerData } from "@/components/chat-view-cache";
+import { CALENDAR_CACHE_PREFIX, calendarMonthQuery } from "@/components/panel-cache-names";
 
 const WEEK_DAYS = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
 
-export default function ActivityCalendar({ pendingOnly = false }) {
+// viewerKey (conta real + efetiva): o mês já visto/pré-carregado (AdminWarmup) aparece na hora e atualiza em seguida
+// (components/chat-view-cache.js — só memória, limpa ao sair e em "Alterar conta"). Lista de pendentes não usa cache.
+export default function ActivityCalendar({ pendingOnly = false, viewerKey = "" }) {
   const today = useMemo(() => new Date(), []);
   const [visibleMonth, setVisibleMonth] = useState(new Date(today.getFullYear(), today.getMonth(), 1));
   const [selectedDate, setSelectedDate] = useState(toDateKey(today));
@@ -35,20 +40,32 @@ export default function ActivityCalendar({ pendingOnly = false }) {
   const [scope, setScope] = useState(pendingOnly ? "own" : "team");
   const [canViewTeam, setCanViewTeam] = useState(false);
 
+  const lastReloadKey = useRef(reloadKey);
   useEffect(() => {
     let ignore = false;
     async function loadActivities() {
-      setLoading(true);
+      const scopeParam = scope === "team" ? "&scope=team" : "";
+      const monthQuery = pendingOnly ? "" : calendarMonthQuery(visibleMonth, scope);
+      const cacheName = monthQuery ? `${CALENDAR_CACHE_PREFIX}${monthQuery}` : "";
+      // Depois de uma alteração (reloadKey) não mostra a versão guardada, que pode estar desatualizada.
+      const reloading = lastReloadKey.current !== reloadKey;
+      lastReloadKey.current = reloadKey;
+      const cached = cacheName && !reloading ? readViewerData(viewerKey, cacheName) : null;
+      if (cached) {
+        setActivities(cached.activities || []);
+        setClients(cached.clients || []);
+        setUsers(cached.users || []);
+        setCanViewTeam(Boolean(cached.canViewTeam));
+      }
+      setLoading(!cached);
       setError("");
       try {
-        const start = new Date(visibleMonth.getFullYear(), visibleMonth.getMonth(), 1, 0, 0, 0);
-        const end = new Date(visibleMonth.getFullYear(), visibleMonth.getMonth() + 1, 0, 23, 59, 59);
-        const scopeParam = scope === "team" ? "&scope=team" : "";
-        const response = await fetch(pendingOnly ? `/api/calendar-activities?pending=1${scopeParam}` : `/api/calendar-activities?from=${encodeURIComponent(start.toISOString())}&to=${encodeURIComponent(end.toISOString())}${scopeParam}`, {
+        const response = await fetch(pendingOnly ? `/api/calendar-activities?pending=1${scopeParam}` : `/api/calendar-activities?${monthQuery}`, {
           cache: "no-store"
         });
         const payload = await response.json();
         if (!response.ok) throw new Error(payload?.error || "Não foi possível carregar o calendário.");
+        if (cacheName) saveViewerData(viewerKey, cacheName, payload);
         if (!ignore) {
           setActivities(payload.activities || []);
           setClients(payload.clients || []);
@@ -66,6 +83,7 @@ export default function ActivityCalendar({ pendingOnly = false }) {
     return () => {
       ignore = true;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visibleMonth, pendingOnly, reloadKey, scope]);
 
   const activitiesByDate = useMemo(() => {
@@ -181,19 +199,19 @@ export default function ActivityCalendar({ pendingOnly = false }) {
 
   return (
     <section className="container-page pb-14">
-      <div className="rounded-[28px] border border-line bg-white p-5 shadow-soft md:p-8">
+      <div className="rounded-panel border border-line bg-white p-5 shadow-soft md:p-8">
         <div className="flex flex-col gap-4 border-b border-line pb-5 md:flex-row md:items-center md:justify-between">
           <div>
             <p className="text-xs font-black uppercase tracking-[0.28em] text-brand">Agenda dos corretores</p>
             <h2 className="mt-2 text-3xl font-black text-navy md:text-4xl">{pendingOnly ? "Atividades pendentes" : formatMonthTitle(visibleMonth)}</h2>
             {canViewTeam ? (
-              <div className="mt-3 inline-flex rounded-full border border-line bg-mist p-1" role="group" aria-label="Quais atividades mostrar">
+              <div className="mt-3 inline-flex gap-1.5" role="group" aria-label="Quais atividades mostrar">
                 {[{ key: "team", label: "Equipe" }, { key: "own", label: "Minhas" }].map((option) => (
                   <button
                     key={option.key}
                     type="button"
                     aria-pressed={scope === option.key}
-                    className={`rounded-full px-4 py-1.5 text-sm font-black transition ${scope === option.key ? "bg-navy text-white" : "text-navy hover:text-brand"}`}
+                    className={tabClasses(scope === option.key)}
                     onClick={() => setScope(option.key)}
                   >
                     {option.label}
@@ -261,7 +279,7 @@ export default function ActivityCalendar({ pendingOnly = false }) {
             </div>
           </div> : null}
 
-          <aside className="rounded-[24px] border border-line bg-[#f8fbff] p-5">
+          <aside className="rounded-panel border border-line bg-[#f8fbff] p-5">
             <div className="flex items-center gap-3">
               <span className="grid h-11 w-11 place-items-center rounded-full bg-brand/10 text-brand">
                 <CalendarDays size={22} />
@@ -470,7 +488,7 @@ function ActivityModal({ activity, onClose }) {
 
   return (
     <div className="fixed inset-0 z-50 grid place-items-center bg-navy/70 p-4" role="dialog" aria-modal="true" onMouseDown={onClose}>
-      <div className="w-full max-w-2xl rounded-[28px] bg-white p-6 shadow-2xl md:p-8" onMouseDown={(event) => event.stopPropagation()}>
+      <div className="w-full max-w-2xl rounded-panel bg-white p-6 shadow-2xl md:p-8" onMouseDown={(event) => event.stopPropagation()}>
         <div className="flex items-start justify-between gap-4">
           <div>
             <p className="text-xs font-black uppercase tracking-[0.24em] text-brand">{activity.isBirthday ? "Aniversário" : "Atividade agendada"}</p>
@@ -583,7 +601,7 @@ function CreateActivityModal({ clients, date, users, onClose, onCreated }) {
     finally { setSaving(false); }
   }
 
-  return <div className="fixed inset-0 z-50 grid place-items-center bg-navy/70 p-4" role="dialog" aria-modal="true" onMouseDown={onClose}><form className="w-full max-w-2xl rounded-[28px] bg-white p-6 shadow-2xl md:p-8" onSubmit={submit} onMouseDown={(event) => event.stopPropagation()}>
+  return <div className="fixed inset-0 z-50 grid place-items-center bg-navy/70 p-4" role="dialog" aria-modal="true" onMouseDown={onClose}><form className="w-full max-w-2xl rounded-panel bg-white p-6 shadow-2xl md:p-8" onSubmit={submit} onMouseDown={(event) => event.stopPropagation()}>
     <div className="flex items-center justify-between gap-4"><h3 className="text-2xl font-black text-navy">Agendar atividade</h3><button className="icon-button" onClick={onClose} type="button" aria-label="Fechar"><X size={20} /></button></div>
     {error ? <p className="mt-4 rounded-2xl border border-red-100 bg-red-50 px-4 py-3 text-sm font-bold text-red-700">{error}</p> : null}
     <div className="mt-5 grid gap-4 sm:grid-cols-2">
@@ -629,7 +647,7 @@ function RescheduleActivityModal({
 
   return (
     <div className="fixed inset-0 z-50 grid place-items-center bg-navy/70 p-4" role="dialog" aria-modal="true" onMouseDown={onClose}>
-      <form className="w-full max-w-xl rounded-[28px] bg-white p-6 shadow-2xl md:p-8" onSubmit={onSubmit} onMouseDown={(event) => event.stopPropagation()}>
+      <form className="w-full max-w-xl rounded-panel bg-white p-6 shadow-2xl md:p-8" onSubmit={onSubmit} onMouseDown={(event) => event.stopPropagation()}>
         <div className="flex items-start justify-between gap-4">
           <div>
             <p className="text-xs font-black uppercase tracking-[0.24em] text-brand">Reagendar atividade</p>

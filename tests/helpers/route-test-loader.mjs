@@ -39,6 +39,8 @@ function importedNames(parentSource, specifier) {
 export async function resolve(specifier, context, nextResolve) {
   if (specifier === "server-only") return { url: "stub:server-only", shortCircuit: true };
   if (specifier === "next/server") return { url: "stub:next-server", shortCircuit: true };
+  // lib/admin-auth.js de verdade (tests/server-cache.test.mjs): o pacote next não tem "exports" para o ESM do Node.
+  if (specifier === "next/headers" || specifier === "next/navigation") return nextResolve(`${specifier}.js`, context);
   const parent = context.parentURL || "";
   const alias = specifier.startsWith("@/");
   const relative = specifier.startsWith("./") || specifier.startsWith("../");

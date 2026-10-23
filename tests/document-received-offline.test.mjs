@@ -73,5 +73,5 @@ test("card: ação só com o sinal do servidor, confirmação [Marcar] [Cancelar
   assert.match(card, /setUndoUntil\(Date\.now\(\) \+ OFFLINE_UNDO_MS\)/);
   assert.match(card, /list\.setDocumentReceivedOffline\(client, \{ undo: true \}\)/);
   const query = read("lib/simulation-list-query.js");
-  assert.equal((query.match(/applyDocumentsOfflineSignal\(supabase, /g) || []).length, 2);
+  assert.equal((query.match(/applyDocumentsOfflineSignal\(supabase, /g) || []).length, 3); // três saídas da página (inclui o filtro Roleta, 2026-10-22)
 });

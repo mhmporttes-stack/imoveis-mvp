@@ -3,26 +3,26 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import {
-  BarChart3, BookOpen, Calculator, GraduationCap, Building, Building2, CalendarDays, CircleDot, Clock, Ellipsis, FileText, House, HousePlus, Link2,
-  MessageCircle, MessageSquarePlus, MessageSquareQuote, MessageSquareReply, Mic, Radar, Route, Search, ShieldCheck, BrainCircuit, Target, Trophy, UserCheck,
-  UserRoundPlus, Users, UsersRound, Wallet, Zap
-} from "lucide-react";
+import { BarChart3, Calculator, CalendarDays, Clock, Menu, MessageCircle, MessageSquareReply, Target, UserCheck, UserRoundPlus, Users } from "lucide-react";
 import { getAdminMenuGroups } from "@/components/AdminMenu";
 import { useAcademyMenuEnabled } from "@/components/AcademyMenuContext";
 import SceneTransitionLink from "@/components/motion/SceneTransitionLink";
 import Sheet from "@/components/ui/Sheet";
 import AdminThemeToggle from "@/components/AdminThemeToggle";
 import { CountBadge } from "@/components/ui/Badge";
+import { buttonClasses } from "@/components/ui/Button";
+import { navBadgeFor, navIconFor } from "@/components/admin-nav-icons";
 import { cx } from "@/components/ui/cx";
 import { useCrmBadgeCounts } from "@/components/useCrmBadgeCounts";
+import { MarketplaceChatIcon } from "@/components/marketplace/MarketplaceChatShortcut";
+import { useMarketplaceUnreadCount } from "@/components/marketplace/MarketplaceNavBadge";
 import { useLiveChatHidden } from "@/components/WhatsappAccessProvider";
 import { hiddenNavKeys } from "@/lib/whatsapp-access-core.mjs";
 
 // Navegação principal do painel no celular (< md): barra inferior fixa com os
 // 4 destinos mais usados do perfil + "Mais" (sheet com TODOS os grupos do
 // menu, vindos de getAdminMenuGroups — nada fica inacessível). Do tablet para
-// cima continua o AdminMenu do topo. Só navegação: permissão real continua
+// cima é o menu lateral (AdminMenu). Só navegação: permissão real continua
 // nos guards de cada página.
 //
 // Distribuição (decisão do Designer, autorizada pelo dono em 2026-10-01):
@@ -35,26 +35,33 @@ const DESTINATIONS = {
   dailyGoal: { key: "daily-goal", href: "/admin/meta-diaria", label: "Meta", Icon: Target, match: (path) => path === "/admin/meta-diaria" },
   caixaSimulator: { key: "caixa-simulator", href: "/admin/simulador-caixa", label: "Simulador", Icon: Calculator, match: (path) => path.startsWith("/admin/simulador-caixa") },
   clients: { key: "simulations", href: "/admin/simulacoes", label: "Clientes", Icon: Users, match: (path) => path.startsWith("/admin/simulacoes") },
-  chat: { key: "chat", href: "/admin/chat", label: "Chat", Icon: MessageCircle, match: (path) => path.startsWith("/admin/chat") },
+  chat: { key: "chat", href: "/admin/chat", label: "Chat", Icon: MessageCircle, match: (path) => path.startsWith("/admin/chat") && !path.startsWith("/admin/chat/marketplace") },
+  // Chat Marketplace (dono, 2026-10-21: "adicione ele ao lado do chat também"): todos os perfis, logo à direita do Chat.
+  // Mesma chave do item do menu (MARKETPLACE_CHAT_ITEM), então some do "Mais". Rótulo curto abaixo de 390px (6 colunas).
+  marketplaceChat: { key: "marketplace-chat", href: "/admin/chat/marketplace", label: "Chat Marketplace", shortLabel: "Market", mediumLabel: "Marketplace", Icon: MarketplaceChatIcon, match: (path) => path.startsWith("/admin/chat/marketplace") },
   agenda: { key: "calendar", href: "/admin/calendario", label: "Agenda", Icon: CalendarDays, match: (path) => path.startsWith("/admin/calendario") },
   online: { key: "online", href: "/admin/desempenho/online", label: "Online", Icon: UserCheck, match: (path) => path.startsWith("/admin/desempenho/online") },
-  performance: { key: "performance", href: "/admin/desempenho", label: "Desempenho", Icon: BarChart3, match: (path) => (path.startsWith("/admin/desempenho") && !path.startsWith("/admin/desempenho/online")) || path.startsWith("/admin/relatorio-diario") }
+  // Rótulo curto "Ranking" na barra (crítica de 2026-10-22: "Desempenho" cortava em 390px com 6 colunas); o nome
+  // completo continua para leitor de tela e no menu/cabeçalho.
+  performance: { key: "performance", href: "/admin/desempenho", label: "Desempenho", shortLabel: "Ranking", mediumLabel: "Ranking", Icon: BarChart3, match: (path) => (path.startsWith("/admin/desempenho") && !path.startsWith("/admin/desempenho/online")) || path.startsWith("/admin/relatorio-diario") }
 };
 
 // Administrador geral (dono, 2026-10-13): "Online" no lugar da Meta Diária na barra; a Meta Diária vai para o "Mais".
 // Corretor/associado (dono, 2026-10-19): "Simulador Caixa" no lugar da Meta Diária; gestor mantém a Meta.
 function destinationsFor({ isAdmin, isManager }) {
-  if (isAdmin) return [DESTINATIONS.online, DESTINATIONS.clients, DESTINATIONS.chat, DESTINATIONS.performance];
-  if (isManager) return [DESTINATIONS.dailyGoal, DESTINATIONS.clients, DESTINATIONS.chat, DESTINATIONS.agenda];
-  return [DESTINATIONS.caixaSimulator, DESTINATIONS.clients, DESTINATIONS.chat, DESTINATIONS.agenda];
+  if (isAdmin) return [DESTINATIONS.online, DESTINATIONS.clients, DESTINATIONS.chat, DESTINATIONS.marketplaceChat, DESTINATIONS.performance];
+  if (isManager) return [DESTINATIONS.dailyGoal, DESTINATIONS.clients, DESTINATIONS.chat, DESTINATIONS.marketplaceChat, DESTINATIONS.agenda];
+  return [DESTINATIONS.caixaSimulator, DESTINATIONS.clients, DESTINATIONS.chat, DESTINATIONS.marketplaceChat, DESTINATIONS.agenda];
 }
 
-function badgeFor(key, counts) {
-  if (key === "chat") return counts.chat || 0;
-  if (key === "calendar") return counts.agenda || 0;
-  if (key === "simulations") return (counts.newAttendances || 0) + (counts.awaitingSimulation || 0) + (counts.prospectingReplies || 0);
-  return 0;
-}
+// Contador de cada destino: fonte única em components/admin-nav-icons.js (o mesmo do menu lateral).
+const badgeFor = navBadgeFor;
+
+// Ícones da barra (dono, 2026-10-21: "diminua o tamanho dos ícones no app"): 20px, para caber o Chat Marketplace como
+// 6ª coluna em 360px. Visual novo (dono, 2026-10-22): traço fino (1,9), item ativo no azul de destaque, sem pílula de
+// fundo. A área de toque continua a coluna inteira (56px de altura).
+const NAV_PILL = "relative flex h-6 w-10 items-center justify-center";
+const NAV_ICON = "h-5 w-5";
 
 function isEditableTarget(target) {
   if (!(target instanceof HTMLElement)) return false;
@@ -71,7 +78,10 @@ export default function AdminBottomNav({ isAdmin = false, isBroker = false, isAs
   const chatHidden = useLiveChatHidden(chatHiddenProp);
   const routerPath = usePathname() || "";
   const pathname = currentPath || routerPath;
-  const counts = useCrmBadgeCounts();
+  const crmCounts = useCrmBadgeCounts();
+  // Contador do Chat Marketplace: mesma fonte do menu e do atalho do computador (MKT-2).
+  const marketplaceUnread = useMarketplaceUnreadCount();
+  const counts = { ...crmCounts, marketplace: marketplaceUnread };
   const [moreOpen, setMoreOpen] = useState(false);
   const [typing, setTyping] = useState(false);
   const navRef = useRef(null);
@@ -191,7 +201,8 @@ export default function AdminBottomNav({ isAdmin = false, isBroker = false, isAs
         ref={navRef}
         aria-label="Navegação principal"
         className={cx(
-          "admin-bottom-nav fixed inset-x-0 bottom-0 z-30 border-t border-line bg-white/95 shadow-float backdrop-blur md:hidden",
+          // Visual novo (dono, 2026-10-22): fundo translúcido com desfoque (app/admin-theme.css no escuro).
+          "admin-bottom-nav fixed inset-x-0 bottom-0 z-30 border-t border-line bg-white/[0.94] backdrop-blur-[14px] md:hidden",
           "transition-transform duration-200 ease-out-ui motion-reduce:transition-none",
           typing && "translate-y-full"
         )}
@@ -206,18 +217,27 @@ export default function AdminBottomNav({ isAdmin = false, isBroker = false, isAs
                 <ItemLink
                   href={item.href}
                   {...(item.key === "daily-goal" ? { direction: "forward" } : {})}
+                  data-henry-target={item.href.split("?")[0]}
                   aria-current={active ? "page" : undefined}
                   className={cx(
-                    "relative flex flex-1 flex-col items-center justify-center gap-0.5 text-2xs font-medium tracking-normal",
-                    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand",
-                    active ? "text-navy" : "text-muted"
+                    "relative flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 text-[10px] font-semibold leading-4 tracking-normal",
+                    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent",
+                    active ? "text-accent-text" : "text-muted"
                   )}
                 >
-                  <span className={cx("relative flex h-7 w-12 items-center justify-center rounded-full transition-colors duration-150", active && "admin-nav-current bg-info-soft")}>
-                    <item.Icon className="h-[22px] w-[22px]" strokeWidth={active ? 2.25 : 1.75} aria-hidden="true" />
-                    <CountBadge count={badge} className="absolute -right-0.5 -top-1.5 ring-2 ring-white" label={`${badge} pendentes em ${item.label}`} />
+                  <span className={cx(NAV_PILL, "transition-colors duration-150", active && "admin-nav-current")}>
+                    <item.Icon className={NAV_ICON} strokeWidth={1.9} aria-hidden="true" />
+                    <CountBadge count={badge} className="absolute -right-0.5 -top-1.5 !h-4 !min-w-4 !px-1 !text-[10px]" label={`${badge} pendentes em ${item.label}`} />
                   </span>
-                  <span className={active ? "font-semibold" : undefined}>{item.label}</span>
+                  {item.shortLabel ? (
+                    <span className="max-w-full truncate">
+                      <span className="sr-only">{item.label}</span>
+                      <span className="min-[390px]:hidden" aria-hidden="true">{item.shortLabel}</span>
+                      <span className="max-[389px]:hidden" aria-hidden="true">{item.mediumLabel}</span>
+                    </span>
+                  ) : (
+                    <span className="max-w-full truncate">{item.label}</span>
+                  )}
                 </ItemLink>
               </li>
             );
@@ -229,66 +249,29 @@ export default function AdminBottomNav({ isAdmin = false, isBroker = false, isAs
               aria-haspopup="dialog"
               aria-expanded={moreOpen}
               className={cx(
-                "flex flex-1 flex-col items-center justify-center gap-0.5 text-2xs font-medium tracking-normal",
-                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand",
-                !activeKey ? "text-navy" : "text-muted"
+                "flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 text-[10px] font-semibold leading-4 tracking-normal",
+                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent",
+                !activeKey || moreOpen ? "text-accent-text" : "text-muted"
               )}
             >
-              <span className={cx("flex h-7 w-12 items-center justify-center rounded-full", !activeKey && "bg-info-soft")}>
-                <Ellipsis className="h-[22px] w-[22px]" aria-hidden="true" />
+              <span className={NAV_PILL}>
+                <Menu className={NAV_ICON} strokeWidth={1.9} aria-hidden="true" />
               </span>
-              <span className={!activeKey ? "font-semibold" : undefined}>Mais</span>
+              <span>Mais</span>
             </button>
           </li>
         </ul>
       </nav>
 
-      <Sheet open={moreOpen} onClose={() => setMoreOpen(false)} title="Menu" side="bottom" compact>
+      <Sheet open={moreOpen} onClose={() => setMoreOpen(false)} title="Mais" side="bottom" compact>
         <MoreMenu flags={flags} counts={counts} pathname={pathname} barKeys={destinations.map((item) => item.key)} />
       </Sheet>
     </>
   );
 }
 
-// Ícone de cada destino do menu "Mais", por chave de `getAdminMenuGroups`.
-// Só apresentação — destinos, ordem e permissões vêm do próprio menu.
-const ITEM_ICONS = {
-  "daily-goal": Target,
-  "daily-goal-admin": Target,
-  simulations: Users,
-  "new-client": UserRoundPlus,
-  chat: MessageCircle,
-  calendar: CalendarDays,
-  prospecting: Search,
-  properties: House,
-  "new-property": HousePlus,
-  developments: Building2,
-  "management-properties": Building,
-  captacoes: Radar,
-  testimonials: MessageSquareQuote,
-  "new-testimonial": MessageSquarePlus,
-  "properties-catalog": House,
-  brokers: UsersRound,
-  "campaign-links": Link2,
-  "client-journey": Route,
-  automations: Zap,
-  "attendance-guide": BookOpen,
-  manual: BookOpen,
-  performance: BarChart3,
-  "daily-report": FileText,
-  financial: Wallet,
-  online: UserCheck,
-  audit: ShieldCheck,
-  "ai-usage": BrainCircuit,
-  scoring: Trophy,
-  "document-rules": FileText,
-  alexa: Mic,
-  academy: GraduationCap,
-  "caixa-simulator": Calculator
-};
-
-// Mesma unidade visual para todo item do menu: ícone em ladrilho + nome (até
-// 2 linhas) + badge quando existir. Altura mínima de 44px (toque).
+// Ladrilho do menu "Mais" (visual novo, dono, 2026-10-22): grade de 3, ícone em cima e nome embaixo (até 2 linhas),
+// contador verde no canto. Altura mínima de 76px (toque folgado).
 function MenuTile({ href, label, Icon, current = false, count = 0, fullPage = false }) {
   // fullPage: destino fora de /admin (Academia) — navegação completa com <a>.
   const TileLink = fullPage ? "a" : Link;
@@ -297,22 +280,21 @@ function MenuTile({ href, label, Icon, current = false, count = 0, fullPage = fa
       href={href}
       aria-current={current ? "page" : undefined}
       className={cx(
-        "relative flex h-full min-h-touch items-center gap-1.5 rounded-control border px-1.5 py-1.5 text-[12px] leading-[1.15] min-[375px]:gap-2 min-[375px]:px-2.5 min-[375px]:text-[13px] transition-[background-color,transform] duration-150 ease-out-ui active:scale-[0.97] motion-reduce:transition-none",
-        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand",
-        current ? "border-info-line bg-info-soft font-semibold text-navy" : "border-navy/[0.06] bg-mist/70 font-medium text-ink hover:bg-info-soft/60"
+        "relative flex h-full min-h-[76px] flex-col items-center justify-center gap-1.5 rounded-[14px] border px-1 py-3 text-center text-[10.5px] font-bold leading-[1.2] text-ink",
+        "transition-[background-color,transform] duration-150 ease-out-ui active:scale-[0.97] motion-reduce:transition-none",
+        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent",
+        current ? "border-accent-line bg-accent-soft" : "border-line bg-surface-2 hover:bg-accent-soft"
       )}
     >
-      <span className={cx("grid h-6 w-6 shrink-0 place-items-center rounded-md", current ? "bg-brand text-white" : "bg-white text-brand ring-1 ring-navy/[0.06]")}>
-        <Icon className="h-3.5 w-3.5" strokeWidth={2} aria-hidden="true" />
-      </span>
-      <span className="min-w-0 flex-1 break-words">{label}</span>
+      <Icon className="h-[22px] w-[22px] shrink-0 text-accent" strokeWidth={1.9} aria-hidden="true" />
+      <span lang="pt-BR" className="max-w-full hyphens-auto">{label}</span>
       {/* Badge preso ao canto do próprio item: não disputa largura com o nome. */}
-      <CountBadge count={count} label={`${count} ${label}`} className="absolute -right-1 -top-1.5 ring-2 ring-white" />
+      <CountBadge count={count} label={`${count} ${label}`} className="absolute right-1.5 top-1.5" />
     </TileLink>
   );
 }
 
-const SECTION_TITLE = "mb-1.5 px-0.5 text-2xs font-semibold uppercase tracking-[0.08em] text-muted";
+const SECTION_TITLE = "mb-2 mt-1 px-1 text-[11px] font-semibold uppercase tracking-[0.1em] text-faint";
 
 function MoreMenu({ flags, counts, pathname, barKeys }) {
   const academiaEnabled = useAcademyMenuEnabled();
@@ -324,13 +306,16 @@ function MoreMenu({ flags, counts, pathname, barKeys }) {
     { label: "Chat", count: counts.chat, href: "/admin/chat", Icon: MessageCircle },
     { label: "Respostas da prospecção", count: counts.prospectingReplies, href: "/admin/simulacoes?prospectingReplies=1", Icon: MessageSquareReply }
   ].filter((item) => item.count > 0 && !((flags.whatsappBlocked || flags.chatHidden) && item.label === "Chat"));
+  // "Novo cliente" (dono, 2026-10-12: no celular o botão saiu do topo da Lista de clientes): agora é o botão
+  // principal do fim da folha, ao lado de "Aparência" — para todo perfil que tem a Lista de clientes.
+  const canCreateClient = groups.some((group) => group.items.some((item) => item.key === "simulations"));
 
   return (
-    <div className="space-y-3.5">
+    <div className="space-y-3">
       {pending.length ? (
         <section aria-labelledby="mais-pendencias">
           <h3 id="mais-pendencias" className={SECTION_TITLE}>Pendências</h3>
-          <ul className="grid grid-cols-2 gap-1.5">
+          <ul className="grid grid-cols-3 gap-2">
             {pending.map(({ label, count, href, Icon }) => (
               <li key={label}>
                 <MenuTile href={href} label={label} Icon={Icon} count={count} />
@@ -341,11 +326,7 @@ function MoreMenu({ flags, counts, pathname, barKeys }) {
       ) : null}
 
       {groups.map((group) => {
-        // "Novo cliente" no grupo de Clientes (dono, 2026-10-12): no celular o botão saiu do topo da Lista de clientes.
-        const withNewClient = group.items.some((item) => item.key === "simulations")
-          ? [...group.items, { href: "/admin/simulacoes/nova", label: "Novo cliente", key: "new-client" }]
-          : group.items;
-        const items = withNewClient.filter((item) => !barKeys.includes(item.key));
+        const items = group.items.filter((item) => !barKeys.includes(item.key));
         if (!items.length) return null;
         const headingId = `mais-${group.key}`;
         return (
@@ -353,13 +334,13 @@ function MoreMenu({ flags, counts, pathname, barKeys }) {
             <h3 id={headingId} className={SECTION_TITLE}>
               {group.label.length <= 3 ? group.label : group.label.charAt(0) + group.label.slice(1).toLowerCase()}
             </h3>
-            <ul className="grid grid-cols-2 gap-1.5">
+            <ul className="grid grid-cols-3 gap-2">
               {items.map((item) => {
                 const itemPath = item.href.split("?")[0];
                 const current = pathname === itemPath && !item.href.includes("?");
                 return (
                   <li key={`${group.key}-${item.key}`}>
-                    <MenuTile href={item.href} label={item.label} Icon={ITEM_ICONS[item.key] || CircleDot} current={current} fullPage={item.fullPage} />
+                    <MenuTile href={item.href} label={item.label} Icon={navIconFor(item.key)} current={current} count={navBadgeFor(item.key, counts)} fullPage={item.fullPage} />
                   </li>
                 );
               })}
@@ -369,10 +350,14 @@ function MoreMenu({ flags, counts, pathname, barKeys }) {
       })}
 
       {/* Modo claro/escuro (dono, 2026-10-16): preferência do aparelho, fora da navegação. */}
-      <section aria-labelledby="mais-aparencia">
-        <h3 id="mais-aparencia" className={SECTION_TITLE}>Aparência</h3>
-        <AdminThemeToggle />
-      </section>
+      <div className="flex gap-2 pt-2">
+        <AdminThemeToggle variant="button" className="flex-1" />
+        {canCreateClient ? (
+          <Link href="/admin/simulacoes/nova" className={buttonClasses({ variant: "primary", className: "flex-1" })}>
+            <UserRoundPlus className="h-[18px] w-[18px]" aria-hidden="true" /> Novo cliente
+          </Link>
+        ) : null}
+      </div>
     </div>
   );
 }

@@ -1,6 +1,7 @@
 import AdminSectionNav from "@/components/AdminSectionNav";
 import ActivityCalendar from "@/components/ActivityCalendar";
 import { requireAdminPage } from "@/lib/admin-auth";
+import { chatViewerKey } from "@/lib/chat-viewer-key.mjs";
 
 export const metadata = {
   title: "Calendário | Matheus Machado"
@@ -9,13 +10,13 @@ export const metadata = {
 export const dynamic = "force-dynamic";
 
 export default async function AdminCalendarPage({ searchParams }) {
-  await requireAdminPage();
+  const auth = await requireAdminPage();
   const pendingOnly = (await searchParams)?.pending === "1";
 
   return (
-    <main className="min-h-screen bg-[#f4f7fb] py-14">
+    <main className="min-h-screen bg-mist py-14">
       <AdminSectionNav active="calendar" />
-      <ActivityCalendar pendingOnly={pendingOnly} />
+      <ActivityCalendar pendingOnly={pendingOnly} viewerKey={chatViewerKey(auth)} />
     </main>
   );
 }
