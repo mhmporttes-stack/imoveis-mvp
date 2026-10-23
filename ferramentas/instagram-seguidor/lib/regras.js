@@ -193,8 +193,13 @@ export function dmPronta(registro, agora, cfg) {
 export function classificarErro({ status = 0, corpo = '' } = {}) {
   const texto = typeof corpo === 'string' ? corpo : JSON.stringify(corpo || {});
   const t = texto.toLowerCase().replace(/\s+/g, ' ');
-  const sessao = t.includes('login_required') || /"require_login"\s*:\s*true/.test(t) || t.includes('not-logged-in');
+  // 1.1.2: página HTML (ex.: 404 "Page Not Found" de endpoint que o Instagram tirou do ar) traz no próprio HTML
+  // textos como "not-logged-in"/"login_required" mesmo com a sessão válida — não é sinal de sessão. Em HTML, só
+  // o 401 conta como sessão; o resto é mudança de API (o endpoint não existe mais).
+  const html = t.trimStart().startsWith('<');
+  const sessao = !html && (t.includes('login_required') || /"require_login"\s*:\s*true/.test(t) || t.includes('not-logged-in'));
   if (status === 401 || sessao) return 'sessao';
+  if (html && status >= 400 && status !== 429) return 'mudanca_api';
   const limite = [
     'feedback_required',
     'challenge_required',

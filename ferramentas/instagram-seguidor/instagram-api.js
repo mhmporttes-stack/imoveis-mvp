@@ -152,7 +152,13 @@ export function criarApiInstagram({ executar, obterCsrf = async () => '' }) {
         if (!(e instanceof ErroInstagram) || (e.tipo !== 'mudanca_api' && e.tipo !== 'outro')) throw e;
         falha = e.message;
       }
-      const st = await amizadeDe(id);
+      let st = await amizadeDe(id);
+      if (!confirmado(st) && !falha) {
+        // 1.1.2: o friendships/show às vezes demora a refletir a ação; confere de novo antes de tentar o legado
+        // (evita mandar um segundo pedido para quem já foi seguido).
+        await new Promise((r) => setTimeout(r, 2500));
+        st = await amizadeDe(id);
+      }
       if (confirmado(st)) return { ...st, via: rotulo };
       falhas.push(falha || `${rotulo} respondeu, mas o friendships/show não confirmou`);
     }
