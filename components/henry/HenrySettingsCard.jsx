@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Field, { inputClasses } from "@/components/ui/Field";
 import { pickBestBrowserVoice, pronounceForSpeech } from "@/lib/henry-voice-providers.mjs";
+import { readHenryDesktopBridge } from "@/lib/henry-desktop-core.mjs";
 
 // Liga/desliga do assistente de voz "Henry" (docs/BUSINESS_RULES.md HENRY-1) e da visão pela webcam (HENRY-2, nasce
 // desligada). Só o dono consegue ler/gravar (a rota /api/admin/henry recusa os demais e "Alterar conta"); para outros
@@ -198,6 +199,8 @@ function HenryVoiceStyleSection({ saved, options, serverVoice, provider = "brows
   const [form, setForm] = useState(() => ({ ...saved }));
   const [busy, setBusy] = useState("");
   const [message, setMessage] = useState({ tone: "", text: "" });
+  const [desktopApp, setDesktopApp] = useState(false); // app de desktop do dono (desktop-app/): só informa
+  useEffect(() => setDesktopApp(Boolean(readHenryDesktopBridge(window))), []);
   const audioRef = useRef(null);
   const patch = changedFields(form, saved);
   const dirty = Object.keys(patch).length > 0;
@@ -258,6 +261,11 @@ function HenryVoiceStyleSection({ saved, options, serverVoice, provider = "brows
         Escolha a voz, o tom e a velocidade do Henry. Isso muda só o jeito de falar: ele continua só consultando, só para você, e sem falar dados sensíveis.
       </p>
       {extra}
+      {desktopApp ? (
+        <p className="mt-2 max-w-2xl rounded-control bg-emerald-50 px-3 py-2 text-sm font-bold text-emerald-800" role="status">
+          Rodando no app de desktop: microfone liberado, som sem clique e Ctrl+Shift+H chama o Henry.
+        </p>
+      ) : null}
       <p className={`mt-2 max-w-2xl rounded-control px-3 py-2 text-sm font-bold ${provider === "browser" ? "bg-amber-50 text-amber-800" : "bg-emerald-50 text-emerald-800"}`} role="status">
         Voz ativa: {providerLabel}.
         {provider === "browser" ? " Voz do navegador: configure ELEVENLABS_API_KEY na Vercel para a voz natural." : ""}

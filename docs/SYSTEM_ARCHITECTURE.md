@@ -91,6 +91,8 @@ Detalhes completos em [`PERMISSIONS.md`](PERMISSIONS.md): Supabase Auth → cook
 | Web Push (VAPID) | `lib/web-push.js`, `push-subscriptions.js` | `NEXT_PUBLIC_VAPID_PUBLIC_KEY`, `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT` | nunca lança (assinatura inválida é ignorada) |
 | Supabase Storage/Realtime | `lib/media-storage.js`, `lib/whatsapp-chat.js` | `SUPABASE_*_BUCKET`, `SUPABASE_SERVICE_ROLE_KEY` | Realtime best-effort |
 
+**Ferramentas fora da Vercel (só do dono):** extensões do Chrome em `ferramentas/` (Marketplace, Seguidor Instagram — chave própria `mkp_...`, falam com o CRM por API) e o **app de desktop** `desktop-app/` (Electron, Windows; 2026-10-23, HENRY-1 "App de desktop"): carrega o CRM de produção remoto (sem código do CRM dentro, sem chave), sessão persistente `persist:mm-crm`, ponte `window.mmDesktop` só para a origem do CRM com lista fechada de ações locais (Spotify, link https, aviso do Windows, monitor). Regras em `desktop-app/src/core.js`. Fica fora do deploy: `.vercelignore`, `tsconfig.json` (`exclude`) e `scripts/vercel-ignore-build.sh` (mudança só em `desktop-app/` não publica). Pacote: `npm run dist:portable` dentro de `desktop-app/` (zip + `.exe` portátil; instalador NSIS exige `wine` fora do Windows). Binário nunca no git (`dist/`, `node_modules/` ignorados).
+
 **Webhooks recebidos:** apenas o da Meta (`/api/webhooks/whatsapp-master`). Não há webhooks de saída.
 
 ## 7. Variáveis de ambiente (nomes — nunca valores)

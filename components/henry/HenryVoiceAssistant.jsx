@@ -50,6 +50,7 @@ import {
   pruneAlertPending
 } from "@/lib/henry-voice-client-alerts-core.mjs";
 import { saoPauloNow } from "@/lib/alexa-config-core.mjs";
+import { detectScreenCommand, readHenryDesktopBridge } from "@/lib/henry-desktop-core.mjs";
 import HenryVoiceView from "./HenryVoiceView";
 import HenryCursor from "./HenryCursor";
 import { captureWebcamFrame } from "./webcam-capture";
@@ -215,6 +216,10 @@ export default function HenryVoiceAssistant() {
   const [hasRecorder, setHasRecorder] = useState(false);
   const [recognitionFailed, setRecognitionFailed] = useState(false);
   const [iosStandalone, setIosStandalone] = useState(false);
+  // App de desktop do dono (desktop-app/, dono 2026-10-23): ponte window.mmDesktop (lista fechada de ações locais). Fora
+  // do app fica null e nada muda.
+  const [desktopApp, setDesktopApp] = useState(false);
+  const desktopBridgeRef = useRef(null);
   const speechQueueRef = useRef({ clips: [], playing: false, done: true });
   const mutedRef = useRef(false);
   // Narração e cena de busca: frases da sessão (voz do Henry), espera do pedido atual e o que a cena mostra.
@@ -267,6 +272,8 @@ export default function HenryVoiceAssistant() {
     setSupported(Boolean(getRecognitionClass()));
     setHasRecorder(typeof window.MediaRecorder !== "undefined" && Boolean(navigator.mediaDevices?.getUserMedia));
     setIosStandalone(window.navigator.standalone === true); // só o Safari do iPhone/iPad tem essa propriedade
+    desktopBridgeRef.current = readHenryDesktopBridge(window);
+    setDesktopApp(Boolean(desktopBridgeRef.current));
     setMuted(window.localStorage.getItem(MUTE_KEY) === "1");
     fetch("/api/admin/henry", { cache: "no-store" })
       .then((response) => (response.ok ? response.json() : { enabled: false }))
@@ -296,7 +303,7 @@ export default function HenryVoiceAssistant() {
 
   // Computador e celular (dono, 2026-10-22). Celular = tocar para falar, salvo a opção "Ouvir 'Henry' com o app aberto".
   const active = ready && enabled;
-  const captureMode = henryCaptureMode({ desktop, hasRecognition: supported, hasRecorder, recognitionFailed, iosStandalone });
+  const captureMode = henryCaptureMode({ desktop, desktopApp, hasRecognition: supported, hasRecorder, recognitionFailed, iosStandalone });
   const recordMode = captureMode === "record";
   recordModeRef.current = recordMode;
   const listenMode = recordMode ? "tap" : henryListenMode({ desktop, mobileWake });
@@ -369,6 +376,8 @@ export default function HenryVoiceAssistant() {
 
   useEffect(() => {
     if (!active) return undefined;
+    // App de desktop: o app libera o som sem gesto (autoplayPolicy no-user-gesture-required) — liga o áudio já.
+    if (desktopBridgeRef.current) ensureAudioContext();
     // Autoplay: o navegador só libera o som depois de um gesto. Primeiro clique OU tecla em qualquer lugar da página destrava,
     // em silêncio (o ícone não precisa ser clicado).
     const resume = () => {
@@ -727,13 +736,18 @@ export default function HenryVoiceAssistant() {
   // play no Spotify — só se o dono não fez outra pergunta nesse meio-tempo. Nunca força nada além disso.
   const openSpotifyAndPlay = useCallback(async (uri, requestId, volume = null) => {
     try {
-      const link = document.createElement("a");
-      link.href = uri;
-      link.rel = "noopener";
-      link.style.display = "none";
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
+      // App de desktop: o próprio app abre o Spotify (sem o "Abrir Spotify?" do navegador).
+      if (desktopBridgeRef.current) {
+        await desktopBridgeRef.current.openSpotify(uri);
+      } else {
+        const link = document.createElement("a");
+        link.href = uri;
+        link.rel = "noopener";
+        link.style.display = "none";
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+      }
     } catch {
       // protocolo recusado: o servidor ainda espera um aparelho e, sem ele, pede o play
     }
@@ -824,6 +838,22 @@ export default function HenryVoiceAssistant() {
   const ask = useCallback(async ({ mode, question, shown }) => {
     // Resposta ao chamado do aviso digitada ou transcrita (a falada já passa por handleFinal).
     if (mode === "question" && alertAnswerRef.current(question)) return;
+    // App de desktop: "desliga a tela"/"liga a tela" é feito aqui mesmo pelo app (não vai ao servidor).
+    const screen = mode === "question" && desktopBridgeRef.current ? detectScreenCommand(question) : null;
+    if (screen) {
+      const reply = screen === "off" ? "Desligando a tela." : "Ligando a tela.";
+      const withTurns = [...turnsRef.current, { role: "user", text: shown || question }, { role: "assistant", text: reply }];
+      turnsRef.current = withTurns;
+      setTurns(withTurns);
+      const run = screen === "off" ? desktopBridgeRef.current.screenOff() : desktopBridgeRef.current.screenOn();
+      Promise.resolve(run)
+        .then((result) => {
+          if (result && result.ok === false) setNotice("O app não conseguiu mudar a tela.");
+        })
+        .catch(() => setNotice("O app não conseguiu mudar a tela."));
+      listenAgain();
+      return;
+    }
     alertRef.current.afterAsk = true;
     const pendingMorning = morningRef.current;
     morningRef.current = null;
@@ -870,7 +900,8 @@ export default function HenryVoiceAssistant() {
       // detalhe da tela (o servidor só manda open.spotify.com).
       if (typeof openUrl === "string" && /^https:\/\/open\.spotify\.com\//.test(openUrl)) {
         try {
-          window.open(openUrl, "_blank", "noopener,noreferrer");
+          if (desktopBridgeRef.current) desktopBridgeRef.current.openUrl(openUrl);
+          else window.open(openUrl, "_blank", "noopener,noreferrer");
         } catch {
           // bloqueado: o link continua no detalhe
         }
@@ -1268,6 +1299,10 @@ export default function HenryVoiceAssistant() {
     window.clearTimeout(alertRef.current.timer);
     alertRef.current = { ...alertRef.current, stage: "calling", calls: alertRef.current.stage === "calling" || alertRef.current.stage === "waiting" ? alertRef.current.calls + 1 : 1, offer: kind !== "vocative" };
     startConversation(); // a resposta vale sem dizer "Henry" (janela de conversa)
+    // App de desktop com a janela escondida/minimizada: aviso do Windows (sem nome nem dado do cliente); clicar abre o CRM.
+    if (desktopBridgeRef.current && document.visibilityState === "hidden") {
+      Promise.resolve(desktopBridgeRef.current.notify("Henry", "Chefe? Tenho um aviso de cliente para você.")).catch(() => {});
+    }
     sayAlertLine(line, voice);
   }, [alertPhraseAudio, sayAlertLine, startConversation]);
 
@@ -1362,6 +1397,20 @@ export default function HenryVoiceAssistant() {
     if (phase === "speaking" || phase === "thinking") return;
     const current = alertRef.current;
     if (current.stage === "calling") {
+      if (recordModeRef.current && desktopBridgeRef.current) {
+        // App de desktop (sem reconhecimento do Chrome): o app abre o microfone sozinho e grava a resposta. Gravando ou
+        // transcrevendo, a espera é estendida (não chama de novo por cima da resposta).
+        const waitForAnswer = () => {
+          if (recordRef.current || phaseRef.current === "thinking") {
+            alertRef.current.timer = window.setTimeout(waitForAnswer, 3000);
+            return;
+          }
+          alertNoAnswer();
+        };
+        alertRef.current = { ...current, stage: "waiting", timer: window.setTimeout(waitForAnswer, ALERT_ANSWER_WAIT_MS) };
+        startRecording();
+        return;
+      }
       if (recordModeRef.current) {
         // Celular por gravação: sem microfone aberto sozinho — fica pendente; tocar no indicador faz ele falar.
         alertRef.current = { ...current, stage: "idle", calls: 0 };
@@ -1378,7 +1427,7 @@ export default function HenryVoiceAssistant() {
     if (Date.now() - Number(current.offeredAt || 0) < ALERT_OFFER_GAP_MS) return; // não insiste a cada resposta
     alertRef.current.offeredAt = Date.now();
     callForAlert({ kind: readAlertStore().away ? "resume" : "offer" });
-  }, [phase, alertNoAnswer, callForAlert]);
+  }, [phase, alertNoAnswer, callForAlert, startRecording]);
 
   // Consulta periódica + nova tentativa dos pendentes.
   useEffect(() => {
@@ -1694,6 +1743,23 @@ export default function HenryVoiceAssistant() {
     listenAgain();
   }, [listenAgain, startConversation, startRecording, unlockAudio, warmServer]);
 
+  // App de desktop: atalho global Ctrl+Shift+H (o app traz a janela) → abre o Henry já ouvindo.
+  useEffect(() => {
+    const bridge = desktopBridgeRef.current;
+    if (!active || !bridge || typeof bridge.onActivate !== "function") return undefined;
+    const unsubscribe = bridge.onActivate(() => {
+      if (recordRef.current) return; // já gravando: o toque no Henry envia
+      openScene();
+      if (!recordModeRef.current) {
+        startConversation({ sound: true });
+        listenAgain();
+      }
+    });
+    return () => {
+      if (typeof unsubscribe === "function") unsubscribe();
+    };
+  }, [active, listenAgain, openScene, startConversation]);
+
   const toggleMute = useCallback(() => {
     setMuted((current) => {
       const next = !current;
@@ -1736,7 +1802,7 @@ export default function HenryVoiceAssistant() {
           ? scene.label || "Pensando…"
           : phase === "speaking"
             ? "Falando… toque na tela para interromper"
-            : "Toque no Henry para falar"
+            : desktopApp ? "Toque no Henry ou Ctrl+Shift+H para falar" : "Toque no Henry para falar"
     : !supported
     ? "Este navegador não reconhece voz — use o Chrome ou digite"
     : micState === "blocked"

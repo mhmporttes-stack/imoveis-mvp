@@ -1,0 +1,35 @@
+// Ponte do app de desktop (sandbox, contextIsolation). Expõe window.mmDesktop SÓ quando a página é a origem do CRM
+// (lista vinda do main.js por argumento). O main.js confere a origem de novo em cada chamada — esta checagem é só a
+// primeira barreira. Lista FECHADA de ações; nada de comando arbitrário.
+"use strict";
+
+const { contextBridge, ipcRenderer } = require("electron");
+
+function readArg(name) {
+  const prefix = `--${name}=`;
+  const found = (process.argv || []).find((item) => typeof item === "string" && item.startsWith(prefix));
+  return found ? found.slice(prefix.length) : "";
+}
+
+const allowedOrigins = readArg("mm-allowed-origins").split(",").filter(Boolean);
+const appVersion = readArg("mm-app-version");
+
+if (allowedOrigins.includes(window.location.origin)) {
+  const run = (action, payload = {}) => ipcRenderer.invoke("mm:action", action, payload);
+  contextBridge.exposeInMainWorld("mmDesktop", {
+    isDesktopApp: true,
+    version: appVersion,
+    openSpotify: (uri) => run("openSpotify", { uri }),
+    openUrl: (url) => run("openUrl", { url }),
+    notify: (title, body) => run("notify", { title, body }),
+    screenOff: () => run("screenOff"),
+    screenOn: () => run("screenOn"),
+    // Atalho global (Ctrl+Shift+H): o app avisa a página para acionar o Henry. Devolve a função que cancela.
+    onActivate: (callback) => {
+      if (typeof callback !== "function") return () => {};
+      const listener = () => callback();
+      ipcRenderer.on("mm:activate-henry", listener);
+      return () => ipcRenderer.removeListener("mm:activate-henry", listener);
+    }
+  });
+}

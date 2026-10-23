@@ -410,6 +410,15 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-23 — App de desktop do dono (Windows) para o Henry sempre ligado — fase 1
+- **Data:** 2026-10-23
+- **Área:** Henry / ferramenta fora da Vercel
+- **Alteração:** nova pasta `desktop-app/` (Electron 44, electron-builder): janela que abre `https://www.matheusmachadoimoveis.com.br/admin` com sessão persistente, bandeja, abrir com o Windows (opção), atalho global Ctrl+Shift+H, sem suspensão (`backgroundThrottling: false`, `powerSaveBlocker`), permissões de microfone/câmera/notificação automáticas só para a origem do CRM, links de fora no navegador padrão, ponte `window.mmDesktop` com lista fechada (`openSpotify`, `openUrl`, `notify`, `screenOff`, `screenOn`) e log local de cada ação. No CRM (`lib/henry-desktop-core.mjs`, `HenryVoiceAssistant.jsx`, `HenrySettingsCard.jsx`, `henryCaptureMode`): Spotify/links pelo app, "desliga/liga a tela" por voz, som sem gesto, aviso do Windows no "Chefe?" com a janela escondida, gravação automática da resposta ao "Chefe?", "Rodando no app de desktop". Fora do app nada muda.
+- **Motivo:** pedido do dono (2026-10-23): Henry sempre ligado sem a aba dormir nem pedir microfone.
+- **Arquivos afetados:** `desktop-app/**` (novo), `lib/henry-desktop-core.mjs` (novo), `lib/henry-voice-conversation.mjs`, `components/henry/HenryVoiceAssistant.jsx`, `components/henry/HenrySettingsCard.jsx`, `tests/henry-desktop.test.mjs` (novo), `.vercelignore` (novo), `tsconfig.json` (exclude), `scripts/vercel-ignore-build.sh` (exclude `desktop-app`). Docs: `BUSINESS_RULES.md` HENRY-1 ("App de desktop"), `SYSTEM_ARCHITECTURE.md` §6, rule `integracoes-externas.md`.
+- **Risco/observação:** o Electron não tem o reconhecimento de voz do Chrome — no app o Henry é por atalho/toque/gravação (Scribe), sem palavra de chamada mãos livres; mãos livres no app é decisão do dono (fase 2). Executável sem assinatura digital (o Windows SmartScreen avisa na 1ª vez). O Seguidor Instagram não carrega no Electron (APIs `windows`/`alarms`/`notifications`/`cookies`/`action` ausentes): segue no Chrome, fase 2. `SC_MONITORPOWER` não foi testado num Windows real (só a lógica, num container Linux) — A CONFIRMAR no PC do dono.
+- **Autor:** Claude Code (crm-editor)
+
 ### 2026-10-23 — Henry avisa cliente novo e transferido ("Chefe?" e espera a resposta)
 - **Data:** 2026-10-23
 - **Área:** Henry / Roleta (só leitura)
