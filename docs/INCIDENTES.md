@@ -40,6 +40,17 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-23 — Henry repete muito a mesma frase de espera ("Tô passando os olhos nos números")
+- **Data:** 2026-10-23
+- **Sintoma:** "o Henry repete muito 'Tô passando os olhos nos números'" (frase `w18`), mesmo depois da confirmação de escuta.
+- **Área:** Henry / Frontend
+- **Impacto:** só o dono; sem perda de dado.
+- **Causa raiz:** (a) o pacote de frases era sintetizado inteiro numa só chamada (~80 frases, 2 por vez, função de 60 s): voltando pela metade (tempo, crédito ou limite da ElevenLabs), o navegador guardava a lista parcial no `sessionStorage` e nunca completava — poucas frases com áudio; (b) `pickWaitPhrase` só escolhia entre as com áudio e, esgotadas as do dia, voltava a sortear entre elas evitando só a anterior; `w18` cobre 5 assuntos (inclusive geral/relatório) e ficava em quase todo sorteio; (c) na gravação a confirmação toca ANTES da transcrição, e o "2,5 s depois da confirmação" contava do fim dela — a 1ª frase de espera entrava ~0,8 s depois de o pedido sair.
+- **Correção:** cache por frase + pacote com teto de tempo + pré-aquecimento em lotes só do que falta; sem repetir no dia (ainda não usada sem áudio → silêncio e síntese dela; esgotado → nunca uma das últimas 10); 1ª frase ~2,5 s depois da confirmação e do pedido; +8 frases de números.
+- **Arquivos/commit:** `lib/henry-voice-narration.mjs`, `lib/henry-voice.js`, `app/api/admin/henry/route.js`, `components/henry/HenryVoiceAssistant.jsx` — commit deste registro
+- **Prevenção/teste:** `tests/henry-wait-phrases.test.mjs` (sem repetir no dia, silêncio + síntese, últimas 10, lotes, atraso com confirmação), `tests/henry-lexicon.test.mjs` (frases de espera seguras).
+- **Status:** Monitorando (teste do dono)
+
 ### 2026-10-23 — Henry corta a fala no meio e responde "Não entendi" (app de desktop 1.3.0)
 - **Data:** 2026-10-23
 - **Sintoma:** "eu estou falando e ele corta minha fala no meio e já sai respondendo que não entendeu. Uma simples pausa de 1 segundo e ele já começa a pensar."

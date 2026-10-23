@@ -63,7 +63,7 @@ import {
   triggeredTranscriptIntent
 } from "@/lib/henry-voice-conversation.mjs";
 import { henryReserveVoiceChain, pickBestBrowserVoice, pronounceForSpeech, splitSentences } from "@/lib/henry-voice-providers.mjs";
-import { MUSIC_TOPIC, ackToneDurationMs, henryAckContext, henryMusicIntent, isAckPhrase, mergeHenryMusic, musicQueryFromText, normalizeHenryScene, pickListenAck, pickWaitPhrase, rememberPhrase, shouldAcknowledgeHeard, shouldNarrate, spotifyDeviceRequestKind } from "@/lib/henry-voice-narration.mjs";
+import { HENRY_WAIT_PHRASES, MUSIC_TOPIC, ackToneDurationMs, henryAckContext, henryMusicIntent, isAckPhrase, mergeHenryMusic, musicQueryFromText, narrationWarmBatches, normalizeHenryScene, pickListenAck, pickWaitPhrase, rememberPhrase, shouldAcknowledgeHeard, shouldNarrate, spotifyDeviceRequestKind, waitPhrasesToSynthesize } from "@/lib/henry-voice-narration.mjs";
 import { HENRY_LISTEN_PROMPTS, pickVariant, rememberVariant } from "@/lib/henry-voice-persona.mjs";
 import {
   ALERT_ANSWER_WAIT_MS,
@@ -199,6 +199,10 @@ function rememberUsedWait(id) {
     // armazenamento cheio: vale só a memória da página
   }
 }
+// Frases de espera usadas hoje, em ordem (a última = a mais recente): o que ficou no aparelho + o que esta página falou.
+function usedWaitsInOrder(pageIds = []) {
+  return pageIds.reduce((list, id) => rememberPhrase(list, id, 200), readUsedWaits());
+}
 const MUSIC_FINAL_STAGES = new Set(["playing", "error", "control", "device", "opening"]);
 const meterBuffer = typeof Uint8Array === "undefined" ? null : new Uint8Array(1024);
 
@@ -324,6 +328,9 @@ export default function HenryVoiceAssistant() {
   // Narração e cena de busca: frases da sessão (voz do Henry), espera do pedido atual e o que a cena mostra.
   const narrationKeyRef = useRef("");
   const narrationRef = useRef({ key: "", phrases: [], loading: false });
+  const narrationPendingRef = useRef(new Set()); // ids pedidos ao servidor e ainda sem resposta (nunca pede duas vezes)
+  const narrationWarmingRef = useRef(false);
+  const narrationActiveRef = useRef(false);
   const waitRef = useRef({ id: 0, startedAt: 0, replied: true, topic: "geral", lastAt: 0, names: [] });
   // Eventos de progresso do pedido atual (rede neural do anel: mais atividade a cada etapa; zera ao começar a pensar).
   const progressRef = useRef({ count: 0, at: 0 });
@@ -585,15 +592,66 @@ export default function HenryVoiceAssistant() {
   }, [active, warmServer]);
 
   // Frases de espera na voz do Henry: da sessão do navegador (mesma voz/estilo = mesma chave) ou do servidor (cache dele).
+  // O que faltar (pacote que voltou pela metade, frase nova no banco) vem depois em lotes pequenos (warmNarration), só o
+  // que ainda não está no cache — nunca sintetiza de novo o que já tem (dono, 2026-10-23: "repete muito a mesma frase").
+  const mergeNarration = useCallback((key, incoming) => {
+    const state = narrationRef.current;
+    if (state.key !== key || !incoming.length) return;
+    const byId = new Map(state.phrases.map((phrase) => [phrase.id, phrase]));
+    for (const phrase of incoming) byId.set(phrase.id, phrase);
+    const phrases = [...byId.values()];
+    narrationRef.current = { ...state, phrases };
+    try {
+      window.sessionStorage.setItem(`mm-henry-narration:${key}`, JSON.stringify({ phrases }));
+    } catch {
+      // sem espaço na sessão: fica só na memória da página
+    }
+  }, []);
+  const fetchNarrationIds = useCallback((ids) => {
+    const key = narrationRef.current.key;
+    const pending = narrationPendingRef.current;
+    const wanted = ids.filter((id) => !pending.has(id));
+    if (!key || !wanted.length) return Promise.resolve(0);
+    wanted.forEach((id) => pending.add(id));
+    return fetch("/api/admin/henry", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ mode: "narration", ids: wanted }) })
+      .then((response) => (response.ok ? response.json() : null))
+      .then((data) => {
+        const phrases = Array.isArray(data?.phrases) ? data.phrases.filter((phrase) => phrase?.id && phrase?.audio?.base64) : [];
+        mergeNarration(key, phrases);
+        return phrases.length;
+      })
+      .catch(() => 0)
+      .finally(() => wanted.forEach((id) => pending.delete(id)));
+  }, [mergeNarration]);
+  const warmNarration = useCallback(async () => {
+    if (narrationWarmingRef.current) return;
+    narrationWarmingRef.current = true;
+    try {
+      const batches = narrationWarmBatches({ readyIds: narrationRef.current.phrases.map((phrase) => phrase.id) });
+      for (const batch of batches) {
+        if (!narrationActiveRef.current) break; // Henry desligado no meio: para de pré-aquecer
+        // Lote sem nenhum áudio (sem crédito/voz fora do ar): para aqui, sem insistir e gastar à toa.
+        if (!(await fetchNarrationIds(batch))) break;
+        await new Promise((resolve) => window.setTimeout(resolve, 1500));
+      }
+    } finally {
+      narrationWarmingRef.current = false;
+    }
+  }, [fetchNarrationIds]);
   const loadNarration = useCallback(() => {
     const key = narrationKeyRef.current;
     const state = narrationRef.current;
-    if (!key || state.loading || state.key === key) return;
+    if (!key || state.loading) return;
+    if (state.key === key) {
+      warmNarration();
+      return;
+    }
     const storageKey = `mm-henry-narration:${key}`;
     try {
       const saved = JSON.parse(window.sessionStorage.getItem(storageKey) || "null");
       if (Array.isArray(saved?.phrases) && saved.phrases.length) {
         narrationRef.current = { key, phrases: saved.phrases, loading: false };
+        warmNarration();
         return;
       }
     } catch {
@@ -611,13 +669,15 @@ export default function HenryVoiceAssistant() {
           } catch {
             // sem espaço na sessão: fica só na memória da página
           }
+          warmNarration();
         }
       })
       .catch(() => {
         narrationRef.current = { key: "", phrases: [], loading: false };
       });
-  }, []);
+  }, [warmNarration]);
   useEffect(() => {
+    narrationActiveRef.current = active;
     if (!active) return undefined;
     const timer = window.setTimeout(loadNarration, 1500); // depois do pré-aquecimento: não disputa a abertura do painel
     return () => window.clearTimeout(timer);
@@ -1156,8 +1216,8 @@ export default function HenryVoiceAssistant() {
   const sayGoodbye = useCallback(() => {
     const byes = narrationRef.current.phrases.filter((phrase) => phrase.topics?.includes("bye"));
     if (!byes.length || mutedRef.current) return;
-    const usedToday = [...readUsedWaits(), ...recentPhrasesRef.current];
-    const choice = pickWaitPhrase({ topic: "bye", recentIds: usedToday, phrases: byes, avoid: usedToday.length });
+    const usedToday = usedWaitsInOrder(recentPhrasesRef.current);
+    const choice = pickWaitPhrase({ topic: "bye", recentIds: usedToday, phrases: byes, avoid: 5 });
     if (!choice?.audio?.base64) return;
     recentPhrasesRef.current = rememberPhrase(recentPhrasesRef.current, choice.id);
     rememberUsedWait(choice.id);
@@ -1189,6 +1249,8 @@ export default function HenryVoiceAssistant() {
       rememberUsedWait(choice.id);
     }
     queue.clips.push(choice.kind === "tone" ? { tone: choice.tone, text: "", narration: true, ack: true } : { audio: choice.audio, text: choice.text, narration: true, ack: true });
+    // Pedido já em andamento (escuta do navegador: a confirmação vem logo depois do ask) → a espera conta da confirmação.
+    if (!waitRef.current.replied && waitRef.current.id === requestIdRef.current) waitRef.current = { ...waitRef.current, acked: true };
     if (!queue.playing) playNextRef.current();
     return true;
   }, []);
@@ -1237,7 +1299,8 @@ export default function HenryVoiceAssistant() {
   }, [markMusicPlayed, updateMusic]);
 
   // Enquanto pensa: frase de espera na voz do Henry quando a regra deixa (shouldNarrate); primeiro a frase com o nome do
-  // corretor, se veio; depois as do assunto, sem repetir as últimas 5.
+  // corretor, se veio; depois as do assunto, sem repetir no dia (pickWaitPhrase). Todas as prontas já usadas hoje e ainda
+  // há frase nova sem áudio → silêncio (a cena de "pensando" continua) e pede a síntese dela para a próxima.
   useEffect(() => {
     if (phase !== "thinking") return undefined;
     const timer = window.setInterval(() => {
@@ -1247,10 +1310,19 @@ export default function HenryVoiceAssistant() {
       const name = wait.names.find((item) => !recentPhrasesRef.current.includes(item.id));
       const waits = phrases.filter((phrase) => !phrase.topics?.includes("bye") && !isAckPhrase(phrase)); // despedidas só no fim; confirmações só no fim da fala
       const hasAudio = Boolean(name) || waits.length > 0;
-      if (!shouldNarrate({ now: Date.now(), startedAt: wait.startedAt, lastNarrationAt: wait.lastAt, playing: queue.playing, replied: wait.replied || wait.id !== requestIdRef.current, hasAudio, ackEndedAt: ackRef.current.endedAt })) return;
-      const usedToday = [...readUsedWaits(), ...recentPhrasesRef.current];
-      const choice = name || pickWaitPhrase({ topic: wait.topic, recentIds: usedToday, phrases: waits, avoid: usedToday.length });
-      if (!choice?.audio?.base64) return;
+      if (!shouldNarrate({ now: Date.now(), startedAt: wait.startedAt, lastNarrationAt: wait.lastAt, playing: queue.playing, replied: wait.replied || wait.id !== requestIdRef.current, hasAudio, ackEndedAt: ackRef.current.endedAt, acked: wait.acked })) return;
+      const usedToday = usedWaitsInOrder(recentPhrasesRef.current);
+      const readyIds = waits.map((phrase) => phrase.id);
+      const picked = name ? null : pickWaitPhrase({ topic: wait.topic, recentIds: usedToday, usedToday, available: readyIds, phrases: HENRY_WAIT_PHRASES });
+      const choice = name || (picked && waits.find((phrase) => phrase.id === picked.id));
+      if (!choice?.audio?.base64) {
+        if (!name && !wait.synthAsked) {
+          waitRef.current = { ...wait, synthAsked: true };
+          const ids = waitPhrasesToSynthesize({ topic: wait.topic, usedToday, available: readyIds });
+          if (ids.length) fetchNarrationIds(ids);
+        }
+        return;
+      }
       waitRef.current = { ...wait, lastAt: Date.now(), names: name ? wait.names.filter((item) => item !== name) : wait.names };
       recentPhrasesRef.current = rememberPhrase(recentPhrasesRef.current, choice.id);
       if (!name) rememberUsedWait(choice.id);
@@ -1258,7 +1330,7 @@ export default function HenryVoiceAssistant() {
       if (!queue.playing) playNextRef.current();
     }, 200);
     return () => window.clearInterval(timer);
-  }, [phase]);
+  }, [phase, fetchNarrationIds]);
 
   // --- Pergunta ao servidor ---------------------------------------------------------------------------------------
   // Interrompe o que estiver em andamento (pedido e voz) e faz a nova pergunta. Memória: só as trocas do modo conversa
@@ -1295,6 +1367,7 @@ export default function HenryVoiceAssistant() {
       return;
     }
     alertRef.current.afterAsk = true;
+    const ackedBeforeAsk = ackRef.current.preAcked; // gravação: a confirmação tocou antes da transcrição
     ackRef.current = { ...ackRef.current, preAcked: false };
     pendingReplyRef.current = { active: false }; // a resposta à pergunta dele (se havia) é esta
     const pendingMorning = morningRef.current;
@@ -1326,7 +1399,7 @@ export default function HenryVoiceAssistant() {
     // Pedido de música (texto ou resposta da música do bom dia): narração e cena do Spotify desde o início, sem números.
     const musicIntent = henryMusicIntent({ mode, question, morningStep: morning?.step || "" });
     const startTopic = musicIntent ? MUSIC_TOPIC : mode === "report" ? "relatorio" : "geral";
-    waitRef.current = { id, startedAt: Date.now(), replied: false, topic: startTopic, lastAt: 0, names: [] };
+    waitRef.current = { id, startedAt: Date.now(), replied: false, topic: startTopic, lastAt: 0, names: [], acked: ackedBeforeAsk, synthAsked: false };
     // Pedido novo: toda cena do pedido anterior sai (cards de corretor, música, assunto adiado) — nenhuma fica órfã.
     deferredTopicRef.current = "";
     setScene({ topic: startTopic, label: "", brokers: [], live: mode === "report" && !musicIntent });

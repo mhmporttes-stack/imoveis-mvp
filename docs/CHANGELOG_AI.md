@@ -44,6 +44,15 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 
 
+### 2026-10-23 — Henry: frases de espera sem repetir no dia (bug "Tô passando os olhos nos números")
+- **Data:** 2026-10-23
+- **Área:** Henry (voz)
+- **Alteração:** (1) `pickWaitPhrase` (`lib/henry-voice-narration.mjs`): escopo = assunto + gerais (música só Spotify; nunca Spotify num pedido do CRM); nenhuma repete no dia (`mm-henry-wait-used`, por dia de SP, em ordem) enquanto houver outra do escopo não usada; não usada mas sem áudio → silêncio (cena de "pensando") e a tela pede a síntese dela (`waitPhrasesToSynthesize`); banco do dia esgotado → repete, nunca uma das últimas 10 (`RECENT_PHRASES_TO_AVOID` 5 → 10). (2) Servidor: cache de áudio POR FRASE (6 h), pacote com teto de 35 s, `POST /api/admin/henry { mode: "narration", ids }` (até 6 ids conhecidos) — frase que falhou não fica no cache. (3) Tela: pré-aquecimento ao abrir o Henry em lotes de 4 só do que falta (para se um lote volta vazio = sem crédito/voz). (4) Com confirmação de escuta, a 1ª frase de espera só ~2,5 s depois da confirmação E do começo do pedido (`shouldNarrate` `acked`). (5) +8 frases de números/relatório (w41–w48), checadas em `tests/henry-lexicon.test.mjs`.
+- **Motivo:** dono: "o Henry repete muito 'Tô passando os olhos nos números'". Causa raiz em `docs/INCIDENTES.md`.
+- **Arquivos afetados:** `lib/henry-voice-narration.mjs`, `lib/henry-voice.js`, `app/api/admin/henry/route.js`, `components/henry/HenryVoiceAssistant.jsx`, `tests/henry-wait-phrases.test.mjs` (novo), `tests/henry-lexicon.test.mjs`, docs.
+- **Risco/observação:** primeira abertura do dia com voz nova sintetiza o que faltar em lotes (custo em `ai_usage_log`, uma vez por frase a cada 6 h por instância do servidor; o navegador guarda na sessão). Pedido sem confirmação de escuta continua com a 1ª frase em ~0,8 s.
+- **Autor:** Claude Code (crm-editor)
+
 ### 2026-10-23 — Henry: rede neural no centro do anel ("pensando") e estados distinguíveis (HENRY-1)
 - **Data:** 2026-10-23
 - **Área:** Henry (voz)

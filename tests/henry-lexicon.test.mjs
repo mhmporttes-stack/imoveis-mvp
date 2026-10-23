@@ -22,6 +22,7 @@ import { HENRY_STYLE_GUIDE, HENRY_VARIATION_HINTS, buildHenryDynamicPrompt, buil
 import { laughForSpeech, pronounceForSpeech } from "../lib/henry-voice-providers.mjs";
 import { detectBargeIn } from "../lib/henry-voice-conversation.mjs";
 import { isSafeToSpeak } from "../lib/alexa-v2/sanitize.mjs";
+import { HENRY_WAIT_PHRASES } from "../lib/henry-voice-narration.mjs";
 
 const lib = readFileSync(new URL("../lib/henry-voice.js", import.meta.url), "utf8");
 const ALL = Object.values(HENRY_LEXICON).flatMap((category) => category.items);
@@ -69,6 +70,25 @@ test("banco seguro para a voz e para a trava de números: sem número, sem palav
   }
   // As despedidas não contêm palavra de parada (a própria fala não interrompe o Henry).
   for (const text of HENRY_LEXICON.despedida.items) assert.equal(detectBargeIn(text, "").interrupt, false, text);
+});
+
+// Frases de espera (dono, 2026-10-23: "repete muito 'Tô passando os olhos nos números'"): mesmas travas do banco, únicas e
+// sem palavra de parada (a fala dele nunca interrompe a si mesma).
+test("frases de espera: seguras, sem número, sem 'Henry', sem palavra de parada, sem repetir texto; 8+ novas de números", () => {
+  assert.equal(new Set(HENRY_WAIT_PHRASES.map((phrase) => lexiconKey(phrase.text))).size, HENRY_WAIT_PHRASES.length);
+  for (const { text } of HENRY_WAIT_PHRASES) {
+    assert.ok(isSafeToSpeak(text), `barreira da fala: ${text}`);
+    assert.doesNotMatch(text, /\d/, text);
+    assert.ok(reportNumbersMatch("", text), `número por extenso: ${text}`);
+    assert.doesNotMatch(lexiconKey(text), /\bhenry\b|\brenri\b/, text);
+    for (const pattern of FORBIDDEN) assert.doesNotMatch(lexiconKey(text), pattern, text);
+    assert.equal(detectBargeIn(text, "").interrupt, false, text);
+  }
+  const numbers = ["w41", "w42", "w43", "w44", "w45", "w46", "w47", "w48"].map((id) => HENRY_WAIT_PHRASES.find((phrase) => phrase.id === id));
+  for (const phrase of numbers) {
+    assert.ok(phrase?.topics.includes("relatorio"), phrase?.id);
+    assert.ok(phrase.text.split(/\s+/).length <= 8, phrase.text); // curtas
+  }
 });
 
 // --- Contexto e sorteio -----------------------------------------------------------------------------------------------

@@ -323,13 +323,15 @@ export async function POST(request) {
       return NextResponse.json({ error: "Não foi possível pré-carregar o relatório." }, { status: 502 });
     }
   }
-  // Frases de espera na voz do Henry (narração): conjunto fixo sintetizado uma vez por voz+estilo e guardado em cache
+  // Frases de espera na voz do Henry (narração): conjunto fixo sintetizado uma vez por voz+estilo+frase e guardado em cache
   // (servidor 6 h; o navegador guarda na sessão pela voiceKey). Sem voz do servidor → lista vazia (fica em silêncio).
   if (body?.mode === "narration") {
     try {
       const { enabled, style } = await readHenrySettings();
       if (!enabled) return NextResponse.json({ voiceKey: "", phrases: [] });
-      return NextResponse.json(await getHenryNarration(auth, style));
+      // ids = só essas frases (pré-aquecimento em lotes / frase ainda não usada hoje); sem ids = o pacote (com teto de tempo).
+      const ids = Array.isArray(body?.ids) ? body.ids.filter((id) => typeof id === "string" && /^[a-z]\d{1,3}$/.test(id)) : null;
+      return NextResponse.json(await getHenryNarration(auth, style, { ids }));
     } catch (error) {
       console.warn(`[henry] frases de espera indisponíveis (${error?.name || "erro"}).`);
       return NextResponse.json({ error: "Frases de espera indisponíveis agora." }, { status: 502 });
