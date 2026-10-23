@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { HENRY_ORB_STATES, buildNeuralNet, mixHexColor, orbEase, orbStops } from "./henry-orb-states.mjs";
+import { HENRY_ORB_HIT_MS, HENRY_ORB_STATES, HENRY_ORB_VIB as VIB, buildNeuralNet, mixHexColor, orbEase, orbStops, vividColor } from "./henry-orb-states.mjs";
 
 // Anel de filamentos do Henry (pedido do dono, 2026-10-22: "é nesse perfil que eu quero o ícone da IA… no meu estilo";
 // depois "quero mais movimentos quando ele escutar, falar ou pensar"). Canvas 2D + requestAnimationFrame, sem biblioteca:
@@ -258,11 +258,13 @@ export default function HenryOrb({ size = 320, fibers = 48, points = 120, alpha 
       }
       const breath = reduce ? 0.01 * Math.sin(now / 1600) : state.breath * Math.sin((now / 1000) * state.breathRate * Math.PI * 2);
       const swell = state.swell + level * state.levelSwell + breath;
-      const amp = reduce ? 0.18 : state.amp + level * state.levelAmp;
+      // Vibração geral reduzida (dono, 2026-10-23, protótipo v14: "ficou muito embaraçado"): ondulação dos fios × 0,4
+      // (VIB) em todos os estados, também com movimento reduzido; leque mais fechado (× 3, era × 6).
+      const amp = (reduce ? 0.18 : state.amp + level * state.levelAmp) * VIB;
       const sphere = reduce ? 0 : Math.min(1, state.sphere * (0.25 + level * 1.1));
       const fan = state.fan * (0.4 + level);
       // Nunca passa da borda do canvas: o pico máximo possível (inchaço × leque × ondulação) cabe em ~93% da metade.
-      const peak = (1 + swell) * (1 + 0.02 * (1 + fan * 6) + 0.25 * amp * 1.35);
+      const peak = (1 + swell) * (1 + 0.02 * (1 + fan * 3) + 0.25 * amp * 1.35);
       const radius = baseRadius * (1 + swell) * Math.min(1, (center * 0.93) / (baseRadius * peak));
 
       context.globalCompositeOperation = "source-over";
@@ -289,13 +291,13 @@ export default function HenryOrb({ size = 320, fibers = 48, points = 120, alpha 
 
       for (const seed of seeds) {
         const spin = state.rotation * seed.k + state.counter * seed.dir * seed.k;
-        // Embaraçado só na faixa do anel (dono, 2026-10-23, protótipo v12): × 0,45 para os fios não cruzarem o meio,
-        // onde ficam as ondas vocais.
-        const squash = 1 - sphere * 0.45 * (1 - Math.abs(Math.cos(seed.tilt)));
+        // Embaraçado só na faixa do anel (dono, 2026-10-23, protótipos v12/v14): achatamento máx. 20% para os fios não
+        // cruzarem o meio, onde ficam as ondas vocais.
+        const squash = 1 - sphere * 0.2 * (1 - Math.abs(Math.cos(seed.tilt)));
         const turn = seed.turn * sphere;
         const cosT = Math.cos(turn);
         const sinT = Math.sin(turn);
-        const spread = 1 + seed.offset * (1 + fan * 6);
+        const spread = 1 + seed.offset * (1 + fan * 3);
         const path = new Path2D();
         for (let step = 0; step <= points; step += 1) {
           const theta = (step / points) * Math.PI * 2;
@@ -304,7 +306,7 @@ export default function HenryOrb({ size = 320, fibers = 48, points = 120, alpha 
             0.045 * Math.sin(5 * theta - time * 1.3 * seed.k + seed.b) +
             0.03 * Math.sin(9 * theta + time * 2.1 + seed.c) +
             0.018 * Math.sin(15 * theta - time * 2.9 * seed.k + seed.a * 0.5) +
-            state.travel * (0.35 + level) * 0.07 * Math.sin(4 * theta - time * 5.5 + seed.dir * 0.4); // onda que percorre o anel
+            state.travel * (0.35 + level) * 0.07 * VIB * Math.sin(4 * theta - time * 5.5 + seed.dir * 0.4); // onda que percorre o anel
           const r = radius * (spread + noise * amp * seed.k);
           const ex = r * Math.cos(theta + spin);
           const ey = r * Math.sin(theta + spin) * squash;
@@ -358,54 +360,67 @@ export default function HenryOrb({ size = 320, fibers = 48, points = 120, alpha 
         context.lineCap = "butt";
       }
 
-      // Pulso colorido de chegada (Pulso do CRM, protótipo v11 do dono, 2026-10-23): quando um card "entra" no Henry,
-      // ~15% do anel em volta do ângulo de entrada acende na COR DO TIPO do card, nos próprios fios (um a cada dois, mesma
-      // fórmula de ruído e mesmo giro), e apaga em 1,2 s. source-over: no modo aditivo a cor viraria branco.
-      // signal.hits = [{ ang, col, born }] (born no relógio de performance.now); sem hits nada muda.
+      // Pulso de chegada (Pulso do CRM, protótipo v16 — dono, 2026-10-23: "bater forte na cor viva e se dissipar pelo anel
+      // até sumir"). Quando um card "entra" no Henry: (1) recebe — brilho no ponto de entrada (arco ±0,08π, alpha 1, leve
+      // inchaço de 3,5% no raio; sobe em 8% do tempo e cai como (1 − (age − 0,08)/0,4)^1,5); (2) distribui — duas ondas
+      // saem dali em sentidos opostos, cada uma no máximo 0,4π (easeOut), alpha 0,95 × (1−p)^2,2, arco que se alarga
+      // ((0,08 + 0,06p)π) enquanto some. 1,1 s. Cor VIVA (matiz do card, saturação 100%, luminosidade 60%), um fio a cada
+      // dois, halo (traço 5, a·g·0,25) + núcleo (traço 1,5, a·g), g = exp(−3u²), source-over (no modo aditivo a cor viraria
+      // branco). signal.hits = [{ ang, col, born }] (performance.now).
       const hits = Array.isArray(signal.hits) ? signal.hits : [];
       if (hits.length && !reduce) {
-        context.globalCompositeOperation = "source-over";
-        const half = Math.PI * 0.15;
-        const SEGMENTS = 26;
-        for (const hit of hits) {
-          const age = (now - hit.born) / 1200;
-          if (!(age >= 0 && age < 1)) continue;
-          const env = age < 0.12 ? age / 0.12 : Math.pow(1 - (age - 0.12) / 0.88, 1.6);
-          context.strokeStyle = hit.col;
+        const glowArc = (middle, half, arcAlpha, color, bump = 0) => {
+          if (arcAlpha < 0.01) return;
+          const SEGMENTS = 18;
+          context.strokeStyle = color;
           for (let index = 0; index < seeds.length; index += 2) {
             const seed = seeds[index];
             const spin = state.rotation * seed.k + state.counter * seed.dir * seed.k;
-            const spread = 1 + seed.offset * (1 + fan * 6);
+            const spread = 1 + seed.offset * (1 + fan * 3);
             let px = 0;
             let py = 0;
             for (let step = 0; step <= SEGMENTS; step += 1) {
               const u = (step / SEGMENTS) * 2 - 1;
-              const phi = hit.ang + u * half;
+              const phi = middle + u * half;
               const theta = phi - spin;
               const noise =
                 0.06 * Math.sin(3 * theta + time * 0.9 + seed.a) +
                 0.045 * Math.sin(5 * theta - time * 1.3 * seed.k + seed.b) +
                 0.03 * Math.sin(9 * theta + time * 2.1 + seed.c) +
                 0.018 * Math.sin(15 * theta - time * 2.9 * seed.k + seed.a * 0.5);
-              const r = radius * (spread + noise * amp * seed.k) * (1 + 0.05 * env);
+              const g = Math.exp(-u * u * 3);
+              const r = radius * (spread + noise * amp * seed.k) * (1 + bump * g);
               const x = center + r * Math.cos(phi);
               const y = center + r * Math.sin(phi);
               if (step) {
-                const a = env * Math.exp(-u * u * 2.5);
                 context.beginPath();
                 context.moveTo(px, py);
                 context.lineTo(x, y);
-                context.globalAlpha = a * 0.35;
-                context.lineWidth = 7 * dpr;
+                context.globalAlpha = arcAlpha * g * 0.25;
+                context.lineWidth = 5 * dpr;
                 context.stroke();
-                context.globalAlpha = Math.min(1, a * 1.1);
-                context.lineWidth = 1.6 * dpr;
+                context.globalAlpha = Math.min(1, arcAlpha * g);
+                context.lineWidth = 1.5 * dpr;
                 context.stroke();
               }
               px = x;
               py = y;
             }
           }
+        };
+        context.globalCompositeOperation = "source-over";
+        for (const hit of hits) {
+          const age = (now - hit.born) / HENRY_ORB_HIT_MS;
+          if (!(age >= 0 && age < 1)) continue;
+          const color = vividColor(hit.col);
+          const inAlpha = age < 0.08 ? age / 0.08 : Math.pow(Math.max(0, 1 - (age - 0.08) / 0.4), 1.5);
+          glowArc(hit.ang, Math.PI * 0.08, inAlpha, color, 0.035 * inAlpha);
+          const progress = Math.max(0, Math.min(1, (age - 0.04) / 0.96));
+          const position = (1 - Math.pow(1 - progress, 2)) * Math.PI * 0.4;
+          const runAlpha = 0.95 * Math.pow(1 - progress, 2.2) * Math.min(1, progress * 10);
+          const runHalf = Math.PI * (0.08 + 0.06 * progress);
+          glowArc(hit.ang + position, runHalf, runAlpha, color);
+          glowArc(hit.ang - position, runHalf, runAlpha, color);
         }
         context.globalCompositeOperation = "lighter";
       }

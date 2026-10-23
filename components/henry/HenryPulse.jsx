@@ -10,6 +10,7 @@ import {
   groupPulseBursts,
   pickPulseSpot,
   pulseBeamCurve,
+  pulseAvatar,
   pulseCardText,
   pulseEase,
   pulsePhase,
@@ -17,6 +18,7 @@ import {
   pulseBlobShape,
   pulseBlobStartAngle
 } from "@/lib/henry-pulse-core.mjs";
+import { HENRY_ORB_HIT_MS } from "./henry-orb-states.mjs";
 
 // "Pulso do CRM" (rascunho HENRY-1 "Pulso", [PENDENTE DE VALIDAÇÃO]; conceito aprovado pelo dono em 2026-10-23).
 // Em volta do anel da tela cheia aparecem cards com eventos REAIS do CRM (GET /api/admin/henry/pulse): um feixe de 5 fios
@@ -46,6 +48,43 @@ async function fetchPulse(sinceIso) {
   const response = await fetch(`/api/admin/henry/pulse?since=${encodeURIComponent(sinceIso)}`, { cache: "no-store" });
   if (!response.ok) throw new Error(`pulso ${response.status}`);
   return response.json();
+}
+
+// Ícones dos canais e da simulação (protótipo v13; SVG fixo do código, nunca dado do servidor).
+const PULSE_ICONS = {
+  whatsapp: `<svg viewBox="0 0 32 32" width="34" height="34" aria-hidden="true"><circle cx="16" cy="16" r="16" fill="#25D366"/><path fill="#fff" d="M16 7.2a8.8 8.8 0 0 0-7.6 13.2L7.2 24.8l4.5-1.2A8.8 8.8 0 1 0 16 7.2Zm0 16a7.2 7.2 0 0 1-3.7-1l-.3-.2-2.6.7.7-2.6-.2-.3A7.2 7.2 0 1 1 16 23.2Zm4-5.4c-.2-.1-1.3-.6-1.5-.7s-.3-.1-.5.1l-.7.9c-.1.1-.3.2-.5.1a5.9 5.9 0 0 1-2.9-2.6c-.2-.4.2-.4.6-1.2.1-.1 0-.3 0-.4l-.7-1.6c-.2-.4-.4-.4-.5-.4h-.4a.8.8 0 0 0-.6.3 2.5 2.5 0 0 0-.8 1.9 4.4 4.4 0 0 0 .9 2.3 10 10 0 0 0 3.8 3.4c1.4.6 2 .7 2.7.6a2.3 2.3 0 0 0 1.5-1.1 1.9 1.9 0 0 0 .1-1.1c0-.1-.2-.2-.5-.3Z"/></svg>`,
+  messenger: `<svg viewBox="0 0 32 32" width="34" height="34" aria-hidden="true"><defs><linearGradient id="hp-gm" x1="0" y1="1" x2="1" y2="0"><stop offset="0" stop-color="#0099FF"/><stop offset=".6" stop-color="#A033FF"/><stop offset="1" stop-color="#FF5280"/></linearGradient></defs><circle cx="16" cy="16" r="16" fill="url(#hp-gm)"/><path fill="#fff" d="M16 7c-5 0-9 3.7-9 8.7 0 2.6 1.1 4.9 2.9 6.5v3.1l2.8-1.5c1 .3 2.1.4 3.3.4 5 0 9-3.7 9-8.5S21 7 16 7Zm.9 11.4-2.3-2.4-4.4 2.4 4.9-5.2 2.3 2.4 4.4-2.4-4.9 5.2Z"/></svg>`,
+  instagram: `<svg viewBox="0 0 32 32" width="34" height="34" aria-hidden="true"><defs><radialGradient id="hp-gi" cx=".3" cy="1" r="1.2"><stop offset="0" stop-color="#FFD776"/><stop offset=".35" stop-color="#F3584C"/><stop offset=".7" stop-color="#C13584"/><stop offset="1" stop-color="#5B51D8"/></radialGradient></defs><rect width="32" height="32" rx="9" fill="url(#hp-gi)"/><rect x="8" y="8" width="16" height="16" rx="5" fill="none" stroke="#fff" stroke-width="2"/><circle cx="16" cy="16" r="3.8" fill="none" stroke="#fff" stroke-width="2"/><circle cx="21.2" cy="10.8" r="1.2" fill="#fff"/></svg>`,
+  simulacao: `<svg viewBox="0 0 32 32" width="34" height="34" aria-hidden="true"><circle cx="16" cy="16" r="16" fill="#0b3d91"/><path fill="none" stroke="#5cd6ff" stroke-width="1.8" stroke-linejoin="round" d="M9 15.5 16 9.5l7 6V23H9Z"/><path fill="#5cd6ff" d="M12.5 17.5h2v2h-2zM17.5 17.5h2v2h-2z"/></svg>`
+};
+
+// Avatar (pulseAvatar): ícone do canal, foto real do corretor com anel na cor dele, ou inicial no círculo dessa cor.
+function buildAvatar(event) {
+  const avatar = pulseAvatar(event);
+  if (avatar.kind === "icon") {
+    const el = document.createElement("span");
+    el.className = "hp-av hp-icon";
+    el.innerHTML = PULSE_ICONS[avatar.icon];
+    return el;
+  }
+  if (avatar.kind === "photo") {
+    const img = document.createElement("img");
+    img.className = "hp-av";
+    img.src = avatar.url;
+    img.alt = "";
+    img.draggable = false;
+    img.style.boxShadow = `0 0 0 1.5px ${avatar.color}`;
+    img.addEventListener("error", () => img.replaceWith(initialAvatar(pulseAvatar({ ...event, broker: { ...event.broker, photo: "" } }))), { once: true });
+    return img;
+  }
+  return initialAvatar(avatar);
+}
+function initialAvatar(avatar) {
+  const el = document.createElement("span");
+  el.className = "hp-av";
+  el.textContent = avatar.letter;
+  el.style.background = avatar.color;
+  return el;
 }
 
 const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
@@ -120,16 +159,7 @@ export default function HenryPulse({ active = false, config = HENRY_PULSE_DEFAUL
       el.type = "button";
       el.className = "hp-card";
       el.setAttribute("aria-label", `${type.label}: ${text.who}. ${text.what}`);
-      const avatar = document.createElement(event.broker?.photo ? "img" : "span");
-      avatar.className = "hp-av";
-      if (event.broker?.photo) {
-        avatar.src = event.broker.photo;
-        avatar.alt = "";
-        avatar.draggable = false;
-      } else {
-        avatar.textContent = text.initial;
-        avatar.style.background = event.broker?.color || type.color;
-      }
+      const avatar = buildAvatar(event);
       const box = document.createElement("span");
       box.className = "hp-tx";
       const tag = document.createElement("span");
@@ -294,7 +324,7 @@ export default function HenryPulse({ active = false, config = HENRY_PULSE_DEFAUL
           if (hitsRef) {
             // Pulso na COR DO TIPO no trecho do anel por onde o card entrou (desenhado pelo HenryOrb, protótipo v11).
             const { cx, cy } = geometry();
-            const hits = (hitsRef.current || []).filter((hit) => t - hit.born < 1200);
+            const hits = (hitsRef.current || []).filter((hit) => t - hit.born < HENRY_ORB_HIT_MS);
             hits.push({ ang: Math.atan2(card.y + card.h / 2 - cy, card.x + card.w / 2 - cx), col: beamColor(cfg, card.event), born: t });
             hitsRef.current = hits;
           }
@@ -400,6 +430,8 @@ const PULSE_CSS = `
 [data-henry-pulse] .hp-card{position:absolute;left:0;top:0;display:flex;align-items:center;gap:10px;padding:9px 12px 9px 9px;max-width:min(270px,calc(100vw - 24px));border-radius:14px;text-align:left;color:#e8f0ff;cursor:pointer;background:none;border:1px solid transparent;box-shadow:none;text-shadow:0 1px 6px rgba(2,8,20,.9);transform-origin:center;will-change:transform,opacity}
 [data-henry-pulse] .hp-card:focus-visible{outline:2px solid #e9c27a;outline-offset:2px}
 [data-henry-pulse] .hp-av{flex:none;width:34px;height:34px;border-radius:50%;display:grid;place-items:center;font-weight:800;font-size:13px;color:#06101f;object-fit:cover}
+[data-henry-pulse] .hp-icon{border-radius:0;background:none}
+[data-henry-pulse] .hp-icon svg{display:block}
 [data-henry-pulse] .hp-tx{display:flex;flex-direction:column;min-width:0}
 [data-henry-pulse] .hp-tag{font-family:ui-monospace,Consolas,monospace;font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;opacity:.85;margin-bottom:2px}
 [data-henry-pulse] .hp-who{font-size:12.5px;font-weight:700;letter-spacing:.01em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}

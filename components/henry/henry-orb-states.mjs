@@ -79,6 +79,10 @@ export function buildNeuralNet(count = 22) {
 }
 
 export const ORB_TRANSITION_MS = 300;
+// Vibração dos fios (dono, 2026-10-23, protótipo v14: "ficou muito embaraçado"): ondulação × 0,4 em todos os estados.
+export const HENRY_ORB_VIB = 0.4;
+// Pulso de chegada do Pulso do CRM no anel (protótipo v16): duração total.
+export const HENRY_ORB_HIT_MS = 1100;
 
 // Fator de aproximação por quadro: depois de ORB_TRANSITION_MS o valor percorreu ~95% do caminho, qualquer que seja o fps.
 export function orbEase(deltaSeconds) {
@@ -111,4 +115,14 @@ export function mixHexColor(from, to, t) {
 
 export function orbStops(warm) {
   return COOL.map(([offset, color], index) => [offset, mixHexColor(color, WARM[index][1], warm)]);
+}
+
+// Cor viva para o pulso de chegada no anel (protótipo v15): mesma matiz do card (pastel), saturação 100%, luminosidade 60%.
+export function vividColor(hex) {
+  const [r, g, b] = [1, 3, 5].map((index) => parseInt(String(hex || "#5cd6ff").slice(index, index + 2), 16) / 255);
+  const max = Math.max(r, g, b);
+  const delta = max - Math.min(r, g, b);
+  let hue = 0;
+  if (delta) hue = max === r ? ((g - b) / delta) % 6 : max === g ? (b - r) / delta + 2 : (r - g) / delta + 4;
+  return `hsl(${Math.round(hue * 60 + 360) % 360}, 100%, 60%)`;
 }
