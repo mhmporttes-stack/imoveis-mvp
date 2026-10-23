@@ -491,6 +491,14 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-23 — Henry: "Pulso do CRM" preparado no branch `feat/pulso-crm` (desligado, sem publicar)
+- **Data:** 2026-10-23
+- **Área:** Henry / tela cheia / leitura de eventos do CRM
+- **Alteração:** canal de eventos somente leitura (`lib/henry-pulse-core.mjs` + `lib/henry-pulse.js`, rota `GET /api/admin/henry/pulse?since=`, só o dono, cache de 10 s, até 40 linhas por fonte); componente `components/henry/HenryPulse.jsx` (movimento do protótipo v10 do dono) montado atrás do anel em `HenryVoiceView.jsx` — o pulso de chegada vira `level` do `HenryOrb` real; configuração "Pulso do CRM" no cartão do Henry (`henry_voice_assistant.pulse`, nasce desligado; PUT `/api/admin/henry` `{ pulse }`); `isAllowedHenryNavigation` aceita `/admin/chat?client=<id>` e `/admin/chat/marketplace?conversa=<id>`; `loadArrivalEvents` exportado (reuso da chegada do aviso); vitrine `/dev/vitrine/henry?pulso=1`.
+- **Motivo:** conceito aprovado pelo dono; deixar pronto para publicar quando ele fechar os valores do visual (só `HENRY_PULSE_DEFAULTS`).
+- **Arquivos afetados:** `lib/henry-pulse-core.mjs`, `lib/henry-pulse.js`, `app/api/admin/henry/pulse/route.js`, `app/api/admin/henry/route.js`, `lib/henry-voice.js`, `lib/henry-voice-client-alerts.js`, `lib/henry-navigation-core.mjs`, `components/henry/HenryPulse.jsx`, `components/henry/HenryVoiceView.jsx`, `components/henry/HenryVoiceAssistant.jsx`, `components/henry/HenrySettingsCard.jsx`, `app/dev/vitrine/**`, `tests/henry-pulse.test.mjs`, `docs/BUSINESS_RULES.md` (HENRY-1 "Pulso", rascunho), `docs/PERMISSIONS.md`.
+- **Risco/observação:** sem migration. `client_journey_events` não tem índice por data/tipo (a consulta do Pulso filtra por `event_type` + `occurred_at`; volume baixo hoje, A CONFIRMAR em produção). Instagram não é registrado no CRM (só Marketplace aparece). Regra ainda [PENDENTE DE VALIDAÇÃO].
+
 ### 2026-10-23 — Cache pesado de métricas (semana/mês) em job próprio do pg_cron
 - **Data:** 2026-10-23
 - **Área:** Infra / Banco (cron) / Henry / Alexa V2
