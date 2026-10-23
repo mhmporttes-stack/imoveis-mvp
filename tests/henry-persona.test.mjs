@@ -144,7 +144,7 @@ test("pesquisa na internet: ferramenta oficial, no máximo 3 buscas, Marília/SP
   assert.equal(henryWebSearchFromSetting(null), true);
   assert.equal(henryWebSearchFromSetting({ webSearch: false }), false);
   // A ferramenta só entra no pedido com a pesquisa ligada; cada busca vira uma linha henry_web_search.
-  assert.match(lib, /tools: webSearch \? \[\.\.\.TOOLS, henryWebSearchTool\(\)\] : TOOLS/);
+  assert.match(lib, /return webSearch \? \[\.\.\.base, henryWebSearchTool\(\)\] : base;/); // henryToolsFor (tela de bloqueio tira as do CRM)
   assert.match(lib, /feature: "henry_web_search"/);
   assert.equal(webSearchesFrom({ server_tool_use: { web_search_requests: 2 } }), 2);
   assert.equal(webSearchesFrom({}), 0);
@@ -207,6 +207,6 @@ test("comandos de memória: lembrar, esquecer lembrete e esquecer a conversa de 
   // Só o dono (rota) e resolvido sem o modelo.
   assert.match(lib, /const command = await runMemoryCommand\(auth, text\);/);
   const route = readFileSync(new URL("../app/api/admin/henry/route.js", import.meta.url), "utf8");
-  assert.match(route, /dayTurns: enabled \? dayTurns : \[\]/);
+  assert.match(route, /dayTurns: enabled && !lock\.locked \? dayTurns : \[\]/); // bloqueado (HENRY-LOCK) = nada
   assert.ok(route.indexOf("requireHenryOwner(request)") < route.indexOf("readHenryDayTurns()"));
 });
