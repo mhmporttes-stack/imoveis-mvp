@@ -21,6 +21,7 @@ import {
   Download,
   EllipsisVertical,
   ExternalLink,
+  Eye,
   FileText,
   Film,
   Info,
@@ -107,6 +108,7 @@ const MEDIA_LABELS = {
   video: "Vídeo",
   document: "Documento",
   sticker: "Figurinha",
+  view_once: "Visualização única",
   location: "Localização",
   contacts: "Contato",
   reaction: "Reação",
@@ -696,6 +698,10 @@ function listPageIsFull(count, filter) {
 
 function ConversationList({ className, conversations, error, filter, filterLabels = {}, loading, onFilter, onSearch, onSelect, search, selectedId, totalUnread, clientStatus = "", onClientStatus = () => {}, canSeeArchived = false, currentUserId = "", mineScope = null, hasMore = false, loadingMore = false, onLoadMore = () => {} }) {
   const [previewId, setPreviewId] = useState("");
+  // Particular → "Mídias" (dono, 2026-10-23, WA-35): galeria de todas as conversas particulares, no lugar da lista.
+  const [mediaView, setMediaView] = useState(false);
+  const showMedia = mediaView && isPrivateFilter(filter);
+  useEffect(() => { if (!isPrivateFilter(filter)) setMediaView(false); }, [filter]);
   // "Arquivados" só para a conta do dono (WA-13: conversas de arquivados ficam fora do Chat; ele lê em somente leitura).
   const statusOptions = STATUS_OPTIONS.filter((option) => option.value !== "archived" || canSeeArchived);
   return (
@@ -753,11 +759,12 @@ function ConversationList({ className, conversations, error, filter, filterLabel
         {isPrivateFilter(filter) ? (
           <div className="flex gap-1.5">
             {[{ key: "private", label: "Todas" }, { key: "private_unseen", label: "Não lidas" }, ...(canSeeArchived ? [{ key: "private_groups", label: "Grupos" }] : [])].map((item) => (
-              <button key={item.key} type="button" onClick={() => onFilter(item.key)} aria-pressed={filter === item.key}
-                className={tabClasses(filter === item.key, "sm")}>
+              <button key={item.key} type="button" onClick={() => { setMediaView(false); onFilter(item.key); }} aria-pressed={!showMedia && filter === item.key}
+                className={tabClasses(!showMedia && filter === item.key, "sm")}>
                 {item.label}
               </button>
             ))}
+            <button type="button" onClick={() => setMediaView(true)} aria-pressed={showMedia} className={tabClasses(showMedia, "sm")}>Mídias</button>
           </div>
         ) : null}
         {/* Particular: conversa pessoal, não cliente — filtro por situação do cliente não se aplica. */}
@@ -778,7 +785,8 @@ function ConversationList({ className, conversations, error, filter, filterLabel
         {clientStatus === "archived" ? <p className="text-xs font-semibold text-muted">Conversas de clientes arquivados: só você vê, e só para leitura.</p> : null}
       </div>
 
-      <div data-chat-rows className="min-h-0 flex-1 overflow-y-auto overscroll-contain bg-white">
+      {showMedia ? <PrivateMediaGallery onOpenConversation={(id) => { setMediaView(false); onSelect(id); }} /> : null}
+      <div data-chat-rows className={`min-h-0 flex-1 overflow-y-auto overscroll-contain bg-white ${showMedia ? "hidden" : ""}`}>
         {error ? <p className="m-4 rounded-2xl border border-red-100 bg-red-50 p-3 text-sm font-bold text-red-700">{error}</p> : null}
         {loading && !conversations.length ? (
           <p className="flex items-center justify-center gap-2 p-8 text-sm font-bold text-muted"><Loader2 className="h-4 w-4 animate-spin" /> Carregando...</p>
@@ -1822,7 +1830,9 @@ function MessageBubble({ message, first = true, quoted, onOpenActions, contact =
   }
   const outbound = message.direction === "outbound";
   const failed = message.status === "failed";
-  const isMedia = message.type !== "text" && message.type !== "button" && message.type !== "interactive";
+  // Visualização única (WA-35): o texto fixo vem no corpo; aqui só o selo do balão.
+  const viewOnce = message.type === "view_once";
+  const isMedia = message.type !== "text" && message.type !== "button" && message.type !== "interactive" && !viewOnce;
   const label = MEDIA_LABELS[message.type] || "Mensagem";
   const automation = outbound && message.senderType === "automation";
   const showSender = outbound && message.senderType === "user" && message.sentByName && first;
@@ -1862,6 +1872,9 @@ function MessageBubble({ message, first = true, quoted, onOpenActions, contact =
           <p className="text-sm italic text-[#54656F]">{message.type === "unsupported"
             ? "[Mensagem não suportada] — o WhatsApp não entregou o conteúdo (ex.: visualização única, enquete ou contato). Peça para o cliente reenviar como arquivo ou abra no WhatsApp do celular."
             : `[${label}] — abra no WhatsApp para visualizar`}</p>
+        ) : null}
+        {viewOnce && !message.revoked ? (
+          <p className="mb-0.5 flex items-center gap-1 text-[11px] font-extrabold uppercase tracking-wide text-[#8A5A00]"><Eye className="h-3.5 w-3.5" aria-hidden="true" />Visualização única · {outbound ? "enviada pelo celular" : "recebida"}</p>
         ) : null}
         {message.shortcut ? <p className="mb-0.5 text-[10px] font-extrabold uppercase tracking-wide text-[#54656F]">Atalho · {message.shortcut}</p> : null}
         {linkPreview ? <LinkPreviewCard preview={linkPreview} outbound={outbound} /> : null}
@@ -2361,6 +2374,133 @@ function ConversationMediaGallery({ conversationId, onClose }) {
       </div>
     </div>,
     document.body
+  );
+}
+
+// Aba "Mídias" de Particular (dono, 2026-10-23, WA-35): fotos, vídeos, áudios e documentos de todas as conversas
+// particulares (sem figurinhas), mais recentes primeiro, com filtro por tipo e corretor. Quem vê é decidido no servidor.
+const PRIVATE_MEDIA_FILTERS = [{ key: "", label: "Tudo" }, { key: "image", label: "Fotos" }, { key: "video", label: "Vídeos" }, { key: "audio", label: "Áudios" }, { key: "document", label: "Documentos" }];
+function formatMediaDateTime(value) {
+  const date = new Date(value);
+  return `${SHORT_DATE_FORMATTER.format(date)} ${TIME_FORMATTER.format(date)}`;
+}
+function privateMediaContact(item) {
+  return item.contactName || (item.contactPhone ? formatPhone(item.contactPhone) : item.group ? "Grupo" : "Contato");
+}
+function PrivateMediaGallery({ onOpenConversation }) {
+  const [type, setType] = useState("");
+  const [broker, setBroker] = useState("");
+  const [items, setItems] = useState(null);
+  const [brokers, setBrokers] = useState([]);
+  const [cursor, setCursor] = useState("");
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [error, setError] = useState("");
+  const [open, setOpen] = useState(null);
+  const load = useCallback(async (nextCursor = "") => {
+    const params = new URLSearchParams();
+    if (type) params.set("type", type);
+    if (broker) params.set("broker", broker);
+    if (nextCursor) params.set("cursor", nextCursor);
+    const response = await fetch(`/api/admin/whatsapp-chat/private-media?${params}`, { cache: "no-store" });
+    const body = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(body.error || "Não foi possível carregar as mídias.");
+    return body;
+  }, [type, broker]);
+  useEffect(() => {
+    let cancelled = false;
+    setItems(null);
+    setError("");
+    load().then((body) => { if (!cancelled) { setItems(body.items || []); setCursor(body.nextCursor || ""); setBrokers(body.brokers || []); } })
+      .catch((loadError) => { if (!cancelled) setError(loadError.message); });
+    return () => { cancelled = true; };
+  }, [load]);
+  async function loadMore() {
+    setLoadingMore(true);
+    try {
+      const body = await load(cursor);
+      setItems((current) => [...(current || []), ...(body.items || [])]);
+      setCursor(body.nextCursor || "");
+    } catch (loadError) {
+      setError(loadError.message);
+    } finally {
+      setLoadingMore(false);
+    }
+  }
+  return (
+    <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain bg-white" data-private-media="">
+      <div className="space-y-2 border-b border-line px-3 py-2">
+        <div className="flex gap-1.5 overflow-x-auto pb-0.5">
+          {PRIVATE_MEDIA_FILTERS.map((item) => (
+            <button key={item.key || "all"} type="button" onClick={() => setType(item.key)} aria-pressed={type === item.key} className={tabClasses(type === item.key, "sm")}>{item.label}</button>
+          ))}
+        </div>
+        <label className="flex items-center gap-2 text-xs font-extrabold text-navy">
+          <span className="shrink-0">Corretor</span>
+          <select value={broker} onChange={(event) => setBroker(event.target.value)} className="h-10 min-w-0 flex-1 rounded-2xl border border-line bg-white px-3 text-sm font-bold text-navy outline-none focus:border-brand focus:ring-4 focus:ring-brand/10">
+            <option value="">Todos os corretores</option>
+            {brokers.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
+          </select>
+        </label>
+      </div>
+      {error ? <p className="m-4 rounded-2xl border border-red-100 bg-red-50 p-3 text-sm font-bold text-red-700">{error}</p> : null}
+      {!items && !error ? <p className="flex items-center justify-center gap-2 p-8 text-sm font-bold text-muted"><Loader2 className="h-4 w-4 animate-spin" /> Carregando...</p> : null}
+      {items && !items.length && !error ? <p className="p-8 text-center text-sm font-bold text-muted">Nenhuma mídia neste filtro.</p> : null}
+      {items?.length ? (
+        <div className="grid grid-cols-2 gap-2 p-2 sm:grid-cols-3">
+          {items.map((item) => (
+            <button key={item.id} type="button" onClick={() => setOpen(item)} className="overflow-hidden rounded-xl border border-line bg-white text-left transition hover:border-brand">
+              <span className="relative grid aspect-square w-full place-items-center bg-[#F0F2F5] text-[#54656F]">
+                {item.type === "image"
+                  ? <img src={item.media.url} alt={item.caption || "Foto"} loading="lazy" className="h-full w-full object-cover" />
+                  : item.type === "video" ? <Film className="h-8 w-8" aria-hidden="true" />
+                  : item.type === "audio" ? <Mic className="h-8 w-8" aria-hidden="true" />
+                  : <FileText className="h-8 w-8" aria-hidden="true" />}
+                {item.type === "document" && item.media.name ? <span className="absolute inset-x-1 bottom-1 truncate rounded bg-white/90 px-1 text-[10px] font-bold text-navy">{item.media.name}</span> : null}
+              </span>
+              <span className="block px-2 py-1.5">
+                <span className="block text-[11px] font-bold text-muted">{formatMediaDateTime(item.at)}</span>
+                <span className="block truncate text-xs font-extrabold text-navy">{item.brokerName}</span>
+                <span className="block truncate text-[11px] font-semibold text-[#54656F]">{item.direction === "inbound" ? "De" : "Para"} {privateMediaContact(item)}</span>
+              </span>
+            </button>
+          ))}
+        </div>
+      ) : null}
+      {items?.length && cursor ? (
+        <div className="flex justify-center p-4">
+          <button type="button" onClick={loadMore} disabled={loadingMore} className="inline-flex h-10 items-center gap-2 rounded-full border border-navy/15 bg-white px-5 text-sm font-extrabold text-navy transition hover:border-brand disabled:opacity-60">
+            {loadingMore ? <Loader2 className="h-4 w-4 animate-spin" /> : null} {loadingMore ? "Carregando…" : "Carregar mais"}
+          </button>
+        </div>
+      ) : null}
+      {open ? createPortal(
+        <div className="fixed inset-0 z-[70] flex items-end justify-center bg-black/60 p-0 sm:items-center sm:p-3" role="dialog" aria-modal="true" aria-label="Mídia" onClick={() => setOpen(null)}>
+          <div className="flex max-h-[92dvh] w-full max-w-lg flex-col overflow-hidden rounded-t-[24px] bg-white shadow-soft sm:rounded-panel" onClick={(event) => event.stopPropagation()}>
+            <div className="flex items-center justify-between gap-2 border-b border-line px-4 py-3">
+              <div className="min-w-0">
+                <p className="truncate text-sm font-black text-navy">{privateMediaContact(open)}</p>
+                <p className="truncate text-[11px] font-bold text-muted">{open.brokerName} · {formatMediaDateTime(open.at)}</p>
+              </div>
+              <button type="button" onClick={() => setOpen(null)} className="grid h-9 w-9 shrink-0 place-items-center rounded-full text-muted hover:bg-mist" aria-label="Fechar"><X className="h-5 w-5" /></button>
+            </div>
+            <div className="min-h-0 flex-1 overflow-y-auto bg-[#F0F2F5] p-3">
+              {open.type === "image" ? <img src={open.media.url} alt={open.caption || "Foto"} className="mx-auto max-h-[60dvh] w-auto object-contain" /> : null}
+              {open.type === "video" ? <video controls playsInline preload="metadata" src={open.media.url} className="mx-auto max-h-[60dvh] w-full rounded-md bg-black" /> : null}
+              {open.type === "audio" ? <audio controls preload="none" src={open.media.url} className="w-full" /> : null}
+              {open.type === "document" ? (
+                <a href={open.media.url} target="_blank" rel="noreferrer" className="flex items-center gap-2 rounded-xl bg-white p-3 text-sm font-bold text-brand"><FileText className="h-5 w-5" />{open.media.name || "Documento"}</a>
+              ) : null}
+              {open.caption ? <p className="mt-2 whitespace-pre-wrap break-words text-sm text-[#111B21]">{open.caption}</p> : null}
+            </div>
+            <div className="flex gap-2 border-t border-line p-3">
+              <a href={open.media.url} target="_blank" rel="noreferrer" className="inline-flex h-10 flex-1 items-center justify-center gap-1.5 rounded-full border border-navy/15 bg-white text-sm font-extrabold text-navy hover:border-brand"><ExternalLink className="h-4 w-4" />Abrir arquivo</a>
+              <button type="button" onClick={() => { const id = open.conversationId; setOpen(null); onOpenConversation(id); }} className="h-10 flex-1 rounded-full bg-navy text-sm font-extrabold text-white hover:bg-[#082f55]">Ir para a conversa</button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      ) : null}
+    </div>
   );
 }
 

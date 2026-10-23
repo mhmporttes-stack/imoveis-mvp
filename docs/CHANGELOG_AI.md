@@ -401,6 +401,17 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-23 — WA-35: aba "Mídias" em Particular e marcador de visualização única
+- **Data:** 2026-10-23
+- **Área:** WhatsApp individual (serviço Railway + CRM), Chat
+- **O quê:** (1) Particular ganhou a aba "Mídias": fotos, vídeos, áudios e documentos de todas as conversas particulares (sem figurinhas), mais recentes primeiro, 60 por página, filtros por tipo e corretor, "Ir para a conversa". Só o administrador geral (mesma barreira de abrir Particular, no servidor); mídia de grupo só para a conta do dono (quem já vê Grupos). Rota nova `GET /api/admin/whatsapp-chat/private-media`. (2) Visualização única: o serviço passa a mandar um marcador (sem baixar nada) quando chega foto/vídeo/áudio de visualização única, do contato ou do celular do corretor; o Chat mostra o balão "📷 Foto/vídeo de visualização única — só pode ser aberto no celular" (ou a versão de áudio).
+- **Por quê:** pedido do dono. No caso de 22/10 (conversa particular de um corretor) o cliente agradeceu "fotos e vídeos" que nunca chegaram ao CRM, embora o mesmo número tenha capturado 168 fotos e 27 vídeos desde 14/10. Causa achada no Baileys 6.7.24: visualização única chega a aparelho conectado como stub sem conteúdo (`<unavailable type="view_once"/>` → `key.isViewOnce`), e o serviço descartava em silêncio o do contato (`extractChatEvent` sem conteúdo) e registrava o do corretor como "não decifrada".
+- **Contagem:** igual às mídias comuns — do contato conta como resposta do cliente (status, Prospecção, push), do celular do corretor como contato humano (já contava antes como "não decifrada").
+- **Banco:** `message_type = 'view_once'` (sem CHECK no tipo; sem migration). Índice novo opcional `whatsapp_messages_media_at_idx` (migration `20261023150000`, aditiva, `CONCURRENTLY`) — NÃO aplicado em produção; sem ele a aba funciona, só mais lenta.
+- **Arquivos:** `whatsapp-individual-service/src/message-extract.js` (`viewOnceOf`), `lib/whatsapp-view-once-core.mjs`, `lib/whatsapp-private-media-core.mjs`, `lib/whatsapp-individual-inbound.js`, `lib/whatsapp-chat.js` (`listPrivateMediaGallery`), `app/api/webhooks/whatsapp-individual/route.js`, `app/api/admin/whatsapp-chat/private-media/route.js`, `components/WhatsappChat.jsx`; teste `tests/whatsapp-view-once.test.mjs`.
+- **Docs:** `BUSINESS_RULES.md` WA-35, `WHATSAPP.md` §1-K, `PERMISSIONS.md` §6, rule `integracoes-externas.md`.
+- **Risco/observação:** visualização única em GRUPO não ganha marcador (e deixa de ter a mídia baixada, se viesse). Antes do deploy, as mensagens de visualização única do contato não existem no CRM — não há como recuperar as antigas.
+
 ### 2026-10-23 — VOZ-1: áudio com a voz clonada do dono para o cliente (nasce desligado)
 - **Data:** 2026-10-23
 - **Área:** WhatsApp (Oficial + individual), automações, integração ElevenLabs

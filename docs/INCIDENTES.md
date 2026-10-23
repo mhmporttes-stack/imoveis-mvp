@@ -40,6 +40,16 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-23 — Cliente agradeceu "fotos e vídeos" que não aparecem no Chat (visualização única)
+- **Data:** 2026-10-23
+- **Sintoma:** foto/vídeo/áudio que o contato mandou não aparece na conversa do WhatsApp pessoal, embora as mídias comuns do mesmo número cheguem normalmente.
+- **Área:** WhatsApp
+- **Impacto:** toda mensagem de visualização única recebida pelos números dos corretores sumia sem rastro (as enviadas pelo celular apareciam como "não decifrada").
+- **Causa raiz:** o WhatsApp não entrega visualização única a aparelho conectado; o Baileys 6.7.24 gera um stub sem conteúdo com `key.isViewOnce`; `extractChatEvent` (serviço) devolvia null para o stub do contato. Hipótese do caso real (não comprovável retroativamente).
+- **Correção:** marcador `view_once` nos dois sentidos, sem baixar mídia (WA-35).
+- **Arquivos/commit:** `whatsapp-individual-service/src/message-extract.js`, `lib/whatsapp-individual-inbound.js` — commit deste registro
+- **Prevenção/teste:** `tests/whatsapp-view-once.test.mjs`.
+
 ### 2026-10-23 — WhatsApp "conectado, mas sem receber": Gabriel parou às 12:07 e ketlin não recebe nada desde 20/10
 - **Data:** 2026-10-23
 - **Sintoma:** número aparece conectado, o CRM envia, mas nenhuma mensagem chega ao Chat (nem a do próprio celular), os envios ficam sem "entregue"; o alarme demorou 6 h; reconectar pelo QR não resolveu para a ketlin.

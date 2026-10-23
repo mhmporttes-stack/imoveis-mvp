@@ -7,6 +7,7 @@ import { processProspectingInboundReply } from "@/lib/prospecting-reply";
 import { runIndependentConsumers } from "@/lib/prospecting-reply-core.mjs";
 import { listRecentConnectEvents } from "@/lib/whatsapp-session-telemetry";
 import { UNDECRYPTED_WEBHOOK_TYPE, undecryptedOwnMessageEvent } from "@/lib/whatsapp-undecrypted-core.mjs";
+import { normalizeViewOnce } from "@/lib/whatsapp-view-once-core.mjs";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -101,11 +102,13 @@ export async function POST(request) {
         media,
         quotedId: payload.quotedId,
         quotedText: payload.quotedText,
-        remoteJid: payload.remoteJid
+        remoteJid: payload.remoteJid,
+        // Visualização única (WA-35, dono 2026-10-23): só o marcador, sem arquivo.
+        viewOnce: normalizeViewOnce(payload.viewOnce)
       };
       // Foto/áudio/figurinha sem legenda também é resposta real do cliente
-      // para a Prospecção (texto de marcação, nunca vira opt-out).
-      const prospectingEvent = { ...event, text: String(payload.text || "").trim() || (media ? `[${media.kind || "mídia"}]` : "") };
+      // para a Prospecção (texto de marcação, nunca vira opt-out). Visualização única segue o mesmo critério da mídia.
+      const prospectingEvent = { ...event, text: String(payload.text || "").trim() || (event.viewOnce ? "[visualização única]" : media ? `[${media.kind || "mídia"}]` : "") };
       // Dois consumidores INDEPENDENTES do mesmo evento (pedido do dono,
       // 2026-10-02): A) resposta à Prospecção e B) Chat do CRM. Rodam em
       // paralelo, cada um com a própria idempotência; a falha de um (ex.: erro
