@@ -89,13 +89,19 @@ test("bom dia: tocar com volume baixo no aparelho (fetch mockado) e sem aparelho
   assert.deepEqual({ ok: closed.ok, uri: closed.uri }, { ok: false, uri: "spotify:playlist:37i9dQZF1DXcBWIGoYBM5M" });
 });
 
-test("bom dia: frases do relatório com números reais, sem dizer 'enviei'; aniversário só rascunho", () => {
+test("bom dia: frases do relatório com números reais, 'enviei' só com envio automático registrado; aniversário só rascunho", () => {
   assert.equal(composeMorningExtras({ newClients: 5, autoSimulations: 3 }), "Desde ontem entraram 5 clientes novos no CRM. 3 já têm a simulação automática gerada pelo site.");
   assert.equal(composeMorningExtras({ newClients: 1, autoSimulations: 1 }), "Desde ontem entrou 1 cliente novo no CRM. 1 já tem a simulação automática gerada pelo site.");
   assert.equal(composeMorningExtras({ newClients: 0, autoSimulations: 0 }), "Desde ontem não entrou cliente novo no CRM.");
   assert.equal(composeMorningExtras({ newClients: 4, autoSimulations: null }), "Desde ontem entraram 4 clientes novos no CRM.");
   assert.equal(composeMorningExtras({ newClients: null, autoSimulations: 2 }), ""); // leitura falhou: some, nunca zero falso
   for (const sample of [{ newClients: 5, autoSimulations: 3 }, { newClients: 2, autoSimulations: 0 }]) assert.doesNotMatch(composeMorningExtras(sample), /envi/i);
+  // SIM-AUTO-ENVIO (dono, 2026-10-23): "já enviei a simulação para Y" só com a contagem de envios automáticos > 0.
+  assert.equal(composeMorningExtras({ newClients: 5, autoSimulations: 3, autoSimulationSends: 2 }), "Desde ontem entraram 5 clientes novos no CRM. 3 já têm a simulação automática gerada pelo site. Já enviei a simulação para 2 clientes.");
+  assert.equal(composeMorningExtras({ newClients: 1, autoSimulations: 1, autoSimulationSends: 1 }), "Desde ontem entrou 1 cliente novo no CRM. 1 já tem a simulação automática gerada pelo site. Já enviei a simulação para 1 cliente.");
+  assert.equal(composeMorningExtras({ newClients: 0, autoSimulations: 0, autoSimulationSends: 1 }), "Desde ontem não entrou cliente novo no CRM. Já enviei a simulação para 1 cliente.");
+  assert.equal(composeMorningExtras({ newClients: null, autoSimulationSends: 3 }), "Já enviei a simulação para 3 clientes.");
+  for (const sends of [0, null, undefined, NaN]) assert.doesNotMatch(composeMorningExtras({ newClients: 4, autoSimulations: 2, autoSimulationSends: sends }), /envi/i);
   assert.equal(birthdayQuestion(["Jean"]), "Hoje é aniversário do cliente Jean. Quer que eu prepare uma mensagem pra ele?");
   assert.equal(birthdayQuestion(["Jean", "Ana"]), "Hoje é aniversário dos clientes Jean e Ana. Quer que eu prepare uma mensagem pra eles?");
   assert.equal(birthdayQuestion([]), "");

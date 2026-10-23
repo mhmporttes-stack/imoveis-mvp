@@ -14,7 +14,7 @@ import { withWhatsappText } from "@/lib/documents-forecast-core.mjs";
 import { SEND_SIMULATION_REQUEST_EVENT, SEND_SIMULATION_STATE_EVENT } from "@/lib/simulation-presentation-send.mjs";
 import { formatInterestRateInput, parseInterestRateInput } from "@/lib/interest-rate.mjs";
 import { simulationRequiredFieldsError } from "@/lib/simulation-required-fields.mjs";
-import { AUTO_PRESENTATION_LOCKED_MESSAGE, isAutomaticSimulationSource } from "@/lib/simulation-status-lock-core.mjs";
+import { AUTO_PRESENTATION_LOCKED_MESSAGE, isAutoPresentationLocked, isAutomaticSimulationSource } from "@/lib/simulation-status-lock-core.mjs";
 import { AUTO_SIMULATION_REVIEW_ENABLED } from "@/lib/simulation-auto-review-core.mjs";
 import { estimateSacForType, todayInSaoPaulo } from "@/lib/financiamento-estimativa-core.mjs";
 import AutoReviewTypeVote, { useAutoReviewState } from "@/components/AutoReviewTypeVote";
@@ -820,9 +820,9 @@ export default function SimulationGenerator({ properties = [], initialSimulation
   //  2) senão -> abre o WhatsApp do PRÓPRIO corretor (app no celular/PWA, WhatsApp Web no computador) com SÓ o link (sem
   //     texto: com texto junto a prévia não carrega) — o app dele monta a prévia, o que o envio pelo Chat no pessoal não faz.
   async function sendPresentationToWhatsApp() {
-    // Simulação automática ainda não conferida (SIM-AUTO): o Enviar NÃO pode salvar por cima (isso a converteria sem o
-    // OK/Corrigir obrigatório) nem gerar o link — mostra o aviso da conferência.
-    if (isAutomaticSimulationSource(formRef.current?.createdBy)) {
+    // Simulação automática ainda não conferida (SIM-AUTO): com a trava ligada o Enviar NÃO pode salvar por cima nem gerar
+    // o link — mostra o aviso da conferência. Trava revogada pelo dono em 2026-10-23 (AUTO_PRESENTATION_LOCK_ENABLED).
+    if (isAutoPresentationLocked(formRef.current?.createdBy)) {
       setError(AUTO_PRESENTATION_LOCKED_MESSAGE);
       setMessage("");
       return;

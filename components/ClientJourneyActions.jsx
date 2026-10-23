@@ -49,7 +49,7 @@ const CATEGORY_BY_TYPE = {
   created: "sistema", legacy_status: "status", status: "status", status_reason: "status", notify: "jornada", regenerate: "jornada",
   responsible_transferred: "atribuicao", data_updated: "sistema", form_resubmitted: "sistema", ad_reentry: "sistema", tag_added: "sistema", tag_removed: "sistema",
   activity_scheduled: "atividades", activity_completed: "atividades", activity_rescheduled: "atividades", activity_deleted: "atividades",
-  sale_registered: "status", document_forecast_set: "atividades", documents_list_sent: "atividades", appointment_scheduled: "atividades", appointment_requested: "atividades", presentation_sent: "atividades", presentation_link_copied: "atividades", presentation_approval_on: "atividades", presentation_approval_off: "atividades",
+  sale_registered: "status", document_forecast_set: "atividades", documents_list_sent: "atividades", appointment_scheduled: "atividades", appointment_requested: "atividades", presentation_sent: "atividades", simulation_auto_sent: "atividades", simulation_auto_send_scheduled: "sistema", simulation_auto_send_pending: "sistema", simulation_auto_send_failed: "sistema", simulation_auto_send_skipped: "sistema", presentation_link_copied: "atividades", presentation_approval_on: "atividades", presentation_approval_off: "atividades",
   "distribution:assigned": "atribuicao", "distribution:auto_transferred": "atribuicao", responsible_assigned: "atribuicao",
   "prospecting:claimed": "atividades", "prospecting:edited": "sistema", "prospecting:unblocked": "sistema",
   "prospecting:returned_to_queue": "atividades", "prospecting:prospecting_started": "atividades", "prospecting:in_service": "atividades",
@@ -163,6 +163,17 @@ function eventTitleAndDescription(event, context = {}) {
       return { title: "LISTA DE DOCUMENTOS ENVIADA", description: ["Lista de documentos enviada"] };
     case "presentation_sent":
       return { title: "APRESENTAÇÃO DA SIMULAÇÃO ENVIADA", description: ["Apresentação da simulação enviada"] };
+    // Envio automático da simulação (SIM-AUTO-ENVIO, dono 2026-10-23): o texto vem gravado no evento (canal/motivo).
+    case "simulation_auto_sent":
+      return { title: "SIMULAÇÃO ENVIADA AUTOMATICAMENTE", description: [d.text || "Simulação enviada automaticamente"] };
+    case "simulation_auto_send_scheduled":
+      return { title: "ENVIO AUTOMÁTICO DA SIMULAÇÃO PROGRAMADO", description: [d.text || "Envio automático da simulação programado"] };
+    case "simulation_auto_send_pending":
+      return { title: "ENVIO AUTOMÁTICO DA SIMULAÇÃO PENDENTE", description: [d.text || "Envio automático da simulação pendente"] };
+    case "simulation_auto_send_failed":
+      return { title: "ENVIO AUTOMÁTICO DA SIMULAÇÃO FALHOU", description: [d.text || "Envio automático da simulação falhou"] };
+    case "simulation_auto_send_skipped":
+      return { title: "SIMULAÇÃO NÃO ENVIADA AUTOMATICAMENTE", description: [d.text || "Simulação não enviada automaticamente"] };
     case "document_received_offline":
       return { title: "1º DOCUMENTO RECEBIDO POR FORA", description: [d.text || "1º documento recebido fora do CRM"] };
     case "document_received_offline_undone":

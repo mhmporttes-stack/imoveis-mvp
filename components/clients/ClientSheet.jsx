@@ -30,7 +30,7 @@ import { CLIENT_STATUS, isAwaitingSimulationStatus } from "@/lib/client-status";
 import { AUTO_SIMULATION_REVIEW_ENABLED } from "@/lib/simulation-auto-review-core.mjs";
 import AutoReviewTypeVote, { useAutoReviewState } from "@/components/AutoReviewTypeVote";
 import RedoAutoSimulationButton from "@/components/RedoAutoSimulationButton";
-import { AUTO_PRESENTATION_LOCKED_MESSAGE } from "@/lib/simulation-status-lock-core.mjs";
+import { AUTO_PRESENTATION_LOCK_ENABLED, AUTO_PRESENTATION_LOCKED_MESSAGE } from "@/lib/simulation-status-lock-core.mjs";
 import { canCopyImage, copyImageToClipboard, fetchDocumentsImage, saveOrShareImage } from "@/components/clients/documentsImageFile";
 import { getPropertyPreferenceDetails, getPropertyPreferenceSummary } from "@/lib/property-preference-display";
 import {
@@ -483,7 +483,7 @@ function SimulationSummary({ client, list }) {
         {AUTO_SIMULATION_REVIEW_ENABLED && client.simulation?.id
           ? <AutomaticTypeReviews simulationId={client.simulation.id} types={automatic.types || []} onFinished={() => list.fetchClients({ silent: true })} />
           : null}
-        <p className="mt-2 text-xs font-semibold text-muted">{AUTO_PRESENTATION_LOCKED_MESSAGE}</p>
+        {AUTO_PRESENTATION_LOCK_ENABLED ? <p className="mt-2 text-xs font-semibold text-muted">{AUTO_PRESENTATION_LOCKED_MESSAGE}</p> : null}
       </div>
     );
   }
