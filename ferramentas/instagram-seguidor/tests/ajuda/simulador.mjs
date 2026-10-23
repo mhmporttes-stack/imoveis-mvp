@@ -203,6 +203,17 @@ export function criarChromeFalso(ig, { logado = true, semJanelas = false } = {})
         if (!alvo) throw new Error(`No tab with id: ${target.tabId}`);
         registro.execucoes = (registro.execucoes || 0) + 1;
         if (alvo.w.id === 1) throw new Error('usou aba da janela do dono');
+        if (Array.isArray(args[0])) {
+          // 1.1.3: clique no botão do perfil (clicarNaPagina). Funciona quando o "legado" funcionaria.
+          const usuario = decodeURIComponent((String(alvo.t.url || '').match(/instagram\.com\/([^/?#]+)\/?/) || [])[1] || '');
+          const u = ig.usuarios.find((x) => x.username === usuario);
+          ig.chamadas.push({ caminho: `clique:${usuario}`, metodo: 'CLICK' });
+          if (!u || !ig.legadoFunciona) return [{ result: { ok: false, erro: 'botão "seguir" não apareceu (passo 1)' } }];
+          const seguir = args[0][0].includes('seguir');
+          if (seguir) { if (u.is_private) ig.pendentes.set(u.pk, Date.now()); else ig.sigo.set(u.pk, Date.now()); }
+          else { ig.sigo.delete(u.pk); if (!ig.destroyNaoCancela) ig.pendentes.delete(u.pk); }
+          return [{ result: { ok: true } }];
+        }
         const [url, metodo, corpo, cabecalhos] = args;
         if (Object.keys(cabecalhos).length === 0) return [{ result: ig.responder({ url, metodo, corpo }) }]; // página HTML (sem cabeçalhos de API)
         if (!cabecalhos['x-csrftoken'] || cabecalhos['x-ig-app-id'] !== '936619743392459' || cabecalhos['x-requested-with'] !== 'XMLHttpRequest') {

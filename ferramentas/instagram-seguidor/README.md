@@ -30,6 +30,7 @@ Automatizar seguir, deixar de seguir e mandar DM **viola os Termos de Uso do Ins
 - **Pausar:** botão **Pausar** no popup ou no painel. **Retomar** volta a funcionar (e também cancela uma pausa automática de 24 h, mas isso aumenta o risco). Para parar de vez: desligue a extensão em `chrome://extensions`.
 
 ## Versões
+- **1.1.3** (23/10): o Instagram passou a responder a página HTML (em vez de dados) ao pedido de seguir pela API, e o endpoint antigo saiu do ar (404). Agora, quando a API não confirma, a extensão abre o perfil na janela de trabalho e **clica no botão Seguir** (para deixar de seguir: **Seguindo → Deixar de seguir**), como uma pessoa faria, e confere no friendships/show.
 - **1.1.2** (23/10): uma página de erro HTML do Instagram (ex.: 404 "Page Not Found" do endpoint antigo de seguir) não é mais confundida com "sem sessão" — a extensão não pausa mais por isso; e, antes de tentar o endpoint antigo, ela confere de novo (2,5 s depois) se o seguir já entrou.
 - **1.1.1** (23/10): se a busca da referência for feita com a janela já aberta e a fila vazia, os horários de "seguir" que passaram sem ninguém na fila voltam para a agenda (antes o dia ficava em "0 seguidos" mesmo com a fila cheia).
 

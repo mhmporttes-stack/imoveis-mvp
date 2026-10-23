@@ -201,8 +201,8 @@ test('create devolve HTML: legado funciona → segue; legado falha → suspende 
   await ext.avancarAte(inicio + 3 * HORA);
   let e = ext.estado();
   const seguidosLegado = Object.keys(e.seguidos).length;
-  assert.ok(seguidosLegado >= 2, 'deveria seguir pelo endpoint legado');
-  assert.ok(e.historico.some((h) => h.acao === 'seguir' && /confirmado \(web\/friendships\/follow\)/.test(h.resultado)));
+  assert.ok(seguidosLegado >= 2, 'deveria seguir pelo clique no botão (1.1.3)');
+  assert.ok(e.historico.some((h) => h.acao === 'seguir' && /confirmado \(botão Seguir\)/.test(h.resultado)));
 
   ig.legadoFunciona = false;
   await ext.avancarAte(inicio + 6 * HORA);

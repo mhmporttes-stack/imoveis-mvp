@@ -39,6 +39,11 @@ export const ENDPOINTS = {
   dmConversaPorParticipante: (id) => `/api/v1/direct_v2/threads/get_by_participants/?recipient_users=${encodeURIComponent(JSON.stringify([Number(id) || String(id)]))}`,
 };
 
+// Textos dos botões do perfil (pt-BR e inglês), comparados por inteiro, sem maiúsculas/minúsculas.
+export const TEXTOS_SEGUIR = ['seguir', 'follow', 'seguir de volta', 'follow back'];
+export const TEXTOS_SEGUINDO = ['seguindo', 'following', 'solicitado', 'requested'];
+export const TEXTOS_DEIXAR = ['deixar de seguir', 'unfollow', 'cancelar solicitação', 'cancel request'];
+
 export class ErroInstagram extends Error {
   constructor(tipo, mensagem, { status = 0, endpoint = '', corpo = '' } = {}) {
     super(mensagem);
@@ -74,7 +79,7 @@ function form(obj) {
  * `{ status, texto }` (nos testes é um falso; na extensão é a aba do Instagram).
  * `obterCsrf()` devolve o csrftoken atual (ou '').
  */
-export function criarApiInstagram({ executar, obterCsrf = async () => '' }) {
+export function criarApiInstagram({ executar, obterCsrf = async () => '', clicar = null }) {
   /**
    * Faz uma chamada. `referer` é o caminho da página "de onde" a chamada parte
    * (ex.: '/fulano/'), como o site faz. `bruto: true` devolve o texto (HTML) sem
@@ -144,16 +149,27 @@ export function criarApiInstagram({ executar, obterCsrf = async () => '' }) {
     const referer = username ? `/${username}/` : '/';
     const corpo = form({ container_module: 'profile', nav_chain: '', user_id: String(id) });
     const falhas = [];
-    for (const [rotulo, caminho] of tentativas) {
+    const usadas = [];
+    for (const [rotulo, caminho, opcoes = {}] of tentativas) {
+      if (opcoes.soSemClique && clicar) continue; // endpoint legado: só sem o clique no botão (testes/antigo)
+      if (opcoes.clique && !clicar) continue;
+      usadas.push(rotulo);
       let falha = null;
       try {
-        await chamar(rotulo, caminho, { metodo: 'POST', corpo, referer });
+        if (opcoes.clique) {
+          // 1.1.3: o Instagram passou a responder HTML ao POST da API de seguir; o caminho que não depende
+          // da API é fazer o que a pessoa faz: abrir o perfil na janela de trabalho e clicar no botão.
+          const r = await clicar({ username, passos: opcoes.clique });
+          if (!r || !r.ok) throw new ErroInstagram('mudanca_api', `${rotulo}: ${r && r.erro ? r.erro : 'botão não encontrado na página do perfil'}`, { endpoint: rotulo });
+        } else {
+          await chamar(rotulo, caminho, { metodo: 'POST', corpo, referer });
+        }
       } catch (e) {
         if (!(e instanceof ErroInstagram) || (e.tipo !== 'mudanca_api' && e.tipo !== 'outro')) throw e;
         falha = e.message;
       }
       let st = await amizadeDe(id);
-      if (!confirmado(st) && !falha) {
+      if (!confirmado(st) && (!falha || opcoes.clique)) {
         // 1.1.2: o friendships/show às vezes demora a refletir a ação; confere de novo antes de tentar o legado
         // (evita mandar um segundo pedido para quem já foi seguido).
         await new Promise((r) => setTimeout(r, 2500));
@@ -162,7 +178,7 @@ export function criarApiInstagram({ executar, obterCsrf = async () => '' }) {
       if (confirmado(st)) return { ...st, via: rotulo };
       falhas.push(falha || `${rotulo} respondeu, mas o friendships/show não confirmou`);
     }
-    throw new ErroInstagram('mudanca_api', `Não consegui ${nome} (sem confirmação no friendships/show após ${tentativas.map((t) => t[0]).join(' e ')}): ${falhas.join(' | ')}`, { endpoint: tentativas[0][0] });
+    throw new ErroInstagram('mudanca_api', `Não consegui ${nome} (sem confirmação no friendships/show após ${usadas.join(' e ')}): ${falhas.join(' | ')}`, { endpoint: tentativas[0][0] });
   }
 
   return {
@@ -293,7 +309,11 @@ export function criarApiInstagram({ executar, obterCsrf = async () => '' }) {
         nome: 'seguir',
         id,
         username,
-        tentativas: [['friendships/create', ENDPOINTS.seguir(id)], ['web/friendships/follow', ENDPOINTS.seguirLegado(id)]],
+        tentativas: [
+          ['friendships/create', ENDPOINTS.seguir(id)],
+          ['botão Seguir', null, { clique: [TEXTOS_SEGUIR] }],
+          ['web/friendships/follow', ENDPOINTS.seguirLegado(id), { soSemClique: true }],
+        ],
         confirmado: (st) => st.seguindo || st.pedidoPendente,
       });
     },
@@ -308,7 +328,11 @@ export function criarApiInstagram({ executar, obterCsrf = async () => '' }) {
         nome: 'deixar de seguir',
         id,
         username,
-        tentativas: [['friendships/destroy', ENDPOINTS.deixarDeSeguir(id)], ['web/friendships/unfollow', ENDPOINTS.deixarDeSeguirLegado(id)]],
+        tentativas: [
+          ['friendships/destroy', ENDPOINTS.deixarDeSeguir(id)],
+          ['botão Seguindo → Deixar de seguir', null, { clique: [TEXTOS_SEGUINDO, TEXTOS_DEIXAR] }],
+          ['web/friendships/unfollow', ENDPOINTS.deixarDeSeguirLegado(id), { soSemClique: true }],
+        ],
         confirmado: (st) => !st.seguindo && !st.pedidoPendente,
       });
     },
@@ -570,7 +594,39 @@ export async function lerSessao() {
   return { logado: Boolean(sessao && meuId), meuId: meuId || null, csrf };
 }
 
+/**
+ * Roda NA PÁGINA do perfil: espera cada botão aparecer (até 8 s), clica, e passa para o próximo
+ * passo (ex.: "Seguindo" abre o menu, depois "Deixar de seguir"). Só botões visíveis, texto exato.
+ */
+export async function clicarNaPagina(passos) {
+  const norm = (t) => String(t || '').replace(/\s+/g, ' ').trim().toLowerCase();
+  const visivel = (el) => { const r = el.getBoundingClientRect(); return r.width > 0 && r.height > 0; };
+  const achar = (textos) => [...document.querySelectorAll('button, div[role="button"]')].find((el) => visivel(el) && textos.includes(norm(el.innerText || el.textContent)));
+  for (let i = 0; i < passos.length; i += 1) {
+    let alvo = null;
+    for (let t = 0; t < 32 && !alvo; t += 1) {
+      alvo = achar(passos[i]);
+      if (!alvo) await new Promise((r) => setTimeout(r, 250));
+    }
+    if (!alvo) return { ok: false, erro: `botão "${passos[i][0]}" não apareceu (passo ${i + 1})`, origem: location.origin };
+    alvo.click();
+    await new Promise((r) => setTimeout(r, 900 + Math.random() * 600));
+  }
+  return { ok: true, origem: location.origin };
+}
+
+/** Abre o perfil na janela de trabalho (sem foco) e executa os cliques. */
+export async function clicarNaAba({ username, passos }) {
+  if (!username) return { ok: false, erro: 'sem @ do perfil' };
+  const tabId = await garantirAbaInstagram();
+  await chrome.tabs.update(tabId, { url: `${BASE}/${encodeURIComponent(username)}/` });
+  await new Promise((r) => setTimeout(r, 400));
+  await esperarCarregar(tabId);
+  const [res] = await chrome.scripting.executeScript({ target: { tabId }, world: 'MAIN', func: clicarNaPagina, args: [passos] });
+  return (res && res.result) || { ok: false, erro: 'a aba não respondeu' };
+}
+
 /** API pronta para uso dentro da extensão. */
 export function criarApiChrome() {
-  return criarApiInstagram({ executar: executarNaAba, obterCsrf: async () => (await lerSessao()).csrf });
+  return criarApiInstagram({ executar: executarNaAba, obterCsrf: async () => (await lerSessao()).csrf, clicar: clicarNaAba });
 }
