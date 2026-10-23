@@ -36,17 +36,31 @@ if (allowedOrigins.includes(window.location.origin)) {
     },
     // Fase 1.1: o app ouviu "Henry" (Vosk, offline). Assinar LIGA a escuta no app; cancelar a última assinatura DESLIGA
     // (o microfone do app fecha). O callback recebe só { phrase } — nunca áudio.
-    onWake: (callback) => {
+    // 1.2.1: options.wakeWord = palavra de chamada ("henry", "ei-henry", "ola-henry", "ok-henry" ou "custom:<palavra>";
+    // o app confere no vocabulário do modelo) e options.onStatus({ label, ok, missing }) = qual palavra o app está usando.
+    onWake: (callback, options) => {
       if (typeof callback !== "function") return () => {};
       const listener = (_event, info) => callback({ phrase: typeof info?.phrase === "string" ? info.phrase : "" });
+      const onStatus = typeof options?.onStatus === "function" ? options.onStatus : null;
+      const statusListener = onStatus
+        ? (_event, info) =>
+            onStatus({
+              label: typeof info?.label === "string" ? info.label : "",
+              ok: info?.ok === true,
+              missing: Array.isArray(info?.missing) ? info.missing.filter((item) => typeof item === "string").slice(0, 5) : []
+            })
+        : null;
+      const wakeWord = typeof options?.wakeWord === "string" ? options.wakeWord.slice(0, 80) : "henry";
       ipcRenderer.on("mm:wake", listener);
+      if (statusListener) ipcRenderer.on("mm:wake-word", statusListener);
       wakeListeners += 1;
-      if (wakeListeners === 1) ipcRenderer.send("mm:wake-listen", true);
+      if (wakeListeners === 1) ipcRenderer.send("mm:wake-listen", true, { wakeWord });
       let active = true;
       return () => {
         if (!active) return;
         active = false;
         ipcRenderer.removeListener("mm:wake", listener);
+        if (statusListener) ipcRenderer.removeListener("mm:wake-word", statusListener);
         wakeListeners -= 1;
         if (wakeListeners === 0) ipcRenderer.send("mm:wake-listen", false);
       };

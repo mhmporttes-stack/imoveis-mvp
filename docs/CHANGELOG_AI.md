@@ -410,6 +410,15 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-23 — App de desktop 1.3.0: diagnóstico do "Henry", palavra de chamada e atualização automática (HENRY-1)
+- **Data:** 2026-10-23
+- **Área:** App de desktop (`desktop-app/`) / Henry / GitHub Actions
+- **Alteração:** retoma a 1.2.1 (interrompida) e lança como 1.3.0. Escuta do nome: log sem áudio (nível do microfone, microfone em uso, erros, pausa/retomada com motivo, "quase"), modo "Diagnóstico do nome (2 min)" na bandeja (texto reconhecido + confiança), trava de 2 min na pausa, religar sozinha em erro/troca de microfone, taxa real do áudio ao Vosk, resultados parciais, "rei"|"ri" entre trechos, vocabulário lido do próprio modelo (`src/vosk-vocab.js`). Palavra de chamada (Henry / Ei Henry / Ok Henry / livre) em Voz e personalidade, pelo mesmo canal `onWake` (sem ação nova na ponte). Atualização automática (`src/updater.js`, `electron-updater` 6.8.9 generic): ao abrir e a cada 4 h, "Reiniciar agora / Depois" (Depois = ao Sair), "Procurar atualização" na bandeja. Workflow `.github/workflows/desktop-app.yml` (windows-latest) gera NSIS + `latest.yml` + `.blockmap` e publica em GitHub Releases (`desktop-v<versão>` e `desktop-latest`) com o `GITHUB_TOKEN`. `fetch-models.js` passa a usar o `tar.exe` do Windows.
+- **Motivo:** log real do PC do dono (1.1.0) sem nenhum `onWake` depois de várias chamadas; dono não consegue usar PowerShell/pnpm para instalar versões novas.
+- **Arquivos afetados:** `desktop-app/src/{core,main,preload,wake-engine,vosk-vocab,updater}.js`, `desktop-app/src/wake/{wake,wake-preload}.js`, `desktop-app/scripts/fetch-models.js`, `desktop-app/package{,-lock}.json`, `desktop-app/tests/{wake,wake-word-crm,updater}.test.js`, `desktop-app/README.md`, `lib/henry-desktop-core.mjs`, `components/henry/HenryVoiceAssistant.jsx`, `components/henry/HenrySettingsCard.jsx`, `.github/workflows/desktop-app.yml`; docs `BUSINESS_RULES.md` (HENRY-1 "Versão 1.3.0"), `.claude/rules/integracoes-externas.md`.
+- **Risco/observação:** Supabase Storage descartado (plano gratuito: arquivo até 50 MB; o instalador tem ~200 MB). A atualização depende do repositório continuar **público**; se virar privado, a hospedagem precisa mudar. Instalador NSIS não testado neste ambiente (sem Windows/wine): o 1º build real é o do workflow (**A CONFIRMAR**). Quem usava a versão portátil precisa instalar o .exe uma vez e marcar de novo "Abrir com o Windows". "Olá Henry" da 1.2.1 não entrou (fora da lista do dono).
+- **Autor:** Claude Code (crm-editor)
+
 ### 2026-10-23 — Henry: chamado do aviso mais lento e com tom de pergunta (HENRY-1)
 - **Data:** 2026-10-23
 - **Área:** Henry (voz) / ElevenLabs

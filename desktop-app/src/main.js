@@ -41,6 +41,7 @@ const {
 const { setMonitorPower } = require("./screen");
 const { synthesize } = require("./piper");
 const { createWakeEngine, registerWakeScheme } = require("./wake-engine");
+const { createUpdater } = require("./updater");
 
 const APP_ID = "br.com.matheusmachadoimoveis.crm";
 const PARTITION = "persist:mm-crm";
@@ -67,6 +68,7 @@ let preferences = parsePreferences("");
 let tray = null;
 let quitting = false;
 let wakeEngine = null;
+let updater = null;
 
 // Modelos de voz (Vosk + Piper, fase 1.1): no pacote ficam em resources/models (fora do asar: o Piper é um .exe);
 // no desenvolvimento, em desktop-app/models (baixados por scripts/fetch-models.js).
@@ -377,7 +379,17 @@ function buildTrayMenu() {
         checked: preferences.titlebarAlwaysVisible,
         click: (item) => setTitlebarAlwaysVisible(item.checked)
       },
+      {
+        // 1.2.1: por 2 min o log guarda o TEXTO que o Vosk reconheceu (para ver como ele escreve o "Rênri"); nunca áudio.
+        label: "Diagnóstico do nome (2 min)",
+        type: "checkbox",
+        checked: Boolean(wakeEngine?.isDiagnostic()),
+        enabled: Boolean(wakeEngine?.isRunning()) || Boolean(wakeEngine?.isDiagnostic()),
+        click: (item) => wakeEngine?.setDiagnostic(item.checked)
+      },
       { label: "Ver registro de ações", click: () => shell.openPath(logPath()) },
+      // 1.3.0: "Procurar atualização" (ou "Nova versão X pronta — Reiniciar agora" quando já baixou).
+      ...(updater ? [updater.trayItem()] : []),
       { type: "separator" },
       { label: "Sair", click: () => { quitting = true; app.quit(); } }
     ])
@@ -456,6 +468,17 @@ function setupTitlebarChannel() {
   });
 }
 
+// Aviso do próprio app (atualização): notificação do Windows; clicar abre a escolha (ou a janela).
+function notifyApp(title, body, onClick) {
+  try {
+    const notice = new Notification({ title, body, icon: ICON, silent: false });
+    notice.on("click", onClick || showWindow);
+    notice.show();
+  } catch {
+    // sem notificação: o item da bandeja continua mostrando
+  }
+}
+
 function start() {
   app.setAppUserModelId(APP_ID); // notificações do Windows com o nome do app
   Menu.setApplicationMenu(null);
@@ -465,7 +488,15 @@ function start() {
   loadPreferences();
   session.fromPartition(TITLEBAR_PARTITION).setPermissionRequestHandler((_contents, _permission, callback) => callback(false));
   session.fromPartition(TITLEBAR_PARTITION).setPermissionCheckHandler(() => false);
-  wakeEngine = createWakeEngine({ modelsDir: MODELS_DIR, log: logAction });
+  wakeEngine = createWakeEngine({ modelsDir: MODELS_DIR, log: logAction, onChange: () => buildTrayMenu() });
+  updater = createUpdater({
+    log: logAction,
+    notify: notifyApp,
+    onChange: () => buildTrayMenu(),
+    beforeInstall: () => {
+      quitting = true; // fechar a janela não pode virar "esconder na bandeja" durante a instalação
+    }
+  });
   app.on("web-contents-created", (_event, contents) => guardContents(contents));
   powerSaveBlocker.start("prevent-app-suspension"); // o app não é suspenso; o monitor ainda pode apagar
   createWindow({ hidden: process.argv.includes("--hidden") });
@@ -483,6 +514,7 @@ function start() {
   });
   if (!registered) logAction("atalho_henry", false, "Ctrl+Shift+H já usado por outro programa");
   logAction("app_aberto", true, app.getVersion());
+  updater.start();
 }
 
 app.on("window-all-closed", () => {

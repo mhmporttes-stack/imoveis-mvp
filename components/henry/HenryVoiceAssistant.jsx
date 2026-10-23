@@ -59,11 +59,13 @@ import { saoPauloNow } from "@/lib/alexa-config-core.mjs";
 import { morningPlayRequest, morningPlayWindow } from "@/lib/henry-morning-core.mjs";
 import {
   DESKTOP_WAKE_EVENT,
+  DESKTOP_WAKE_STATUS_EVENT,
   chunkForLocalVoice,
   desktopCanSpeakLocal,
   desktopCanWake,
   detectScreenCommand,
   readDesktopWakeSetting,
+  readDesktopWakeWord,
   readHenryDesktopBridge,
   shouldHandleDesktopWake
 } from "@/lib/henry-desktop-core.mjs";
@@ -2047,8 +2049,13 @@ export default function HenryVoiceAssistant() {
   // Fase 1.1: "Henry" ouvido pelo app (Vosk, offline, áudio nunca sai do PC). Assinar liga a escuta no app; cancelar
   // (liga/desliga "Ouvir 'Henry' sem atalho" em Voz e personalidade, Henry desligado, página fechada) desliga o microfone dele.
   const [desktopWake, setDesktopWake] = useState(true);
+  // 1.3.0: palavra de chamada (Voz e personalidade, deste PC) vai ao app pelo mesmo onWake; trocar = assinar de novo.
+  const [desktopWakeWord, setDesktopWakeWord] = useState("henry");
   useEffect(() => {
-    const read = () => setDesktopWake(readDesktopWakeSetting(window.localStorage));
+    const read = () => {
+      setDesktopWake(readDesktopWakeSetting(window.localStorage));
+      setDesktopWakeWord(readDesktopWakeWord(window.localStorage));
+    };
     read();
     window.addEventListener(DESKTOP_WAKE_EVENT, read);
     return () => window.removeEventListener(DESKTOP_WAKE_EVENT, read);
@@ -2056,14 +2063,21 @@ export default function HenryVoiceAssistant() {
   useEffect(() => {
     const bridge = desktopBridgeRef.current;
     if (!active || !desktopWake || !desktopCanWake(bridge)) return undefined;
-    const unsubscribe = bridge.onWake(() => {
-      if (!shouldHandleDesktopWake({ phase: phaseRef.current, recording: Boolean(recordRef.current), muted: mutedRef.current })) return;
-      activateFromDesktop();
-    });
+    const unsubscribe = bridge.onWake(
+      () => {
+        if (!shouldHandleDesktopWake({ phase: phaseRef.current, recording: Boolean(recordRef.current), muted: mutedRef.current })) return;
+        activateFromDesktop();
+      },
+      {
+        wakeWord: desktopWakeWord,
+        // App 1.3.0+: qual palavra ele está usando de verdade (fora do vocabulário do modelo → volta para "Henry").
+        onStatus: (status) => window.dispatchEvent(new CustomEvent(DESKTOP_WAKE_STATUS_EVENT, { detail: status }))
+      }
+    );
     return () => {
       if (typeof unsubscribe === "function") unsubscribe();
     };
-  }, [active, desktopWake, activateFromDesktop]);
+  }, [active, desktopWake, desktopWakeWord, activateFromDesktop]);
 
   const toggleMute = useCallback(() => {
     setMuted((current) => {

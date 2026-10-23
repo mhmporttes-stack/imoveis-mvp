@@ -3,7 +3,21 @@
 import { useEffect, useRef, useState } from "react";
 import Field, { inputClasses } from "@/components/ui/Field";
 import { henryReserveVoiceChain, pickBestBrowserVoice, pronounceForSpeech } from "@/lib/henry-voice-providers.mjs";
-import { DESKTOP_WAKE_EVENT, DESKTOP_WAKE_KEY, desktopCanSpeakLocal, desktopCanWake, readDesktopWakeSetting, readHenryDesktopBridge } from "@/lib/henry-desktop-core.mjs";
+import {
+  DESKTOP_WAKE_CUSTOM_MAX_CHARS,
+  DESKTOP_WAKE_EVENT,
+  DESKTOP_WAKE_KEY,
+  DESKTOP_WAKE_STATUS_EVENT,
+  DESKTOP_WAKE_WORD_KEY,
+  DESKTOP_WAKE_WORD_OPTIONS,
+  buildDesktopWakeWord,
+  desktopCanSpeakLocal,
+  desktopCanWake,
+  parseDesktopWakeWord,
+  readDesktopWakeSetting,
+  readDesktopWakeWord,
+  readHenryDesktopBridge
+} from "@/lib/henry-desktop-core.mjs";
 
 // Liga/desliga do assistente de voz "Henry" (docs/BUSINESS_RULES.md HENRY-1) e da visão pela webcam (HENRY-2, nasce
 // desligada). Só o dono consegue ler/gravar (a rota /api/admin/henry recusa os demais e "Alterar conta"); para outros
@@ -233,6 +247,32 @@ function HenryVoiceStyleSection({ saved, options, serverVoice, provider = "brows
     setDesktopWake(next);
     window.dispatchEvent(new Event(DESKTOP_WAKE_EVENT));
   };
+  // 1.3.0: palavra de chamada do app ("Henry", "Ei Henry", "Ok Henry" ou livre), deste PC. O app confere no vocabulário
+  // do modelo e responde qual está usando (evento DESKTOP_WAKE_STATUS_EVENT).
+  const [wakeWord, setWakeWord] = useState({ id: "henry", text: "" });
+  const [wakeWordSaved, setWakeWordSaved] = useState("henry");
+  const [wakeWordStatus, setWakeWordStatus] = useState(null);
+  const [wakeWordError, setWakeWordError] = useState("");
+  useEffect(() => {
+    const saved = readDesktopWakeWord(window.localStorage);
+    setWakeWordSaved(saved);
+    setWakeWord(parseDesktopWakeWord(saved));
+    const onStatus = (event) => setWakeWordStatus(event?.detail || null);
+    window.addEventListener(DESKTOP_WAKE_STATUS_EVENT, onStatus);
+    return () => window.removeEventListener(DESKTOP_WAKE_STATUS_EVENT, onStatus);
+  }, []);
+  const wakeWordValue = buildDesktopWakeWord(wakeWord.id, wakeWord.text);
+  const saveWakeWord = () => {
+    if (!wakeWordValue) {
+      setWakeWordError("Escreva a palavra (até 3 palavras, só letras).");
+      return;
+    }
+    setWakeWordError("");
+    setWakeWordStatus(null);
+    window.localStorage.setItem(DESKTOP_WAKE_WORD_KEY, wakeWordValue);
+    setWakeWordSaved(wakeWordValue);
+    window.dispatchEvent(new Event(DESKTOP_WAKE_EVENT));
+  };
   const audioRef = useRef(null);
   const patch = changedFields(form, saved);
   const dirty = Object.keys(patch).length > 0;
@@ -320,6 +360,53 @@ function HenryVoiceStyleSection({ saved, options, serverVoice, provider = "brows
           >
             {desktopWake ? "Desligar" : "Ligar"}
           </button>
+        </div>
+      ) : null}
+      {desktopApp && desktopWake ? (
+        <div className="mt-3 max-w-2xl">
+          <p className="text-sm font-black text-navy">Palavra de chamada</p>
+          <p className="mt-1 text-sm text-muted">Vale só neste app. Se o app não conhecer alguma palavra, ele continua ouvindo “Henry” e avisa aqui.</p>
+          <div className="mt-2 flex flex-wrap items-center gap-2">
+            <select
+              value={wakeWord.id}
+              onChange={(event) => setWakeWord((current) => ({ ...current, id: event.target.value }))}
+              className="rounded-control border border-line bg-white px-3 py-2 text-sm text-navy"
+              aria-label="Palavra de chamada"
+            >
+              {DESKTOP_WAKE_WORD_OPTIONS.map((item) => (
+                <option key={item.id} value={item.id}>
+                  {item.label}
+                </option>
+              ))}
+            </select>
+            {wakeWord.id === "custom" ? (
+              <input
+                type="text"
+                value={wakeWord.text}
+                maxLength={DESKTOP_WAKE_CUSTOM_MAX_CHARS}
+                onChange={(event) => setWakeWord((current) => ({ ...current, text: event.target.value }))}
+                placeholder="Ex.: Jarvis"
+                className="rounded-control border border-line bg-white px-3 py-2 text-sm text-navy"
+                aria-label="Palavra livre"
+              />
+            ) : null}
+            <button
+              type="button"
+              onClick={saveWakeWord}
+              disabled={wakeWordValue === wakeWordSaved}
+              className="rounded-control bg-navy px-5 py-2.5 text-sm font-bold text-white disabled:opacity-60"
+            >
+              Usar esta
+            </button>
+          </div>
+          {wakeWordError ? <p className="mt-1 text-sm font-bold text-red-700">{wakeWordError}</p> : null}
+          {wakeWordStatus ? (
+            <p className={`mt-1 text-sm font-bold ${wakeWordStatus.ok ? "text-emerald-800" : "text-amber-800"}`} role="status">
+              {wakeWordStatus.ok
+                ? `O app está ouvindo “${wakeWordStatus.label}”.`
+                : `O app não conhece ${wakeWordStatus.missing?.length ? `“${wakeWordStatus.missing.join(" ")}”` : "essa palavra"}: continua ouvindo “Henry”.`}
+            </p>
+          ) : null}
         </div>
       ) : null}
       <p className={`mt-2 max-w-2xl rounded-control px-3 py-2 text-sm font-bold ${provider === "browser" ? "bg-amber-50 text-amber-800" : "bg-emerald-50 text-emerald-800"}`} role="status">
