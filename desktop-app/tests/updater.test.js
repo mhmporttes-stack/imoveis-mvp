@@ -40,3 +40,31 @@ test("pacote: sem publisherName (app sem assinatura) e com o atualizador nas dep
   assert.equal(pkg.build.nsis.oneClick, true);
   assert.equal(pkg.build.nsis.perMachine, false, "instala no usuário: atualiza sem pedir administrador");
 });
+
+// 1.3.1 (dono, 2026-10-23): nenhum aviso fixo no meio da tela com a tela cheia do Henry aberta.
+test("caixa 'Nova versão pronta' espera a tela cheia do Henry fechar e não se perde", () => {
+  const { UPDATE_PROMPT_INITIAL, updatePromptStep } = require("../src/core");
+  // Sem Henry aberto: mostra na hora.
+  assert.equal(updatePromptStep(UPDATE_PROMPT_INITIAL, { type: "ask", version: "1.3.2" }).show, "1.3.2");
+  // Henry abriu → pronta chega → guardada.
+  let step = updatePromptStep(UPDATE_PROMPT_INITIAL, { type: "hold", held: true });
+  assert.equal(step.show, "");
+  step = updatePromptStep(step.state, { type: "ask", version: "1.3.2" });
+  assert.equal(step.show, "");
+  assert.equal(step.state.pendingVersion, "1.3.2");
+  // Abrir de novo não mostra; fechar mostra uma vez só.
+  step = updatePromptStep(step.state, { type: "hold", held: true });
+  assert.equal(step.show, "");
+  step = updatePromptStep(step.state, { type: "hold", held: false });
+  assert.equal(step.show, "1.3.2");
+  step = updatePromptStep(step.state, { type: "hold", held: false });
+  assert.equal(step.show, "");
+  // Fechar sem nada guardado: nada aparece.
+  assert.equal(updatePromptStep(UPDATE_PROMPT_INITIAL, { type: "hold", held: false }).show, "");
+});
+
+test("updater: a caixa só sai por askRestart/setHold (bandeja e notificação passam pela mesma trava)", () => {
+  const source = fs.readFileSync(path.join(__dirname, "..", "src", "updater.js"), "utf8");
+  assert.equal((source.match(/dialog\.showMessageBox/g) || []).length, 1);
+  assert.match(source, /function askRestart\(version\) \{\s*const step = updatePromptStep\(prompt, \{ type: "ask", version \}\);/);
+});

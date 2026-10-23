@@ -40,6 +40,17 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-23 — App desktop lento e travando (Henry em tela cheia / app minimizado)
+- **Data:** 2026-10-23
+- **Sintoma:** "o app desktop está lento e travando"; CPU alta mesmo com o app minimizado ou na bandeja.
+- **Área:** App de desktop / Henry / Frontend
+- **Impacto:** só o PC do dono (app de desktop); a tela cheia do Henry pesava um núcleo inteiro também no navegador.
+- **Causa raiz:** (1) a view do CRM roda com `backgroundThrottling: false` (necessário para a voz minimizada), o que mantém `document.hidden` sempre falso: nenhuma pausa do CRM (anel, cenas, pollings) disparava com o app minimizado; (2) na tela cheia, cada fio do anel era desenhado de novo 5× mais largo para o brilho — ~12–15 ms por quadro sem GPU — a 60 fps, sem nunca descansar ocioso.
+- **Correção:** app 1.3.1 avisa a página ao minimizar/esconder (`onWindowVisibility` → `components/page-visibility.js`); brilho por camada reduzida/ampliada, 30 fps, 15 fps ocioso, qualidade adaptativa no `HenryOrb`. Números e detalhes no `CHANGELOG_AI.md` (2026-10-23, "App de desktop 1.3.1").
+- **Arquivos/commit:** `desktop-app/src/main.js`, `desktop-app/src/preload.js`, `components/page-visibility.js`, `components/henry/HenryOrb.jsx` — commit da versão 1.3.1 do app.
+- **Prevenção/teste:** `tests/page-visibility.test.mjs`, `desktop-app/tests/core.test.js` (`isWindowHidden`, lista da ponte), `tests/henry-voice-conversation.test.mjs` (30/15 fps e camada do brilho). Risco residual: outros ~30 pontos com `document.hidden` direto não pausam no app minimizado.
+- **Status:** Monitorando (medir CPU no PC do dono com GPU)
+
 ### 2026-10-23 — Henry repete muito a mesma frase de espera ("Tô passando os olhos nos números")
 - **Data:** 2026-10-23
 - **Sintoma:** "o Henry repete muito 'Tô passando os olhos nos números'" (frase `w18`), mesmo depois da confirmação de escuta.

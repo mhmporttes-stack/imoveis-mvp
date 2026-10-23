@@ -7,7 +7,7 @@
 "use strict";
 
 const { app, dialog } = require("electron");
-const { UPDATE_FEED_URL, UPDATE_FIRST_CHECK_MS, UPDATE_INTERVAL_MS, updateErrorDetail, updateTrayItem } = require("./core");
+const { UPDATE_FEED_URL, UPDATE_FIRST_CHECK_MS, UPDATE_INTERVAL_MS, UPDATE_PROMPT_INITIAL, updateErrorDetail, updatePromptStep, updateTrayItem } = require("./core");
 
 function createUpdater({ log, notify, onChange = () => {}, beforeInstall = () => {} }) {
   let autoUpdater = null;
@@ -15,6 +15,7 @@ function createUpdater({ log, notify, onChange = () => {}, beforeInstall = () =>
   let manual = false; // "Procurar atualização" pela bandeja: avisa também quando não há versão nova
   let lastPercentLogged = -1;
   let timer = null;
+  let prompt = { ...UPDATE_PROMPT_INITIAL }; // 1.3.1: caixa guardada com a tela cheia do Henry aberta (updatePromptStep)
 
   const portable = Boolean(process.env.PORTABLE_EXECUTABLE_FILE);
   const active = app.isPackaged && !portable && process.platform === "win32";
@@ -25,6 +26,20 @@ function createUpdater({ log, notify, onChange = () => {}, beforeInstall = () =>
   };
 
   function askRestart(version) {
+    const step = updatePromptStep(prompt, { type: "ask", version });
+    prompt = step.state;
+    if (step.show) showRestartBox(step.show);
+    else if (prompt.held) log("atualizacao", true, `aviso ${version} guardado (Henry em tela cheia)`);
+  }
+
+  // A página avisou que a tela cheia do Henry abriu/fechou (ou recarregou: fechada). Fechou com aviso guardado → mostra.
+  function setHold(held) {
+    const step = updatePromptStep(prompt, { type: "hold", held });
+    prompt = step.state;
+    if (step.show && state.state === "pronta") showRestartBox(step.show);
+  }
+
+  function showRestartBox(version) {
     const options = {
       type: "info",
       buttons: ["Reiniciar agora", "Depois"],
@@ -129,7 +144,7 @@ function createUpdater({ log, notify, onChange = () => {}, beforeInstall = () =>
     return { label: item.label, enabled: item.enabled, click: () => (item.install ? install("bandeja") : check("bandeja")) };
   }
 
-  return { start, check, trayItem, stop: () => clearInterval(timer), isReady: () => state.state === "pronta" };
+  return { start, check, trayItem, setHold, stop: () => clearInterval(timer), isReady: () => state.state === "pronta" };
 }
 
 module.exports = { createUpdater };

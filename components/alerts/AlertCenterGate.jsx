@@ -13,6 +13,7 @@ import { COOLED_ALERT_TYPE, COOLED_NO_RESPONSE_REASON, COOLED_REASON_MIN_LENGTH,
 import { HENRY_NOTICE_DONE_EVENT, HENRY_NOTICE_ITEMS_EVENT, HENRY_VOICE_NOTICES_EVENT } from "@/lib/henry-voice-client-alerts-core.mjs";
 import { heldWhileHenryOpen } from "@/lib/henry-fullscreen-signal.mjs";
 import { useHenryFullscreen } from "@/components/henry/useHenryFullscreen";
+import { isPageHidden, onPageVisibilityChange } from "@/components/page-visibility";
 
 // Central de Alertas — camada ÚNICA de alertas na tela (pedido do dono,
 // 2026-10-02; especificação do designer-crm, arquitetura em lib/crm-alerts.js).
@@ -125,8 +126,17 @@ export default function AlertCenterGate({ userId }) {
   useEffect(() => {
     const check = () => setBlockedByOther(hasCompetingBlockingLayer());
     check();
-    const id = setInterval(check, 2500);
-    return () => clearInterval(id);
+    // Página oculta (aba ou app de desktop minimizado): não confere; ao voltar confere na hora (2026-10-23).
+    const id = setInterval(() => {
+      if (!isPageHidden()) check();
+    }, 2500);
+    const stopWatchingVisibility = onPageVisibilityChange(() => {
+      if (!isPageHidden()) check();
+    });
+    return () => {
+      clearInterval(id);
+      stopWatchingVisibility();
+    };
   }, []);
 
   // Tela cheia do Henry aberta (dono, 2026-10-23): o Importante espera na fila (`important`) e aparece quando ela fecha;
