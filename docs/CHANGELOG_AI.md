@@ -428,6 +428,15 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-23 — Henry: trocar o aparelho do Spotify por voz ("toca na Alexa") (HENRY-1)
+- **Data:** 2026-10-23
+- **Área:** Henry (voz) / Spotify
+- **Alteração:** ferramenta nova `mudar_aparelho_spotify`: lista `GET /v1/me/player/devices`, casa o pedido pelo tipo (Speaker/Smartphone/Computer; Echo/Alexa = Speaker com "Echo"/"Alexa" no nome) e pelas palavras do nome ("caixa da sala", "Echo do quarto") e transfere com `PUT /v1/me/player { device_ids: [id], play: true }`. Mais de um parecido → "Achei dois: X ou Y. Qual?" (termina em "?" = pergunta aberta de sempre; a resposta curta volta à ferramenta). Alexa ausente → "Não achei a Alexa no Spotify agora. Fala 'Alexa, toca Spotify' uma vez que ela aparece pra mim." (sem Voice Monkey). Fala fixa: "Pronto, passei pra Alexa." / "Voltou pro computador." / "Pronto, passei pro celular.". Cena da música ganha a etapa `device` (ícone do aparelho + nome). Intenção cedo (sem IA) inclui "toca na Alexa", "passa pra Alexa", "joga pro Echo", "volta pro computador", "toca no celular", "toca na caixa da sala" (`spotifyDeviceRequestKind`; "manda o relatório pro celular" não conta). Volume baixo durante a fala: a tela manda o volume guardado (`spotifyVolume`) e o servidor o devolve no aparelho de ORIGEM antes de trocar; o novo aparelho fica com o volume dele (sem restaurar nele). Duck/restore seguem valendo no aparelho ativo (Alexa incluída).
+- **Motivo:** dono: "Henry consegue alterar do computador para o Spotify tocar na Alexa?".
+- **Arquivos afetados:** `lib/henry-spotify-core.mjs` (`matchSpotifyDevice`, `transferSpotifyPlayback`, `spotifyDeviceLine`…), `lib/henry-spotify.js` (`runHenrySpotifyDeviceTool`), `lib/henry-voice.js`, `lib/henry-voice-persona.mjs`, `lib/henry-voice-narration.mjs`, `app/api/admin/henry/route.js` (campo opcional `spotifyVolume`, resposta `spotifyMoved`), `components/henry/HenryVoiceAssistant.jsx`, `components/henry/HenryMusicScene.jsx`, `tests/henry-spotify-device.test.mjs`; `docs/BUSINESS_RULES.md` HENRY-1.
+- **Risco/observação:** o Echo só aparece no Spotify Connect com a conta vinculada no app da Alexa e o aparelho ativo (A CONFIRMAR no uso real). Echo renomeado sem "Echo"/"Alexa" no nome só é achado pelo nome ("toca na sala"). Alguns aparelhos Connect recusam controle de volume (o duck só não abaixa; nada quebra). Sem escopo novo no OAuth (`user-modify-playback-state` já cobre).
+- **Autor:** Claude Code (crm-editor)
+
 ### 2026-10-23 — App de desktop 1.3.0: diagnóstico do "Henry", palavra de chamada e atualização automática (HENRY-1)
 - **Data:** 2026-10-23
 - **Área:** App de desktop (`desktop-app/`) / Henry / GitHub Actions

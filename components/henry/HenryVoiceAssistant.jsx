@@ -50,7 +50,7 @@ import {
   repeatQuestionFor
 } from "@/lib/henry-voice-conversation.mjs";
 import { henryReserveVoiceChain, pickBestBrowserVoice, pronounceForSpeech, splitSentences } from "@/lib/henry-voice-providers.mjs";
-import { MUSIC_TOPIC, henryMusicIntent, mergeHenryMusic, musicQueryFromText, normalizeHenryScene, pickWaitPhrase, rememberPhrase, shouldNarrate } from "@/lib/henry-voice-narration.mjs";
+import { MUSIC_TOPIC, henryMusicIntent, mergeHenryMusic, musicQueryFromText, normalizeHenryScene, pickWaitPhrase, rememberPhrase, shouldNarrate, spotifyDeviceRequestKind } from "@/lib/henry-voice-narration.mjs";
 import { HENRY_LISTEN_PROMPTS, pickVariant, rememberVariant } from "@/lib/henry-voice-persona.mjs";
 import {
   ALERT_ANSWER_WAIT_MS,
@@ -429,7 +429,7 @@ export default function HenryVoiceAssistant() {
     duck.timer = window.setTimeout(restoreSpotifyVolume, MUSIC_DUCK_SAFETY_MS);
     if (duck.previous !== null || duck.pending) return;
     duck.pending = true;
-    fetch("/api/admin/henry/spotify/player", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "duck" }) })
+    duck.promise = fetch("/api/admin/henry/spotify/player", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "duck" }) })
       .then((response) => (response.ok ? response.json() : null))
       .then((data) => {
         const current = spotifyDuckRef.current;
@@ -1116,7 +1116,10 @@ export default function HenryVoiceAssistant() {
     waitRef.current = { id, startedAt: Date.now(), replied: false, topic: startTopic, lastAt: 0, names: [] };
     setScene({ topic: startTopic, label: "", brokers: [], live: mode === "report" && !musicIntent });
     updateMusic(null);
-    if (musicIntent) {
+    // Troca de aparelho ("toca na Alexa", "volta pro computador"): cena do aparelho, sem campo de busca.
+    const deviceKind = mode === "question" && !morning ? spotifyDeviceRequestKind(question) : "";
+    if (deviceKind) updateMusic({ stage: "device", device: deviceKind });
+    else if (musicIntent) {
       const query = morning ? "" : musicQueryFromText(question);
       updateMusic({ stage: "connect", ...(query ? { query } : {}) });
     }
@@ -1132,8 +1135,10 @@ export default function HenryVoiceAssistant() {
       conversationRef.current = { ...conversationRef.current, historyStart: 0 };
       setTurns([]);
     };
-    const onReply = (reply, navigate, detail = null, rawScene = null, openUrl = null, spotify = null, nextMorning = null, musicNow = false) => {
+    const onReply = (reply, navigate, detail = null, rawScene = null, openUrl = null, spotify = null, nextMorning = null, musicNow = false, spotifyMoved = false) => {
       if (requestIdRef.current === id) {
+        // Música passou para outro aparelho: o servidor já devolveu o volume no de origem; o novo fica com o volume dele.
+        if (spotifyMoved) spotifyDuckRef.current.keep = true;
         morningRef.current = nextMorning?.step ? { step: nextMorning.step } : null;
         // Resposta que termina em pergunta (ou passo do bom dia) = pergunta aberta: espera a resposta curta, sem o nome.
         pendingReplyRef.current = nextMorning?.step || henryAsksQuestion(reply) ? openPendingReply(nextMorning?.step || "question") : { active: false };
@@ -1151,7 +1156,7 @@ export default function HenryVoiceAssistant() {
         if (answerScene.music.stage === "playing") {
           markMusicPlayed();
           window.setTimeout(() => refreshNowPlayingRef.current(), 2500);
-        }
+        } else if (answerScene.music.stage === "device" && answerScene.music.moved) window.setTimeout(() => refreshNowPlayingRef.current(), 2500);
       }
       const withReply = [...turnsRef.current, { role: "assistant", text: reply, ...(detail ? { detail } : {}), ...(answerScene ? { scene: answerScene } : {}) }];
       turnsRef.current = withReply;
@@ -1186,11 +1191,14 @@ export default function HenryVoiceAssistant() {
         image = await captureWebcamFrame();
         setCapturing(false);
       }
+      // Troca de aparelho com a música baixa: espera (até 1,5 s) o volume guardado para o servidor devolvê-lo no aparelho de origem.
+      if (deviceKind && spotifyDuckRef.current.pending && spotifyDuckRef.current.promise) await Promise.race([spotifyDuckRef.current.promise, new Promise((resolve) => window.setTimeout(resolve, 1500))]);
       if (requestIdRef.current !== id) return;
+      const spotifyVolume = deviceKind && Number.isInteger(spotifyDuckRef.current.previous) ? spotifyDuckRef.current.previous : null;
       const response = await fetch("/api/admin/henry", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ mode, question, history, ...(image ? { image } : {}), ...(morning ? { morning } : {}), stream: true, deviceId: deviceIdRef.current }),
+        body: JSON.stringify({ mode, question, history, ...(image ? { image } : {}), ...(morning ? { morning } : {}), ...(spotifyVolume !== null ? { spotifyVolume } : {}), stream: true, deviceId: deviceIdRef.current }),
         signal: controller.signal
       });
       image = null;
@@ -1211,7 +1219,7 @@ export default function HenryVoiceAssistant() {
           return;
         }
         if (data.memoryCleared) clearTurns();
-        onReply(data.reply || "", data.navigate, data.detail || null, data.scene || null, data.openUrl || null, data.spotify || null, data.morning || null, data.musicPlaying === true);
+        onReply(data.reply || "", data.navigate, data.detail || null, data.scene || null, data.openUrl || null, data.spotify || null, data.morning || null, data.musicPlaying === true, data.spotifyMoved === true);
         enqueueClip({ audio: data.audio, text: data.reply || "" });
         endSpeech();
         return;
@@ -1242,7 +1250,7 @@ export default function HenryVoiceAssistant() {
           }
           if (typeof message?.reply === "string") {
             if (message.memoryCleared) clearTurns();
-            onReply(message.reply, message.navigate, message.detail || null, message.scene || null, message.openUrl || null, message.spotify || null, message.morning || null, message.musicPlaying === true);
+            onReply(message.reply, message.navigate, message.detail || null, message.scene || null, message.openUrl || null, message.spotify || null, message.morning || null, message.musicPlaying === true, message.spotifyMoved === true);
           }
           else if (typeof message?.text === "string") enqueueClip({ audio: message.audio, text: message.text });
           else if (message?.done) endSpeech();

@@ -12,7 +12,8 @@ import styles from "./HenryMusicScene.module.css";
 //   search   → "Conectado ao Spotify" + campo de busca digitando o pedido + resultados aparecendo;
 //   found/opening → o item encontrado em destaque (capa quando o Spotify devolve) — "Abrindo o Spotify…" se o app estava fechado;
 //   playing  → o cursor do Henry aperta o play, equalizador e o anel pulsando no ritmo;
-//   control  → pausar/próxima/volume (só o rótulo); error → texto curto (sem aparelho, sem conexão…).
+//   control  → pausar/próxima/volume (só o rótulo); error → texto curto (sem aparelho, sem conexão…);
+//   device   → troca de aparelho ("toca na Alexa"): ícone do aparelho + nome, "Tocando aqui agora" quando trocou.
 // HenryNowPlaying: bloco compacto no canto da tela cheia enquanto o Spotify toca (dono, 2026-10-23: "num canto, não na
 // tela toda") — card "Tocando agora" + ondas sonoras finas no estilo do anel (canvas 2D, ~30 fps, pausa com a aba oculta,
 // cai de qualidade se o quadro atrasar; abaixa quando o Henry fala; some em ~1 s na pausa; reduced-motion = quadro parado).
@@ -77,7 +78,40 @@ function Equalizer({ bars = 5, className = "" }) {
   );
 }
 
-const STAGE_TITLE = { connect: "Conectando ao Spotify…", error: "Spotify" };
+const STAGE_TITLE = { connect: "Conectando ao Spotify…", error: "Spotify", device: "Trocando o aparelho" };
+
+// Ícone do aparelho da troca (dono, 2026-10-23): Alexa/caixa = caixa de som, computador = monitor, celular = telefone.
+const DEVICE_LABEL = { alexa: "Alexa", computador: "Computador", celular: "Celular", caixa: "Caixa de som" };
+function DeviceIcon({ kind = "", size = 24 }) {
+  const common = { fill: "none", stroke: "#FFFFFF", strokeWidth: 1.8, strokeLinecap: "round", strokeLinejoin: "round" };
+  return (
+    <svg viewBox="0 0 24 24" width={size} height={size} aria-hidden="true">
+      {kind === "computador" ? (
+        <>
+          <rect x="3" y="4.5" width="18" height="11.5" rx="1.6" {...common} />
+          <path d="M9 20h6M12 16v4" {...common} />
+        </>
+      ) : kind === "celular" ? (
+        <>
+          <rect x="7" y="2.5" width="10" height="19" rx="2.2" {...common} />
+          <path d="M11 18.5h2" {...common} />
+        </>
+      ) : kind === "alexa" ? (
+        <>
+          <ellipse cx="12" cy="8" rx="7" ry="2.6" {...common} />
+          <path d="M5 8v8c0 1.5 3.1 2.6 7 2.6s7-1.1 7-2.6V8" {...common} />
+          <path d="M8.5 13.2c2.2.9 4.8.9 7 0" stroke={ACCENT} strokeWidth="1.8" strokeLinecap="round" fill="none" />
+        </>
+      ) : (
+        <>
+          <rect x="6" y="2.5" width="12" height="19" rx="2.4" {...common} />
+          <circle cx="12" cy="14.5" r="3.4" {...common} />
+          <circle cx="12" cy="7" r="1.3" {...common} />
+        </>
+      )}
+    </svg>
+  );
+}
 
 function MusicCard({ music, reduced, mobile }) {
   const stage = music.stage;
@@ -136,6 +170,22 @@ function MusicCard({ music, reduced, mobile }) {
               {stage === "playing" ? <Equalizer bars={4} className={styles.playEq} /> : <svg viewBox="0 0 24 24" width="16" height="16"><path d="M8 5.5v13l10.5-6.5z" fill="#07111F" /></svg>}
               {stage === "playing" && !reduced ? <span className={styles.cursor} /> : null}
             </span>
+          </div>
+        ) : null}
+        {stage === "device" || (stage === "error" && music.device) ? (
+          <div className={styles.item}>
+            <span className={`${styles.cover} ${styles.coverEmpty}`} style={{ width: 52, height: 52 }}>
+              <DeviceIcon kind={music.device} />
+            </span>
+            <span className={styles.itemText}>
+              <span className={styles.itemName}>{music.deviceName || DEVICE_LABEL[music.device] || "Outro aparelho"}</span>
+              <span className={styles.itemSub}>{stage === "error" ? "não apareceu no Spotify" : music.moved ? "Tocando aqui agora" : "Passando a música…"}</span>
+            </span>
+            {stage === "device" && music.moved ? (
+              <span className={`${styles.play} ${styles.playOn}`} aria-hidden="true">
+                <Equalizer bars={4} className={styles.playEq} />
+              </span>
+            ) : null}
           </div>
         ) : null}
         {stage === "control" ? <p className={styles.note}>{music.name ? `${music.name}${music.artists && music.artists !== "playlist" ? ` · ${music.artists}` : ""}` : "Comando enviado ao Spotify"}</p> : null}

@@ -187,7 +187,7 @@ function answerStream(auth, request, style) {
           }
         });
         const navigate = navigationPayload(answer.navigate);
-        send({ reply: answer.reply, navigate, openUrl: openUrlPayload(answer.openUrl), detail: answer.detail || null, spotify: spotifyPayload(answer.spotify), morning: morningPayload(answer.morning), scene: answer.scene || null, ...(answer.memoryCleared ? { memoryCleared: true } : {}), ...(answer.musicPlaying ? { musicPlaying: true } : {}) });
+        send({ reply: answer.reply, navigate, openUrl: openUrlPayload(answer.openUrl), detail: answer.detail || null, spotify: spotifyPayload(answer.spotify), morning: morningPayload(answer.morning), scene: answer.scene || null, ...(answer.memoryCleared ? { memoryCleared: true } : {}), ...(answer.musicPlaying ? { musicPlaying: true } : {}), ...(answer.spotifyMoved ? { spotifyMoved: true } : {}) });
         const parts = splitForSpeech(answer.reply);
         const audios = parts.map((text, index) => synthesizeHenrySpeech(auth, text, style, { previousText: parts[index - 1] || "", nextText: parts[index + 1] || "" }));
         for (let index = 0; index < parts.length; index += 1) {
@@ -341,11 +341,13 @@ export async function POST(request) {
     // Modo conversa: `stream` = linhas (NDJSON) abertas na hora: progresso/narração enquanto pensa, depois o texto e a voz
     // em partes (1ª frase primeiro). Mesmo texto, mesma barreira (safeHenryReply já aplicada).
     const morning = parseMorningState(body?.morning);
-    if (body?.stream === true && body?.voice !== false) return answerStream(auth, { mode, question, history: body?.history, image, morning, vision, webSearch }, style);
-    const answer = await answerHenry(auth, { mode, question, history: body?.history, image, style, morning, vision, webSearch });
+    // Volume que a tela guardou ao abaixar a música para ele falar: a troca de aparelho devolve no aparelho de origem.
+    const spotifyVolume = Number.isInteger(body?.spotifyVolume) && body.spotifyVolume >= 0 && body.spotifyVolume <= 100 ? body.spotifyVolume : null;
+    if (body?.stream === true && body?.voice !== false) return answerStream(auth, { mode, question, history: body?.history, image, morning, spotifyVolume, vision, webSearch }, style);
+    const answer = await answerHenry(auth, { mode, question, history: body?.history, image, style, morning, spotifyVolume, vision, webSearch });
     const navigate = navigationPayload(answer.navigate);
     const audio = body?.voice === false ? null : await synthesizeHenrySpeech(auth, answer.reply, style);
-    return NextResponse.json({ reply: answer.reply, navigate, openUrl: openUrlPayload(answer.openUrl), detail: answer.detail || null, spotify: spotifyPayload(answer.spotify), morning: morningPayload(answer.morning), scene: answer.scene || null, memoryCleared: answer.memoryCleared === true, ...(answer.musicPlaying ? { musicPlaying: true } : {}), audio });
+    return NextResponse.json({ reply: answer.reply, navigate, openUrl: openUrlPayload(answer.openUrl), detail: answer.detail || null, spotify: spotifyPayload(answer.spotify), morning: morningPayload(answer.morning), scene: answer.scene || null, memoryCleared: answer.memoryCleared === true, ...(answer.musicPlaying ? { musicPlaying: true } : {}), ...(answer.spotifyMoved ? { spotifyMoved: true } : {}), audio });
   } catch (error) {
     console.warn(`[henry] pergunta falhou: ${error?.status ? error.message : error?.name === "TimeoutError" ? "timeout" : "erro"}.`);
     return NextResponse.json({ error: error?.status ? error.message : "Não consegui responder agora. Tente de novo." }, { status: error?.status || 502 });
