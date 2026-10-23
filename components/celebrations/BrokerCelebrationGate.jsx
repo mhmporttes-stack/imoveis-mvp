@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 import { AnimatePresence } from "motion/react";
 import CelebrationOverlay from "./CelebrationOverlay";
+import { useHenryFullscreen } from "@/components/henry/useHenryFullscreen";
 
 const POLL_INTERVAL_MS = 30 * 1000;
 const RETRY_WHEN_BUSY_MS = 15 * 1000;
@@ -75,6 +76,9 @@ export default function BrokerCelebrationGate({ userId, userName = "", userPhoto
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pathname]);
 
+  // Tela cheia do Henry aberta (dono, 2026-10-23): a fila fica guardada e a cena só aparece quando ela fechar.
+  const henryOpen = useHenryFullscreen({ onClose: checkPending });
+
   function handleDismiss() {
     const current = queue[0];
     setQueue((rest) => rest.slice(1));
@@ -84,6 +88,7 @@ export default function BrokerCelebrationGate({ userId, userName = "", userPhoto
   }
 
   const active = queue[0];
+  if (henryOpen) return null; // sem a saída animada por cima do Henry
   return (
     <AnimatePresence>
       {active ? (

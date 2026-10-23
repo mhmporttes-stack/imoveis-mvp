@@ -11,6 +11,8 @@ import { INFORMATIVE_MAX_VISIBLE, INFORMATIVE_TIMING, alertLink, enqueueInformat
 import CooledClientPhone from "@/components/cooled/CooledClientPhone";
 import { COOLED_ALERT_TYPE, COOLED_NO_RESPONSE_REASON, COOLED_REASON_MIN_LENGTH, isValidCooledText } from "@/lib/cooled-clients-core.mjs";
 import { HENRY_NOTICE_DONE_EVENT, HENRY_NOTICE_ITEMS_EVENT, HENRY_VOICE_NOTICES_EVENT } from "@/lib/henry-voice-client-alerts-core.mjs";
+import { heldWhileHenryOpen } from "@/lib/henry-fullscreen-signal.mjs";
+import { useHenryFullscreen } from "@/components/henry/useHenryFullscreen";
 
 // Central de Alertas — camada ÚNICA de alertas na tela (pedido do dono,
 // 2026-10-02; especificação do designer-crm, arquitetura em lib/crm-alerts.js).
@@ -23,6 +25,7 @@ import { HENRY_NOTICE_DONE_EVENT, HENRY_NOTICE_ITEMS_EVENT, HENRY_VOICE_NOTICES_
 // ([data-alert-important] em SupervisionMessageGate). Nunca dois bloqueantes.
 
 const FALLBACK_MS = 60000;
+const HENRY_CLOSE_RECHECK_MS = 400;
 
 function hasCompetingBlockingLayer() {
   if (typeof document === "undefined") return false;
@@ -126,7 +129,23 @@ export default function AlertCenterGate({ userId }) {
     return () => clearInterval(id);
   }, []);
 
-  const currentImportant = !blockedByOther ? important[0] || null : null;
+  // Tela cheia do Henry aberta (dono, 2026-10-23): o Importante espera na fila (`important`) e aparece quando ela fecha;
+  // "apareceu" (/shown) só é registrado quando ele de fato aparece. Ao fechar, segura mais um instante e confere de novo:
+  // se o balão da Supervisão voltou junto, ele vai primeiro (os dois se esperam — voltar no mesmo quadro faria piscar).
+  const henryOpen = useHenryFullscreen();
+  const [henryHold, setHenryHold] = useState(false);
+  useEffect(() => {
+    if (henryOpen) {
+      setHenryHold(true);
+      return undefined;
+    }
+    const timer = window.setTimeout(() => {
+      setBlockedByOther(hasCompetingBlockingLayer());
+      setHenryHold(false);
+    }, HENRY_CLOSE_RECHECK_MS);
+    return () => window.clearTimeout(timer);
+  }, [henryOpen]);
+  const currentImportant = !blockedByOther ? heldWhileHenryOpen(important[0], henryOpen || henryHold) : null;
   const pausedInformative = Boolean(currentImportant);
   // Visual novo (2026-10-22): no celular, 1 aviso por vez logo acima da barra inferior (a fila continua igual).
   const maxVisible = isMobile ? 1 : INFORMATIVE_MAX_VISIBLE.desktop;

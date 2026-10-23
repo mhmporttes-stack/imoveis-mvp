@@ -85,6 +85,7 @@ import {
 } from "@/lib/henry-voice-client-alerts-core.mjs";
 import { saoPauloNow } from "@/lib/alexa-config-core.mjs";
 import { morningPlayRequest, morningPlayWindow } from "@/lib/henry-morning-core.mjs";
+import { setHenryFullscreenOpen } from "@/lib/henry-fullscreen-signal.mjs";
 import {
   DESKTOP_WAKE_EVENT,
   DESKTOP_WAKE_STATUS_EVENT,
@@ -409,6 +410,12 @@ export default function HenryVoiceAssistant() {
     expandedRef.current = expanded;
     lastActivityRef.current = Date.now();
     setSleeping(false);
+  }, [expanded]);
+
+  // Sinal "tela cheia do Henry aberta" (dono, 2026-10-23): avisos fixos no meio da tela esperam a cena fechar.
+  useEffect(() => {
+    setHenryFullscreenOpen(expanded);
+    return () => setHenryFullscreenOpen(false);
   }, [expanded]);
 
   // Tempo de espera do fim da fala trocado na tela de configuração: vale já, sem recarregar.

@@ -44,6 +44,15 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 
 
+### 2026-10-23 — Avisos fixos esperam a tela cheia do Henry fechar
+- **Data:** 2026-10-23
+- **Área:** Henry (voz) / Central de Alertas / Notificações / PWA
+- **Alteração:** sinal único "tela cheia do Henry aberta" (`lib/henry-fullscreen-signal.mjs`, emitido só por `HenryVoiceAssistant` a partir de `expanded`; lido pelo hook `components/henry/useHenryFullscreen.js`). Enquanto vale, não aparecem: Importante da Central (`AlertCenterGate`, inclusive "cliente esfriou" — o `/shown` só é gravado quando aparece de fato), balão da Supervisão, Mensagem do dia, Reconhecimento/anel da meta (`BrokerCelebrationGate`), aviso de nova versão/sem conexão (`PwaLifecycle`), orientação de instalar (`AdminPwaInstallHint`) e convite de notificações (`AdminPushSubscription`). Nada se perde: cada gate mantém a pendência no próprio estado/fila e mostra ao fechar; Mensagem do dia e Reconhecimento consultam o servidor na hora em que a cena fecha. Aberto por cima de um aviso já na tela, o aviso some e volta ao fechar. Ao fechar, o Importante espera 0,4 s e confere de novo, para não voltar no mesmo quadro que o balão da Supervisão (os dois se esperam; sem isso piscariam).
+- **Motivo:** pedido do dono (REGRA OFICIAL, 2026-10-23): "as notificações que ficam fixas no meio da tela não podem aparecer enquanto a tela cheia do Henry estiver aberta".
+- **Arquivos afetados:** `lib/henry-fullscreen-signal.mjs` (novo), `components/henry/useHenryFullscreen.js` (novo), `components/henry/HenryVoiceAssistant.jsx` (1 efeito), `components/alerts/AlertCenterGate.jsx`, `components/supervision/SupervisionMessageGate.jsx`, `components/DailyMessageGate.jsx`, `components/celebrations/BrokerCelebrationGate.jsx`, `components/PwaLifecycle.jsx`, `components/AdminPwaInstallHint.jsx`, `components/AdminPushSubscription.jsx`, `tests/henry-fullscreen-signal.test.mjs` (novo), `.claude/rules/automacoes-notificacoes.md`.
+- **Risco/observação:** quando, quem recebe e contagem não mudaram. Fora do escopo (pedido): Informativos da Central (cards laterais; com o Henry ativo já vão para a voz) e toasts de canto (`components/ui/Toast.jsx`), notificações do sistema operacional/push. Fica de fora também a caixa nativa "Nova versão X pronta — Reiniciar agora/Depois" do app de desktop (`desktop-app/src/updater.js`, processo principal do Electron, fora da página): segurá-la exigiria mudar o app e publicar nova versão — decisão do dono. `OfficePresenceNotice` é faixa no fluxo da página (não fixa) e não vale para o dono.
+- **Autor:** Claude Code (crm-editor)
+
 ### 2026-10-23 — Henry: leitura ampla do CRM (vários clientes, Chat, financeiro, presença), continua só leitura
 - **Data:** 2026-10-23
 - **Área:** Henry (voz) / Clientes (linha do tempo)
