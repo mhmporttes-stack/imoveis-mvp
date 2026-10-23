@@ -37,10 +37,15 @@ import {
   isConversationExpired,
   isEchoOf,
   isStopCommand,
-  nextRestartDelay
+  nextRestartDelay,
+  MUSIC_DUCK_SAFETY_MS,
+  detectMusicBargeIn,
+  isMusicGuardActive,
+  isMusicPauseCommand,
+  musicListenGate
 } from "@/lib/henry-voice-conversation.mjs";
 import { henryReserveVoiceChain, pickBestBrowserVoice, pronounceForSpeech, splitSentences } from "@/lib/henry-voice-providers.mjs";
-import { normalizeHenryScene, pickWaitPhrase, rememberPhrase, shouldNarrate } from "@/lib/henry-voice-narration.mjs";
+import { MUSIC_TOPIC, henryMusicIntent, mergeHenryMusic, musicQueryFromText, normalizeHenryScene, pickWaitPhrase, rememberPhrase, shouldNarrate } from "@/lib/henry-voice-narration.mjs";
 import { HENRY_LISTEN_PROMPTS, pickVariant, rememberVariant } from "@/lib/henry-voice-persona.mjs";
 import {
   ALERT_ANSWER_WAIT_MS,
@@ -258,6 +263,24 @@ export default function HenryVoiceAssistant() {
   const narratingTextRef = useRef("");
   // live = já houve ferramenta (ou é o "bom dia"): só então a cena de busca entra; antes disso, as ondas da conversa.
   const [scene, setScene] = useState({ topic: "geral", label: "", brokers: [], live: false });
+  // Música (dono, 2026-10-23): cena do Spotify do pedido atual (eventos reais do stream) e "Tocando agora" do player.
+  const [music, setMusic] = useState(null);
+  const musicRef = useRef(null);
+  const updateMusic = useCallback((next) => {
+    const merged = next === null ? null : mergeHenryMusic(musicRef.current, next);
+    musicRef.current = merged;
+    setMusic(merged);
+  }, []);
+  const [nowPlaying, setNowPlaying] = useState(null);
+  // Música tocando = player `is_playing` OU marcador local logo depois de um play do Henry (o player demora a refletir).
+  // explicitUntil = o dono acabou de chamar (onWake do app/atalho): a próxima frase vale sem o nome, menos letra de música.
+  const musicGuardRef = useRef({ playerPlaying: false, playedAt: 0, explicitUntil: 0 });
+  const musicPlaying = useCallback(() => isMusicGuardActive(musicGuardRef.current), []);
+  const markMusicPlayed = useCallback(() => {
+    musicGuardRef.current = { ...musicGuardRef.current, playedAt: Date.now() };
+  }, []);
+  // Volume do Spotify baixo enquanto ele escuta/responde: previous = volume guardado; keep = não restaurar ("pausa"/volume).
+  const spotifyDuckRef = useRef({ previous: null, pending: false, keep: false, timer: 0 });
   const [navRequest, setNavRequest] = useState(null);
   // Ouviu "Henry" no parcial: o ícone já dobra de tamanho, mesmo minimizado (dono, 2026-10-22), antes da frase terminar.
   const [calling, setCalling] = useState(false);
@@ -331,6 +354,89 @@ export default function HenryVoiceAssistant() {
 
   // Computador e celular (dono, 2026-10-22). Celular = tocar para falar, salvo a opção "Ouvir 'Henry' com o app aberto".
   const active = ready && enabled;
+
+  // --- Spotify tocando: "Tocando agora" + guarda da escuta (dono, 2026-10-23) ----------------------------------------
+  // Consulta leve do player: ~18 s com a tela cheia aberta, ~45 s minimizado (a guarda da letra precisa saber mesmo
+  // minimizado); aba oculta não consulta; Spotify não configurado/conectado → para.
+  const refreshNowPlayingRef = useRef(() => {});
+  useEffect(() => {
+    if (!active) return undefined;
+    let stopped = false;
+    let timer = 0;
+    const poll = async () => {
+      window.clearTimeout(timer);
+      if (stopped) return;
+      if (document.visibilityState !== "hidden") {
+        try {
+          const response = await fetch("/api/admin/henry/spotify/player", { cache: "no-store" });
+          const data = response.ok ? await response.json().catch(() => null) : null;
+          if (data && (data.configured === false || data.connected === false)) {
+            stopped = true;
+            musicGuardRef.current = { ...musicGuardRef.current, playerPlaying: false };
+            setNowPlaying(null);
+            return;
+          }
+          if (data && !stopped) {
+            musicGuardRef.current = { ...musicGuardRef.current, playerPlaying: data.isPlaying === true };
+            setNowPlaying(data.isPlaying ? data : null);
+          }
+        } catch {
+          // sem rede: tenta na próxima
+        }
+      }
+      if (!stopped) timer = window.setTimeout(poll, expandedRef.current ? 18000 : 45000);
+    };
+    refreshNowPlayingRef.current = () => {
+      if (!stopped) poll();
+    };
+    timer = window.setTimeout(poll, 1500);
+    const onVisible = () => document.visibilityState === "visible" && poll();
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      stopped = true;
+      window.clearTimeout(timer);
+      refreshNowPlayingRef.current = () => {};
+      document.removeEventListener("visibilitychange", onVisible);
+    };
+  }, [active]);
+  useEffect(() => {
+    if (expanded) refreshNowPlayingRef.current();
+  }, [expanded]);
+
+  const restoreSpotifyVolume = useCallback(() => {
+    const duck = spotifyDuckRef.current;
+    window.clearTimeout(duck.timer);
+    const previous = duck.previous;
+    spotifyDuckRef.current = { previous: null, pending: false, keep: false, timer: 0 };
+    if (previous === null || duck.keep) return;
+    fetch("/api/admin/henry/spotify/player", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "restore", volume: previous }) }).catch(() => {});
+  }, []);
+  // Abaixa a música (~15%) ao acordar com ela tocando; volta sozinha em ~30 s sem atividade (segurança).
+  const duckSpotifyVolume = useCallback(() => {
+    if (!musicPlaying()) return;
+    const duck = spotifyDuckRef.current;
+    window.clearTimeout(duck.timer);
+    duck.timer = window.setTimeout(restoreSpotifyVolume, MUSIC_DUCK_SAFETY_MS);
+    if (duck.previous !== null || duck.pending) return;
+    duck.pending = true;
+    fetch("/api/admin/henry/spotify/player", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "duck" }) })
+      .then((response) => (response.ok ? response.json() : null))
+      .then((data) => {
+        const current = spotifyDuckRef.current;
+        current.pending = false;
+        if (data?.ducked && Number.isInteger(data.previous)) current.previous = data.previous;
+      })
+      .catch(() => {
+        spotifyDuckRef.current.pending = false;
+      });
+  }, [musicPlaying, restoreSpotifyVolume]);
+  // Terminou de responder (saiu de "falando" sem nova pergunta) → volume de volta, salvo "pausa"/volume.
+  const previousPhaseRef = useRef("idle");
+  useEffect(() => {
+    const before = previousPhaseRef.current;
+    previousPhaseRef.current = phase;
+    if (before === "speaking" && phase !== "thinking" && phase !== "speaking") restoreSpotifyVolume();
+  }, [phase, restoreSpotifyVolume]);
   const captureMode = henryCaptureMode({ desktop, desktopApp, hasRecognition: supported, hasRecorder, recognitionFailed, iosStandalone });
   const recordMode = captureMode === "record";
   recordModeRef.current = recordMode;
@@ -843,21 +949,30 @@ export default function HenryVoiceAssistant() {
       const response = await fetch("/api/admin/henry/spotify/play", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(volume === null ? { uri } : { uri, volume })
+        // Nome do que a busca achou (a cena já mostra): "Pronto, tá tocando! <nome>." — no bom dia (volume baixo) não fala
+        // por cima do relatório.
+        body: JSON.stringify({ uri, ...(volume === null ? {} : { volume, announce: false }), name: musicRef.current?.name || "", artists: musicRef.current?.artists || "" })
       });
       data = await response.json().catch(() => null);
       if (!response.ok) data = { ok: false, reply: data?.error || "Não consegui tocar no Spotify. Dá play uma vez nele." };
     } catch {
       data = { ok: false, reply: "Não consegui tocar no Spotify. Dá play uma vez nele." };
     }
-    if (data?.ok || !data?.reply || requestIdRef.current !== requestId) return;
+    if (requestIdRef.current === requestId) {
+      if (data?.ok) {
+        markMusicPlayed();
+        updateMusic({ stage: "playing" });
+        window.setTimeout(() => refreshNowPlayingRef.current(), 2500);
+      } else updateMusic({ stage: "error", error: String(data?.reply || "O Spotify não respondeu agora.").slice(0, 80) });
+    }
+    if (!data?.reply || requestIdRef.current !== requestId) return;
     const withReply = [...turnsRef.current, { role: "assistant", text: data.reply }];
     turnsRef.current = withReply;
     setTurns(withReply);
     beginSpeech(data.reply);
     enqueueClip({ audio: data.audio || null, text: data.reply });
     endSpeech();
-  }, [beginSpeech, endSpeech, enqueueClip]);
+  }, [beginSpeech, endSpeech, enqueueClip, markMusicPlayed, updateMusic]);
 
   // Despedida na voz do Henry ("obrigado, Henry"): do mesmo cache das frases de espera, sem repetir as últimas 5. Sem voz
   // do servidor: só o som de fim (nunca a voz do navegador).
@@ -876,6 +991,10 @@ export default function HenryVoiceAssistant() {
   const applyProgress = useCallback((message) => {
     const topic = typeof message.topic === "string" ? message.topic : "geral";
     waitRef.current = { ...waitRef.current, topic };
+    if (message.music) {
+      updateMusic(message.music);
+      if (message.music.stage === "playing") markMusicPlayed();
+    }
     setScene((current) => {
       let brokers = current.brokers;
       const broker = message.broker;
@@ -893,9 +1012,10 @@ export default function HenryVoiceAssistant() {
         const previous = brokers.find((item) => item.id === card.id);
         brokers = [...others, previous && !card.found ? previous : { ...previous, ...card, stats: card.stats.length ? card.stats : previous?.stats || [] }].slice(-3);
       }
-      return { topic, label: String(message.label || "").slice(0, 80), brokers, live: current.live || message.progress !== "inicio" };
+      // Música nunca liga a cena de números (dono, 2026-10-23).
+      return { topic, label: String(message.label || "").slice(0, 80), brokers, live: topic === MUSIC_TOPIC ? false : current.live || message.progress !== "inicio" };
     });
-  }, []);
+  }, [markMusicPlayed, updateMusic]);
 
   // Enquanto pensa: frase de espera na voz do Henry quando a regra deixa (shouldNarrate); primeiro a frase com o nome do
   // corretor, se veio; depois as do assunto, sem repetir as últimas 5.
@@ -961,8 +1081,21 @@ export default function HenryVoiceAssistant() {
     setTurns(nextTurns);
     updatePhase("thinking");
     startConversation(); // depois de qualquer resposta, ~40 s em que frases sem o nome valem (também no computador)
-    waitRef.current = { id, startedAt: Date.now(), replied: false, topic: mode === "report" ? "relatorio" : "geral", lastAt: 0, names: [] };
-    setScene({ topic: mode === "report" ? "relatorio" : "geral", label: "", brokers: [], live: mode === "report" });
+    // Pedido de música (texto ou resposta da música do bom dia): narração e cena do Spotify desde o início, sem números.
+    const musicIntent = henryMusicIntent({ mode, question, morningStep: morning?.step || "" });
+    const startTopic = musicIntent ? MUSIC_TOPIC : mode === "report" ? "relatorio" : "geral";
+    waitRef.current = { id, startedAt: Date.now(), replied: false, topic: startTopic, lastAt: 0, names: [] };
+    setScene({ topic: startTopic, label: "", brokers: [], live: mode === "report" && !musicIntent });
+    updateMusic(null);
+    if (musicIntent) {
+      const query = morning ? "" : musicQueryFromText(question);
+      updateMusic({ stage: "connect", ...(query ? { query } : {}) });
+    }
+    // Música tocando: abaixa enquanto ele responde; "pausa"/volume não restauram depois.
+    if (musicPlaying()) {
+      duckSpotifyVolume();
+      if (mode === "question" && (isMusicPauseCommand(question) || (musicIntent && /\b(volume|som|aumenta|abaixa|baixa)\b/i.test(question)))) spotifyDuckRef.current.keep = true;
+    }
     touchConversation();
     // "Esquece a conversa de hoje": a tela também começa do zero.
     const clearTurns = () => {
@@ -975,6 +1108,13 @@ export default function HenryVoiceAssistant() {
       if (waitRef.current.id === id) waitRef.current = { ...waitRef.current, replied: true };
       // Cena da resposta (HenryAnswerScenes), escolhida no servidor pelas ferramentas chamadas.
       const answerScene = normalizeHenryScene(rawScene);
+      if (answerScene?.kind === "musica" && answerScene.music && requestIdRef.current === id) {
+        updateMusic(answerScene.music);
+        if (answerScene.music.stage === "playing") {
+          markMusicPlayed();
+          window.setTimeout(() => refreshNowPlayingRef.current(), 2500);
+        }
+      }
       const withReply = [...turnsRef.current, { role: "assistant", text: reply, ...(detail ? { detail } : {}), ...(answerScene ? { scene: answerScene } : {}) }];
       turnsRef.current = withReply;
       setTurns(withReply);
@@ -1082,7 +1222,7 @@ export default function HenryVoiceAssistant() {
     } finally {
       if (abortRef.current === controller) abortRef.current = null;
     }
-  }, [abortRequest, applyProgress, beginSpeech, endConversation, endSpeech, enqueueClip, listenAgain, openSpotifyAndPlay, router, startConversation, stopSpeaking, touchConversation, updatePhase]);
+  }, [abortRequest, applyProgress, beginSpeech, duckSpotifyVolume, endConversation, endSpeech, enqueueClip, listenAgain, markMusicPlayed, musicPlaying, openSpotifyAndPlay, router, startConversation, stopSpeaking, touchConversation, updateMusic, updatePhase]);
 
   // Botão de câmera da tela cheia = liga/desliga a visão (mesma configuração do cartão em /admin/alexa).
   const toggleVision = useCallback(async () => {
@@ -1143,6 +1283,12 @@ export default function HenryVoiceAssistant() {
       if (requestIdRef.current !== id) return;
       if (!response.ok) throw new Error(data?.error || "Não consegui entender o áudio agora. Tente de novo.");
       const text = String(data?.text || "").trim();
+      // Música tocando: o toque/atalho já é o chamado, mas trecho longo sem pausa e sem o nome é a letra (ignora).
+      if (isMusicGuardActive(musicGuardRef.current) && text && !musicListenGate(text, { explicit: true }).accept) {
+        updatePhase("idle");
+        setNotice("Parecia a música tocando. Toque no Henry e fale de novo.");
+        return;
+      }
       const intent = classifyTapUtterance(text);
       if (intent.kind === "report") askRef.current?.({ mode: "report", question: "", shown: text });
       else if (intent.kind === "question") askRef.current?.({ mode: "question", question: intent.question, shown: text });
@@ -1292,8 +1438,9 @@ export default function HenryVoiceAssistant() {
       const data = await response.json().catch(() => ({}));
       const text = response.ok ? String(data?.text || "").trim() : "";
       if (!text || phaseRef.current !== "speaking") return;
-      const named = detectBargeIn(text, clipText);
-      const barge = named.interrupt ? named : detectSpeechBargeIn(text, clipText, { final: true });
+      const withMusic = isMusicGuardActive(musicGuardRef.current); // música tocando: só comando forte
+      const named = withMusic ? detectMusicBargeIn(text) : detectBargeIn(text, clipText);
+      const barge = named.interrupt || withMusic ? named : detectSpeechBargeIn(text, clipText, { final: true });
       if (!barge.interrupt) return;
       interrupt();
       startConversation();
@@ -1331,8 +1478,10 @@ export default function HenryVoiceAssistant() {
     if (phaseRef.current === "speaking" || phaseRef.current === "thinking") {
       // Falando (computador): qualquer frase dele que não seja eco interrompe e vira a nova pergunta; pensando: só o nome
       // e as palavras de parada. Fala comum (e parada que também está na frase dele) só com a voz confirmada no microfone.
-      const named = detectBargeIn(text, currentSpeech());
-      const speechBarge = phaseRef.current === "speaking" && bargeModeRef.current !== "tap";
+      // Música tocando: só comando forte (nome no começo, "para", "espera", "pausa") — a letra nunca interrompe.
+      const withMusic = isMusicGuardActive(musicGuardRef.current);
+      const named = withMusic ? detectMusicBargeIn(text) : detectBargeIn(text, currentSpeech());
+      const speechBarge = !withMusic && phaseRef.current === "speaking" && bargeModeRef.current !== "tap";
       const barge = named.interrupt || !speechBarge ? named : detectSpeechBargeIn(text, currentSpeech(), { final: true });
       if (!barge.interrupt) return false;
       if ((named.interrupt ? named.echoRisk : true) && !voiceConfirmed(3000)) return false;
@@ -1342,6 +1491,29 @@ export default function HenryVoiceAssistant() {
       else if (barge.kind === "report") ask("report", "");
       else listenAgain();
       return true;
+    }
+    // Música tocando (dono, 2026-10-23: "o Henry fica respondendo as músicas"): sem conversa sem o nome, nem tela cheia
+    // "já chamando" — só o NOME no começo da frase; logo depois de um chamado (nome sozinho, atalho/app), a frase seguinte
+    // vale sem o nome, menos a que tem cara de letra. Acordou → a música abaixa enquanto ele escuta e responde.
+    if (isMusicGuardActive(musicGuardRef.current)) {
+      const explicit = musicGuardRef.current.explicitUntil > Date.now();
+      const gate = musicListenGate(text, { explicit });
+      if (!gate.accept || isEchoOf(text, spoken)) return false;
+      musicGuardRef.current = { ...musicGuardRef.current, explicitUntil: 0 };
+      duckSpotifyVolume();
+      const intent = gate.named ? classifyArmedUtterance(text, spoken) : classifyTapUtterance(text);
+      if (intent.kind === "report" || intent.kind === "question") {
+        startConversation();
+        ask(intent.kind, intent.question);
+        return true;
+      }
+      if (intent.kind === "wake") {
+        musicGuardRef.current = { ...musicGuardRef.current, explicitUntil: Date.now() + 10000 };
+        startConversation({ sound: true });
+        listenAgain();
+        return true;
+      }
+      return false;
     }
     const detected = detectWakeWord(text);
     if (detected.called && !isEchoOf(text, spoken)) {
@@ -1383,7 +1555,7 @@ export default function HenryVoiceAssistant() {
       return true;
     }
     return false;
-  }, [currentSpeech, endConversation, interrupt, listenAgain, sayGoodbye, startConversation, voiceConfirmed]);
+  }, [currentSpeech, duckSpotifyVolume, endConversation, interrupt, listenAgain, sayGoodbye, startConversation, voiceConfirmed]);
 
   // --- Avisos de cliente novo e transferido (HENRY-1, dono 2026-10-23) -----------------------------------------------
   // "Sempre depois de chefe? Ou patrão? etc., ele aguarda uma resposta minha, como 'sim, pode falar' ou 'oi', aí ele me
@@ -1837,15 +2009,17 @@ export default function HenryVoiceAssistant() {
           continue;
         }
         interim = trackInterim(interim, { index, text, now: Date.now() });
-        if (detectWakeWord(text).called) {
+        const withMusic = isMusicGuardActive(musicGuardRef.current); // música tocando: nome só no começo, sem fala comum
+        const heardName = detectWakeWord(text);
+        if (heardName.called && !(withMusic && heardName.anywhere)) {
           handlers.warmServer(); // ouviu "Henry": já aquece o relatório enquanto ele fala
           handlers.markCalling(); // e o ícone já cresce
         }
         if (phaseRef.current === "speaking" || phaseRef.current === "thinking") {
-          const named = detectBargeIn(text, handlers.currentSpeech());
+          const named = withMusic ? detectMusicBargeIn(text) : detectBargeIn(text, handlers.currentSpeech());
           if (named.interrupt && (!named.echoRisk || handlers.voiceConfirmed())) {
             handlers.interrupt(); // resultado parcial: corta na hora; a frase final decide se já tem pergunta
-          } else if (!named.interrupt && phaseRef.current === "speaking" && bargeModeRef.current !== "tap" && detectSpeechBargeIn(text, handlers.currentSpeech()).interrupt && handlers.voiceConfirmed()) {
+          } else if (!withMusic && !named.interrupt && phaseRef.current === "speaking" && bargeModeRef.current !== "tap" && detectSpeechBargeIn(text, handlers.currentSpeech()).interrupt && handlers.voiceConfirmed()) {
             handlers.interrupt(); // ele começou a falar por cima (fala que não é eco da frase atual, voz confirmada no microfone)
           }
         }
@@ -2030,12 +2204,18 @@ export default function HenryVoiceAssistant() {
   // App de desktop: atalho global Ctrl+Shift+H (o app traz a janela) ou o nome ouvido pelo app → abre o Henry já ouvindo.
   const activateFromDesktop = useCallback(() => {
     if (recordRef.current) return; // já gravando: o toque no Henry envia
+    // Música tocando: o nome ouvido pelo app/atalho vale como chamado só para a PRÓXIMA frase (sem cara de letra) e a
+    // música abaixa enquanto ele escuta (mesma regra do nome no começo da frase).
+    if (isMusicGuardActive(musicGuardRef.current)) {
+      musicGuardRef.current = { ...musicGuardRef.current, explicitUntil: Date.now() + 10000 };
+      duckSpotifyVolume();
+    }
     openScene();
     if (!recordModeRef.current) {
       startConversation({ sound: true });
       listenAgain();
     }
-  }, [listenAgain, openScene, startConversation]);
+  }, [duckSpotifyVolume, listenAgain, openScene, startConversation]);
 
   useEffect(() => {
     const bridge = desktopBridgeRef.current;
@@ -2190,6 +2370,8 @@ export default function HenryVoiceAssistant() {
       dataScene={phase === "thinking" && !capturing && scene.live}
       sceneTopic={scene.topic}
       brokers={phase === "thinking" || phase === "speaking" ? scene.brokers : []}
+      music={music}
+      nowPlaying={nowPlaying}
       pendingAlerts={pendingAlerts}
       onPendingAlerts={hearPendingAlerts}
       morningPlay={morningPlay}

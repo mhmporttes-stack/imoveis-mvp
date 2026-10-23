@@ -68,7 +68,35 @@ const SAMPLE_TELEMETRY = [
   { label: "Aniversariantes", value: 2 }
 ];
 
-export default function HenryDemo({ mode: initialMode = "speaking", expanded = true, capturing = false, scene = "", topic = "relatorio", brokerCount = 2, answer = "", opening: initialOpening = false, telemetry = false }) {
+// Música (dono, 2026-10-23): cena do Spotify por etapa (?cena=musica&etapa=connect|search|found|opening|playing|error|ciclo) e
+// "Tocando agora" com as ondas sonoras no canto (?ondas=1; ?ondas=ciclo alterna tocando/pausado). Capa e faixa FICTÍCIAS.
+const COVER = `data:image/svg+xml;utf8,${encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#E8B85C"/><stop offset="1" stop-color="#7A3E12"/></linearGradient></defs><rect width="64" height="64" fill="url(#g)"/><circle cx="32" cy="32" r="17" fill="#07111F" opacity="0.85"/><circle cx="32" cy="32" r="4" fill="#E8B85C"/></svg>')}`;
+const MUSIC_STAGES = {
+  connect: { stage: "connect", query: "sertanejo raiz" },
+  search: { stage: "search", query: "sertanejo raiz" },
+  found: { stage: "found", query: "sertanejo raiz", name: "Sertanejo Raiz", artists: "playlist", image: COVER },
+  opening: { stage: "opening", query: "sertanejo raiz", name: "Sertanejo Raiz", artists: "playlist", image: COVER },
+  playing: { stage: "playing", query: "sertanejo raiz", name: "Sertanejo Raiz", artists: "playlist", image: COVER },
+  error: { stage: "error", query: "sertanejo raiz", error: "Nenhum aparelho com o Spotify aberto." }
+};
+const MUSIC_CYCLE = ["connect", "search", "found", "playing"];
+const SAMPLE_NOW_PLAYING = { isPlaying: true, name: "Evidências", artists: "Chitãozinho & Xororó", image: COVER, tempo: null };
+
+export default function HenryDemo({ mode: initialMode = "speaking", expanded = true, capturing = false, scene = "", topic = "relatorio", brokerCount = 2, answer = "", opening: initialOpening = false, telemetry = false, musicStage = "", waves = "" }) {
+  const [cycleIndex, setCycleIndex] = useState(0);
+  useEffect(() => {
+    if (musicStage !== "ciclo") return undefined;
+    const id = setTimeout(() => setCycleIndex((value) => (value + 1) % MUSIC_CYCLE.length), cycleIndex === 1 ? 2600 : 1900);
+    return () => clearTimeout(id);
+  }, [musicStage, cycleIndex]);
+  const music = scene === "musica" ? MUSIC_STAGES[musicStage === "ciclo" ? MUSIC_CYCLE[cycleIndex] : musicStage] || MUSIC_STAGES.search : null;
+  const [wavePlaying, setWavePlaying] = useState(true);
+  useEffect(() => {
+    if (waves !== "ciclo") return undefined;
+    const id = setTimeout(() => setWavePlaying((value) => !value), wavePlaying ? 5000 : 2500);
+    return () => clearTimeout(id);
+  }, [waves, wavePlaying]);
+  const nowPlaying = waves ? { ...SAMPLE_NOW_PLAYING, isPlaying: waves === "ciclo" ? wavePlaying : true } : null;
   const [opening, setOpening] = useState(initialOpening);
   const [openingKey, setOpeningKey] = useState(0);
   const playOpening = () => {
@@ -89,7 +117,8 @@ export default function HenryDemo({ mode: initialMode = "speaking", expanded = t
     const id = setTimeout(() => setCycleSearching((value) => !value), cycleSearching ? 2600 : 3400);
     return () => clearTimeout(id);
   }, [scene, cycleSearching]);
-  const mode = scene === "achou" ? (cycleSearching ? "thinking" : "speaking") : initialMode;
+  const musicSpeaking = music?.stage === "playing" || music?.stage === "error";
+  const mode = scene === "achou" ? (cycleSearching ? "thinking" : "speaking") : music ? (musicSpeaking ? "speaking" : "thinking") : initialMode;
   const [muted, setMuted] = useState(false);
   const [vision, setVision] = useState(true);
   const [keyboard, setKeyboard] = useState(false);
@@ -117,7 +146,9 @@ export default function HenryDemo({ mode: initialMode = "speaking", expanded = t
           ? allBrokers.slice(0, 1)
           : [];
   const sample = ANSWER_SAMPLES[answer];
-  const turns = sample ? [{ role: "user", text: sample.q }, { role: "assistant", text: sample.text, scene: sample.scene, ...(sample.detail ? { detail: sample.detail } : {}) }] : scene === "relatorio" ? [...SAMPLE_TURNS.slice(0, 2), { role: "user", text: "Henry, quero o relatório mensal" }, { role: "assistant", text: "Nos últimos 30 dias entraram 214 leads, 128 de anúncio. Os detalhes estão na tela.", detail: SAMPLE_DETAIL }] : SAMPLE_TURNS;
+  const turns = music
+    ? [{ role: "user", text: "Henry, toca uma playlist de sertanejo raiz" }, ...(musicSpeaking ? [{ role: "assistant", text: music.stage === "playing" ? "Pronto, tá tocando! Sertanejo Raiz." : "Nenhum aparelho com o Spotify aberto. Abre o Spotify no celular ou no computador.", scene: { kind: "musica", music } }] : [])]
+    : sample ? [{ role: "user", text: sample.q }, { role: "assistant", text: sample.text, scene: sample.scene, ...(sample.detail ? { detail: sample.detail } : {}) }] : scene === "relatorio" ? [...SAMPLE_TURNS.slice(0, 2), { role: "user", text: "Henry, quero o relatório mensal" }, { role: "assistant", text: "Nos últimos 30 dias entraram 214 leads, 128 de anúncio. Os detalhes estão na tela.", detail: SAMPLE_DETAIL }] : SAMPLE_TURNS;
   // Celular (< 768 px, ex.: 390×844): mesma apresentação do app, tocar para falar.
   const [mobile, setMobile] = useState(false);
   useEffect(() => {
@@ -146,7 +177,9 @@ export default function HenryDemo({ mode: initialMode = "speaking", expanded = t
       caption={{ thinking: SAMPLE_TURNS[2].text, speaking: SAMPLE_TURNS[3].text, listening: SAMPLE_TURNS[3].text }[mode] || ""}
       turns={turns}
       searching={mode === "thinking"}
-      sceneTopic={topic}
+      sceneTopic={music ? "music" : topic}
+      music={music}
+      nowPlaying={nowPlaying}
       brokers={brokers}
       micOff={muted}
       onToggleMute={() => setMuted((value) => !value)}

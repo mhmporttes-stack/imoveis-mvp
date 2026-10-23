@@ -44,6 +44,15 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 
 
+### 2026-10-23 — Henry: música com narração e cena do Spotify, "Tocando agora" com ondas e guarda da escuta com música tocando
+- **Data:** 2026-10-23
+- **Área:** Henry (voz, cena, Spotify)
+- **Alteração:** pedido de música vira tópico `music` desde o 1º evento (intenção lida do texto, sem IA; também a resposta da música do bom dia); frases de espera só do Spotify (m1–m8) e "Pronto, tá tocando! <nome>." no play; cena nova `HenryMusicScene` (conexão por feixe ao card do Spotify → busca digitando → item com capa → cursor aperta o play + equalizador; erro em texto curto) sincronizada com os eventos reais; pedido de música nunca mostra cena de números. "Tocando agora" no canto da tela cheia com ondas finas (canvas ~30 fps, BPM opcional, ducking, some na pausa) por `GET /api/admin/henry/spotify/player`. Guarda da escuta com música tocando: só o nome no começo acorda, letra longa ignorada, barge-in só com comando forte, música baixa a ~15% enquanto ele escuta/responde e volta depois (pausa/volume não restauram). Vitrine `?cena=musica&etapa=…` e `?ondas=1|ciclo`.
+- **Motivo:** dono: "quando eu peço uma playlist, ele fala que vai analisar o CRM… os gráficos também não fazem sentido", "linhas… em formato de ondas sonoras… num canto" e bug "o Henry fica respondendo as músicas que estão tocando".
+- **Arquivos afetados:** `lib/henry-voice-narration.mjs`, `lib/henry-voice-conversation.mjs`, `lib/henry-spotify-core.mjs`, `lib/henry-spotify.js`, `lib/henry-voice.js`, `app/api/admin/henry/route.js`, `app/api/admin/henry/spotify/play/route.js`, `app/api/admin/henry/spotify/player/route.js` (novo), `components/henry/HenryMusicScene.jsx` + `.module.css` (novos), `components/henry/HenryVoiceView.jsx`, `components/henry/HenryVoiceAssistant.jsx`, `app/dev/vitrine/henry/page.dev.jsx`, `app/dev/vitrine/_components/HenryDemo.jsx`, `tests/henry-music.test.mjs` (novo), `tests/henry-{spotify,reports,morning}.test.mjs`, `docs/BUSINESS_RULES.md` (HENRY-1), `docs/INCIDENTES.md`, `.claude/rules/integracoes-externas.md`.
+- **Risco/observação:** +8 frases de espera = +8 sínteses de voz uma única vez por voz (cache). Consulta do player a cada 18–45 s só do dono (aba visível). `/v1/audio-features` pode responder 403 para app novo — sem BPM, usa ~100, sem erro (tentado 1 vez por faixa). Com a música tocando, "Henry" no MEIO da frase e o modo "tela cheia já chamando" deixam de valer (de propósito). O Vosk do app de desktop pode disparar com a letra — tratado no app por outro agente; no CRM o `onWake` com música vale só para a próxima frase sem cara de letra. Não testado com Spotify/voz reais (sem credenciais no ambiente); A CONFIRMAR no uso do dono. Intenção de música por texto não cobre todo jeito de pedir (ex.: "quero ouvir X" sem "música"): aí a cena muda no 1º evento da ferramenta.
+- **Autor:** Claude Code (crm-editor)
+
 ### 2026-10-23 — Seguidor Instagram 1.1.0: segue perfis privados (Solicitado) e trabalha numa janela própria
 - **Data:** 2026-10-23
 - **Área:** Ferramenta pessoal fora do CRM (`ferramentas/instagram-seguidor/`)

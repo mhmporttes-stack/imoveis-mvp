@@ -175,7 +175,8 @@ function answerStream(auth, request, style) {
         }
       };
       const pending = [];
-      send(henryInitialProgress(request.mode));
+      // Pedido de música (texto ou resposta da música do bom dia) já abre com o tópico "music" (dono, 2026-10-23).
+      send(henryInitialProgress(request.mode, { question: request.question, morningStep: request.morning?.step || "" }));
       try {
         const answer = await answerHenry(auth, {
           ...request,

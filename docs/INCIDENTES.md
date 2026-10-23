@@ -40,6 +40,17 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-23 — Henry responde à letra da música que está tocando / fala de "analisar o CRM" ao pedir playlist
+- **Data:** 2026-10-23
+- **Sintoma:** (1) com o Spotify tocando, o Henry acorda e responde trechos da música; (2) ao pedir uma playlist ele diz que está "analisando o CRM/os números" e mostra cartões de ranking/gráficos.
+- **Área:** Henry / Frontend
+- **Impacto:** só o dono; sem perda de dado.
+- **Causa raiz:** (1) o Spotify toca fora da página (app do PC/celular), então o cancelamento de eco do navegador não tem a referência desse som: a letra entrava como fala do dono na janela de conversa de 40 s (sem o nome), na tela cheia "já chamando", no barge-in por 3+ palavras ou com algo parecido com "Henry"/"para" no meio. (2) O pedido começava com o tópico `geral` (frases "conferir no CRM", "passando os olhos nos números") e, na resposta à música do bom dia (modo `report`), a tela ligava a cena de dados do relatório; a ferramenta `spotify` não tinha tópico próprio.
+- **Correção:** guarda da escuta com música tocando (`musicListenGate`, `detectMusicBargeIn`, `isMusicGuardActive`) + volume do Spotify baixo enquanto ele escuta/responde; tópico `music` desde o 1º evento, frases e cena próprias (HENRY-1 "Música").
+- **Arquivos/commit:** `lib/henry-voice-conversation.mjs`, `lib/henry-voice-narration.mjs`, `components/henry/HenryVoiceAssistant.jsx` — commit deste registro
+- **Prevenção/teste:** `tests/henry-music.test.mjs` (frase sem nome ignorada, nome no começo aceito, letra longa ignorada, barge-in só forte, narração sem "CRM", topic music cedo).
+- **Status:** Monitorando (teste do dono com o Spotify real; Vosk do app de desktop com outro agente)
+
 ### 2026-10-23 — Henry não para de falar quando o dono interrompe ("para", "Henry" ou falando por cima)
 - **Data:** 2026-10-23
 - **Sintoma:** com o Henry falando no computador, o dono diz "para" ou fala por cima e ele continua; às vezes o microfone "ouve" o próprio Henry.

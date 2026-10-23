@@ -186,7 +186,7 @@ test("gatilho de corretor no servidor: anunciado depois do reconhecimento, com f
   // consultar_corretor e consultar_crm com nome não são anunciados antes de reconhecer o corretor.
   assert.match(lib, /block\.name === "consultar_corretor" \|\| \(block\.name === "consultar_crm" && block\.input\?\.corretor\)\) continue/);
   const route = readFileSync(new URL("../app/api/admin/henry/route.js", import.meta.url), "utf8");
-  assert.match(route, /send\(henryInitialProgress\(request\.mode\)\)/); // evento inicial logo ao receber o pedido
+  assert.match(route, /send\(henryInitialProgress\(request\.mode, \{ question: request\.question/); // evento inicial logo ao receber o pedido
   assert.ok(route.indexOf("send(henryInitialProgress") < route.indexOf("await answerHenry"));
 });
 

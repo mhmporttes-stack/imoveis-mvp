@@ -6,6 +6,7 @@ import HenryAnswerScenes from "./HenryAnswerScenes";
 import HenryOpeningScene from "./HenryOpeningScene";
 import { MORNING_PLAY_LABEL } from "@/lib/henry-morning-core.mjs";
 import { HenryBrokerCards, HenryDataScene, HenryDetailPanel, HenryIconSearchHint, HenrySceneStyles } from "./HenrySearchScene";
+import HenryMusicScene, { HenryNowPlaying } from "./HenryMusicScene";
 
 // Apresentação do Henry (sem estado de voz): ícone do canto e tela cheia. Visual pedido pelo dono em 2026-10-22 a partir de
 // uma referência em vídeo ("nesse perfil… no meu estilo"): fundo azul-marinho profundo, anel de filamentos no centro,
@@ -96,6 +97,10 @@ export default function HenryVoiceView({
   dataScene = searching, // tela cheia: cena de busca (HenrySearchScene) só depois que uma ferramenta foi chamada
   sceneTopic = "geral",
   brokers = [], // corretores do pedido: procurando (scanner) → achado (card com foto e números)
+  // Música (dono, 2026-10-23): estado da cena do Spotify (conexão → busca → resultado → play), vindo dos eventos reais, e
+  // o "Tocando agora" do player (canto da tela cheia, com as ondas sonoras).
+  music = null,
+  nowPlaying = null,
   pendingAlerts = 0, // avisos de cliente novo/transferido sem resposta (HENRY-1): indicador discreto; tocar = ouvir
   onPendingAlerts,
   // Botão ▶ "Começar o bom dia" (HENRY-1, dono 2026-10-23): ao lado do microfone só até 11h (quem decide é o
@@ -122,6 +127,9 @@ export default function HenryVoiceView({
   // resposta e enquanto pensa sem ferramenta (papo), as ondas da conversa.
   const lastTurn = turns[turns.length - 1];
   const answer = !searching && lastTurn?.role === "assistant" ? lastTurn : null;
+  // Pedido de música nunca mostra cena de números (dono, 2026-10-23: "os gráficos também não fazem sentido").
+  const musicScene = searching && sceneTopic === "music" ? music : answer?.scene?.kind === "musica" ? music || answer.scene.music || { stage: "playing" } : null;
+  const showDataScene = dataScene && sceneTopic !== "music";
 
   const showPlay = morningPlay && Boolean(onMorningPlay) && !opening;
   const pendingPill = pendingAlerts > 0 && onPendingAlerts ? (
@@ -269,8 +277,8 @@ export default function HenryVoiceView({
     >
       <HenrySceneStyles />
       {opening ? <HenryOpeningScene name={openingName} mobile={mobile} telemetry={openingTelemetry} onDone={onOpeningDone} /> : null}
-      <HenryDataScene active={dataScene} topic={sceneTopic} mobile={mobile} orbSize={orbSize} hasBrokers={brokers.length > 0} />
-      {!dataScene ? (
+      <HenryDataScene active={showDataScene} topic={sceneTopic} mobile={mobile} orbSize={orbSize} hasBrokers={brokers.length > 0} />
+      {!showDataScene && !musicScene ? (
         <HenryAnswerScenes
           kind={answer?.scene?.kind || "conversa"}
           scene={answer?.scene || null}
@@ -284,6 +292,7 @@ export default function HenryVoiceView({
         />
       ) : null}
       {!mobile ? <HenryDetailPanel detail={detail} /> : null}
+      <HenryNowPlaying nowPlaying={nowPlaying} ducking={speaking} mobile={mobile} />
       <div className="absolute left-5 top-[calc(1rem+env(safe-area-inset-top))] md:left-8 md:top-6">
         <p className="flex items-center gap-2 text-sm font-bold tracking-wide text-white/85">
           Henry
@@ -316,6 +325,7 @@ export default function HenryVoiceView({
           <HenryOrb size={orbSize} fibers={mobile ? 40 : 52} points={mobile ? 110 : 140} alpha={0.3} lineWidth={0.85} glow getSignal={getSignal} />
         )}
         <HenryBrokerCards brokers={brokers} orbSize={orbSize} mobile={mobile} />
+        <HenryMusicScene music={musicScene} orbSize={orbSize} mobile={mobile} />
       </div>
 
       <div className="absolute inset-x-4 bottom-[calc(1rem+env(safe-area-inset-bottom))] flex flex-col items-end gap-3 md:inset-x-auto md:bottom-6 md:right-8 md:w-[min(420px,40vw)]">

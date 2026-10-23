@@ -151,8 +151,9 @@ test("Spotify no Henry: ferramenta, guard do dono, refresh token só no servidor
   assert.match(connect, /httpOnly: true/);
   const route = readFileSync(new URL("../app/api/admin/henry/route.js", import.meta.url), "utf8");
   assert.match(route, /isSpotifyOpenUrl\(url\) \? url : null/);
-  assert.equal(henryProgressFor("spotify", { acao: "pausar" }), null); // música não é busca no CRM
-  assert.equal(pickHenryAnswerScene({ tools: [{ name: "spotify", input: { acao: "tocar" } }] }), "conversa");
+  // Música não é busca no CRM: cena e frases próprias do Spotify (dono, 2026-10-23), nunca a cena de números.
+  assert.equal(henryProgressFor("spotify", { acao: "pausar" }).topic, "music");
+  assert.equal(pickHenryAnswerScene({ tools: [{ name: "spotify", input: { acao: "tocar" } }] }), "musica");
 });
 
 test("open_spotify: sem aparelho a busca devolve a URI; polling acha o aparelho, transfere e toca nele (fetch mockado)", async () => {

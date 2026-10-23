@@ -129,7 +129,8 @@ test("bom dia: fluxo ligado no servidor e na tela (só o dono, somente leitura, 
   assert.match(voice, /morning: \{ step: "music" \}/);
   assert.match(voice, /morning: \{ step: "style" \}/);
   assert.match(voice, /step: "birthday"/);
-  assert.match(voice, /startHenryMorningMusic\(resolveMorningMusic\(answer, style\), MORNING_VOLUME\)/);
+  assert.match(voice, /const target = resolveMorningMusic\(answer, style\)/);
+  assert.match(voice, /startHenryMorningMusic\(target, MORNING_VOLUME\)/);
   const loader = readFileSync(new URL("../lib/henry-morning.js", import.meta.url), "utf8");
   assert.doesNotMatch(loader, /\.(insert|update|upsert|delete)\(/); // somente leitura
   assert.match(loader, /AUTOMATIC_SIMULATION_SOURCE/);
