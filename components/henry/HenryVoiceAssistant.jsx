@@ -42,7 +42,12 @@ import {
   detectMusicBargeIn,
   isMusicGuardActive,
   isMusicPauseCommand,
-  musicListenGate
+  musicListenGate,
+  HENRY_REPLY_WINDOW_MS,
+  henryAsksQuestion,
+  isAwaitingReply,
+  openPendingReply,
+  repeatQuestionFor
 } from "@/lib/henry-voice-conversation.mjs";
 import { henryReserveVoiceChain, pickBestBrowserVoice, pronounceForSpeech, splitSentences } from "@/lib/henry-voice-providers.mjs";
 import { MUSIC_TOPIC, henryMusicIntent, mergeHenryMusic, musicQueryFromText, normalizeHenryScene, pickWaitPhrase, rememberPhrase, shouldNarrate } from "@/lib/henry-voice-narration.mjs";
@@ -279,6 +284,11 @@ export default function HenryVoiceAssistant() {
   const markMusicPlayed = useCallback(() => {
     musicGuardRef.current = { ...musicGuardRef.current, playedAt: Date.now() };
   }, []);
+  // Pergunta aberta do Henry (dono, 2026-10-23): ele perguntou e espera a resposta — a resposta curta vale sem o nome
+  // mesmo com música (isAwaitingReply/musicListenGate), a música fica baixa na espera e, se a resposta não vier, ele
+  // repete a pergunta curta uma vez (repeatQuestionFor) em vez de "Não entendi".
+  const pendingReplyRef = useRef({ active: false });
+  const missedReplyRef = useRef(() => false);
   // Volume do Spotify baixo enquanto ele escuta/responde: previous = volume guardado; keep = não restaurar ("pausa"/volume).
   const spotifyDuckRef = useRef({ previous: null, pending: false, keep: false, timer: 0 });
   const [navRequest, setNavRequest] = useState(null);
@@ -430,13 +440,30 @@ export default function HenryVoiceAssistant() {
         spotifyDuckRef.current.pending = false;
       });
   }, [musicPlaying, restoreSpotifyVolume]);
-  // Terminou de responder (saiu de "falando" sem nova pergunta) → volume de volta, salvo "pausa"/volume.
+  // Mantém a música baixa por mais `ms` (espera da resposta a uma pergunta dele); depois volta sozinha.
+  const holdSpotifyDuck = useCallback((ms) => {
+    const duck = spotifyDuckRef.current;
+    if (duck.previous === null && !duck.pending) return;
+    window.clearTimeout(duck.timer);
+    duck.timer = window.setTimeout(restoreSpotifyVolume, ms);
+  }, [restoreSpotifyVolume]);
+  // Terminou de responder (saiu de "falando" sem nova pergunta) → volume de volta, salvo "pausa"/volume. Terminou com uma
+  // PERGUNTA → a janela da resposta começa agora, a música segue baixa até o fim dela e, no app de desktop (gravação, sem
+  // escuta contínua), o microfone abre sozinho como no chamado do aviso.
   const previousPhaseRef = useRef("idle");
   useEffect(() => {
     const before = previousPhaseRef.current;
     previousPhaseRef.current = phase;
-    if (before === "speaking" && phase !== "thinking" && phase !== "speaking") restoreSpotifyVolume();
-  }, [phase, restoreSpotifyVolume]);
+    if (before !== "speaking" || phase === "thinking" || phase === "speaking") return;
+    const pending = pendingReplyRef.current;
+    if (!pending.active) {
+      restoreSpotifyVolume();
+      return;
+    }
+    pendingReplyRef.current = { ...pending, endedAt: Date.now() };
+    holdSpotifyDuck(HENRY_REPLY_WINDOW_MS);
+    if (pending.kind !== "alert" && recordModeRef.current && desktopBridgeRef.current && !mutedRef.current) startRecordingRef.current?.();
+  }, [phase, holdSpotifyDuck, restoreSpotifyVolume]);
   const captureMode = henryCaptureMode({ desktop, desktopApp, hasRecognition: supported, hasRecorder, recognitionFailed, iosStandalone });
   const recordMode = captureMode === "record";
   recordModeRef.current = recordMode;
@@ -626,6 +653,7 @@ export default function HenryVoiceAssistant() {
     if (!conversationRef.current.active) return;
     conversationRef.current = { active: false, lastAt: 0, historyStart: turnsRef.current.length };
     morningRef.current = null;
+    pendingReplyRef.current = { active: false };
     setInConversation(false);
     if (phaseRef.current === "armed") updatePhase("idle");
     if (sound) chime("end");
@@ -1062,6 +1090,7 @@ export default function HenryVoiceAssistant() {
       return;
     }
     alertRef.current.afterAsk = true;
+    pendingReplyRef.current = { active: false }; // a resposta à pergunta dele (se havia) é esta
     const pendingMorning = morningRef.current;
     morningRef.current = null;
     const conversationNow = conversationRef.current;
@@ -1103,8 +1132,17 @@ export default function HenryVoiceAssistant() {
       conversationRef.current = { ...conversationRef.current, historyStart: 0 };
       setTurns([]);
     };
-    const onReply = (reply, navigate, detail = null, rawScene = null, openUrl = null, spotify = null, nextMorning = null) => {
-      if (requestIdRef.current === id) morningRef.current = nextMorning?.step ? { step: nextMorning.step } : null;
+    const onReply = (reply, navigate, detail = null, rawScene = null, openUrl = null, spotify = null, nextMorning = null, musicNow = false) => {
+      if (requestIdRef.current === id) {
+        morningRef.current = nextMorning?.step ? { step: nextMorning.step } : null;
+        // Resposta que termina em pergunta (ou passo do bom dia) = pergunta aberta: espera a resposta curta, sem o nome.
+        pendingReplyRef.current = nextMorning?.step || henryAsksQuestion(reply) ? openPendingReply(nextMorning?.step || "question") : { active: false };
+        // Bom dia com o Spotify já tocando (o servidor conferiu o player): música baixa enquanto ele fala.
+        if (musicNow) {
+          musicGuardRef.current = { ...musicGuardRef.current, playerPlaying: true };
+          duckSpotifyVolume();
+        }
+      }
       if (waitRef.current.id === id) waitRef.current = { ...waitRef.current, replied: true };
       // Cena da resposta (HenryAnswerScenes), escolhida no servidor pelas ferramentas chamadas.
       const answerScene = normalizeHenryScene(rawScene);
@@ -1173,7 +1211,7 @@ export default function HenryVoiceAssistant() {
           return;
         }
         if (data.memoryCleared) clearTurns();
-        onReply(data.reply || "", data.navigate, data.detail || null, data.scene || null, data.openUrl || null, data.spotify || null, data.morning || null);
+        onReply(data.reply || "", data.navigate, data.detail || null, data.scene || null, data.openUrl || null, data.spotify || null, data.morning || null, data.musicPlaying === true);
         enqueueClip({ audio: data.audio, text: data.reply || "" });
         endSpeech();
         return;
@@ -1204,7 +1242,7 @@ export default function HenryVoiceAssistant() {
           }
           if (typeof message?.reply === "string") {
             if (message.memoryCleared) clearTurns();
-            onReply(message.reply, message.navigate, message.detail || null, message.scene || null, message.openUrl || null, message.spotify || null, message.morning || null);
+            onReply(message.reply, message.navigate, message.detail || null, message.scene || null, message.openUrl || null, message.spotify || null, message.morning || null, message.musicPlaying === true);
           }
           else if (typeof message?.text === "string") enqueueClip({ audio: message.audio, text: message.text });
           else if (message?.done) endSpeech();
@@ -1263,6 +1301,7 @@ export default function HenryVoiceAssistant() {
     session.chunks = [];
     if (session.discard || !blob || !blob.size || durationMs < RECORD_MIN_MS) {
       updatePhase("idle");
+      if (session.discard !== "cancel" && missedReplyRef.current({ silent: session.discard === "silence" })) return; // pergunta aberta: repete curta, sem "Não ouvi"
       if (session.discard === "silence") setNotice("Não ouvi nada. Toque no Henry e fale.");
       return;
     }
@@ -1284,8 +1323,9 @@ export default function HenryVoiceAssistant() {
       if (!response.ok) throw new Error(data?.error || "Não consegui entender o áudio agora. Tente de novo.");
       const text = String(data?.text || "").trim();
       // Música tocando: o toque/atalho já é o chamado, mas trecho longo sem pausa e sem o nome é a letra (ignora).
-      if (isMusicGuardActive(musicGuardRef.current) && text && !musicListenGate(text, { explicit: true }).accept) {
+      if (isMusicGuardActive(musicGuardRef.current) && text && !musicListenGate(text, { explicit: true, awaitingReply: isAwaitingReply(pendingReplyRef.current) }).accept) {
         updatePhase("idle");
+        if (missedReplyRef.current()) return;
         setNotice("Parecia a música tocando. Toque no Henry e fale de novo.");
         return;
       }
@@ -1294,6 +1334,8 @@ export default function HenryVoiceAssistant() {
       else if (intent.kind === "question") askRef.current?.({ mode: "question", question: intent.question, shown: text });
       else {
         updatePhase("idle");
+        // Transcrição vazia com pergunta aberta (ex.: "Posso dar play?" e a música abafou o "pode"): repete curta, uma vez.
+        if (intent.kind === "empty" && missedReplyRef.current()) return;
         setNotice(intent.kind === "wake" ? "Pode perguntar: toque no Henry e fale." : "Não entendi. Toque no Henry e fale de novo.");
       }
     } catch (error) {
@@ -1497,7 +1539,8 @@ export default function HenryVoiceAssistant() {
     // vale sem o nome, menos a que tem cara de letra. Acordou → a música abaixa enquanto ele escuta e responde.
     if (isMusicGuardActive(musicGuardRef.current)) {
       const explicit = musicGuardRef.current.explicitUntil > Date.now();
-      const gate = musicListenGate(text, { explicit });
+      const awaitingReply = isAwaitingReply(pendingReplyRef.current); // ele perguntou: resposta curta vale sem o nome
+      const gate = musicListenGate(text, { explicit, awaitingReply });
       if (!gate.accept || isEchoOf(text, spoken)) return false;
       musicGuardRef.current = { ...musicGuardRef.current, explicitUntil: 0 };
       duckSpotifyVolume();
@@ -1616,12 +1659,14 @@ export default function HenryVoiceAssistant() {
     window.clearTimeout(alertRef.current.timer);
     alertRef.current = { ...alertRef.current, stage: "calling", calls: alertRef.current.stage === "calling" || alertRef.current.stage === "waiting" ? alertRef.current.calls + 1 : 1, offer: kind !== "vocative" };
     startConversation(); // a resposta vale sem dizer "Henry" (janela de conversa)
+    pendingReplyRef.current = openPendingReply("alert");
+    if (musicPlaying()) duckSpotifyVolume(); // música baixa no chamado e na espera da resposta
     // App de desktop com a janela escondida/minimizada: aviso do Windows (sem nome nem dado do cliente); clicar abre o CRM.
     if (desktopBridgeRef.current && document.visibilityState === "hidden") {
       Promise.resolve(desktopBridgeRef.current.notify("Henry", "Chefe? Tenho um aviso de cliente para você.")).catch(() => {});
     }
     sayAlertLine(line, voice);
-  }, [alertPhraseAudio, sayAlertLine, startConversation]);
+  }, [alertPhraseAudio, duckSpotifyVolume, musicPlaying, sayAlertLine, startConversation]);
 
   // "Pode falar" (ou toque no indicador): a informação, com os dados relidos agora; um resumo quando são vários.
   const tellAlerts = useCallback(async () => {
@@ -1685,6 +1730,7 @@ export default function HenryVoiceAssistant() {
     const answer = classifyAlertAnswer(text);
     if (answer === "noise") return true;
     window.clearTimeout(current.timer);
+    pendingReplyRef.current = { active: false };
     if (answer === "yes") {
       stopSpeaking();
       tellAlerts();
@@ -1700,6 +1746,31 @@ export default function HenryVoiceAssistant() {
     // Outra coisa (ex.: uma pergunta): segue como pergunta e, no fim da resposta, oferece o aviso.
     alertRef.current = { ...current, stage: "idle", calls: 0 };
     return false;
+  };
+  // Resposta à pergunta aberta não veio (gravação vazia, só silêncio ou descartada pela guarda da música): em vez de
+  // "Não entendi", repete a pergunta curta UMA vez ("Posso dar play?"); de novo sem resposta, fica no aguardo (o passo do
+  // bom dia continua valendo na janela de conversa). Chamado do aviso: o próprio aviso chama de novo (alertNoAnswer).
+  // Devolve true quando cuidou do caso (a tela não mostra o aviso antigo).
+  // silent = só silêncio: pergunta comum não ganha "Não peguei" (ele não ouviu nada) — só sai do aguardo, sem aviso.
+  missedReplyRef.current = ({ silent = false } = {}) => {
+    const pending = pendingReplyRef.current;
+    if (!pending.active || mutedRef.current) return false;
+    if (pending.kind === "alert") return true;
+    if (silent && pending.kind === "question") {
+      pendingReplyRef.current = { active: false };
+      return true;
+    }
+    const text = repeatQuestionFor(pending);
+    if (!text) {
+      pendingReplyRef.current = { active: false };
+      setNotice("Fico no aguardo: toque no Henry quando quiser responder.");
+      return true;
+    }
+    pendingReplyRef.current = { ...openPendingReply(pending.kind), retried: true };
+    startConversation();
+    if (musicPlaying()) duckSpotifyVolume();
+    alertPhraseAudio(text).then((audio) => sayAlertLine(text, audio));
+    return true;
   };
   const callLaterRef = useRef(() => {});
   callLaterRef.current = () => {

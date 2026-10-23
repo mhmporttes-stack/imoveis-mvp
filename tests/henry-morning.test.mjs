@@ -125,7 +125,7 @@ test("bom dia: músicas configuráveis em Voz e personalidade (sanitizadas; vazi
 
 test("bom dia: fluxo ligado no servidor e na tela (só o dono, somente leitura, janela de conversa)", () => {
   const voice = readFileSync(new URL("../lib/henry-voice.js", import.meta.url), "utf8");
-  assert.match(voice, /await morningMusicAvailable\(\)/); // sem Spotify conectado pula a pergunta
+  assert.match(voice, /await morningMusicState\(\)/); // sem Spotify conectado pula a pergunta
   assert.match(voice, /morning: \{ step: "music" \}/);
   assert.match(voice, /morning: \{ step: "style" \}/);
   assert.match(voice, /step: "birthday"/);

@@ -40,6 +40,17 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-23 — Henry: "Não entendi" quando o dono responde "pode" à pergunta da música (com o Spotify tocando)
+- **Data:** 2026-10-23
+- **Sintoma:** com o Spotify tocando, "Bom dia, Henry" → ele pergunta "Posso dar play numa playlist…?" → o dono responde "pode" → aparece "Não entendi. Toque no Henry e fale de novo."
+- **Área:** Henry / Frontend
+- **Impacto:** só o dono; bom dia, "Qual vibe?", aviso com vocativo e qualquer pergunta dele com música tocando. Sem perda de dado.
+- **Causa raiz:** (1) a guarda da música (commit e6b55ac) só aceitava frase sem o nome logo depois de um chamado explícito — a resposta curta a uma pergunta DELE era descartada na escuta contínua; (2) ao terminar de falar a pergunta ele devolvia o volume do Spotify na hora, então a resposta era gravada com a música alta e a transcrição voltava vazia → "Não entendi"; (3) o bom dia oferecia playlist mesmo com música já tocando.
+- **Correção:** pergunta aberta (`openPendingReply`/`isAwaitingReply`, janela de 12 s depois que ele termina) libera resposta curta sem o nome na guarda (`musicListenGate` `awaitingReply`); música segue baixa durante a espera (`holdSpotifyDuck`); vazio/descartado com pergunta aberta → repete curta uma vez (`repeatQuestionFor`), depois fica no aguardo; no app de desktop o microfone abre sozinho depois da pergunta; bom dia com música tocando pula a oferta ("Já tá rolando um som, então bora pro dia:").
+- **Arquivos/commit:** `lib/henry-voice-conversation.mjs`, `components/henry/HenryVoiceAssistant.jsx`, `lib/henry-voice.js`, `lib/henry-morning-core.mjs` — commit deste registro
+- **Prevenção/teste:** `tests/henry-music.test.mjs` ("pode" aceito com pergunta pendente, ignorado sem ela, letra longa sempre ignorada, repetição curta só uma vez, aviso não repete).
+- **Status:** Monitorando (teste do dono com o Spotify real)
+
 ### 2026-10-23 — Henry responde à letra da música que está tocando / fala de "analisar o CRM" ao pedir playlist
 - **Data:** 2026-10-23
 - **Sintoma:** (1) com o Spotify tocando, o Henry acorda e responde trechos da música; (2) ao pedir uma playlist ele diz que está "analisando o CRM/os números" e mostra cartões de ranking/gráficos.

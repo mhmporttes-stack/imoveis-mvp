@@ -19,7 +19,21 @@ import {
   pickHenryAnswerScene,
   pickWaitPhrase
 } from "../lib/henry-voice-narration.mjs";
-import { detectMusicBargeIn, isMusicGuardActive, isMusicPauseCommand, looksLikeLyrics, musicListenGate } from "../lib/henry-voice-conversation.mjs";
+import {
+  HENRY_REPLY_WINDOW_MS,
+  detectMusicBargeIn,
+  henryAsksQuestion,
+  isAwaitingReply,
+  isHenryRepeatQuestion,
+  isMusicGuardActive,
+  isMusicPauseCommand,
+  isShortReply,
+  looksLikeLyrics,
+  musicListenGate,
+  openPendingReply,
+  repeatQuestionFor
+} from "../lib/henry-voice-conversation.mjs";
+import { MORNING_ALREADY_PLAYING, MORNING_STYLE_QUESTION, morningOpening } from "../lib/henry-morning-core.mjs";
 import { duckSpotifyVolume, readSpotifyNowPlaying, runSpotifyCommand, spotifyImageOf } from "../lib/henry-spotify-core.mjs";
 
 const reply = (status, body = null) => ({ status, ok: status >= 200 && status < 300, json: async () => body, text: async () => (body === null ? "" : JSON.stringify(body)) });
@@ -160,9 +174,57 @@ test("ligações: rota manda o tópico cedo, o player só para o dono, a tela us
   assert.match(player, /requireAdminApi/);
   assert.match(player, /assertHenrySpotifyOwner/);
   const ui = readFileSync(new URL("../components/henry/HenryVoiceAssistant.jsx", import.meta.url), "utf8");
-  assert.match(ui, /musicListenGate\(text, \{ explicit \}\)/);
+  assert.match(ui, /musicListenGate\(text, \{ explicit, awaitingReply \}\)/);
   assert.match(ui, /detectMusicBargeIn/);
   assert.match(ui, /live: topic === MUSIC_TOPIC \? false/);
   const view = readFileSync(new URL("../components/henry/HenryVoiceView.jsx", import.meta.url), "utf8");
   assert.match(view, /showDataScene = dataScene && sceneTopic !== "music"/);
+});
+
+// Bug de 2026-10-23 (docs/INCIDENTES.md): música tocando, "Bom dia, Henry" → "Posso dar play…?" → "pode" → "Não entendi".
+test("pergunta aberta com música tocando: resposta curta vale sem o nome por ~12 s; sem pergunta, não; letra, nunca", () => {
+  assert.equal(henryAsksQuestion(morningOpening("Matheus")), true);
+  assert.equal(henryAsksQuestion(MORNING_STYLE_QUESTION), true);
+  assert.equal(henryAsksQuestion("Meu patrão, tem um minutinho?"), true);
+  assert.equal(henryAsksQuestion("Pulei pra próxima faixa."), false);
+  const asked = openPendingReply("music", 1000);
+  assert.equal(isAwaitingReply(asked, 5000), true); // ainda falando
+  const ended = { ...asked, endedAt: 8000 };
+  assert.equal(isAwaitingReply(ended, 8000 + HENRY_REPLY_WINDOW_MS - 1), true);
+  assert.equal(isAwaitingReply(ended, 8000 + HENRY_REPLY_WINDOW_MS + 1), false);
+  assert.equal(isAwaitingReply({ active: false }, 9000), false);
+  // Com pergunta pendente: "pode" e companhia são aceitos sem o nome.
+  for (const text of ["pode", "Pode ser", "sim", "bora", "manda", "rock", "sertanejo", "agora não", "fala", "oi", "pode ser, toca um rock aí pra gente hoje"]) {
+    const gate = musicListenGate(text, { awaitingReply: true });
+    assert.equal(gate.accept, true, text);
+    assert.equal(gate.reply, true, text);
+  }
+  // Sem pergunta pendente: "pode" continua ignorado (só o nome no começo acorda).
+  assert.equal(musicListenGate("pode").accept, false);
+  assert.equal(musicListenGate("pode", { awaitingReply: isAwaitingReply(ended, 8000 + HENRY_REPLY_WINDOW_MS + 1) }).accept, false);
+  // Frase longa com cara de letra continua ignorada, mesmo com pergunta pendente.
+  const lyric = "pode chorar meu bem que eu não volto mais pra você nunca mais nessa vida eu juro por deus";
+  assert.equal(looksLikeLyrics(lyric), true);
+  assert.equal(musicListenGate(lyric, { awaitingReply: true }).accept, false);
+  assert.equal(isShortReply("eu sei que vou te amar por toda a minha vida"), false); // 10 palavras, não começa com resposta
+  assert.equal(musicListenGate("eu sei que vou te amar por toda a minha vida", { awaitingReply: true }).accept, false);
+});
+
+test("pergunta aberta sem resposta: repete curta uma vez; aviso não repete (o aviso chama de novo); bom dia com música já tocando", () => {
+  assert.equal(repeatQuestionFor(openPendingReply("music")), "Posso dar play?");
+  assert.equal(repeatQuestionFor(openPendingReply("style")), "Rock ou sertanejo?");
+  assert.equal(repeatQuestionFor(openPendingReply("birthday")), "Preparo a mensagem?");
+  assert.equal(repeatQuestionFor(openPendingReply("question")), "Não peguei. Pode repetir?");
+  assert.equal(repeatQuestionFor({ ...openPendingReply("music"), retried: true }), "");
+  assert.equal(repeatQuestionFor(openPendingReply("alert")), "");
+  assert.equal(repeatQuestionFor({ active: false }), "");
+  assert.equal(isHenryRepeatQuestion("Posso dar play?"), true);
+  assert.equal(isHenryRepeatQuestion("qualquer outra frase"), false);
+  assert.equal(MORNING_ALREADY_PLAYING, "Já tá rolando um som, então bora pro dia:");
+  const server = readFileSync(new URL("../lib/henry-voice.js", import.meta.url), "utf8");
+  assert.match(server, /\(musicState = await morningMusicState\(\)\)\.playing/);
+  assert.match(server, /prefix: MORNING_ALREADY_PLAYING/);
+  const ui = readFileSync(new URL("../components/henry/HenryVoiceAssistant.jsx", import.meta.url), "utf8");
+  assert.match(ui, /intent\.kind === "empty" && missedReplyRef\.current\(\)/);
+  assert.match(ui, /holdSpotifyDuck\(HENRY_REPLY_WINDOW_MS\)/);
 });

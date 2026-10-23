@@ -44,6 +44,15 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 
 
+### 2026-10-23 — Henry: pergunta aberta libera resposta curta com música tocando (bug do "Não entendi")
+- **Data:** 2026-10-23
+- **Área:** Henry (voz, Spotify)
+- **Alteração:** quando o Henry termina uma fala com pergunta (passo do bom dia, "Qual vibe?", aniversário, chamado do aviso, qualquer resposta terminada em "?"), abre a "pergunta aberta" (`openPendingReply`/`isAwaitingReply`, `lib/henry-voice-conversation.mjs`): por 12 s depois que ele termina, a guarda da música aceita sem o nome a resposta curta (até 6 palavras, ou começando por resposta esperada; letra longa continua ignorada — `musicListenGate` `awaitingReply`). A música fica baixa (~15%) enquanto ele pergunta e durante a espera (`holdSpotifyDuck`; o chamado do aviso passou a abaixar também). Resposta vazia/descartada com pergunta aberta: em vez de "Não entendi", repete curta uma vez (`HENRY_REPEAT_QUESTIONS`: "Posso dar play?", "Rock ou sertanejo?", "Preparo a mensagem?", "Não peguei. Pode repetir?"; voz pela ação `phrase`, lista fechada); de novo sem resposta, "Fico no aguardo…". Só silêncio numa pergunta comum: sai do aguardo calado. App de desktop (gravação): o microfone abre sozinho depois da pergunta, como no aviso. Bom dia com o Spotify já tocando (servidor confere o player, `morningMusicState`): não oferece playlist, fala "Já tá rolando um som, então bora pro dia:" e emenda o relatório; a resposta leva `musicPlaying: true` e a tela abaixa a música enquanto ele fala.
+- **Motivo:** bug relatado pelo dono com print: música tocando → "Bom dia, Henry" → "Posso dar play…?" → "pode" → "Não entendi. Toque no Henry e fale de novo."
+- **Arquivos afetados:** `lib/henry-voice-conversation.mjs`, `lib/henry-morning-core.mjs`, `lib/henry-voice.js`, `lib/henry-voice-client-alerts.js`, `app/api/admin/henry/route.js`, `components/henry/HenryVoiceAssistant.jsx`, `tests/henry-music.test.mjs`, `tests/henry-morning.test.mjs`, `docs/BUSINESS_RULES.md` (HENRY-1), `docs/INCIDENTES.md`.
+- **Risco/observação:** bom dia faz +1 leitura do player do Spotify (só do dono). No app de desktop, toda resposta terminada em "?" abre o microfone sozinho (antes só o aviso). Resposta curta sem o nome com música tocando passa a valer por 12 s depois de uma pergunta — frase curta da letra nessa janela pode virar resposta (aceito pelo pedido; letra longa continua barrada). Não testado com Spotify/voz reais (sem credenciais aqui); A CONFIRMAR no uso.
+- **Autor:** Claude Code (crm-editor)
+
 ### 2026-10-23 — Henry: música com narração e cena do Spotify, "Tocando agora" com ondas e guarda da escuta com música tocando
 - **Data:** 2026-10-23
 - **Área:** Henry (voz, cena, Spotify)

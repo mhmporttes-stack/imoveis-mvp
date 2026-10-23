@@ -187,7 +187,7 @@ function answerStream(auth, request, style) {
           }
         });
         const navigate = navigationPayload(answer.navigate);
-        send({ reply: answer.reply, navigate, openUrl: openUrlPayload(answer.openUrl), detail: answer.detail || null, spotify: spotifyPayload(answer.spotify), morning: morningPayload(answer.morning), scene: answer.scene || null, ...(answer.memoryCleared ? { memoryCleared: true } : {}) });
+        send({ reply: answer.reply, navigate, openUrl: openUrlPayload(answer.openUrl), detail: answer.detail || null, spotify: spotifyPayload(answer.spotify), morning: morningPayload(answer.morning), scene: answer.scene || null, ...(answer.memoryCleared ? { memoryCleared: true } : {}), ...(answer.musicPlaying ? { musicPlaying: true } : {}) });
         const parts = splitForSpeech(answer.reply);
         const audios = parts.map((text, index) => synthesizeHenrySpeech(auth, text, style, { previousText: parts[index - 1] || "", nextText: parts[index + 1] || "" }));
         for (let index = 0; index < parts.length; index += 1) {
@@ -253,7 +253,7 @@ export async function POST(request) {
   // Avisos de cliente novo/transferido (HENRY-1, dono 2026-10-23), só leitura:
   //   { action: "poll", since, seen, call, voice } → { cursor, hold?, quiet?, events, callAudio } (consulta leve a cada ~30 s);
   //   { action: "speak", clientIds, recent, away, voice } → { text, audio, recent } (depois do "pode falar");
-  //   { action: "phrase", text } → { audio } (só frases da lista fechada do aviso).
+  //   { action: "phrase", text } → { audio } (só frases da lista fechada do aviso e a repetição curta da pergunta aberta).
   if (body?.mode === "client_alerts") {
     try {
       const { enabled, clientAlerts, teamArrivals, style } = await readHenrySettings();
@@ -345,7 +345,7 @@ export async function POST(request) {
     const answer = await answerHenry(auth, { mode, question, history: body?.history, image, style, morning, vision, webSearch });
     const navigate = navigationPayload(answer.navigate);
     const audio = body?.voice === false ? null : await synthesizeHenrySpeech(auth, answer.reply, style);
-    return NextResponse.json({ reply: answer.reply, navigate, openUrl: openUrlPayload(answer.openUrl), detail: answer.detail || null, spotify: spotifyPayload(answer.spotify), morning: morningPayload(answer.morning), scene: answer.scene || null, memoryCleared: answer.memoryCleared === true, audio });
+    return NextResponse.json({ reply: answer.reply, navigate, openUrl: openUrlPayload(answer.openUrl), detail: answer.detail || null, spotify: spotifyPayload(answer.spotify), morning: morningPayload(answer.morning), scene: answer.scene || null, memoryCleared: answer.memoryCleared === true, ...(answer.musicPlaying ? { musicPlaying: true } : {}), audio });
   } catch (error) {
     console.warn(`[henry] pergunta falhou: ${error?.status ? error.message : error?.name === "TimeoutError" ? "timeout" : "erro"}.`);
     return NextResponse.json({ error: error?.status ? error.message : "Não consegui responder agora. Tente de novo." }, { status: error?.status || 502 });
