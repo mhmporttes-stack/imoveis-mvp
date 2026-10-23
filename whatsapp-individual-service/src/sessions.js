@@ -1,4 +1,4 @@
-import makeWASocket, { Browsers, downloadMediaMessage, encodeSignedDeviceIdentity, encodeWAMessage, fetchLatestBaileysVersion, generateMessageIDV2, jidDecode, jidNormalizedUser, makeCacheableSignalKeyStore } from "@whiskeysockets/baileys";
+import makeWASocket, { Browsers, downloadMediaMessage, encodeSignedDeviceIdentity, encodeWAMessage, extractImageThumb, fetchLatestBaileysVersion, generateMessageIDV2, jidDecode, jidNormalizedUser, makeCacheableSignalKeyStore, prepareWAMessageMedia } from "@whiskeysockets/baileys";
 import pino from "pino";
 import QRCode from "qrcode";
 import { pendingWrites, useSupabaseAuthState } from "./auth-state.js";
@@ -14,6 +14,7 @@ import { createKeyedMutex } from "./session-mutex.js";
 import { telemetry } from "./telemetry.js";
 import { createMessageDiagnostics, describeDecryptFailure, describeRetryReceipt, DIAG_REASON, hashMessageId } from "./message-diagnostics.js";
 import { createSentMessageCache, decideSendRetry, mediaTypeOf, MANUAL_RESEND_LIMIT, SEND_RETRY_REASON } from "./send-retry.js";
+import { buildLinkPreview, firstUrl } from "./link-preview.js";
 import { DECRYPT_NACK_DELAY_MS, NACK_UNHANDLED_ERROR, PIPELINE_CHECK_INTERVAL_MS, PIPELINE_RESTART_LIMIT, PIPELINE_RESTART_WINDOW_MS, PLACEHOLDER_BATCH_MAX, PLACEHOLDER_DELAY_MS, buildAckStanza, buildPlaceholderResendRequest, createNodeTracker, createRateWindow, decidePipelineAction, describeNode, monitorMutex, placeholderKeyFor, shouldNackFailedDecrypt, snapshotNode } from "./pipeline-guard.js";
 
 // Liga/desliga a sincronização de histórico (ver onHistorySync) sem precisar
@@ -1410,6 +1411,29 @@ function keyFor(jid, id, fromMe) {
 }
 
 // quoted (opcional): { id, fromMe, text } — resposta citada a uma mensagem.
+// Prévia do link (link-preview.js). Miniatura em alta (enviada ao servidor de mídia do WhatsApp, como faz o app) e, se
+// isso falhar, a miniatura pequena local. Nunca lança: null = envia sem prévia.
+async function prepareLinkPreview(userId, sock, text) {
+  const makeThumbnail = async (buffer) => {
+    try {
+      const { imageMessage } = await prepareWAMessageMedia({ image: buffer }, { upload: sock.waUploadToServer, mediaTypeOverride: "thumbnail-link", options: { timeout: 8_000 } });
+      return { jpegThumbnail: imageMessage?.jpegThumbnail ? Buffer.from(imageMessage.jpegThumbnail) : undefined, highQualityThumbnail: imageMessage || undefined };
+    } catch {
+      const thumb = await extractImageThumb(buffer, 192);
+      return { jpegThumbnail: thumb?.buffer };
+    }
+  };
+  let result;
+  try {
+    result = await buildLinkPreview({ text, makeThumbnail });
+  } catch (error) {
+    result = { preview: null, reason: "erro" };
+  }
+  telemetry.record(userId, "history_sync", { reason: "link_preview", kind: result.preview ? (result.reason === "ok" ? "ok" : "partial") : "none", trigger: result.reason });
+  if (result.reason !== "ok") console.warn(`[${userId}] Prévia do link ${result.preview ? "sem imagem" : "não gerada"} (${result.reason}); mensagem enviada assim mesmo.`);
+  return result.preview || null;
+}
+
 export async function sendMessage(userId, { to, text, media, quoted }) {
   const sock = connectedSocket(userId);
   const recipient = await checkRecipient(sock, to);
@@ -1425,12 +1449,16 @@ export async function sendMessage(userId, { to, text, media, quoted }) {
   }
   // Id escolhido ANTES do envio (2026-10-19): o pedido de reenvio do celular chega antes de o sendMessage do Baileys
   // terminar (ele grava as chaves no banco depois de mandar) — com o id marcado como "em andamento", o pedido espera.
+  // Texto com link (apresentação /s/<token>, Chat, Meta Diária...): espera a prévia ficar pronta antes de enviar (dono,
+  // 2026-10-23). Sem prévia (prazo, página fora, sem og:title) a mensagem sai do mesmo jeito, sem o cartão.
+  const content = buildContent(text, media);
+  if (!media?.url && firstUrl(text)) content.linkPreview = await prepareLinkPreview(userId, sock, text);
   const messageId = generateMessageIDV2(sock.user?.id);
   options.messageId = messageId;
   sentMessages.begin(userId, messageId);
   let result;
   try {
-    result = await sock.sendMessage(jid, buildContent(text, media), options);
+    result = await sock.sendMessage(jid, content, options);
   } catch (error) {
     sentMessages.abandon(userId, messageId);
     throw error;

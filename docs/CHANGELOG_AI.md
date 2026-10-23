@@ -419,6 +419,15 @@ Copie o modelo abaixo (uma entrada por bloco):
 - **Risco/observação:** causa exata da tarefa presa **A CONFIRMAR** pela telemetria `pipeline_stuck` (o `detail` diz o tipo do nó); só os downloads sem prazo foram identificados no código como espera infinita possível. NACK: mensagem confirmada com erro não volta na reconexão (o remetente reenvia pelo pedido de reenvio; o conteúdo pode vir também pelo celular). Mensagem presa confirmada pelo vigia pode não chegar ao Chat (o celular tem). Reinício pelo vigia/CRM não grava queda: a espera de 30 min da Meta Diária vale ("na dúvida, segura"). Só tem efeito depois do deploy no Railway; sem ele a rota `/restart` dá 404 e o CRM só registra no log. Falhas já existentes e alheias: `whatsapp-false-connection` (6 h, teste 4) e `whatsapp-conversation-per-session` (2).
 - **Autor:** Claude Code (crm-editor)
 
+### 2026-10-23 — WhatsApp do corretor: mensagem com link sai com a prévia (cartão)
+- **Data:** 2026-10-23
+- **Área:** WhatsApp individual (microsserviço Railway)
+- **Alteração:** `/send` com texto que tem URL espera a prévia (título, descrição e miniatura da og:image, até 9 s) e manda junto (`linkPreview`); sem prévia, envia assim mesmo e registra `link_preview` na telemetria. Vale para apresentação `/s/<token>`, Chat e automações. Ordem link → áudio inalterada (o `/send` só responde depois de enviar).
+- **Motivo:** dono: "tem que ser esperado carregar o link para ter aquela apresentação, porque se simplesmente enviar direto, não vai aquela pré-visualização". O Baileys 6.7.24 só gera prévia com `link-preview-js` (opcional, não instalado).
+- **Arquivos afetados:** `whatsapp-individual-service/src/link-preview.js` (novo), `whatsapp-individual-service/src/sessions.js`, `tests/whatsapp-link-preview.test.mjs` (novo). Sem dependência nova (usa `sharp`, já no lockfile, e o upload do Baileys).
+- **Risco/observação:** envio com link pode demorar até ~9 s a mais (o CRM espera 20 s pelo `/send`). Metatags de `/s/<token>` conferidas no código (só primeiro nome, imagem https 1200×630) e não alteradas; tempo real da página/imagem para o robô A CONFIRMAR pela telemetria `link_preview` depois do deploy (não abri apresentação real de cliente). Só vale depois do deploy no Railway.
+- **Autor:** Claude Code (crm-editor)
+
 ### 2026-10-23 — PRES-WIFI: decisão do dono — Wi-Fi só diz "está na imobiliária"
 
 - **Dono (2026-10-23):** "Eu não recebo leads nem precisa me adicionar no painel apenas saber que eu estou na imobiliária". Resolve a decisão pendente da entrada anterior.
