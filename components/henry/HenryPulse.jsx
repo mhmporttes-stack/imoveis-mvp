@@ -35,7 +35,7 @@ import { drawStrandBeam } from "./henry-strand-beam.mjs";
 // puxada nem vibração. Henry pensando/falando (dim): eventos mais apagados para não competir.
 // O anel é o REAL (HenryOrb, montado pelo HenryVoiceView): o Pulso não desenha anel próprio; a chegada de um evento vai
 // para o anel como "level" (levelRef = pulso × 0,6), somado ao sinal de voz pelo HenryVoiceView, e o trecho por onde o
-// card entrou acende na cor do tipo (hitsRef → signal.hits, desenhado pelo próprio HenryOrb).
+// card entrou fica mais forte (hitsRef → signal.hits, desenhado pelo próprio HenryOrb nas cores dele).
 // O feixe é desenhado aqui (não reaproveita o HenryOrb: lá os fios são radiais em volta de um círculo; aqui seguem uma
 // curva entre dois pontos) com o mesmo estilo: fios finos, composição "lighter", glow.
 
@@ -284,10 +284,10 @@ export default function HenryPulse({ active = false, config = HENRY_PULSE_DEFAUL
           addTrail(card.text.trail, card.x, card.y + 10);
           ringPulse = Math.min(1, ringPulse + cfg.pulse * HENRY_PULSE_SWALLOW); // o Henry "engole" o card
           if (hitsRef) {
-            // Pulso na COR DO TIPO no trecho do anel por onde o card entrou (desenhado pelo HenryOrb, protótipo v11).
+            // Pulso no trecho do anel por onde o card entrou, nas cores do próprio Henry (desenhado pelo HenryOrb, v21).
             const { cx, cy } = geometry();
             const hits = (hitsRef.current || []).filter((hit) => t - hit.born < HENRY_ORB_HIT_MS);
-            hits.push({ ang: Math.atan2(card.y + card.h / 2 - cy, card.x + card.w / 2 - cx), col: beamColor(cfg, card.event), born: t });
+            hits.push({ ang: Math.atan2(card.y + card.h / 2 - cy, card.x + card.w / 2 - cx), born: t });
             hitsRef.current = hits;
           }
           card.el.remove();

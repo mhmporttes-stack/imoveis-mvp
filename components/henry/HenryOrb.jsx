@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { HENRY_ORB_HIT_MS, HENRY_ORB_STATES, HENRY_ORB_VIB as VIB, buildNeuralNet, mixHexColor, orbEase, orbHitArc, orbStops, vividColor } from "./henry-orb-states.mjs";
+import { HENRY_ORB_HIT_MS, HENRY_ORB_STATES, HENRY_ORB_VIB as VIB, buildNeuralNet, mixHexColor, orbEase, orbHitArc, orbStops } from "./henry-orb-states.mjs";
 
 // Anel de filamentos do Henry (pedido do dono, 2026-10-22: "é nesse perfil que eu quero o ícone da IA… no meu estilo";
 // depois "quero mais movimentos quando ele escutar, falar ou pensar"). Canvas 2D + requestAnimationFrame, sem biblioteca:
@@ -360,11 +360,10 @@ export default function HenryOrb({ size = 320, fibers = 48, points = 120, alpha 
         context.lineCap = "butt";
       }
 
-      // Pulso de chegada (Pulso do CRM, protótipo v17 — dono, 2026-10-23): quando um card "entra" no Henry, UM arco centrado
-      // no ponto de entrada bate forte na cor VIVA do tipo e se espalha até sumir — meia-largura de 0,08π a 0,4π (easeOut),
-      // alpha = sobe em 6% × (1 − p)^1,6, inchaço de 3,5% no raio só no começo (até 30%); 1,4 s. Cor viva = matiz do card
-      // com saturação 100% e luminosidade 60%; um fio a cada dois, halo (traço 5, a·g·0,25) + núcleo (traço 1,5, a·g),
-      // g = exp(−3u²), source-over (no modo aditivo a cor viraria branco). signal.hits = [{ ang, col, born }] (performance.now).
+      // Pulso de chegada (Pulso do CRM, protótipo v21 — dono, 2026-10-23): quando um card "entra" no Henry, UM arco no ponto
+      // de entrada fica mais forte nas cores do PRÓPRIO Henry (o mesmo gradiente dos fios, modo aditivo — sem a cor do card)
+      // e se alarga de 0,08π a 0,4π até sumir em 1,4 s, com o anel inchando no ponto de entrada (orbHitArc). Um fio a cada
+      // dois, halo (traço 5, a·g·0,25) + núcleo (traço 1,5, a·g), g = exp(−3u²). signal.hits = [{ ang, born }].
       const hits = Array.isArray(signal.hits) ? signal.hits : [];
       if (hits.length && !reduce) {
         const glowArc = (middle, half, arcAlpha, color, bump = 0) => {
@@ -406,15 +405,12 @@ export default function HenryOrb({ size = 320, fibers = 48, points = 120, alpha 
             }
           }
         };
-        context.globalCompositeOperation = "source-over";
         for (const hit of hits) {
           const age = (now - hit.born) / HENRY_ORB_HIT_MS;
           if (!(age >= 0 && age < 1)) continue;
-          const color = vividColor(hit.col);
           const arc = orbHitArc(age);
-          glowArc(hit.ang, arc.half, arc.alpha, color, arc.bump);
+          glowArc(hit.ang, arc.half, arc.alpha, gradient, arc.bump); // cores do próprio Henry, modo aditivo
         }
-        context.globalCompositeOperation = "lighter";
       }
 
       // Feixe dourado percorrendo o contorno (pensando): cabeça brilhante e cauda que some.

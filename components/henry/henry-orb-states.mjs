@@ -81,7 +81,7 @@ export function buildNeuralNet(count = 22) {
 export const ORB_TRANSITION_MS = 300;
 // Vibração dos fios (dono, 2026-10-23, protótipo v14: "ficou muito embaraçado"): ondulação × 0,4 em todos os estados.
 export const HENRY_ORB_VIB = 0.4;
-// Pulso de chegada do Pulso do CRM no anel (protótipo v17): duração total.
+// Pulso de chegada do Pulso do CRM no anel (protótipos v17/v21): duração total.
 export const HENRY_ORB_HIT_MS = 1400;
 
 // Fator de aproximação por quadro: depois de ORB_TRANSITION_MS o valor percorreu ~95% do caminho, qualquer que seja o fps.
@@ -117,20 +117,10 @@ export function orbStops(warm) {
   return COOL.map(([offset, color], index) => [offset, mixHexColor(color, WARM[index][1], warm)]);
 }
 
-// Cor viva para o pulso de chegada no anel (protótipo v15): mesma matiz do card (pastel), saturação 100%, luminosidade 60%.
-export function vividColor(hex) {
-  const [r, g, b] = [1, 3, 5].map((index) => parseInt(String(hex || "#5cd6ff").slice(index, index + 2), 16) / 255);
-  const max = Math.max(r, g, b);
-  const delta = max - Math.min(r, g, b);
-  let hue = 0;
-  if (delta) hue = max === r ? ((g - b) / delta) % 6 : max === g ? (b - r) / delta + 2 : (r - g) / delta + 4;
-  return `hsl(${Math.round(hue * 60 + 360) % 360}, 100%, 60%)`;
-}
-
-// Arco do pulso de chegada (protótipo v17) na idade relativa age (0–1 de HENRY_ORB_HIT_MS): meia-largura de 0,08π a 0,4π
-// (easeOut), alpha sobe em 6% e cai como (1 − p)^1,6, inchaço do raio 3,5% só no começo (até 30%).
+// Arco do pulso de chegada (protótipo v21) na idade relativa age (0–1 de HENRY_ORB_HIT_MS): meia-largura de 0,08π a 0,4π
+// (easeOut), alpha 0,9 × (sobe em 6%) × (1 − p)^1,6, inchaço do raio 10% × (1 − age/0,55)^1,5 (mínimo 0).
 export function orbHitArc(age) {
   const rise = Math.min(1, age / 0.06);
   const fade = Math.pow(1 - Math.max(0, (age - 0.06) / 0.94), 1.6);
-  return { half: Math.PI * (0.08 + 0.32 * (1 - Math.pow(1 - age, 2))), alpha: rise * fade, bump: 0.035 * rise * Math.max(0, 1 - age / 0.3) };
+  return { half: Math.PI * (0.08 + 0.32 * (1 - Math.pow(1 - age, 2))), alpha: rise * fade * 0.9, bump: 0.1 * rise * Math.pow(Math.max(0, 1 - age / 0.55), 1.5) };
 }

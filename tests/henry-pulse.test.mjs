@@ -210,12 +210,6 @@ test("Anel falando (v12): estado voice só em speaking; demais estados com as me
   for (const [name, state] of Object.entries(HENRY_ORB_STATES)) if (name !== "speaking") assert.equal(state.voice, 0, name);
 });
 
-test("Pulso no anel (v15): cor viva com a mesma matiz do card", async () => {
-  const { vividColor } = await import("../components/henry/henry-orb-states.mjs");
-  assert.equal(vividColor("#b59cff"), "hsl(255, 100%, 60%)", "roxo do CCA continua roxo, só mais vivo");
-  assert.equal(vividColor("#4fd18b"), "hsl(148, 100%, 60%)");
-});
-
 test("Avatar (v13): canal = ícone, simulação = casa, corretor = foto com anel na cor dele ou inicial", async () => {
   const { pulseAvatar } = await import("../lib/henry-pulse-core.mjs");
   assert.deepEqual(pulseAvatar({ type: "whatsapp", broker: { name: "Bruna", photo: "https://x/b.jpg", color: "#fff" } }), { kind: "icon", icon: "whatsapp" });
@@ -224,16 +218,18 @@ test("Avatar (v13): canal = ícone, simulação = casa, corretor = foto com anel
   assert.deepEqual(pulseAvatar({ type: "chegada", broker: { name: "Bruna", photo: "", color: "#ff9fb8" } }), { kind: "initial", letter: "B", color: "#ff9fb8" });
 });
 
-test("Pulso no anel (v17): um arco que se alarga até ±0,4π e some em 1,4 s", async () => {
+test("Pulso no anel (v21): um arco que se alarga até ±0,4π e some em 1,4 s, inchaço maior no começo", async () => {
   const { HENRY_ORB_HIT_MS, orbHitArc } = await import("../components/henry/henry-orb-states.mjs");
   assert.equal(HENRY_ORB_HIT_MS, 1400);
   assert.ok(Math.abs(orbHitArc(0).half - Math.PI * 0.08) < 1e-9);
   assert.ok(Math.abs(orbHitArc(1).half - Math.PI * 0.4) < 1e-9);
-  assert.equal(orbHitArc(0.06).alpha, 1, "bate forte logo no começo");
+  assert.ok(Math.abs(orbHitArc(0.06).alpha - 0.9) < 1e-9, "bate forte logo no começo (× 0,9)");
   assert.ok(orbHitArc(0.5).alpha < 0.5 && orbHitArc(0.5).alpha > 0);
   assert.equal(orbHitArc(1).alpha, 0, "some no fim");
-  assert.equal(orbHitArc(0.3).bump, 0, "inchaço só no começo");
-  assert.ok(orbHitArc(0.1).bump > 0);
+  assert.ok(Math.abs(orbHitArc(0.06).bump - 0.1 * Math.pow(1 - 0.06 / 0.55, 1.5)) < 1e-9);
+  assert.ok(orbHitArc(0.4).bump > 0, "inchaço mais longo");
+  assert.equal(orbHitArc(0.55).bump, 0);
+  assert.equal(orbHitArc(0.8).bump, 0, "nunca negativo");
 });
 
 test("Feixe padrão (v18): 5 fios + 2 gotinhas, do anel até o ponto pedido, função única", async () => {
