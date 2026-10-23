@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import HenryVoiceView from "@/components/henry/HenryVoiceView";
-import { playHenryOpeningSound } from "@/components/henry/HenryOpeningScene";
+import { OPENING_SOUND_AT_S, playHenryOpeningSound } from "@/components/henry/HenryOpeningScene";
 import { henryPulseConfig } from "@/lib/henry-pulse-core.mjs";
 
 // Vitrine DEV do Henry (HENRY-1): mesma apresentação do painel, com sinal de áudio SIMULADO e conversa fictícia.
@@ -121,7 +121,7 @@ const STATE_CYCLE = [
   { mode: "speaking", kind: "", ms: 3000 }
 ];
 
-export default function HenryDemo({ mode: initialMode = "speaking", thinkingKind = "", stateCycle = false, expanded = true, capturing = false, scene = "", topic = "relatorio", brokerCount = 2, answer = "", opening: initialOpening = false, telemetry = false, musicStage = "", waves = "", pulse = false }) {
+export default function HenryDemo({ mode: initialMode = "speaking", thinkingKind = "", stateCycle = false, expanded = true, capturing = false, scene = "", topic = "relatorio", brokerCount = 2, answer = "", opening: initialOpening = false, telemetry = false, musicStage = "", waves = "", pulse = false, alerts = false }) {
   const [cycleIndex, setCycleIndex] = useState(0);
   useEffect(() => {
     if (musicStage !== "ciclo") return undefined;
@@ -143,7 +143,7 @@ export default function HenryDemo({ mode: initialMode = "speaking", thinkingKind
     if (Context) {
       window.__henryDemoAudio = window.__henryDemoAudio || new Context();
       window.__henryDemoAudio.resume?.();
-      playHenryOpeningSound(window.__henryDemoAudio);
+      playHenryOpeningSound(window.__henryDemoAudio, OPENING_SOUND_AT_S);
     }
     setOpen(true);
     setOpeningKey((value) => value + 1);
@@ -171,6 +171,18 @@ export default function HenryDemo({ mode: initialMode = "speaking", thinkingKind
   const [vision, setVision] = useState(true);
   const [keyboard, setKeyboard] = useState(false);
   const [open, setOpen] = useState(expanded);
+  // Avisos lidos (?avisos=1): FICTÍCIOS, um a cada ~2,6 s, o anterior fica apagado (mesma lista da tela cheia).
+  const [alertList, setAlertList] = useState([]);
+  useEffect(() => {
+    if (!alerts) return undefined;
+    const sample = [
+      { kicker: "Cliente novo", text: "A Larissa chegou e está com a Caroline.", color: "#e9c27a" },
+      { kicker: "Chegada na imobiliária", text: "O Gabriel chegou na imobiliária.", color: "#9be7c4" },
+      { kicker: "Aviso da Central", text: "Reunião de equipe amanhã às 9h.", color: "#4fc3e0" }
+    ];
+    const timers = sample.map((item, index) => setTimeout(() => setAlertList((current) => [...current.map((old) => ({ ...old, read: true })), { ...item, id: String(index), read: false }]), 600 + index * 2600));
+    return () => timers.forEach(clearTimeout);
+  }, [alerts]);
   // Sinal simulado com "sílabas" (picos curtos) para ver a reação ao volume em cada estado.
   const getSignal = useCallback(() => {
     const t = Date.now() / 1000;
@@ -220,6 +232,7 @@ export default function HenryDemo({ mode: initialMode = "speaking", thinkingKind
       morningPlay
       onMorningPlay={playOpening}
       opening={opening}
+      alertList={alertList}
       onOpeningDone={() => setOpening(false)}
       openingTelemetry={telemetry ? SAMPLE_TELEMETRY : null}
       expanded={open}

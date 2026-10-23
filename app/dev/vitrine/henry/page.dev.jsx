@@ -12,6 +12,7 @@ import HenryCursorDemo from "../_components/HenryCursorDemo";
 //   ?cena=musica&etapa=connect|search|found|opening|playing|error|ciclo (cena do Spotify) · ?ondas=1|ciclo (Tocando agora)
 //   ?estado=parado|esperando|ouvindo|pensando|buscando|falando|ciclo (estados do anel; pensando = rede neural calma no centro,
 //   buscando = rede intensa com pulsos de progresso; ciclo = passa por todos para ver as transições) · combina com ?tela=icone
+//   ?avisos=1 (lista dos avisos lidos pelo Henry, FICTÍCIOS) · ?cena=abertura (bom dia novo, v22)
 //   ?pulso=1 (Pulso do CRM com eventos de EXEMPLO; sem ?modo= fica ocioso — ?modo=thinking|speaking mostra o apagado)
 //   Celular: abrir com a janela em 390×844 (mesma apresentação do app: tocar para falar, ícone acima da barra inferior).
 export const dynamic = "force-dynamic";
@@ -31,7 +32,7 @@ export default async function HenryVitrine({ searchParams }) {
   return (
     // No celular (< 768 px) o ícone fica acima da barra inferior do app: aqui uma barra de mentira mostra que ele não a cobre.
     <main className={icon ? "min-h-screen bg-mist p-10" : "min-h-screen"} style={icon ? { "--admin-bottom-nav-space": "56px" } : undefined}>
-      <HenryDemo mode={mode} thinkingKind={estado ? estado[1] : ""} stateCycle={params?.estado === "ciclo"} expanded={!icon} capturing={params?.camera === "1"} scene={scene} topic={topic} brokerCount={Number(params?.n) || 2} answer={answer} musicStage={typeof params?.etapa === "string" ? params.etapa : ""} waves={params?.ondas === "1" || params?.ondas === "ciclo" ? params.ondas : ""} opening={params?.cena === "abertura"} telemetry={params?.numeros === "1"} pulse={pulse} />
+      <HenryDemo mode={mode} thinkingKind={estado ? estado[1] : ""} stateCycle={params?.estado === "ciclo"} expanded={!icon} capturing={params?.camera === "1"} scene={scene} topic={topic} brokerCount={Number(params?.n) || 2} answer={answer} musicStage={typeof params?.etapa === "string" ? params.etapa : ""} waves={params?.ondas === "1" || params?.ondas === "ciclo" ? params.ondas : ""} opening={params?.cena === "abertura"} telemetry={params?.numeros === "1"} pulse={pulse} alerts={params?.avisos === "1"} />
       {icon ? (
         <div className="fixed inset-x-0 bottom-0 z-30 flex h-14 items-center justify-around border-t border-line bg-white text-[10px] font-semibold text-muted md:hidden">
           <span>Início</span>

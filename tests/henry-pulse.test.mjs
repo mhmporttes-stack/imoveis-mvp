@@ -255,3 +255,31 @@ test("Feixe padrão (v18): 5 fios + 2 gotinhas, do anel até o ponto pedido, fun
   drawStrandBeam(ctx, { point, sx: 0, sy: 0, reach: 0, color: "#e9c27a", t: 0 });
   assert.equal(calls.stroke, 0, "sem crescimento ainda = nada desenhado");
 });
+
+test("Bom dia novo (v22/v25): feixe sai da esquerda, sobe ao topo, gira e fecha no raio do anel; boom aos 4,4 s", async () => {
+  const { HENRY_WAKE, wakeHead } = await import("../components/henry/henry-orb-states.mjs");
+  assert.equal(HENRY_WAKE.in + HENRY_WAKE.laps + HENRY_WAKE.fast, HENRY_WAKE.boom);
+  const g = { cx: 720, cy: 450, R: 200, big: 380 };
+  const head = wakeHead(g);
+  const [x0, y0] = head.at(0);
+  assert.ok(x0 < 0 && y0 === 450, "sai do meio da lateral esquerda");
+  const [x1, y1] = head.at(HENRY_WAKE.in);
+  assert.ok(Math.abs(x1 - 720) < 1e-6 && Math.abs(y1 - (450 - 380)) < 1e-6, "chega no meio do topo");
+  assert.ok(Math.abs(head.angleAt(HENRY_WAKE.laps) - 6 * Math.PI) < 1e-9, "3 voltas");
+  assert.ok(head.omega(HENRY_WAKE.laps + 0.5) > head.omega(HENRY_WAKE.laps), "acelera no giro rápido");
+  const [xb, yb] = head.at(HENRY_WAKE.boom);
+  assert.ok(Math.abs(Math.hypot(xb - 720, yb - 450) - 200) < 1e-6, "fecha no raio do anel");
+});
+
+test("Avisos lidos (v22): um item por aviso falado, na ordem, cada um entra quando a fala dele começa", async () => {
+  const { alertDisplayItems, alertItemOffsets, composeHenryNoticeLines } = await import("../lib/henry-voice-client-alerts-core.mjs");
+  const notices = composeHenryNoticeLines([{ id: "n1", title: "Reunião", body: "Amanhã às 9h", created_at: "2026-10-23T10:00:00Z" }]);
+  assert.deepEqual(notices.lines, ["Reunião: Amanhã às 9h."]);
+  const items = alertDisplayItems({ clientText: "A Bruna recebeu a Maria.", events: [{ kind: "new" }], noticeLines: notices.lines });
+  assert.deepEqual(items.map((item) => item.kicker), ["Cliente novo", "Aviso da Central"]);
+  const spoken = `A Bruna recebeu a Maria. ${notices.text}`;
+  const offsets = alertItemOffsets(items, spoken);
+  assert.equal(offsets[0], 0);
+  assert.ok(offsets[1] > 1000, "o 2º entra quando a fala chega nele");
+  assert.deepEqual(alertDisplayItems({ clientText: "O Gabriel chegou.", events: [{ kind: "arrival" }] }).map((item) => item.kicker), ["Chegada na imobiliária"]);
+});

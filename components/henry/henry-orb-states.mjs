@@ -124,3 +124,40 @@ export function orbHitArc(age) {
   const fade = Math.pow(1 - Math.max(0, (age - 0.06) / 0.94), 1.6);
   return { half: Math.PI * (0.08 + 0.32 * (1 - Math.pow(1 - age, 2))), alpha: rise * fade * 0.9, bump: 0.1 * rise * Math.pow(Math.max(0, 1 - age / 0.55), 1.5) };
 }
+
+// "Bom dia novo" (protótipo v22, dono 2026-10-23): linha do tempo da abertura em segundos — entrada 1,3 s, 3 voltas em
+// 2,1 s acelerando, giro rápido de 1,0 s fechando no anel, boom aos 4,4 s, fim aos 8,6 s (mensagem sai ~3,4 s depois).
+export const HENRY_WAKE = Object.freeze({ in: 1.3, laps: 2.1, fast: 1.0, boom: 4.4, end: 8.6 });
+export function wakeSmooth(a, b, value) {
+  const x = Math.max(0, Math.min(1, (value - a) / (b - a)));
+  return x * x * (3 - 2 * x);
+}
+// Cabeça do feixe da abertura: sobe em curva do meio da lateral esquerda ao meio do topo (raio big), depois gira em volta
+// do centro — 3 voltas com aceleração constante e giro rápido — fechando no raio R do anel. at(t) = [x, y]; omega(tau) =
+// velocidade angular depois da entrada.
+export function wakeHead({ cx, cy, R, big }) {
+  const { in: T_IN, laps: T_LAPS, fast: T_FAST } = HENRY_WAKE;
+  const A = (6 * Math.PI) / (T_LAPS * T_LAPS);
+  const W1 = 2 * A * T_LAPS;
+  const angleAt = (tau) => (tau <= T_LAPS ? A * tau * tau : 6 * Math.PI + W1 * (tau - T_LAPS) + 22 * Math.pow(tau - T_LAPS, 2));
+  const omega = (tau) => (tau <= T_LAPS ? 2 * A * tau : W1 + 44 * (tau - T_LAPS));
+  const radiusAt = (tau) => big + (R - big) * Math.pow(wakeSmooth(0, T_LAPS + T_FAST, tau), 1.3);
+  const x0 = -80;
+  const y0 = cy;
+  const x1 = cx * 0.2;
+  const y1 = cy - big * 1.15;
+  const x2 = cx;
+  const y2 = cy - big;
+  const at = (tt) => {
+    if (tt <= T_IN) {
+      const k = wakeSmooth(0, T_IN, tt) * 0.6 + (tt / T_IN) * 0.4; // começa devagar, chega no topo já andando
+      const m = 1 - k;
+      return [m * m * x0 + 2 * m * k * x1 + k * k * x2, m * m * y0 + 2 * m * k * y1 + k * k * y2];
+    }
+    const tau = tt - T_IN;
+    const theta = -Math.PI / 2 + angleAt(tau);
+    const r = radiusAt(tau);
+    return [cx + r * Math.cos(theta), cy + r * Math.sin(theta)];
+  };
+  return { at, omega, angleAt };
+}

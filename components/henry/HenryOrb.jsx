@@ -329,7 +329,7 @@ export default function HenryOrb({ size = 320, fibers = 48, points = 120, alpha 
 
       // Ondas vocais no meio do anel (falando; dono, 2026-10-23, protótipo v12): 5 ondas finas horizontais que seguem a voz
       // REAL (level do getSignal), afinando nas pontas. Movimento reduzido: paradas e baixas.
-      if (state.voice > 0.02) {
+      if (state.voice > 0.02 && !signal.noVoice) { // noVoice: mensagem do bom dia no meio do anel
         const span = radius * 0.62;
         const WAVES = 5;
         const N = 64;

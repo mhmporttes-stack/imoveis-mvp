@@ -4,6 +4,7 @@ import { useEffect, useRef } from "react";
 import {
   HENRY_PULSE_CARD_W,
   HENRY_PULSE_DEFAULTS,
+  HENRY_PULSE_PHASES,
   HENRY_PULSE_SWALLOW,
   HENRY_PULSE_TYPES,
   HENRY_PULSE_WIDE,
@@ -33,6 +34,8 @@ import { drawStrandBeam } from "./henry-strand-beam.mjs";
 // Leve (i7 sem GPU): DOM imperativo (sem re-render por quadro), sem backdrop-filter, laço de desenho só enquanto há
 // card/rastro/pulso, consulta a cada ~20 s só com a aba visível; aba oculta pausa tudo. prefers-reduced-motion: sem
 // puxada nem vibração. Henry pensando/falando (dim): eventos mais apagados para não competir.
+// Cards SÓ com o Henry parado (dono, 2026-10-23, protótipo v23): com idle falso nenhum card nasce (os eventos esperam na
+// fila) e os que estão na tela pulam para a fase de voltar ao Henry (k = 0,7) e somem.
 // O anel é o REAL (HenryOrb, montado pelo HenryVoiceView): o Pulso não desenha anel próprio; a chegada de um evento vai
 // para o anel como "level" (levelRef = pulso × 0,6), somado ao sinal de voz pelo HenryVoiceView, e o trecho por onde o
 // card entrou fica mais forte (hitsRef → signal.hits, desenhado pelo próprio HenryOrb nas cores dele).
@@ -90,7 +93,7 @@ function initialAvatar(avatar) {
 const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
 const beamColor = (cfg, event) => (cfg.beam === "gold" ? "#e9c27a" : cfg.beam === "cyan" ? "#5cd6ff" : HENRY_PULSE_TYPES[event.type]?.color || "#5cd6ff");
 
-export default function HenryPulse({ active = false, config = HENRY_PULSE_DEFAULTS, orbSize = 520, mobile = false, dim = false, poll = fetchPulse, onOpen = null, pollMs = POLL_MS, levelRef = null, hitsRef = null }) {
+export default function HenryPulse({ active = false, config = HENRY_PULSE_DEFAULTS, orbSize = 520, mobile = false, dim = false, poll = fetchPulse, onOpen = null, pollMs = POLL_MS, levelRef = null, hitsRef = null, idle = true }) {
   const rootRef = useRef(null);
   const canvasRef = useRef(null);
   const cfgRef = useRef(config);
@@ -100,6 +103,8 @@ export default function HenryPulse({ active = false, config = HENRY_PULSE_DEFAUL
   const pollRef = useRef(poll);
   cfgRef.current = { ...HENRY_PULSE_DEFAULTS, ...config };
   dimRef.current = dim;
+  const idleRef = useRef(idle);
+  idleRef.current = idle;
   geoRef.current = { orbSize, mobile };
   openRef.current = onOpen;
   pollRef.current = poll;
@@ -294,6 +299,12 @@ export default function HenryPulse({ active = false, config = HENRY_PULSE_DEFAUL
           live.splice(i, 1);
           continue;
         }
+        // Henry saiu do parado (protótipo v23): o card pula direto para a fase de voltar ao Henry e some.
+        if (!idleRef.current && k < HENRY_PULSE_PHASES.pull) {
+          card.born = t - HENRY_PULSE_PHASES.pull * life;
+          i += 1; // reprocessa este card já na fase nova
+          continue;
+        }
         // Ciclo v10 (pulsePhase): linha sai → moldura e card → parado → a linha puxa o card de volta para dentro do Henry.
         const phase = pulsePhase(k, { reduced });
         const pos = pulsePullPosition(card, geometry(), phase.pull);
@@ -325,7 +336,7 @@ export default function HenryPulse({ active = false, config = HENRY_PULSE_DEFAUL
 
     // Agendador: no máximo `rate` por minuto, um de cada vez, na ordem em que chegaram.
     const scheduler = window.setInterval(() => {
-      if (document.hidden || !queue.length) return;
+      if (document.hidden || !queue.length || !idleRef.current) return; // card novo só com o Henry parado (v23)
       const now = performance.now();
       if (now < nextAt) return;
       spawn(queue.shift());

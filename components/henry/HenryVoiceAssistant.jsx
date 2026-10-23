@@ -81,6 +81,7 @@ import {
   HENRY_NOTICE_DONE_EVENT,
   HENRY_NOTICE_ITEMS_EVENT,
   HENRY_VOICE_NOTICES_EVENT,
+  alertItemOffsets,
   isReadAlertsCommand,
   noticePendingItems
 } from "@/lib/henry-voice-client-alerts-core.mjs";
@@ -102,7 +103,7 @@ import {
 import HenryVoiceView from "./HenryVoiceView";
 import { henryOrbMode, thinkingActivity } from "./henry-orb-states.mjs";
 import HenryCursor from "./HenryCursor";
-import { playHenryOpeningSound } from "./HenryOpeningScene";
+import { OPENING_SOUND_AT_S, playHenryOpeningSound } from "./HenryOpeningScene";
 import { captureWebcamFrame } from "./webcam-capture";
 import { HENRY_VAD_BARGE_OPTIONS, HENRY_VAD_RECORD_OPTIONS, createHenryVad } from "./henry-vad";
 
@@ -245,6 +246,10 @@ export default function HenryVoiceAssistant() {
   // Pulso do CRM (rascunho HENRY-1 "Pulso"): config do HenryPulse com a configuração salva; null = desligado (nasce assim).
   const [pulseConfig, setPulseConfig] = useState(null);
   const [pendingAlerts, setPendingAlerts] = useState(0);
+  // Avisos lidos pelo Henry na tela (protótipo v22): [{ id, kicker, text, color, read }]; cada um entra quando ele começa
+  // a falá-lo (alertItemOffsets) e o anterior fica apagado. Some ~8 s depois de ele voltar a ficar parado.
+  const [alertList, setAlertList] = useState([]);
+  const alertListTimersRef = useRef([]);
   // stage: idle | calling (falando o vocativo) | waiting (microfone aberto, esperando "pode falar") | telling (falando a
   // informação). afterAsk = uma pergunta normal está em andamento (ao terminar, oferece o aviso pendente).
   const alertRef = useRef({ stage: "idle", calls: 0, timer: null, afterAsk: false, offer: false, deviceActive: false, nextPollAt: 0 });
@@ -1048,6 +1053,7 @@ export default function HenryVoiceAssistant() {
       return;
     }
     queue.playing = true;
+    clip.onStart?.(); // ex.: lista dos avisos entra quando a fala deles começa
     queue.narrating = Boolean(clip.narration);
     queue.acking = Boolean(clip.ack);
     narratingTextRef.current = clip.narration ? clip.text : "";
@@ -2108,14 +2114,41 @@ export default function HenryVoiceAssistant() {
   const syncPending = useCallback((pending) => setPendingAlerts(Array.isArray(pending) ? pending.length : 0), []);
 
   // Fala uma linha do aviso pela mesma fila da resposta (texto também na tela, sem card).
-  const sayAlertLine = useCallback((text, audio) => {
+  const sayAlertLine = useCallback((text, audio, items = null) => {
     const withLine = [...turnsRef.current, { role: "assistant", text }];
     turnsRef.current = withLine;
     setTurns(withLine);
     beginSpeech(text);
-    enqueueClip({ audio: audio || null, text });
+    const list = Array.isArray(items) ? items.filter((item) => item && typeof item.text === "string" && item.text) : [];
+    const onStart = list.length
+      ? () => {
+          alertListTimersRef.current.forEach((timer) => window.clearTimeout(timer));
+          const batch = Date.now();
+          setAlertList([]);
+          alertListTimersRef.current = alertItemOffsets(list, text).map((offset, index) =>
+            window.setTimeout(() => {
+              setAlertList((current) => [...current.map((item) => ({ ...item, read: true })), { ...list[index], id: `${batch}-${index}`, read: false }]);
+            }, offset)
+          );
+        }
+      : null;
+    enqueueClip({ audio: audio || null, text, ...(onStart ? { onStart } : {}) });
     endSpeech();
   }, [beginSpeech, endSpeech, enqueueClip]);
+  // A lista dos avisos some ~8 s depois de ele voltar a ficar parado (ou quando o Henry fecha).
+  useEffect(() => {
+    if (!alertList.length) return undefined;
+    if (!expanded) {
+      setAlertList([]);
+      return undefined;
+    }
+    if (phase === "speaking" || phase === "thinking") return undefined;
+    const timer = window.setTimeout(() => {
+      alertListTimersRef.current.forEach((item) => window.clearTimeout(item));
+      setAlertList([]);
+    }, 8000);
+    return () => window.clearTimeout(timer);
+  }, [alertList.length, phase, expanded]);
 
   // Chamado: só o vocativo (ou "posso falar?"), depois o microfone fica aberto esperando a resposta.
   // Fila da fala espontânea: toca o primeiro da fila quando o Henry está ocioso há ~3 s (canSpeakSpontaneously).
@@ -2231,7 +2264,7 @@ export default function HenryVoiceAssistant() {
     writeAlertStore({ pending: left, away: false, retries: 0, retryAt: 0, recent: data.recent || store.recent || null });
     syncPending(left);
     alertRef.current = { ...alertRef.current, stage: "idle" };
-    if (data.text) sayAlertLine(data.text, data.audio);
+    if (data.text) sayAlertLine(data.text, data.audio, data.items);
     else listenAgain();
   }, [alertPhraseAudio, listenAgain, sayAlertLine, syncPending, updatePhase]);
   const readAlertsRef = useRef(null);
@@ -2819,9 +2852,12 @@ export default function HenryVoiceAssistant() {
 
   const [opening, setOpening] = useState(false);
   const openingRef = useRef(false);
+  const openingSoundRef = useRef(null);
   const startMorningPlay = useCallback(() => {
     unlockAudio();
-    if (!mutedRef.current) playHenryOpeningSound(audioCtxRef.current);
+    // Som da abertura aos 3,8 s (bom dia novo, v22), agendado no relógio do áudio destravado por este clique.
+    openingSoundRef.current?.();
+    openingSoundRef.current = mutedRef.current ? null : playHenryOpeningSound(audioCtxRef.current, OPENING_SOUND_AT_S);
     abortRequest();
     stopSpeaking();
     setExpanded(true);
@@ -2838,6 +2874,8 @@ export default function HenryVoiceAssistant() {
   const finishOpening = useCallback(() => {
     if (!openingRef.current) return;
     openingRef.current = false;
+    openingSoundRef.current?.(); // pulou antes do som: não toca depois
+    openingSoundRef.current = null;
     setOpening(false);
     askRef.current?.(morningPlayRequest());
   }, []);
@@ -3024,6 +3062,7 @@ export default function HenryVoiceAssistant() {
       opening={opening}
       onOpeningDone={finishOpening}
       pulse={pulseConfig}
+      alertList={alertList}
       onPulseOpen={(link) => {
         // Card do Pulso: mesma navegação guiada das respostas (minimiza + cursor); só destino da lista fechada.
         const navigate = { key: "pulso", path: link?.path || "", label: "Pulso do CRM", ...(link?.clientId ? { clientId: link.clientId } : {}) };

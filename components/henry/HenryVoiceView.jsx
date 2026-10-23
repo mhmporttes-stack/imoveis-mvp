@@ -116,6 +116,7 @@ export default function HenryVoiceView({
   // vitrine, a fonte de eventos de exemplo.
   pulse = null,
   onPulseOpen = null,
+  alertList = [], // avisos lidos pelo Henry (canto esquerdo; no celular, no topo)
   pulsePoll = undefined,
   fixed = true
 }) {
@@ -123,8 +124,15 @@ export default function HenryVoiceView({
   // Pulso do CRM: a chegada de um evento vira "level" do anel REAL (o maior entre a voz e o pulso), sem anel paralelo.
   const pulseLevelRef = useRef(0);
   const pulseHitsRef = useRef([]); // trechos do anel que acendem na cor do card que entrou (HenryOrb, signal.hits)
+  // Bom dia novo (protótipo v22): no boom o anel acorda com um pulso de fala curto (~0,9 s) e, enquanto a mensagem
+  // "Bom dia" está no meio do anel (a cena de abertura aberta), as ondas vocais não são desenhadas (noVoice).
+  const wakeUntilRef = useRef(0);
+  const openingRef = useRef(opening);
+  openingRef.current = opening;
   const orbSignal = useCallback(() => {
-    const signal = getSignal?.() || { mode: "idle", level: 0 };
+    let signal = getSignal?.() || { mode: "idle", level: 0 };
+    if (performance.now() < wakeUntilRef.current) signal = { ...signal, mode: "speaking", level: Math.max(Number(signal.level) || 0, 0.6) };
+    if (openingRef.current) signal = { ...signal, noVoice: true };
     const extra = pulseLevelRef.current || 0;
     const hits = pulseHitsRef.current;
     if (extra <= 0.005 && !hits.length) return signal;
@@ -294,7 +302,7 @@ export default function HenryVoiceView({
       }}
     >
       <HenrySceneStyles />
-      {opening ? <HenryOpeningScene name={openingName} mobile={mobile} telemetry={openingTelemetry} onDone={onOpeningDone} /> : null}
+      {opening ? <HenryOpeningScene name={openingName} mobile={mobile} orbSize={orbSize} onBoom={() => (wakeUntilRef.current = performance.now() + 900)} onDone={onOpeningDone} /> : null}
       <HenryDataScene active={showDataScene} topic={sceneTopic} mobile={mobile} orbSize={orbSize} hasBrokers={brokers.length > 0} />
       {!showDataScene && !musicScene ? (
         <HenryAnswerScenes
@@ -334,15 +342,16 @@ export default function HenryVoiceView({
         </svg>
       </button>
 
+      <HenryAlertList items={alertList} mobile={mobile} />
       {/* Pulso do CRM: atrás do anel (cards e feixes em volta dele); apagado quando ele pensa ou fala. */}
-      <HenryPulse active={Boolean(pulse) && !opening} config={pulse || undefined} orbSize={orbSize} mobile={mobile} dim={searching || speaking || busy} onOpen={onPulseOpen} levelRef={pulseLevelRef} hitsRef={pulseHitsRef} {...(pulsePoll ? { poll: pulsePoll } : {})} />
+      <HenryPulse active={Boolean(pulse) && !opening} idle={!engaged && !opening && !alertList.length && !musicScene && !brokers.length} config={pulse || undefined} orbSize={orbSize} mobile={mobile} dim={searching || speaking || busy} onOpen={onPulseOpen} levelRef={pulseLevelRef} hitsRef={pulseHitsRef} {...(pulsePoll ? { poll: pulsePoll } : {})} />
       <div className={`relative ${mobile ? "-translate-y-[14vh]" : ""}`}>
         {onTalk ? (
           <button type="button" onPointerDown={preventTouchSelection} onClick={onTalk} className="block rounded-full" aria-label={recording ? "Enviar o que eu falei" : "Tocar para falar com o Henry"}>
-            <HenryOrb size={orbSize} fibers={mobile ? 40 : 52} points={mobile ? 110 : 140} alpha={0.3} lineWidth={0.85} glow nodes={mobile ? 16 : 24} getSignal={pulse ? orbSignal : getSignal} />
+            <HenryOrb size={orbSize} fibers={mobile ? 40 : 52} points={mobile ? 110 : 140} alpha={0.3} lineWidth={0.85} glow nodes={mobile ? 16 : 24} getSignal={orbSignal} />
           </button>
         ) : (
-          <HenryOrb size={orbSize} fibers={mobile ? 40 : 52} points={mobile ? 110 : 140} alpha={0.3} lineWidth={0.85} glow nodes={mobile ? 16 : 24} getSignal={pulse ? orbSignal : getSignal} />
+          <HenryOrb size={orbSize} fibers={mobile ? 40 : 52} points={mobile ? 110 : 140} alpha={0.3} lineWidth={0.85} glow nodes={mobile ? 16 : 24} getSignal={orbSignal} />
         )}
         <HenryBrokerCards brokers={brokers} orbSize={orbSize} mobile={mobile} />
         <HenryMusicScene music={musicScene} orbSize={orbSize} mobile={mobile} />
@@ -405,6 +414,37 @@ export default function HenryVoiceView({
     </div>
   );
 }
+
+// Avisos lidos pelo Henry (dono, 2026-10-23, protótipo v22): bem no canto esquerdo (no celular, no topo), sem fundo, só a
+// escrita — tipo pequeno e colorido, texto branco embaixo. Cada aviso entra quando ele começa a falá-lo; o anterior apaga
+// (0,45). Itens vêm do servidor (só o que ele fala).
+function HenryAlertList({ items = [], mobile = false }) {
+  if (!items.length) return null;
+  return (
+    <div
+      className={`pointer-events-none absolute flex flex-col text-left ${mobile ? "inset-x-4 top-[84px] gap-3" : "left-8 top-1/2 w-[min(360px,30vw)] -translate-y-1/2 gap-[18px]"}`}
+      style={{ textShadow: "0 1px 2px rgba(0,0,0,0.95), 0 0 10px rgba(7,17,31,0.95), 0 0 22px rgba(7,17,31,0.85)" }}
+      aria-live="polite"
+      data-henry-alert-list
+    >
+      <style>{ALERT_LIST_CSS}</style>
+      {items.map((item) => (
+        <div key={item.id} className={item.read ? "henry-avl-read" : "henry-avl-in"}>
+          <p className="m-0 text-[10.5px] font-extrabold uppercase tracking-[0.16em]" style={{ color: item.color || "#e8b85c" }}>
+            {item.kicker}
+          </p>
+          <p className={`m-0 mt-1 font-semibold leading-[1.4] text-white ${mobile ? "text-[14px]" : "text-[15px]"}`}>{item.text}</p>
+        </div>
+      ))}
+    </div>
+  );
+}
+const ALERT_LIST_CSS = `
+.henry-avl-in{opacity:0;transform:translateX(-14px);filter:blur(6px);animation:henry-avl-in 700ms cubic-bezier(0.2,0.8,0.2,1) forwards}
+.henry-avl-read{opacity:.45;transition:opacity 600ms ease}
+@keyframes henry-avl-in{to{opacity:1;transform:none;filter:blur(0)}}
+@media (prefers-reduced-motion: reduce){.henry-avl-in{animation:none;opacity:1;transform:none;filter:none}}
+`;
 
 function RoundButton({ onClick, label, children, small = false, dark = false, active = false }) {
   const base = small ? "h-9 w-9" : "h-9 w-9";
