@@ -133,3 +133,16 @@ test("mesma conta nos dois números do corretor: fica o de menor ordem, só entr
   assert.equal(notice.context.push_kind, "whatsapp_connection");
   assert.equal(buildDuplicateNumberDelivery({ slot: 2, dedupeKey: "k" }), null);
 });
+
+test("volume alto (≥ 550 recebidas na semana): sem receber há 30 min úteis já marca (caso Gabriel, 2026-10-23)", () => {
+  // Qua 22/10: reconectou 12:07 (com quedas recentes), última recebida 12:07, ~5.000 recebidas na semana.
+  const session = { status: "connected", last_connected_at: "2026-10-22T15:07:27Z" };
+  const base = { session, recentDrops: 3, inboundCount7d: 5000, lastInboundAt: "2026-10-22T15:07:12Z" };
+  assert.equal(classifyFalseConnection({ ...base, now: at("2026-10-22T15:30:00Z") }).suspect, false, "23 min: ainda não");
+  assert.deepEqual(classifyFalseConnection({ ...base, now: at("2026-10-22T15:38:00Z") }), { suspect: true, reason: "silence" });
+  // Volume médio (300/semana): o piso de 6 h úteis continua.
+  assert.equal(classifyFalseConnection({ ...base, inboundCount7d: 300, now: at("2026-10-22T17:07:00Z") }).suspect, false);
+  // 550/semana: 10 x intervalo médio = 1 h útil.
+  assert.equal(classifyFalseConnection({ ...base, inboundCount7d: 550, now: at("2026-10-22T15:50:00Z") }).suspect, false);
+  assert.equal(classifyFalseConnection({ ...base, inboundCount7d: 550, now: at("2026-10-22T16:08:00Z") }).suspect, true);
+});

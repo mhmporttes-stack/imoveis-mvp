@@ -3,7 +3,7 @@
 import "./console-guard.js";
 import { timingSafeEqual } from "node:crypto";
 import express from "express";
-import { checkWhatsappNumber, connectSession, deleteMessageForEveryone, disconnectSession, editMessage, getContactPresence, getLiveSessionStatus, getOlderHistoryStatus, getProfilePictureUrl, historySyncEnabled, isSessionActive, reactToMessage, requestOlderHistory, sendMessage, setConnectGuard, suspendAllSessions } from "./sessions.js";
+import { checkWhatsappNumber, connectSession, deleteMessageForEveryone, disconnectSession, editMessage, getContactPresence, getLiveSessionStatus, getOlderHistoryStatus, getProfilePictureUrl, historySyncEnabled, restartSession, isSessionActive, reactToMessage, requestOlderHistory, sendMessage, setConnectGuard, suspendAllSessions } from "./sessions.js";
 import { createLeaseApi, listResumableUserIds, listTransientSessionRows, readSessionRow } from "./db.js";
 import { pendingWrites } from "./auth-state.js";
 import { FORBIDDEN_LIMIT_CODE, resumeSpacingMs, shouldResumeSession } from "./reconnect-policy.js";
@@ -124,6 +124,17 @@ app.get("/sessions/:userId/status", async (req, res) => {
     });
   } catch (error) {
     res.status(500).json({ error: error.message });
+  }
+});
+
+// Reinicia a sessão CONECTADA com as mesmas credenciais (sem QR, sem logout) — pedido do CRM quando o número está
+// "conectado, mas sem receber" (2026-10-23). Limite de reinícios por hora no serviço. { restarted, status, reason? }
+app.post("/sessions/:userId/restart", async (req, res) => {
+  try {
+    res.json(await restartSession(req.params.userId));
+  } catch (error) {
+    console.error(`[${req.params.userId}] Falha ao reiniciar a sessão:`, error.message);
+    res.status(error.code === "SERVICE_NOT_READY" ? 503 : 500).json({ error: error.message });
   }
 });
 

@@ -401,6 +401,15 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-23 — WhatsApp individual: "conectado, mas sem receber" — vigia da fila, confirmação das não decifradas, pedido ao celular, alarme por volume e LID de outra sessão
+- **Data:** 2026-10-23
+- **Área:** WhatsApp individual (microsserviço Railway + CRM)
+- **Alteração:** (1) **Serviço:** prazo de 60 s nos downloads HTTP do Baileys (`options.timeout`) e de 20 s nas chamadas ao CRM (`db.js`); confirmação NACK 500 (como o Baileys 7) de mensagem que não decifrou, 10 s depois do pedido de reenvio; pedido do conteúdo ao próprio celular (placeholder resend, lotes de 10, máx. 120/h por número) pelo mesmo caminho "peer" do histórico; vigia do `processingMutex` (tarefa parada > 5 min → telemetria `pipeline_stuck` com o tipo do nó, confirma o nó preso e reinicia a sessão com as mesmas credenciais, sem QR, máx. 3/h); rota `POST /sessions/:id/restart`. Resumo do socket ganha `_ph/_rec/_nk`. (2) **CRM:** número com ≥ 550 recebidas na semana tem piso de 30 min úteis de silêncio (era 6 h); ao marcar "sem receber" o CRM pede o reinício da sessão antes da desconexão automática; `findKnownPhoneForLid` procura o telefone do LID também nas outras sessões.
+- **Motivo:** autorização do dono (2026-10-23) após auditoria de 22/10: Gabriel Nº1 parou de receber às 12:07 (alarme 18:14, desconexão 18:46; mesmo padrão em 21/10 e da Bruna em 13/10); ketlin Nº1 sem gravar nada desde 20/10 12:37; 540 mensagens do celular do Gabriel sem texto em 7 dias (11 recuperadas); 87 conversas "Número não identificado".
+- **Arquivos afetados:** `whatsapp-individual-service/src/{pipeline-guard.js (novo),sessions.js,server.js,db.js,message-diagnostics.js}`, `lib/whatsapp-false-connection{,-core.mjs}.js`, `lib/whatsapp-individual.js`, `lib/whatsapp-individual-inbound.js`, `tests/whatsapp-pipeline-guard.test.mjs` (novo), `tests/whatsapp-false-connection.test.mjs`. Sem migration.
+- **Risco/observação:** causa exata da tarefa presa **A CONFIRMAR** pela telemetria `pipeline_stuck` (o `detail` diz o tipo do nó); só os downloads sem prazo foram identificados no código como espera infinita possível. NACK: mensagem confirmada com erro não volta na reconexão (o remetente reenvia pelo pedido de reenvio; o conteúdo pode vir também pelo celular). Mensagem presa confirmada pelo vigia pode não chegar ao Chat (o celular tem). Reinício pelo vigia/CRM não grava queda: a espera de 30 min da Meta Diária vale ("na dúvida, segura"). Só tem efeito depois do deploy no Railway; sem ele a rota `/restart` dá 404 e o CRM só registra no log. Falhas já existentes e alheias: `whatsapp-false-connection` (6 h, teste 4) e `whatsapp-conversation-per-session` (2).
+- **Autor:** Claude Code (crm-editor)
+
 ### 2026-10-23 — PRES-WIFI: decisão do dono — Wi-Fi só diz "está na imobiliária"
 
 - **Dono (2026-10-23):** "Eu não recebo leads nem precisa me adicionar no painel apenas saber que eu estou na imobiliária". Resolve a decisão pendente da entrada anterior.

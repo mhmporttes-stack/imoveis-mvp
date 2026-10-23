@@ -40,6 +40,17 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-23 — WhatsApp "conectado, mas sem receber": Gabriel parou às 12:07 e ketlin não recebe nada desde 20/10
+- **Data:** 2026-10-23
+- **Sintoma:** número aparece conectado, o CRM envia, mas nenhuma mensagem chega ao Chat (nem a do próprio celular), os envios ficam sem "entregue"; o alarme demorou 6 h; reconectar pelo QR não resolveu para a ketlin.
+- **Área:** WhatsApp individual (microsserviço Railway)
+- **Impacto:** Gabriel Nº1 (~150 recebidas/h) de 12:07 a 18:46 de 22/10 (e 21/10 das ~12h às 17:22); ketlin Nº1 desde 20/10 12:37; Bruna em 13/10.
+- **Causa raiz:** no Baileys 6.7.24 toda mensagem/recibo/notificação passa, uma por vez, pelo `processingMutex` do socket e os eventos só saem quando a tarefa termina. Uma tarefa que não termina trava tudo: telemetria mostra, a partir do momento, zero `messages.upsert`/`messages.update` (resumos `dec0`) com recibos brutos ainda chegando e o envio funcionando; 50 min depois o WhatsApp derruba com `stream:error ack` da mensagem nunca confirmada e a reentrega na reconexão (6 sockets seguidos travados no mesmo processo; só um pareamento novo destravou o Gabriel em 21/10). Espera sem prazo achada no código: downloads do Baileys (histórico e "app state") por axios sem timeout, dentro da fila. Também: mensagem que não decifra nunca é confirmada no 6.7.24 (o hash do `stream:error ack` bate com `diag_decrypt_fail` de 09:37/10:27/11:17 — é a causa das quedas de ~50 min de todos os números, §1-G). Alarme lento: piso fixo de 6 h úteis.
+- **Correção:** prazo nos downloads e nas chamadas ao CRM; NACK das não decifradas; vigia da fila (5 min) que registra o nó, confirma e reinicia a sessão sem QR; alarme proporcional (≥ 550/semana → 30 min úteis) e reinício pedido pelo CRM antes de desconectar. Detalhe: `docs/WHATSAPP.md` §1-J, `CHANGELOG_AI.md` (2026-10-23).
+- **Arquivos/commit:** `whatsapp-individual-service/src/{pipeline-guard,sessions,server,db,message-diagnostics}.js`, `lib/whatsapp-false-connection{,-core.mjs}.js` — commit desta data.
+- **Prevenção/teste:** `tests/whatsapp-pipeline-guard.test.mjs`, `tests/whatsapp-false-connection.test.mjs` (volume alto). Depois do deploy no Railway: `whatsapp_session_telemetry` com `reason in ('pipeline_stuck','diag_decrypt_nack','placeholder_req','placeholder_recovered')`; quedas `stream:error.ack` devem cair.
+- **Status:** Monitorando (depende do deploy no Railway; causa exata da tarefa presa a confirmar pelo `detail` do `pipeline_stuck`).
+
 ### 2026-10-22 — Henry minimizado "escuta, mas não responde"
 - **Data:** 2026-10-22
 - **Sintoma:** com o Henry minimizado e o microfone ligado, o anel reagia à voz mas a pergunta não era respondida.
