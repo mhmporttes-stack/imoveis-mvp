@@ -438,7 +438,8 @@ test("eco confirma resposta que falhou ou está em nova tentativa (saiu → envi
   const lib = readFileSync(new URL("../lib/marketplace-chat.js", import.meta.url), "utf8");
   assert.match(lib, /status: "sent", sent_at: message\.at \|\| now\.toISOString\(\), error: null/);
   const claim = lib.slice(lib.indexOf("export async function claimNextMarketplaceOutbound"), lib.indexOf("export async function reportMarketplaceOutboundResult"));
-  assert.match(claim, /\.or\(`claimed_at\.is\.null,claimed_at\.lt\.\$\{retryBefore\}`\)/);
+  // Intervalo entre tentativas (e, desde 2026-10-23, ordem por conversa): pickOutboxCandidate com retryBefore.
+  assert.match(claim, /pickOutboxCandidate\(pending, \{ retryBefore, mediaAllowed \}\)/);
   const retry = lib.slice(lib.indexOf("export async function retryMarketplaceOutbound"), lib.indexOf("export async function reprocessMarketplaceOutboundFailures"));
   assert.match(retry, /loadScopedConversation\(conversationId, auth\)/);
   assert.ok(retry.indexOf("findStoredEcho(row)") < retry.indexOf('status: "queued", attempts: 0'), "confere o eco antes de reenfileirar");

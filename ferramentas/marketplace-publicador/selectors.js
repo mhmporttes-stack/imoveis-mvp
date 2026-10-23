@@ -136,6 +136,8 @@
       // div[role=article] com o balão div[data-message-id] e um botão-irmão [role=button][tabindex=-1] cujo aria-label é
       // o texto. Nossa: tem div[role=status] (entregue/visto) ou h2 "Você enviou"; do cliente: link /marketplace/profile/.
       log: '[role="log"]',
+      // 1.9.5: campo de anexo da janela de conversa (arquivo de resposta do CRM).
+      fileInput: 'input[type="file"]',
       article: '[role="article"]',
       messageId: "[data-message-id]",
       messageTextButton: '[role="button"][tabindex="-1"][aria-label]',

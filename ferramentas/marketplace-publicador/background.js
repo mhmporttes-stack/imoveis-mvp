@@ -1,7 +1,7 @@
 // Service worker da extensão. Agenda (alarme de 15 min), manter acordado (alarme de 1 min), fila do CRM, abertura da aba do Facebook e retorno ao CRM.
 // Regras de agenda/limite em lib/agenda.js (testadas). Seletores do Facebook em selectors.js.
 import { CHECK_EVERY_MINUTES, REASON_LABELS, STALE_RUN_MS, buildResultBody, decideTick, finishJob, initialState, localWaitUntil, recomputeFromHistory, recordCheck, setManualPause, startJob } from "./lib/agenda.js";
-import { DEFAULT_CRM_URL, downloadPhotos, fetchNextListing, fetchNextOutbound, postChatSync, postDiagnostic, postOutboundResult, postResult } from "./lib/crm-api.js";
+import { DEFAULT_CRM_URL, downloadAttachment, downloadPhotos, fetchNextListing, fetchNextOutbound, postChatSync, postDiagnostic, postOutboundResult, postResult } from "./lib/crm-api.js";
 import { CHAT_EVERY_MINUTES, MAX_SENDS_PER_ROUND, ROUND_BUDGET_MS, chatLockAlive, clearThreadFailure, diagnosticDue, splitIgnored, decideChatTick, describeChatLock, outboundResultBody, recordThreadFailure, rememberPreviews, threadRetryBlocked, threadsToRead } from "./lib/chat-agenda.js";
 import { CHECKPOINT_PAUSE_MS } from "./lib/agenda.js";
 import { KEEP_AWAKE_ALARM, KEEP_AWAKE_EVERY_MINUTES, PULSE_PAGE, PULSE_TAB_CLOSE_MS, decidePulse, shouldHoldPower } from "./lib/keep-awake.js";
@@ -784,6 +784,8 @@ async function sendOutbound(tabId, config, message) {
   let outcome;
   let focus = null;
   try {
+    // 1.9.5: resposta com arquivo (foto/PDF) — baixa do CRM ANTES de abrir a conversa (falha aqui = nada enviado).
+    const file = message.attachment ? await downloadAttachment(message.attachment).catch((error) => { throw Object.assign(error, { beforeSend: true }); }) : null;
     await attachDebugger(tabId);
     focus = await focusTab(tabId);
     if (String(message.threadUrl || "").startsWith(FB_PREFIX)) {
@@ -798,7 +800,9 @@ async function sendOutbound(tabId, config, message) {
         .catch((error) => ({ ok: false, error: error.message }));
       if (!opened?.ok) throw Object.assign(new Error(opened?.error || "Não abriu a conversa."), { beforeSend: true });
     }
-    outcome = await pageCall(tabId, { type: "mp-inbox-send", text: message.body }, 120000);
+    outcome = file
+      ? await pageCall(tabId, { type: "mp-inbox-send-file", file }, 150000)
+      : await pageCall(tabId, { type: "mp-inbox-send", text: message.body }, 120000);
   } catch (error) {
     // Falhou antes de digitar (conversa não aberta, aba fechada): pode tentar de novo; senão, sem saber se saiu, não reenvia.
     outcome = { ok: false, sentAttempted: !error?.beforeSend, error: error.message };

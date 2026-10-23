@@ -54,6 +54,8 @@ import Avatar from "@/components/Avatar";
 import ChatAudioPlayer from "@/components/ChatAudioPlayer";
 import WhatsappChatShortcuts from "@/components/WhatsappChatShortcuts";
 import { audioRecordingSupported, useAudioRecorder } from "@/components/useAudioRecorder";
+import ChatAttachmentTray, { filesFromTransfer, prepareImageFile, useChatAttachments } from "@/components/ChatAttachmentTray";
+import { captionFor, sendAttachmentsInOrder, sendingProgressLabel } from "@/lib/chat-attachments-core.mjs";
 import { CONTACT_WARNING_EVENT, contactWarningMessage, takeContactNotSavedWarning } from "@/lib/whatsapp-contact-warning.mjs";
 import { BrokerChip, ClientStatusBadge, ClientStatusDot, WaitingBadge } from "@/components/WhatsappChatBadges";
 import WhatsappIndividualStatus from "@/components/WhatsappIndividualStatus";
@@ -2590,22 +2592,7 @@ function DocumentIcon({ kind }) {
   );
 }
 
-// Reduz fotos (máx. 1600 px, JPEG) para caber no limite de envio e no do WhatsApp.
-async function prepareImageFile(file) {
-  const bitmap = await createImageBitmap(file);
-  const scale = Math.min(1, 1600 / Math.max(bitmap.width, bitmap.height));
-  const canvas = document.createElement("canvas");
-  canvas.width = Math.round(bitmap.width * scale);
-  canvas.height = Math.round(bitmap.height * scale);
-  const context = canvas.getContext("2d");
-  context.fillStyle = "#ffffff";
-  context.fillRect(0, 0, canvas.width, canvas.height);
-  context.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
-  bitmap.close?.();
-  const blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/jpeg", 0.85));
-  if (!blob) throw new Error("Não foi possível preparar a imagem.");
-  return new File([blob], (file.name || "foto").replace(/\.[^.]+$/, "") + ".jpg", { type: "image/jpeg" });
-}
+// prepareImageFile (fotos reduzidas a 1600 px, JPEG) mora em components/ChatAttachmentTray.jsx — usada também pelo Marketplace.
 
 function formatDuration(seconds) {
   return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
@@ -2638,6 +2625,15 @@ function attachmentKind(file) {
   return "document";
 }
 
+// Cada arquivo da fila de anexos (components/ChatAttachmentTray.jsx): foto reduzida, limite de 16 MB por arquivo.
+async function prepareChatAttachment(file) {
+  const kind = attachmentKind(file);
+  const prepared = kind === "image" ? await prepareImageFile(file) : file;
+  if (prepared.size > ATTACHMENT_MAX_BYTES) throw new Error("passa de 16 MB (limite do WhatsApp). Envie um menor.");
+  const previewable = ["image", "gif", "webp", "video"].includes(kind);
+  return { file: prepared, kind, previewUrl: previewable ? URL.createObjectURL(prepared) : "", asGif: false, asSticker: kind === "webp", acceptsCaption: kind !== "webp" };
+}
+
 function Composer({ canManage, conversation, insertRequest = null, internalRequest = 0, replyTo, onClearReply, editTarget = null, onClearEdit = () => {}, onSent }) {
   const [text, setText] = useState("");
   // "/atalho" (2026-10-10): só quando o campo inteiro é "/" + palavra (sem anexo, resposta ou edição).
@@ -2646,7 +2642,9 @@ function Composer({ canManage, conversation, insertRequest = null, internalReque
   const textareaRef = useRef(null);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState("");
-  const [attachment, setAttachment] = useState(null); // { file, previewUrl, kind, asGif, asSticker }
+  // Vários anexos na mesma mensagem (dono, 2026-10-23): anexar de novo ACRESCENTA à fila; saem na ordem mostrada.
+  const attachments = useChatAttachments({ prepare: prepareChatAttachment });
+  const attachment = attachments.items.length > 0;
   const [progress, setProgress] = useState("");
   const fileInput = useRef(null);
   const recorder = useAudioRecorder();
@@ -2660,10 +2658,7 @@ function Composer({ canManage, conversation, insertRequest = null, internalReque
   useEffect(() => {
     setText("");
     setError("");
-    setAttachment((current) => {
-      if (current?.previewUrl) URL.revokeObjectURL(current.previewUrl);
-      return null;
-    });
+    attachments.clear();
     recorder.cancel();
     setInternalMode(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -2681,19 +2676,14 @@ function Composer({ canManage, conversation, insertRequest = null, internalReque
   }, [insertRequest?.nonce]);
 
   useEffect(() => {
-    if (replyTo) setAttachment((current) => {
-      if (current?.previewUrl) URL.revokeObjectURL(current.previewUrl);
-      return null;
-    });
+    if (replyTo) attachments.clear();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [replyTo?.id]);
 
   // Editar: o texto atual entra no campo; enviar grava a correção no WhatsApp.
   useEffect(() => {
     if (!editTarget) return undefined;
-    setAttachment((current) => {
-      if (current?.previewUrl) URL.revokeObjectURL(current.previewUrl);
-      return null;
-    });
+    attachments.clear();
     setInternalMode(false);
     setText(editTarget.body || "");
     setError("");
@@ -2721,12 +2711,12 @@ function Composer({ canManage, conversation, insertRequest = null, internalReque
     return <InternalComposer conversationId={conversation.id} replyTo={replyTo} onClearReply={onClearReply} onExit={() => setInternalMode(false)} onSent={onSent} />;
   }
 
-  async function postMedia(file, caption = "", { asGif = false } = {}) {
+  async function postMedia(file, caption = "", { asGif = false, progressLabel = "" } = {}) {
     const base = `/api/admin/whatsapp-chat/conversations/${conversation.id}/media`;
     let response;
     if (file.size > DIRECT_UPLOAD_THRESHOLD) {
       // Arquivo grande: vai direto ao storage (a Vercel não aceita > ~4,5 MB).
-      setProgress("Enviando arquivo…");
+      setProgress(progressLabel ? `${progressLabel} (subindo o arquivo)` : "Enviando arquivo…");
       const targetResponse = await fetch(`${base}/upload-target`, {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ mimeType: file.type, fileName: file.name, size: file.size })
@@ -2735,7 +2725,7 @@ function Composer({ canManage, conversation, insertRequest = null, internalReque
       if (!targetResponse.ok) throw new Error(target.error || "Não foi possível preparar o envio do arquivo.");
       const upload = await fetch(target.signedUrl, { method: "PUT", headers: { "Content-Type": file.type, "x-upsert": "true" }, body: file });
       if (!upload.ok) throw new Error("Não foi possível enviar o arquivo. Verifique a conexão e tente de novo.");
-      setProgress("Enviando pelo WhatsApp…");
+      setProgress(progressLabel || "Enviando pelo WhatsApp…");
       response = await fetch(base, {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ path: target.path, mimeType: file.type, fileName: file.name, caption, asGif })
@@ -2751,30 +2741,81 @@ function Composer({ canManage, conversation, insertRequest = null, internalReque
     if (!response.ok) throw new Error(data.error || "Não foi possível enviar o arquivo.");
   }
 
-  async function pickFile(event) {
-    const file = event.target.files?.[0];
-    event.target.value = "";
-    if (!file) return;
-    setError("");
-    try {
-      const kind = attachmentKind(file);
-      const prepared = kind === "image" ? await prepareImageFile(file) : file;
-      if (prepared.size > ATTACHMENT_MAX_BYTES) throw new Error("O arquivo passa de 16 MB (limite do WhatsApp). Envie um menor.");
-      const previewable = ["image", "gif", "webp", "video"].includes(kind);
-      setAttachment((current) => {
-        if (current?.previewUrl) URL.revokeObjectURL(current.previewUrl);
-        return { file: prepared, kind, previewUrl: previewable ? URL.createObjectURL(prepared) : "", asGif: false, asSticker: kind === "webp" };
-      });
-    } catch (pickError) {
-      setError(pickError.message);
+  // Seletor (vários de uma vez), colar e arrastar: sempre ACRESCENTA à fila (limite de MAX_CHAT_ATTACHMENTS).
+  const attachBlocked = sending || Boolean(replyTo) || Boolean(editTarget);
+  async function addFiles(files) {
+    if (!files.length) return;
+    // Mesmas condições do botão de anexar (desligado): resposta específica, edição, envio em andamento, "Chat só responde",
+    // janela de 24 h fechada.
+    if (attachBlocked || awaiting) {
+      setError(replyTo ? "Para responder a uma mensagem específica, envie apenas texto." : awaiting ? "Por aqui não dá para enviar arquivos agora — veja o aviso acima." : "Aguarde o envio terminar para anexar mais arquivos.");
+      return;
     }
+    setError(await attachments.add(files));
   }
 
-  function clearAttachment() {
-    setAttachment((current) => {
-      if (current?.previewUrl) URL.revokeObjectURL(current.previewUrl);
-      return null;
+  async function pickFile(event) {
+    const files = [...(event.target.files || [])];
+    event.target.value = "";
+    await addFiles(files);
+  }
+
+  function pasteFiles(event) {
+    const files = filesFromTransfer(event.clipboardData);
+    if (!files.length) return;
+    event.preventDefault();
+    addFiles(files);
+  }
+
+  function dropFiles(event) {
+    const files = filesFromTransfer(event.dataTransfer);
+    if (!files.length) return;
+    event.preventDefault();
+    addFiles(files);
+  }
+
+  async function postText(value) {
+    const response = await fetch(`/api/admin/whatsapp-chat/conversations/${conversation.id}/messages`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text: value, replyToMessageId: replyTo?.id || "" })
     });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.error || "Não foi possível enviar a mensagem.");
+  }
+
+  // Fila de anexos: um por vez, na ordem mostrada, esperando a confirmação do servidor de cada um (cada arquivo passa
+  // pelas mesmas travas de sempre: janela de 24 h, ROL-4c/WA-13b, "Chat só responde", número desconectado). O texto
+  // digitado vai como legenda do 1º arquivo; figurinha não aceita legenda → o texto sai antes, como mensagem.
+  // Parou na 1ª falha: os seguintes ficam na fila (nunca chegam antes do que falhou) e "Tentar de novo" recomeça dele.
+  async function sendAttachments(value) {
+    const queue = attachments.itemsRef.current.filter((item) => item.status !== "sending");
+    let leadText = value;
+    if (leadText && queue[0]?.kind === "webp" && queue[0]?.asSticker) {
+      await postText(leadText);
+      setText("");
+      leadText = "";
+    }
+    const outcome = await sendAttachmentsInOrder(queue, async (item, index, total) => {
+      const label = sendingProgressLabel(index, total);
+      setProgress(label);
+      attachments.update(item.id, { status: "sending", error: "" });
+      const sticker = item.kind === "webp" && item.asSticker;
+      // .webp sem "figurinha" vai como foto comum (convertida para JPEG).
+      const file = item.kind === "webp" && !sticker ? await prepareImageFile(item.file) : item.file;
+      await postMedia(file, sticker ? "" : captionFor(item, index, leadText), { asGif: item.kind === "video" && item.asGif, progressLabel: label });
+      if (index === 0 && leadText) {
+        setText("");
+        leadText = "";
+      }
+      attachments.remove(item.id);
+      onSent();
+    });
+    if (outcome.failed) {
+      attachments.update(outcome.failed.id, { status: "failed", error: outcome.failed.error });
+      const left = outcome.pending.length;
+      throw new Error(`${outcome.sent.length ? `${outcome.sent.length} enviado(s). ` : ""}Um arquivo não foi enviado: ${outcome.failed.error}${left ? ` Os ${left} seguinte(s) aguardam na fila — toque em "Tentar de novo".` : ""}`);
+    }
   }
 
   async function send() {
@@ -2794,18 +2835,9 @@ function Composer({ canManage, conversation, insertRequest = null, internalReque
         setText("");
         onClearEdit();
       } else if (attachment) {
-        // .webp sem "figurinha" vai como foto comum (convertida para JPEG).
-        const file = attachment.kind === "webp" && !attachment.asSticker ? await prepareImageFile(attachment.file) : attachment.file;
-        await postMedia(file, attachment.kind === "webp" && attachment.asSticker ? "" : value, { asGif: attachment.kind === "video" && attachment.asGif });
-        clearAttachment();
+        await sendAttachments(value);
       } else {
-        const response = await fetch(`/api/admin/whatsapp-chat/conversations/${conversation.id}/messages`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ text: value, replyToMessageId: replyTo?.id || "" })
-        });
-        const data = await response.json().catch(() => ({}));
-        if (!response.ok) throw new Error(data.error || "Não foi possível enviar a mensagem.");
+        await postText(value);
       }
       if (!editTarget) setText("");
       onClearReply();
@@ -2866,7 +2898,7 @@ function Composer({ canManage, conversation, insertRequest = null, internalReque
   }
 
   return (
-    <div className="border-t border-[#E9EDEF] bg-[#F6F5F3] px-2 pb-2 pt-2 sm:px-3">
+    <div className="border-t border-[#E9EDEF] bg-[#F6F5F3] px-2 pb-2 pt-2 sm:px-3" onDragOver={(event) => { if (event.dataTransfer?.types?.includes("Files")) event.preventDefault(); }} onDrop={dropFiles}>
       {shownError ? <p className="mb-2 rounded-xl border border-red-100 bg-red-50 px-3 py-2 text-xs font-bold text-red-700">{shownError}</p> : null}
       {replyTo ? <div className="mb-2 flex items-center gap-2 rounded-xl border-l-2 border-brand bg-blue-50 px-3 py-2 text-xs text-navy"><Reply className="h-4 w-4 shrink-0" /><span className="min-w-0 flex-1 truncate">Respondendo: {replyTo.body || MEDIA_LABELS[replyTo.type] || "Mensagem"}</span><button type="button" onClick={onClearReply} aria-label="Cancelar resposta" className="grid h-8 w-8 place-items-center"><X className="h-4 w-4" /></button></div> : null}
       {editTarget ? <div className="mb-2 flex items-center gap-2 rounded-xl border-l-2 border-amber-500 bg-amber-50 px-3 py-2 text-xs text-navy"><Pencil className="h-4 w-4 shrink-0 text-amber-600" /><span className="min-w-0 flex-1 truncate">Editando: {editTarget.body}</span><button type="button" onClick={() => { onClearEdit(); setText(""); }} aria-label="Cancelar edição" className="grid h-8 w-8 place-items-center"><X className="h-4 w-4" /></button></div> : null}
@@ -2889,32 +2921,29 @@ function Composer({ canManage, conversation, insertRequest = null, internalReque
         </div>
       ) : null}
 
-      {attachment ? (
-        <div className="mb-2 rounded-2xl border border-line bg-mist/60 p-2">
-          <div className="flex items-center gap-3">
-            {attachment.kind === "video" && attachment.previewUrl ? <video src={attachment.previewUrl} muted playsInline className="h-14 w-14 rounded-xl bg-black object-cover" />
-              : attachment.previewUrl ? <img src={attachment.previewUrl} alt="" className="h-14 w-14 rounded-xl object-cover" />
-              : <span className="grid h-14 w-14 place-items-center rounded-xl bg-white text-brand"><FileText className="h-6 w-6" /></span>}
-            <span className="min-w-0 flex-1">
-              <span className="block truncate text-sm font-extrabold text-navy">{attachment.file.name}</span>
-              <span className="block text-[11px] font-bold text-muted">{formatFileSize(attachment.file.size)}{attachment.kind === "webp" && attachment.asSticker ? " · vai como figurinha (sem legenda)" : attachment.kind === "gif" ? " · GIF vai como arquivo (abre animado)" : " · a mensagem digitada vai como legenda"}</span>
-            </span>
-            <button type="button" onClick={clearAttachment} aria-label="Remover anexo" className="grid h-9 w-9 place-items-center rounded-full text-slate-500 hover:bg-white"><X className="h-4 w-4" /></button>
-          </div>
-          {attachment.kind === "video" && attachment.file.type === "video/mp4" ? (
-            <label className="mt-2 flex min-h-9 cursor-pointer items-center gap-2 px-1 text-xs font-bold text-navy">
-              <input type="checkbox" checked={attachment.asGif} onChange={(event) => setAttachment((current) => ({ ...current, asGif: event.target.checked }))} className="h-4 w-4" />
-              Enviar como GIF (toca sozinho, sem som, em loop)
-            </label>
-          ) : null}
-          {attachment.kind === "webp" ? (
-            <label className="mt-2 flex min-h-9 cursor-pointer items-center gap-2 px-1 text-xs font-bold text-navy">
-              <input type="checkbox" checked={attachment.asSticker} onChange={(event) => setAttachment((current) => ({ ...current, asSticker: event.target.checked }))} className="h-4 w-4" />
-              Enviar como figurinha
-            </label>
-          ) : null}
-        </div>
-      ) : null}
+      <ChatAttachmentTray
+        attachments={attachments}
+        disabled={sending}
+        onRetry={send}
+        hint="a mensagem digitada vai como legenda do 1º"
+        renderExtra={(item) => (
+          <>
+            {item.kind === "video" && item.file.type === "video/mp4" ? (
+              <label className="mt-1 flex min-h-9 cursor-pointer items-center gap-2 px-1 text-xs font-bold text-navy">
+                <input type="checkbox" checked={item.asGif} disabled={sending} onChange={(event) => attachments.update(item.id, { asGif: event.target.checked })} className="h-4 w-4" />
+                Enviar como GIF (toca sozinho, sem som, em loop)
+              </label>
+            ) : null}
+            {item.kind === "webp" ? (
+              <label className="mt-1 flex min-h-9 cursor-pointer items-center gap-2 px-1 text-xs font-bold text-navy">
+                <input type="checkbox" checked={item.asSticker} disabled={sending} onChange={(event) => attachments.update(item.id, { asSticker: event.target.checked, acceptsCaption: !event.target.checked })} className="h-4 w-4" />
+                Enviar como figurinha (sem legenda)
+              </label>
+            ) : null}
+            {item.kind === "gif" ? <p className="mt-1 px-1 text-[11px] font-bold text-muted">GIF vai como arquivo (abre animado)</p> : null}
+          </>
+        )}
+      />
 
       {conversation.simulationFirst ? (
         // Regra do dono (2026-10-09): cliente com dados preenchidos recebe primeiro a simulação (link da apresentação).
@@ -2947,8 +2976,8 @@ function Composer({ canManage, conversation, insertRequest = null, internalReque
         </div>
       ) : (
         <div className="flex items-end gap-1">
-          <input ref={fileInput} type="file" accept="image/*,video/mp4,video/3gpp,video/quicktime,application/pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt" className="hidden" onChange={pickFile} />
-          <button type="button" onClick={() => fileInput.current?.click()} disabled={sending || awaiting || Boolean(replyTo) || Boolean(editTarget)} aria-label="Anexar foto, vídeo ou arquivo" title={replyTo ? "Respostas específicas aceitam texto" : "Anexar"} className="grid h-11 w-10 shrink-0 place-items-center rounded-full text-[#3B4A54] transition hover:bg-black/5 hover:text-[#111B21] disabled:opacity-40">
+          <input ref={fileInput} type="file" multiple accept="image/*,video/mp4,video/3gpp,video/quicktime,application/pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt" className="hidden" onChange={pickFile} />
+          <button type="button" onClick={() => fileInput.current?.click()} disabled={sending || awaiting || Boolean(replyTo) || Boolean(editTarget)} aria-label="Anexar fotos, vídeos ou arquivos" title={replyTo ? "Respostas específicas aceitam texto" : "Anexar (pode escolher vários)"} className="grid h-11 w-10 shrink-0 place-items-center rounded-full text-[#3B4A54] transition hover:bg-black/5 hover:text-[#111B21] disabled:opacity-40">
             <Plus className="h-6 w-6" strokeWidth={2.25} />
           </button>
           <WhatsappChatShortcuts canManage={canManage} conversationId={conversation.id} disabled={sending || awaiting || Boolean(replyTo) || Boolean(editTarget)} onSent={onSent} slashQuery={slashQuery} onSlashClose={() => setText("")} />
@@ -2961,6 +2990,7 @@ function Composer({ canManage, conversation, insertRequest = null, internalReque
               // Enviando: só leitura, NÃO desabilitado — campo desabilitado perde o foco, o teclado fecha e a barra inferior volta
               // (a caixa pulava ~60 px no celular a cada envio). Assim o teclado fica aberto, como no WhatsApp.
               readOnly={sending}
+              onPaste={pasteFiles}
               onChange={(event) => setText(event.target.value)}
               onKeyDown={(event) => {
                 // Atalho com "/": Esc limpa; Enter não envia "/texto" como mensagem (escolha o atalho na lista).
@@ -2968,7 +2998,7 @@ function Composer({ canManage, conversation, insertRequest = null, internalReque
                 if (slashQuery !== null && event.key === "Enter" && !event.shiftKey) { event.preventDefault(); return; }
                 sendOnEnter(event, send, !sending && !awaiting && hasContent);
               }}
-              placeholder={editTarget ? "Novo texto da mensagem…" : attachment ? "Legenda (opcional)…" : "Mensagem"}
+              placeholder={editTarget ? "Novo texto da mensagem…" : attachment ? "Legenda do 1º arquivo (opcional)…" : "Mensagem"}
               aria-label="Mensagem"
               rows={1}
               value={text}

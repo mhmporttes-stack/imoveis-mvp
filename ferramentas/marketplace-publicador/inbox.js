@@ -608,6 +608,53 @@
     return confirmed ? { ok: true, sentAttempted: true } : { ok: false, sentAttempted: true, unconfirmed: true, error: "Não confirmei a mensagem na conversa (confira no Facebook)." };
   }
 
+  // Quantas mensagens NOSSAS com foto há nas últimas 15 da conversa (confirmação do envio de arquivo, 1.9.5).
+  function ownImageCount(win = null) {
+    const log = (win || document).querySelector(MP.inbox.log);
+    if (!log) return 0;
+    const rows = MP.readLogRows(log, { directionOf: (article) => geometryDirection(article, log), attachmentsOf: bubbleAttachments });
+    return rows.slice(-15).filter((row) => row.direction === "outbound" && (row.attachments || []).length).length;
+  }
+
+  // 1.9.5: envia UM arquivo (foto/PDF) da resposta do CRM. Anexa pelo campo de arquivo da janela da conversa (mesmo jeito
+  // das fotos do anúncio) e envia com Enter confiável. Confirma pela bolha nova nossa (foto) ou pelo nome do arquivo (PDF).
+  // sentAttempted=true a partir do Enter (o CRM nunca reenvia sozinho depois disso; confirma pelo eco).
+  async function sendFile(file) {
+    if (pageCheckpoint()) return { ok: false, checkpoint: true, sentAttempted: false, error: "O Facebook mostrou verificação/limite." };
+    if (!file?.base64) return { ok: false, sentAttempted: false, error: "Arquivo da resposta não recebido." };
+    const win = await waitFor(() => chatWindow(), 15000);
+    const scope = win || document;
+    const input = await waitFor(() => [...scope.querySelectorAll(MP.inbox.fileInput)].find((element) => !element.disabled) || null, 15000);
+    if (!input) return { ok: false, sentAttempted: false, error: "Campo de anexo da conversa não encontrado." };
+    const composer = [...scope.querySelectorAll(MP.inbox.composer)].find((element) => visible(element));
+    if (!composer) return { ok: false, sentAttempted: false, error: "Campo de mensagem não encontrado." };
+    const image = String(file.type || "").startsWith("image/");
+    const nameKey = MP.normalize(String(file.name || "").replace(/\.[a-z0-9]{1,5}$/i, "")).slice(0, 30);
+    const imagesBefore = ownImageCount(win);
+    const namedBefore = image ? 0 : ownMessagesWith(nameKey, win);
+    const bytes = Uint8Array.from(atob(file.base64), (c) => c.charCodeAt(0));
+    const transfer = new DataTransfer();
+    transfer.items.add(new File([bytes], file.name, { type: file.type }));
+    input.files = transfer.files;
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+    input.dispatchEvent(new Event("change", { bubbles: true }));
+    await sleep(between(2500, 4000));
+    composer.scrollIntoView({ block: "center" });
+    const rect = composer.getBoundingClientRect();
+    if (!(await trusted("click", { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 }))) composer.focus();
+    await sleep(between(300, 700));
+    if (!(await trusted("key", { key: "Enter" }))) return { ok: false, sentAttempted: false, error: "Depurador desligado: não envio com eventos simulados." };
+    const sent = () => (image ? ownImageCount(win) > imagesBefore : ownMessagesWith(nameKey, win) > namedBefore) || null;
+    let confirmed = await waitFor(sent, 45000, 800);
+    if (!confirmed) {
+      await sleep(4000);
+      confirmed = Boolean(sent());
+    }
+    if (pageCheckpoint()) return { ok: false, checkpoint: true, sentAttempted: true, error: "O Facebook mostrou verificação/limite depois do envio." };
+    await closeChatWindow(win);
+    return confirmed ? { ok: true, sentAttempted: true } : { ok: false, sentAttempted: true, unconfirmed: true, error: "Não confirmei o arquivo na conversa (confira no Facebook)." };
+  }
+
   // --- Diagnóstico de estrutura (1.8.5) ---------------------------------------------------------------------------
   // Esqueleto do DOM da região da lista: tag, role, aria-label mascarado, tabindex, caminho do link, nomes de data-*,
   // texto próprio mascarado (MP.skeletonText) e filhos. Nunca classes, nomes ou mensagens reais.
@@ -744,6 +791,8 @@
         return readThread(message.threadKey, message.full === true, message.contactName || "", Number(message.maxMs) || 0);
       case "mp-inbox-send":
         return sendText(message.text);
+      case "mp-inbox-send-file":
+        return sendFile(message.file);
       default:
         return null;
     }

@@ -1,6 +1,7 @@
+import { readFileSync } from "node:fs";
 import test from "node:test";
 import assert from "node:assert/strict";
-import { DEFAULT_CRM_URL, downloadPhotos, fetchNextListing, normalizeBaseUrl, postResult } from "../lib/crm-api.js";
+import { DEFAULT_CRM_URL, downloadAttachment, downloadPhotos, fetchNextListing, normalizeBaseUrl, postResult } from "../lib/crm-api.js";
 
 function fakeFetch(handler) {
   const calls = [];
@@ -49,6 +50,23 @@ test("fotos: só https, converte para base64", async () => {
   assert.deepEqual(files, [{ name: "foto-1.png", type: "image/png", base64: "AQID" }]);
   await assert.rejects(downloadPhotos(["http://x/a.png"], fetchImpl), /https/);
   await assert.rejects(downloadPhotos(["https://x/a.png"], fakeFetch(() => ({ ok: false, status: 404 }))), /404/);
+});
+
+test("1.9.5: arquivo da resposta do Chat — só https, nome e tipo do CRM", async () => {
+  const fetchImpl = fakeFetch(() => ({ ok: true, status: 200, blob: async () => new Blob([new Uint8Array([1, 2, 3])], { type: "application/pdf" }) }));
+  assert.deepEqual(await downloadAttachment({ url: "https://abc.supabase.co/x.pdf", name: "proposta.pdf", mime: "application/pdf" }, fetchImpl), { name: "proposta.pdf", type: "application/pdf", base64: "AQID" });
+  await assert.rejects(downloadAttachment({ url: "http://x/a.pdf" }, fetchImpl), /https/);
+  await assert.rejects(downloadAttachment({ url: "https://x/a.pdf" }, fakeFetch(() => ({ ok: false, status: 404 }))), /404/);
+});
+
+test("1.9.5: envio de arquivo — baixa antes de abrir a conversa, anexa pelo campo de arquivo e confirma na conversa", () => {
+  const background = readFileSync(new URL("../background.js", import.meta.url), "utf8");
+  assert.match(background, /message\.attachment \? await downloadAttachment\(message\.attachment\)/);
+  assert.match(background, /type: "mp-inbox-send-file", file/);
+  const inbox = readFileSync(new URL("../inbox.js", import.meta.url), "utf8");
+  assert.match(inbox, /case "mp-inbox-send-file":\s*return sendFile\(message\.file\);/);
+  assert.match(inbox, /MP\.inbox\.fileInput/);
+  assert.match(inbox, /unconfirmed: true, error: "Não confirmei o arquivo/, "sem confirmação nunca reenvia sozinho");
 });
 
 test("fila bloqueada pelo CRM devolve motivo e até quando", async () => {

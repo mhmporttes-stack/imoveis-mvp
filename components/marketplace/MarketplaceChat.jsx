@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Lock, MessageSquareText, Phone, Send, Settings2 } from "lucide-react";
+import { ArrowLeft, Lock, MessageSquareText, Paperclip, Phone, Send, Settings2 } from "lucide-react";
 import Button from "@/components/ui/Button";
 import Badge from "@/components/ui/Badge";
 import Card from "@/components/ui/Card";
@@ -13,7 +13,9 @@ import { useChatRowCascade } from "@/components/useChatRowCascade";
 import { readViewerData, saveViewerData } from "@/components/chat-view-cache";
 import { MARKETPLACE_LIST_CACHE_PREFIX, MARKETPLACE_THREADS_CACHE_NAME } from "@/components/panel-cache-names";
 import { ManageShortcuts } from "@/components/WhatsappChatShortcuts";
-import { MAX_INTERNAL_LENGTH, MAX_OUTBOUND_LENGTH, fillMarketplaceShortcut, marketplaceOfficialWhatsappText } from "@/lib/marketplace-chat-core.mjs";
+import { MARKETPLACE_MEDIA_ACCEPT, MARKETPLACE_MEDIA_MAX_BYTES, MARKETPLACE_MEDIA_MIN_VERSION, MAX_INTERNAL_LENGTH, MAX_OUTBOUND_LENGTH, fillMarketplaceShortcut, marketplaceOfficialWhatsappText, supportsMarketplaceMedia } from "@/lib/marketplace-chat-core.mjs";
+import ChatAttachmentTray, { filesFromTransfer, prepareImageFile, useChatAttachments } from "@/components/ChatAttachmentTray";
+import { sendAttachmentsInOrder, sendingProgressLabel } from "@/lib/chat-attachments-core.mjs";
 import { toWhatsAppDigits, formatBrazilianPhone } from "@/lib/phone-utils";
 import { decideCardWhatsapp, detectDevice, buildExternalWhatsappUrl, CARD_WA_EXTERNAL } from "@/lib/client-card-whatsapp-core.mjs";
 import { flagContactNotSaved } from "@/lib/whatsapp-contact-warning.mjs";
@@ -49,6 +51,17 @@ function saveCachedThread(viewerKey, id, thread) {
   saveViewerData(viewerKey, MARKETPLACE_THREADS_CACHE_NAME, current);
 }
 // Situação da resposta vem pronta do servidor (`statusLabel`, sem texto técnico para o corretor — 2026-10-22).
+
+// Arquivos na resposta (dono, 2026-10-23: vários na mesma mensagem). Foto reduzida no navegador (exceto GIF); só foto
+// ou PDF, até 4 MB cada (validateOutboundMedia confere de novo no servidor).
+async function prepareMarketplaceAttachment(file) {
+  const mime = String(file.type || "").toLowerCase();
+  if (!MARKETPLACE_MEDIA_ACCEPT.split(",").includes(mime) && !(mime.startsWith("image/") && mime !== "image/gif")) throw new Error("pelo Marketplace dá para enviar foto ou PDF.");
+  const image = mime.startsWith("image/");
+  const prepared = image && mime !== "image/gif" ? await prepareImageFile(file) : file;
+  if (prepared.size > MARKETPLACE_MEDIA_MAX_BYTES) throw new Error("passa de 4 MB. Envie um menor.");
+  return { file: prepared, kind: image ? "image" : "document", previewUrl: image ? URL.createObjectURL(prepared) : "" };
+}
 
 async function callApi(url, options = {}) {
   const response = await fetch(url, { ...options, headers: { "Content-Type": "application/json" }, cache: "no-store" });
@@ -303,6 +316,9 @@ export default function MarketplaceChat({ canEditSettings = false, canAssign = f
   // Mensagem interna (MKT-2i, dono, 2026-10-22): só a equipe vê; o servidor decide quem pode (`canInternal`).
   const [internalMode, setInternalMode] = useState(false);
   const [noteText, setNoteText] = useState("");
+  const attachments = useChatAttachments({ prepare: prepareMarketplaceAttachment });
+  const [progress, setProgress] = useState("");
+  const fileInputRef = useRef(null);
   const messagesRef = useRef(null);
   const textRef = useRef(null);
   const internal = internalMode && Boolean(thread?.conversation?.canInternal);
@@ -354,6 +370,7 @@ export default function MarketplaceChat({ canEditSettings = false, canAssign = f
   useEffect(() => {
     setInternalMode(false);
     setNoteText("");
+    attachments.clear();
     if (!selectedId) return undefined;
     setThread(readCachedThread(viewerKey, selectedId));
     loadThread(selectedId);
@@ -395,20 +412,53 @@ export default function MarketplaceChat({ canEditSettings = false, canAssign = f
     if (box) box.scrollTop = box.scrollHeight;
   }, [selectedId, thread?.messages?.length]);
 
+  async function addFiles(files) {
+    if (!files.length) return;
+    if (busy) return setError("Aguarde o envio terminar para anexar mais arquivos.");
+    setError(await attachments.add(files));
+  }
+
+  // Texto digitado sai ANTES dos arquivos (o Messenger não tem legenda: texto e arquivo são mensagens separadas); depois
+  // cada arquivo, um por vez e na ordem mostrada, vira um item da fila da extensão (a legenda própria do arquivo sai logo
+  // depois dele). Parou na 1ª falha: os seguintes ficam aqui e "Tentar de novo" recomeça do que falhou.
   async function send(event) {
-    event.preventDefault();
-    if (!text.trim() || busy) return;
+    event?.preventDefault?.();
+    const queue = attachments.itemsRef.current;
+    if ((!text.trim() && !queue.length) || busy) return;
     setBusy(true);
     setError("");
+    const id = selectedId;
     try {
-      await callApi(`/api/admin/marketplace-chat/conversations/${selectedId}/messages`, { method: "POST", body: JSON.stringify({ text }) });
-      setText("");
-      loadThread(selectedId);
-      loadList();
+      if (text.trim()) {
+        await callApi(`/api/admin/marketplace-chat/conversations/${id}/messages`, { method: "POST", body: JSON.stringify({ text }) });
+        setText("");
+      }
+      const outcome = await sendAttachmentsInOrder(queue, async (item, index, total) => {
+        setProgress(sendingProgressLabel(index, total));
+        attachments.update(item.id, { status: "sending", error: "" });
+        if (!item.queued) {
+          const form = new FormData();
+          form.append("file", item.file);
+          const response = await fetch(`/api/admin/marketplace-chat/conversations/${id}/media`, { method: "POST", body: form, cache: "no-store" });
+          const data = await response.json().catch(() => ({}));
+          if (!response.ok) throw new Error(data.error || "Não foi possível enviar o arquivo.");
+          attachments.update(item.id, { queued: true }); // "Tentar de novo" não repete o arquivo, só a legenda
+        }
+        if (item.caption.trim()) await callApi(`/api/admin/marketplace-chat/conversations/${id}/messages`, { method: "POST", body: JSON.stringify({ text: item.caption.trim() }) });
+        attachments.remove(item.id);
+      });
+      if (outcome.failed) {
+        attachments.update(outcome.failed.id, { status: "failed", error: outcome.failed.error });
+        const left = outcome.pending.length;
+        setError(`Um arquivo não foi enviado: ${outcome.failed.error}${left ? ` Os ${left} seguinte(s) aguardam — toque em "Tentar de novo".` : ""}`);
+      }
     } catch (sendError) {
       setError(sendError.message);
     } finally {
       setBusy(false);
+      setProgress("");
+      loadThread(id);
+      loadList();
     }
   }
 
@@ -599,14 +649,25 @@ export default function MarketplaceChat({ canEditSettings = false, canAssign = f
                 </div>
               </form>
             ) : (
-            <form onSubmit={send} className="chat-composer-safe relative flex shrink-0 gap-2 border-t border-line p-3">
+            <form onSubmit={send} className="chat-composer-safe relative shrink-0 border-t border-line p-3"
+              onDragOver={(event) => { if (event.dataTransfer?.types?.includes("Files")) event.preventDefault(); }}
+              onDrop={(event) => { const files = filesFromTransfer(event.dataTransfer); if (files.length) { event.preventDefault(); addFiles(files); } }}>
               {slashQuery !== null ? <ShortcutPicker query={slashQuery} shortcuts={shortcuts} onPick={pickShortcut} onManage={canManageShortcuts ? () => setManagingShortcuts(true) : null} /> : null}
+              <ChatAttachmentTray attachments={attachments} disabled={busy} onRetry={send}
+                hint={supportsMarketplaceMedia(list.extension?.extensionVersion) ? "o texto digitado sai antes" : `saem quando a extensão do PC estiver na ${MARKETPLACE_MEDIA_MIN_VERSION}`} />
+              {progress ? <p role="status" className="mb-2 text-xs font-semibold text-brand">{progress}</p> : null}
+              <div className="flex gap-2">
               {/* "Nosso WhatsApp" (dono, 2026-10-22: "Enviar o número deve enviar o oficial"): cola o link do WhatsApp OFICIAL
                   com o código do atendimento (a conversa no oficial cai com o mesmo cliente/corretor). Não envia sozinho. */}
               <Button type="button" variant="ghost" size="icon" className="shrink-0" onClick={pasteOfficialWhatsapp} aria-label="Colar o link do nosso WhatsApp oficial" title="Nosso WhatsApp (oficial)"><Phone className="h-4 w-4" /></Button>
+              <input ref={fileInputRef} type="file" multiple accept={MARKETPLACE_MEDIA_ACCEPT} className="hidden" onChange={(event) => { const files = [...(event.target.files || [])]; event.target.value = ""; addFiles(files); }} />
+              <Button type="button" variant="ghost" size="icon" className="shrink-0" disabled={busy} onClick={() => fileInputRef.current?.click()} aria-label="Anexar fotos ou PDF" title="Anexar fotos ou PDF (pode escolher vários)"><Paperclip className="h-4 w-4" /></Button>
               {conversation.canInternal ? <InternalToggle active={false} onClick={() => setInternalMode(true)} /> : null}
-              <textarea ref={textRef} className={`${inputClasses} min-h-touch py-2`} rows={2} maxLength={MAX_OUTBOUND_LENGTH} value={text} onChange={(event) => setText(event.target.value)} placeholder="Escreva a resposta ou / para atalhos (sai pelo Facebook em ~1–2 min)" />
-              <Button type="submit" loading={busy} disabled={!text.trim() || slashQuery !== null} aria-label="Enviar"><Send className="h-4 w-4" /></Button>
+              <textarea ref={textRef} className={`${inputClasses} min-h-touch py-2`} rows={2} maxLength={MAX_OUTBOUND_LENGTH} value={text} onChange={(event) => setText(event.target.value)}
+                onPaste={(event) => { const files = filesFromTransfer(event.clipboardData); if (files.length) { event.preventDefault(); addFiles(files); } }}
+                placeholder={attachments.items.length ? "Mensagem (opcional) — sai antes dos arquivos" : "Escreva a resposta ou / para atalhos (sai pelo Facebook em ~1–2 min)"} />
+              <Button type="submit" loading={busy} disabled={(!text.trim() && !attachments.items.length) || slashQuery !== null} aria-label="Enviar"><Send className="h-4 w-4" /></Button>
+              </div>
             </form>
             )}
           </Card>
