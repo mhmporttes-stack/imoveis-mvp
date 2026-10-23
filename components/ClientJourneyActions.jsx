@@ -49,7 +49,7 @@ const CATEGORY_BY_TYPE = {
   created: "sistema", legacy_status: "status", status: "status", status_reason: "status", notify: "jornada", regenerate: "jornada",
   responsible_transferred: "atribuicao", data_updated: "sistema", form_resubmitted: "sistema", ad_reentry: "sistema", tag_added: "sistema", tag_removed: "sistema",
   activity_scheduled: "atividades", activity_completed: "atividades", activity_rescheduled: "atividades", activity_deleted: "atividades",
-  sale_registered: "status", document_forecast_set: "atividades", documents_list_sent: "atividades", appointment_scheduled: "atividades", appointment_requested: "atividades", presentation_sent: "atividades", simulation_auto_sent: "atividades", simulation_auto_send_scheduled: "sistema", simulation_auto_send_pending: "sistema", simulation_auto_send_failed: "sistema", simulation_auto_send_skipped: "sistema", presentation_link_copied: "atividades", presentation_approval_on: "atividades", presentation_approval_off: "atividades",
+  sale_registered: "status", document_forecast_set: "atividades", documents_list_sent: "atividades", appointment_scheduled: "atividades", appointment_requested: "atividades", presentation_sent: "atividades", simulation_auto_sent: "atividades", simulation_auto_send_scheduled: "sistema", simulation_auto_send_pending: "sistema", simulation_auto_send_failed: "sistema", simulation_auto_send_skipped: "sistema", client_voice_audio_sent: "atividades", client_voice_audio_failed: "sistema", client_voice_audio_skipped: "sistema", presentation_link_copied: "atividades", presentation_approval_on: "atividades", presentation_approval_off: "atividades",
   "distribution:assigned": "atribuicao", "distribution:auto_transferred": "atribuicao", responsible_assigned: "atribuicao",
   "prospecting:claimed": "atividades", "prospecting:edited": "sistema", "prospecting:unblocked": "sistema",
   "prospecting:returned_to_queue": "atividades", "prospecting:prospecting_started": "atividades", "prospecting:in_service": "atividades",
@@ -174,6 +174,13 @@ function eventTitleAndDescription(event, context = {}) {
       return { title: "ENVIO AUTOMÁTICO DA SIMULAÇÃO FALHOU", description: [d.text || "Envio automático da simulação falhou"] };
     case "simulation_auto_send_skipped":
       return { title: "SIMULAÇÃO NÃO ENVIADA AUTOMATICAMENTE", description: [d.text || "Simulação não enviada automaticamente"] };
+    // Áudio com a voz do dono (VOZ-1, dono 2026-10-23): automação, não atendimento humano. Texto gravado no evento.
+    case "client_voice_audio_sent":
+      return { title: "ÁUDIO ENVIADO AUTOMATICAMENTE", description: [d.text || "Áudio enviado automaticamente"] };
+    case "client_voice_audio_failed":
+      return { title: "ÁUDIO AUTOMÁTICO FALHOU", description: [d.text || "Áudio automático não enviado"] };
+    case "client_voice_audio_skipped":
+      return { title: "ÁUDIO AUTOMÁTICO NÃO ENVIADO", description: [d.text || "Áudio automático não enviado"] };
     case "document_received_offline":
       return { title: "1º DOCUMENTO RECEBIDO POR FORA", description: [d.text || "1º documento recebido fora do CRM"] };
     case "document_received_offline_undone":

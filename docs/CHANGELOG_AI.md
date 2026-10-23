@@ -401,6 +401,15 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-23 — VOZ-1: áudio com a voz clonada do dono para o cliente (nasce desligado)
+- **Data:** 2026-10-23
+- **Área:** WhatsApp (Oficial + individual), automações, integração ElevenLabs
+- **Alteração:** nota de voz com a voz clonada do dono em dois momentos — logo depois do link da simulação automática (SIM-AUTO-ENVIO, mesmo canal) e boas-vindas do lead novo da roleta pelo número do corretor. 6 textos-modelo (momento × masculino/feminino/neutro) com `{saudacao}`, `{primeiro_nome_cliente}`, `{primeiro_nome_corretor}`; sexo pelo primeiro nome (listas fechadas; dúvida = neutro); aprovação por modelo (editar desaprova); tela Automações › "Áudio com voz" (só admin geral) com liga/desliga, `voice_id`, "Ouvir prévia" e "Aprovar modelo"; cache por texto final; custo em `ai_usage_log` (`client_voice_audio`). `buildElevenLabsSpeechRequest` ganhou `outputFormat` (padrão MP3, Henry inalterado); `media-storage.js` ganhou `findChatMediaAt`/`storeChatMediaAt`; boas-vindas entram no uso do dia do número (`lib/daily-goal-auto.js`). Docs: `BUSINESS_RULES.md` VOZ-1, `WHATSAPP.md` §9-E, rule `integracoes-externas.md`.
+- **Motivo:** pedido do dono (2026-10-23); texto da simulação masculino e neutro ("meu amigo") aprovados por ele.
+- **Arquivos afetados:** `lib/client-voice-audio{-core.mjs,.js}` (novos), `app/api/admin/client-voice-audio/route.js` (novo), `components/ClientVoiceAudioSettings.jsx` (novo), `app/admin/automacoes/page.jsx`, `app/api/cron/whatsapp-flows/route.js`, `lib/simulation-auto-send.js`, `lib/daily-goal-auto.js`, `lib/henry-voice-providers.mjs`, `lib/media-storage.js`, `components/ClientJourneyActions.jsx`, `.env.example` (`ELEVENLABS_CLIENT_AUDIO_MODEL`), `tests/client-voice-audio.test.mjs` (novo), `tests/simulation-auto-send.test.mjs`. **Sem migration; nada a publicar no Railway** (o microsserviço já envia áudio PTT).
+- **Risco/observação:** nada sai até o dono ligar (precisa do `voice_id`). A CONFIRMAR: contêiner Ogg do `opus_48000_32` da ElevenLabs (o código recusa se não for Ogg, só pula o áudio); boas-vindas antes do link × ROL-4c (decisão do dono ao aprovar os modelos); cada áudio novo soma até ~15 s ao cron `whatsapp-flows` (limite 55 s; até 3 simulações + 2 boas-vindas por rodada); prévia no Safari antigo pode não tocar Ogg. Falhas de teste já existentes e alheias (11 arquivos, iguais no HEAD sem esta mudança).
+- **Autor:** Claude Code (crm-editor)
+
 ### 2026-10-23 — WhatsApp individual: "conectado, mas sem receber" — vigia da fila, confirmação das não decifradas, pedido ao celular, alarme por volume e LID de outra sessão
 - **Data:** 2026-10-23
 - **Área:** WhatsApp individual (microsserviço Railway + CRM)

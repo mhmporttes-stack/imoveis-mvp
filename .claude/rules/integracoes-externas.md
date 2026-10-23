@@ -35,6 +35,9 @@ paths:
   - "lib/henry-voice*"
   - "app/api/admin/henry/**"
   - "components/henry/**"
+  - "lib/client-voice-audio*"
+  - "components/ClientVoiceAudioSettings.jsx"
+  - "app/api/admin/client-voice-audio/**"
 ---
 
 # Integrações externas
@@ -143,6 +146,8 @@ Toda fala espontânea passa pelas travas de `lib/alexa-service.js` (Alexa ativa,
 **[REGRA OFICIAL DE NEGÓCIO — dono, 2026-10-22] Navegação guiada do Henry (HENRY-1).** Navegar = minimizar + cursor do Henry (`components/henry/HenryCursor.jsx`); destinos só `isAllowedHenryNavigation` (`lib/henry-navigation-core.mjs`: lista fechada + `/admin/simulacoes?clientId=<uuid>`); ficha de cliente por `abrir_cliente` (só leitura, escopo do dono). Alvos do cursor por `data-henry-target` (menu/barra inferior) e `data-henry-client-id` (card) — não remova esses atributos. Detalhe: `docs/BUSINESS_RULES.md` HENRY-1.
 
 **[REGRA OFICIAL DE NEGÓCIO — dono, 2026-10-22] Visão do Henry (HENRY-2).** Elogio da roupa no "bom dia" e "Henry, o que é isso?" com 1 quadro da webcam, só com a visão ligada (nasce DESLIGADA, `henry_voice_assistant.vision`). A câmera só abre no pedido e fecha na hora (`components/henry/webcam-capture.js`); a imagem só passa pela memória da requisição — **nunca grave nem logue a imagem** (banco, storage, console, `ai_usage_log`: só tokens/custo, origem `henry_voice_vision`). Elogio só de roupa/acessórios, nunca corpo/rosto/pele/idade/cabelo nem crítica: regras únicas `buildComplimentPrompt`/`parseComplimentReply` (`lib/henry-voice-core.mjs`) — não crie outra. Memória só do TEXTO dos últimos 7 elogios (`crm_settings` `henry_voice_compliments`). Perguntas visuais (faladas ou digitadas) só por `isVisualQuestion`; estado da visão vai ao modelo a cada pedido só por `buildHenryVisionNote` (nunca "não tenho acesso à câmera" com a visão ligada). Detalhe: `docs/BUSINESS_RULES.md` HENRY-2.
+
+**[REGRA OFICIAL DE NEGÓCIO — dono, 2026-10-23] Áudio com a voz clonada do dono para o cliente (VOZ-1).** Nota de voz (ElevenLabs, `voice_id` na tela) logo DEPOIS do link da SIM-AUTO-ENVIO (mesmo canal) e nas boas-vindas do lead novo da roleta (número do corretor que o recebeu). Modelo por momento × sexo do cliente (primeiro nome; dúvida/sem nome = neutro, nunca chuta), variáveis `{saudacao}`/`{primeiro_nome_cliente}`/`{primeiro_nome_corretor}`; só modelo aprovado; editar desaprova; nasce DESLIGADO. Nunca Não contactar/bloqueado; um por momento por cadastro (reserva `voice-audio:<momento>:<id>`); sem voz/créditos só pula o áudio; não é atendimento humano. Regras só em `lib/client-voice-audio-core.mjs` (+ `lib/client-voice-audio.js`); voz pelo `buildElevenLabsSpeechRequest` — não crie outro envio de áudio automático nem outra escolha de sexo por nome. Detalhe: `docs/BUSINESS_RULES.md` VOZ-1.
 
 ## Push
 

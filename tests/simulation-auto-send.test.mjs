@@ -95,7 +95,7 @@ test("cadência anti-ban: mesma trava da automação (janela, 5 min, teto, pausa
   }
   // Os envios automáticos da simulação entram no uso do dia do número (teto/intervalo da Meta Diária e da fila extra).
   assert.match(auto, /loadAutoSimulationSendUsageRows\(brokerId, dayStart\)/);
-  assert.match(auto, /\.eq\("metadata->>kind", AUTO_SIMULATION_SEND_KIND\)/);
+  assert.match(auto, /\.in\("metadata->>kind", \[AUTO_SIMULATION_SEND_KIND, VOICE_AUDIO_KINDS\.welcome\]\)/); // + boas-vindas em áudio (VOZ-1)
   assert.match(source("lib/simulation-auto-send.js"), /individualAutomationSendGate\(senderId, \{ slot \}\)/);
 });
 
