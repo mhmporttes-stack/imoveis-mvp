@@ -182,7 +182,18 @@ function prepararAgenda(e, agora) {
   const { inicio, fim } = janelaDoDia(agora, cfg);
   const minimo = cfg.intervaloMinimoMin * MINUTO;
   const a = e.agenda;
-  if (a.dia === hoje && a.limite === cfg.limiteDiario && a.limiteUnfollow === cfg.limiteUnfollowDiario) return;
+  if (a.dia === hoje && a.limite === cfg.limiteDiario && a.limiteUnfollow === cfg.limiteUnfollowDiario) {
+    // 1.1.1: horários de "seguir" gastos sem seguir ninguém (fila vazia ou só perfis pulados) voltam para a agenda
+    // assim que a fila tiver perfis — antes o dia inteiro ficava em "0 seguidos" depois de uma busca feita tarde.
+    // Cada "seguir" feito consome um horário E um do limite; se sobram menos horários que o limite restante, a
+    // diferença foi gasta sem seguir ninguém. O 1º horário replanejado fica a 2+ min de agora (nunca rajada).
+    const restF = Math.max(0, cfg.limiteDiario - e.contadores.seguidos);
+    if (a.follows.length < restF && e.fila.length && e.suspensoSeguir !== hoje && agora < fim) {
+      a.follows = planejarHorarios({ inicio: Math.max(agora + 2 * MINUTO, inicio), fim, quantidade: restF, intervaloMinimoMs: minimo });
+      log(e, { acao: 'agenda', resultado: `fila com perfis de novo: ${a.follows.length} horários de seguir replanejados até o fim da janela${a.follows[0] ? ` (1º ${formatarSP(a.follows[0])})` : ''}` });
+    }
+    return;
+  }
 
   const de = Math.max(agora, inicio);
   const restF = Math.max(0, cfg.limiteDiario - e.contadores.seguidos);
