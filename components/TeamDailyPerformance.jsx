@@ -14,6 +14,7 @@ import IntegrationStatusIcon, { googleContactsTone } from "@/components/Integrat
 // Reaproveita o histórico da automação já implementado (Gestão > Meta Diária
 // > Automação) em vez de recriar — pedido do dono, 2026-10-01.
 // Histórico do corretor só abre com um toque: o código da tela de Gestão (DailyGoalAdmin) é baixado sob demanda.
+const PointsStatementSheet = dynamic(() => import("@/components/PointsStatementSheet"), { loading: () => null });
 const BrokerHistoryPanel = dynamic(() => import("@/components/DailyGoalAdmin").then((module) => module.BrokerHistoryPanel), { loading: () => null });
 // Mensagens internas de supervisão (pedido do dono, 2026-10-01): ícone no
 // card + mini-chat flutuante. Independente do Chat de clientes/WhatsApp.
@@ -84,6 +85,7 @@ export default function TeamDailyPerformance({ initialOverview, initialError = "
   const [restrictionById, refetchRestrictions] = useTeamRestrictions();
   const supervisionInbox = useSupervisionInbox();
   const [chatBroker, setChatBroker] = useState(null);
+  const [statementBroker, setStatementBroker] = useState(null);
 
   return (
     <section className="container-page space-y-6">
@@ -120,6 +122,7 @@ export default function TeamDailyPerformance({ initialOverview, initialError = "
                 restriction={restrictionById[broker.brokerId]}
                 onRestrictionChanged={refetchRestrictions}
                 onClick={() => setSelectedBrokerId(broker.brokerId)}
+                onOpenStatement={() => setStatementBroker(broker)}
                 onRequeued={refetchAutomation}
                 onAccessChanged={refetchAutomation}
                 readOnly={readOnly}
@@ -144,6 +147,16 @@ export default function TeamDailyPerformance({ initialOverview, initialError = "
           inboxVersion={supervisionInbox.version}
           onSeen={supervisionInbox.clearFor}
           onClose={() => setChatBroker(null)}
+        />
+      ) : null}
+
+      {statementBroker ? (
+        <PointsStatementSheet
+          broker={statementBroker}
+          period={period}
+          periodLabel={PERIODS.find((option) => option.value === period)?.label || ""}
+          expectedPoints={statementBroker.ranking?.points ?? null}
+          onClose={() => setStatementBroker(null)}
         />
       ) : null}
 
@@ -305,7 +318,7 @@ function formatNextDispatchCompact(automation) {
   return new Intl.DateTimeFormat("pt-BR", { timeZone: "America/Sao_Paulo", hour: "2-digit", minute: "2-digit" }).format(new Date(scheduled));
 }
 
-function BrokerCard({ broker, index = 0, presenceStatus, automation, restriction, onRestrictionChanged, onClick, onRequeued, onAccessChanged, readOnly = false, periodLabel = "", chatUnread = 0, onOpenChat }) {
+function BrokerCard({ broker, index = 0, presenceStatus, automation, restriction, onRestrictionChanged, onClick, onOpenStatement, onRequeued, onAccessChanged, readOnly = false, periodLabel = "", chatUnread = 0, onOpenChat }) {
   const [requeuing, setRequeuing] = useState(false);
   const rankingBadge = formatRankingBadge(broker.ranking, periodLabel);
   const sessionInfo = automation ? (AUTOMATION_SESSION_LABELS[automation.sessionStatus] || AUTOMATION_SESSION_LABELS.nunca_conectou) : null;
@@ -380,12 +393,18 @@ function BrokerCard({ broker, index = 0, presenceStatus, automation, restriction
       </div>
       {rankingBadge ? (
         <p className="mt-1.5">
-          <span
-            title={rankingBadge.title}
-            className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-extrabold ${rankingBadge.first ? "bg-amber-50 text-amber-800 ring-1 ring-amber-300" : "bg-blue-50 text-brand"}`}
+          {/* Clicar no selo abre o extrato dos pontos (quando e por que cada ponto entrou); o card inteiro continua clicável,
+              por isso o botão não deixa clique/teclado subir para ele. */}
+          <button
+            type="button"
+            title={`${rankingBadge.title} Toque para ver o extrato dos pontos.`}
+            aria-label={`Ver extrato dos pontos de ${broker.name}: ${rankingBadge.text}`}
+            onClick={(event) => { event.stopPropagation(); onOpenStatement?.(); }}
+            onKeyDown={(event) => event.stopPropagation()}
+            className={`inline-flex min-h-7 items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-extrabold underline-offset-2 transition hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand ${rankingBadge.first ? "bg-amber-50 text-amber-800 ring-1 ring-amber-300" : "bg-blue-50 text-brand"}`}
           >
             <Trophy aria-hidden="true" className="h-3 w-3" />{rankingBadge.text}
-          </span>
+          </button>
         </p>
       ) : null}
       {automation?.whatsappAccessControllable ? (
