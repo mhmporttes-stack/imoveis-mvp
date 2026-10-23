@@ -1,7 +1,7 @@
 // Service worker da extensão: agenda, fila, seguir / deixar de seguir, follow-back e DM.
 // Toda a comunicação com o Instagram passa por instagram-api.js.
 
-import { criarApiChrome, lerSessao, ErroInstagram } from './instagram-api.js';
+import { criarApiChrome, lerSessao, ErroInstagram, haJanelaParaTrabalhar, abrirJanelaTrabalho, situacaoJanelaTrabalho } from './instagram-api.js';
 import { MINUTO, diaSP, janelaDoDia, dentroDaJanela, proximaAbertura, formatarSP } from './lib/tempo.js';
 import { planejarHorarios, decidirHorario, atrasoHumanoMs, atrasoDmMs } from './lib/agenda.js';
 import {
@@ -18,6 +18,10 @@ import {
   estaAtiva,
   precisaReabastecer,
   alvoFila,
+  rotuloSeguir,
+  statusAposSeguir,
+  atualizarSolicitacao,
+  rotuloDeixar,
 } from './lib/regras.js';
 import { normalizarEstado, virarDiaSeNecessario, registrarHistorico, resumoBusca } from './lib/estado.js';
 
@@ -99,6 +103,11 @@ function tratarErro(e, err, contexto, username = '') {
   const tipo = err instanceof ErroInstagram ? err.tipo : 'outro';
   const msg = err && err.message ? err.message : String(err);
   const agora = Date.now();
+  if (tipo === 'sem_janela') {
+    // Nenhuma janela do Chrome aberta: não cria janela sozinha, só espera (sem pausa, sem repetir o aviso).
+    marcarSemJanela(e, true);
+    return tipo;
+  }
   const decisao = decidirPausa({ tipo, ehAcao: CONTEXTOS_DE_ACAO.has(contexto), recentes: e.errosRecentes || [], agora });
   if (tipo === 'limite' || tipo === 'aguarde') {
     e.errosRecentes = [...(e.errosRecentes || []).filter((t) => agora - t < JANELA_ERROS_MS), agora];
@@ -124,7 +133,22 @@ function tratarErro(e, err, contexto, username = '') {
   return tipo;
 }
 
-const bloqueante = (tipo) => tipo === 'limite' || tipo === 'aguarde' || tipo === 'sessao';
+// Interrompe a rodada sem perder o perfil da vez (o "sem_janela" não pausa: só espera).
+const bloqueante = (tipo) => tipo === 'limite' || tipo === 'aguarde' || tipo === 'sessao' || tipo === 'sem_janela';
+
+/** Registra (uma vez por mudança) que não há janela do Chrome aberta para trabalhar. */
+function marcarSemJanela(e, sem) {
+  if (Boolean(e.semJanela) === sem) return;
+  e.semJanela = sem;
+  log(e, { acao: 'janela de trabalho', resultado: sem ? 'nenhuma janela do Chrome aberta — esperando (não cria janela sozinha)' : 'janela do Chrome disponível — retomando' });
+}
+
+/** Há janela do Chrome para a janela de trabalho? Atualiza o aviso. */
+async function checarJanela(e) {
+  const ha = await haJanelaParaTrabalhar();
+  marcarSemJanela(e, !ha);
+  return ha;
+}
 
 /** Confere a sessão no navegador (cookies). Pausa/retoma sozinha. */
 async function checarSessao(e) {
@@ -289,7 +313,7 @@ async function processarSeguir(e, agora) {
     }
     if (st.meSegue || st.seguindo || st.pedidoPendente) {
       e.vistos[cand.id] = 'ja_relacionado';
-      log(e, { username: cand.username, acao: 'pulado', resultado: st.meSegue ? 'já me segue' : 'já sigo', origem: cand.origem });
+      log(e, { username: cand.username, acao: 'pulado', resultado: st.meSegue ? 'já me segue' : st.seguindo ? 'já sigo' : 'já Solicitado antes (pedido pendente)', origem: cand.origem });
       continue;
     }
     if (cfg.pularPrivados && st.privado) {
@@ -307,10 +331,11 @@ async function processarSeguir(e, agora) {
         username: cand.username,
         origem: cand.origem,
         seguidoEm: Date.now(),
-        status: r.seguindo ? STATUS.SEGUINDO : STATUS.SOLICITADO,
+        status: statusAposSeguir(r), // perfil privado: "Solicitado" (pedido pendente) — conta no limite do dia
+        privado: Boolean(r.privado || cand.privado),
       };
       e.contadores.seguidos += 1;
-      log(e, { username: cand.username, acao: 'seguir', resultado: `${r.seguindo ? 'seguindo' : 'pedido enviado (privado)'} — confirmado (${r.via})`, origem: cand.origem });
+      log(e, { username: cand.username, acao: 'seguir', resultado: `${rotuloSeguir(r)} — confirmado (${r.via})`, origem: cand.origem });
       return 'ok';
     } catch (err) {
       const tipo = tratarErro(e, err, 'seguir', cand.username);
@@ -374,6 +399,9 @@ async function processarDeixarDeSeguir(e, agora) {
       continue;
     }
     if (st.meSegue) { marcarFollowBack(e, r, Date.now()); continue; }
+    if (atualizarSolicitacao(r, st, Date.now())) {
+      log(e, { username: r.username, acao: 'solicitação aceita', resultado: 'aceitou a solicitação (perfil privado), mas não seguiu de volta', origem: r.origem });
+    }
     if (!st.seguindo && !st.pedidoPendente) {
       r.status = STATUS.NAO_SEGUE_MAIS;
       log(e, { username: r.username, acao: 'deixar de seguir', resultado: 'já não seguia (nada feito)', origem: r.origem });
@@ -382,11 +410,15 @@ async function processarDeixarDeSeguir(e, agora) {
 
     await pausaHumana();
     try {
+      // friendships/destroy também cancela a solicitação pendente; a API só confirma com
+      // following E outgoing_request falsos no friendships/show.
       await api.deixarDeSeguir(r.id, r.username);
+      const cancelada = !st.seguindo && st.pedidoPendente;
       r.status = STATUS.DEIXADO;
       r.deixadoEm = Date.now();
+      if (cancelada) r.solicitacaoCancelada = true;
       e.contadores.deixados += 1;
-      log(e, { username: r.username, acao: 'deixar de seguir', resultado: `não seguiu de volta em ${cfg.diasParaUnfollow} dias`, origem: r.origem });
+      log(e, { username: r.username, acao: cancelada ? 'cancelar solicitação' : 'deixar de seguir', resultado: rotuloDeixar(st, cfg.diasParaUnfollow), origem: r.origem });
       return 'ok';
     } catch (err) {
       const tipo = tratarErro(e, err, 'deixar de seguir', r.username);
@@ -426,7 +458,12 @@ async function verificarFollowBacks(e, agora) {
       try {
         const mapa = await api.amizadeVarios(lista.slice(i, i + 50));
         for (const [id, st] of Object.entries(mapa)) {
-          if (st.meSegue === true && e.seguidos[id]) marcarFollowBack(e, e.seguidos[id], Date.now());
+          const reg = e.seguidos[id];
+          if (!reg) continue;
+          if (atualizarSolicitacao(reg, st, Date.now())) {
+            log(e, { username: reg.username, acao: 'solicitação aceita', resultado: 'aceitou a solicitação (perfil privado)', origem: reg.origem });
+          }
+          if (st.meSegue === true) marcarFollowBack(e, reg, Date.now());
         }
       } catch (err) {
         const tipo = tratarErro(e, err, 'verificar follow-back (show_many)');
@@ -452,6 +489,8 @@ async function agendarProximo(e, c) {
     proxima = { acao: 'Instagram pediu para esperar — nova tentativa', em: e.esfriarAte };
   } else if (e.semSessao) {
     proxima = { acao: 'Aguardando login no instagram.com', em: e.sessaoRecheckEm && e.sessaoRecheckEm > agora ? e.sessaoRecheckEm : null };
+  } else if (e.semJanela) {
+    proxima = { acao: 'Esperando abrir uma janela do Chrome', em: null }; // o alarme "vigia" (5 min) confere de novo
   } else {
     const opcoes = [];
     if (e.agenda.follows[0]) opcoes.push({ acao: 'Seguir', em: e.agenda.follows[0] });
@@ -490,7 +529,7 @@ async function ciclo() {
   }
   await checarSessao(e);
 
-  if (estaAtiva(e, c, agora) && dentroDaJanela(agora, e.config)) {
+  if (estaAtiva(e, c, agora) && dentroDaJanela(agora, e.config) && (await checarJanela(e))) {
     let r = await processarDm(e, agora);
     if (!bloqueante(r)) r = await processarSeguir(e, Date.now());
     if (!bloqueante(r)) r = await processarDeixarDeSeguir(e, Date.now());
@@ -513,6 +552,7 @@ async function cicloVerificar() {
   const agora = Date.now();
   if (!estaAtiva(e, c, agora) || !dentroDaJanela(agora, e.config)) return;
   if (!(await checarSessao(e))) { await agendarProximo(e, c); await salvar(e); return; }
+  if (!(await checarJanela(e))) { await salvar(e); return; }
   await verificarFollowBacks(e, agora);
   await agendarProximo(e, c);
   await salvar(e);
@@ -711,6 +751,14 @@ async function garantirAlarmes() {
 chrome.runtime.onInstalled.addListener((detalhes) => {
   serializar(async () => {
     if (detalhes && detalhes.reason === 'update') {
+      // 1.1.0: carregar() já migra as opções (padrão "pular privados" passa a desligado);
+      // salva para registrar a migração uma vez no histórico.
+      const m = await carregar();
+      const antes = (await chrome.storage.local.get('estado')).estado;
+      if (antes && (Number(antes.versao) || 1) < 2) {
+        log(m, { acao: 'atualização', resultado: `versão 1.1.0: perfis privados passam a ser seguidos (Solicitado); "pular privados" ${m.config.pularPrivados ? 'continua ligado' : 'desligado'}; janela de trabalho própria no lugar da aba fixada` });
+        await salvar(m);
+      }
       // A versão 1.0.0 pausava 24 h por um erro isolado na BUSCA de origem
       // (web_profile_info). Essa pausa não deveria ter acontecido: desfaz.
       const e = await carregar();
@@ -773,7 +821,7 @@ chrome.runtime.onMessage.addListener((msg, _remetente, responder) => {
           const e = await carregar();
           e.config = validarConfig(e.config, msg.config || {});
           e.agenda.limite = null; // força replanejar o restante do dia com os novos limites
-          log(e, { acao: 'configuração', resultado: `limite ${e.config.limiteDiario}/dia, deixar de seguir ${e.config.limiteUnfollowDiario}/dia, privados ${e.config.pularPrivados ? 'pulados' : 'aceitos'}` });
+          log(e, { acao: 'configuração', resultado: `limite ${e.config.limiteDiario}/dia, deixar de seguir ${e.config.limiteUnfollowDiario}/dia, privados ${e.config.pularPrivados ? 'pulados' : 'aceitos (Solicitado)'}` });
           await salvar(e);
           await ciclo();
         });
@@ -794,6 +842,10 @@ chrome.runtime.onMessage.addListener((msg, _remetente, responder) => {
           await salvar(e);
         });
         return { ok: true };
+      case 'abrirJanela':
+        return abrirJanelaTrabalho();
+      case 'situacaoJanela':
+        return { ok: true, ...(await situacaoJanelaTrabalho()) };
       case 'cicloAgora':
         await serializar(ciclo);
         return { ok: true };

@@ -5,6 +5,9 @@ import { diaSP, formatarSP } from './tempo.js';
 
 export const LIMITE_HISTORICO = 3000;
 
+// 2 = versão 1.1.0 (perfis privados passam a ser seguidos por padrão).
+export const VERSAO_ESTADO = 2;
+
 export function configPadrao() {
   return {
     limiteDiario: 15, // SEGUIR por dia
@@ -12,7 +15,7 @@ export function configPadrao() {
     diasParaUnfollow: 3,
     inicioHora: 5, // 05:00 São Paulo
     fimHora: 22, // 22:00 São Paulo
-    pularPrivados: true,
+    pularPrivados: false, // 1.1.0: perfis privados entram na fila (o seguir vira "Solicitado")
     pularSemFoto: false,
     maxBusca: 200, // máximo de perfis lidos por busca de origem
     intervaloMinimoMin: 20, // nunca duas ações do mesmo tipo com menos que isto
@@ -24,7 +27,7 @@ export function configPadrao() {
 
 export function estadoInicial() {
   return {
-    versao: 1,
+    versao: VERSAO_ESTADO,
     config: configPadrao(),
     meuId: null,
     origemAtual: '',
@@ -55,6 +58,25 @@ export function normalizarEstado(bruto) {
   e.contadores = { ...base.contadores, ...((bruto && bruto.contadores) || {}) };
   for (const k of ['fila', 'historico']) if (!Array.isArray(e[k])) e[k] = [];
   for (const k of ['vistos', 'seguidos']) if (!e[k] || typeof e[k] !== 'object') e[k] = {};
+  migrarEstado(e, bruto);
+  return e;
+}
+
+/**
+ * Migrações de versões antigas do estado salvo.
+ * 1 → 2 (extensão 1.1.0, pedido do dono "ela deve solicitar perfil fechado também"):
+ * o padrão antigo "pular privados" (ligado) passa para o novo (desligado) e os privados
+ * descartados só por serem privados voltam a poder entrar na fila. A opção continua no
+ * painel para quem quiser religar.
+ */
+export function migrarEstado(e, bruto) {
+  if (!bruto) return e;
+  const versao = Number(bruto.versao) || 1;
+  if (versao < 2) {
+    if (e.config.pularPrivados === true) e.config.pularPrivados = false;
+    for (const [id, motivo] of Object.entries(e.vistos)) if (motivo === 'privado') delete e.vistos[id];
+  }
+  e.versao = VERSAO_ESTADO;
   return e;
 }
 

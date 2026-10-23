@@ -44,6 +44,15 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 
 
+### 2026-10-23 — Seguidor Instagram 1.1.0: segue perfis privados (Solicitado) e trabalha numa janela própria
+- **Data:** 2026-10-23
+- **Área:** Ferramenta pessoal fora do CRM (`ferramentas/instagram-seguidor/`)
+- **Alteração:** (1) "pular privados" passa a desligado por padrão; estado salvo antigo migra (versão 2 do estado: padrão antigo → novo e privados descartados só por serem privados podem voltar), a opção continua no painel. Seguir privado = solicitação pendente (`outgoing_request` no friendships/show confirma), status/histórico/CSV "Solicitado", conta no limite diário. Após 3 dias sem follow-back: solicitação pendente é cancelada (friendships/destroy, confirmado com `following` e `outgoing_request` falsos) ou, se aceitou e não seguiu de volta, deixa de seguir. DM só no follow-back. Referência continua tendo de ser pública. (2) Janela de trabalho no padrão do `marketplace-publicador`: janela 520×760 própria, sem foco, uma aba do instagram.com reutilizada, `autoDiscardable:false`, nunca usa aba da janela do dono, reabre sem foco se fechada, não cria janela se não houver nenhuma aberta; botão "Abrir janela de trabalho" no popup. Sem `chrome.debugger`.
+- **Motivo:** dono: "Ela deve solicitar perfil fechado também" e "deixar ela sem me atrapalhar igual a extensão do Marketplace".
+- **Arquivos afetados:** `ferramentas/instagram-seguidor/{manifest.json,background.js,instagram-api.js,lib/regras.js,lib/estado.js,lib/janela-trabalho.js (novo),popup.html,popup.js,options.html,options.js,README.md,tests/ajuda/simulador.mjs,tests/privados.test.mjs (novo),tests/janela-trabalho.test.mjs (novo),tests/logica.test.mjs,tests/simulacao-*.test.mjs}`, `ferramentas/instagram-seguidor.zip`.
+- **Risco/observação:** mais solicitações = mais ações na conta (mesmo limite de 15/dia; risco de bloqueio do Instagram continua, ver README). Endpoints reais não testados contra o Instagram (só simulador). A aba fixada da 1.0.x fica aberta até o dono fechá-la. `node --test tests/*.test.mjs`: 59/59.
+- **Autor:** Claude Code (crm-editor)
+
 ### 2026-10-22 — Henry: cena de busca redesenhada (HUD em camadas, fases e corretores em arco)
 - **Data:** 2026-10-22
 - **Área:** Henry (apresentação)

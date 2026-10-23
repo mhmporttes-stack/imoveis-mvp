@@ -19,6 +19,10 @@ export function criarInstagramFalso({ meuId = '999', referencia = 'perfilref', t
     meuId,
     usuarios,
     sigo: new Map(), // id -> desde
+    pendentes: new Map(), // id -> desde (solicitação para perfil privado, ainda não aceita)
+    aceitaSe: () => false, // (n) => true se o privado aceita a solicitação
+    atrasoAceite: 30 * 60 * 1000,
+    destroyNaoCancela: false, // friendships/destroy não cancela a solicitação pendente
     meSeguem: new Map(), // id -> desde
     jaMeSeguiam: new Set(['1002']), // pessoa2 já me seguia antes
     dms: [], // { id, texto, em }
@@ -38,7 +42,12 @@ export function criarInstagramFalso({ meuId = '999', referencia = 'perfilref', t
   for (const id of ig.jaMeSeguiam) ig.meSeguem.set(id, 0);
 
   function atualizarVoltas(agora) {
-    for (const [id, desde] of ig.sigo) {
+    for (const [id, desde] of ig.pendentes) {
+      const u = usuarios.find((x) => x.pk === id);
+      if (u && ig.aceitaSe(u.n) && agora - desde >= ig.atrasoAceite) { ig.pendentes.delete(id); ig.sigo.set(id, desde); }
+    }
+    // Seguir de volta vale para quem eu sigo E para quem tem solicitação minha pendente (privado).
+    for (const [id, desde] of [...ig.sigo, ...ig.pendentes]) {
       const u = usuarios.find((x) => x.pk === id);
       if (u && ig.voltaSe(u.n) && agora - desde >= ig.atrasoVolta && !ig.meSeguem.has(id)) ig.meSeguem.set(id, desde + ig.atrasoVolta);
     }
@@ -90,27 +99,34 @@ export function criarInstagramFalso({ meuId = '999', referencia = 'perfilref', t
     }
     if ((m = caminho.match(/^\/api\/v1\/friendships\/show\/(\w+)\/$/))) {
       const usr = usuarios.find((x) => x.pk === m[1]);
-      return ok({ following: ig.sigo.has(m[1]), followed_by: ig.meSeguem.has(m[1]), outgoing_request: false, is_private: Boolean(usr && usr.is_private), status: 'ok' });
+      return ok({ following: ig.sigo.has(m[1]), followed_by: ig.meSeguem.has(m[1]), outgoing_request: ig.pendentes.has(m[1]), is_private: Boolean(usr && usr.is_private), status: 'ok' });
     }
     if (caminho === '/api/v1/friendships/show_many/') {
       const mapa = {};
-      for (const id of (params.get('user_ids') || '').split(',')) mapa[id] = { following: ig.sigo.has(id), outgoing_request: false, followed_by: ig.meSeguem.has(id) };
+      for (const id of (params.get('user_ids') || '').split(',')) mapa[id] = { following: ig.sigo.has(id), outgoing_request: ig.pendentes.has(id), followed_by: ig.meSeguem.has(id) };
       return ok({ friendship_statuses: mapa, status: 'ok' });
     }
     if ((m = caminho.match(/^\/web\/friendships\/(\w+)\/(follow|unfollow)\/$/))) {
       if (!ig.legadoFunciona) return { status: 200, texto: '<!DOCTYPE html><html><head><title>Instagram</title></head></html>' };
-      if (m[2] === 'follow') ig.sigo.set(m[1], agora); else ig.sigo.delete(m[1]);
+      if (m[2] === 'follow') ig.sigo.set(m[1], agora);
+      else { ig.sigo.delete(m[1]); if (!ig.destroyNaoCancela) ig.pendentes.delete(m[1]); }
       return ok({ result: m[2] === 'follow' ? 'following' : '', status: 'ok' });
     }
     if ((m = caminho.match(/^\/api\/v1\/friendships\/create\/(\w+)\/$/))) {
       if (ig.falharProximoSeguir) { const f = ig.falharProximoSeguir; ig.falharProximoSeguir = null; return f; }
       if (ig.createHtml) return { status: 200, texto: '<!DOCTYPE html><html><head><title>Instagram</title></head></html>' };
+      const alvo = usuarios.find((x) => x.pk === m[1]);
+      if (alvo && alvo.is_private) {
+        ig.pendentes.set(m[1], agora);
+        return ok({ friendship_status: { following: false, outgoing_request: true, is_private: true }, status: 'ok' });
+      }
       ig.sigo.set(m[1], agora);
       return ok({ friendship_status: { following: true, outgoing_request: false }, status: 'ok' });
     }
     if ((m = caminho.match(/^\/api\/v1\/friendships\/destroy\/(\w+)\/$/))) {
       ig.sigo.delete(m[1]);
-      return ok({ friendship_status: { following: false }, status: 'ok' });
+      if (!ig.destroyNaoCancela) ig.pendentes.delete(m[1]);
+      return ok({ friendship_status: { following: false, outgoing_request: ig.pendentes.has(m[1]) }, status: 'ok' });
     }
     if (caminho === '/api/v1/direct_v2/threads/broadcast/text/') {
       const dest = JSON.parse(params.get('recipient_users'))[0][0];
@@ -122,8 +138,13 @@ export function criarInstagramFalso({ meuId = '999', referencia = 'perfilref', t
   return ig;
 }
 
-export function criarChromeFalso(ig, { logado = true } = {}) {
+export function criarChromeFalso(ig, { logado = true, semJanelas = false } = {}) {
   const dados = {};
+  // Janelas do Chrome: a do dono (id 1, com uma aba qualquer) + as criadas pela extensão.
+  const janelas = semJanelas ? [] : [{ id: 1, type: 'normal', width: 1400, state: 'maximized', focused: true, tabs: [{ id: 11, url: 'https://exemplo.com/', status: 'complete', active: true }] }];
+  const registro = { criadas: [], focos: [], abasCriadas: 0, atualizacoesAba: [] };
+  let proximoId = 100;
+  const acharAba = (id) => { for (const w of janelas) { const t = w.tabs.find((x) => x.id === id); if (t) return { w, t }; } return null; };
   const alarmes = new Map();
   const ouvintes = { alarm: [], installed: [], startup: [], message: [], tabUpdated: [] };
   const notificacoes = [];
@@ -139,6 +160,7 @@ export function criarChromeFalso(ig, { logado = true } = {}) {
           return r;
         },
         async set(obj) { for (const [k, v] of Object.entries(obj)) dados[k] = structuredClone(v); },
+        async remove(k) { for (const x of [].concat(k)) delete dados[x]; },
       },
       onChanged: { addListener() {} },
     },
@@ -157,14 +179,30 @@ export function criarChromeFalso(ig, { logado = true } = {}) {
         return { sessionid: { value: 'x' }, ds_user_id: { value: ig.meuId }, csrftoken: { value: 'csrf-teste' } }[name] || null;
       },
     },
+    windows: {
+      async getAll() { return structuredClone(janelas); },
+      async get(id) { const w = janelas.find((x) => x.id === id); if (!w) throw new Error(`No window with id: ${id}`); return structuredClone(w); },
+      async create(opc) {
+        const w = { id: proximoId++, type: opc.type || 'normal', width: opc.width, height: opc.height, state: opc.state || 'normal', focused: Boolean(opc.focused), tabs: [{ id: proximoId++, url: opc.url, status: 'complete', active: true, autoDiscardable: true }] };
+        janelas.push(w);
+        registro.criadas.push(structuredClone(opc));
+        return structuredClone(w);
+      },
+      async update(id, opc) { const w = janelas.find((x) => x.id === id); Object.assign(w, opc); if (opc.focused) registro.focos.push(id); return structuredClone(w); },
+    },
     tabs: {
-      async get(id) { return { id, url: 'https://www.instagram.com/', status: 'complete', pinned: true }; },
-      async query() { return [{ id: 7, url: 'https://www.instagram.com/', status: 'complete', pinned: true }]; },
-      async create() { return { id: 7, url: 'https://www.instagram.com/', status: 'complete', pinned: true }; },
+      async get(id) { const a = acharAba(id); if (!a) throw new Error(`No tab with id: ${id}`); return { ...structuredClone(a.t), windowId: a.w.id }; },
+      async query({ windowId } = {}) { return janelas.filter((w) => windowId == null || w.id === windowId).flatMap((w) => w.tabs.map((t) => ({ ...t, windowId: w.id }))); },
+      async create() { registro.abasCriadas += 1; throw new Error('a extensão não deve criar aba'); },
+      async update(id, opc) { const a = acharAba(id); registro.atualizacoesAba.push({ id, ...opc }); Object.assign(a.t, opc); return { ...a.t, windowId: a.w.id }; },
       onUpdated: { addListener: (f) => ouvintes.tabUpdated.push(f), removeListener() {} },
     },
     scripting: {
-      async executeScript({ args }) {
+      async executeScript({ target, args }) {
+        const alvo = acharAba(target.tabId);
+        if (!alvo) throw new Error(`No tab with id: ${target.tabId}`);
+        registro.execucoes = (registro.execucoes || 0) + 1;
+        if (alvo.w.id === 1) throw new Error('usou aba da janela do dono');
         const [url, metodo, corpo, cabecalhos] = args;
         if (Object.keys(cabecalhos).length === 0) return [{ result: ig.responder({ url, metodo, corpo }) }]; // página HTML (sem cabeçalhos de API)
         if (!cabecalhos['x-csrftoken'] || cabecalhos['x-ig-app-id'] !== '936619743392459' || cabecalhos['x-requested-with'] !== 'XMLHttpRequest') {
@@ -181,7 +219,7 @@ export function criarChromeFalso(ig, { logado = true } = {}) {
       onMessage: { addListener: (f) => ouvintes.message.push(f) },
     },
   };
-  return { chrome, dados, alarmes, ouvintes, notificacoes, sessao };
+  return { chrome, dados, alarmes, ouvintes, notificacoes, sessao, janelas, registro };
 }
 
 /** Espera uma promise avançando o relógio falso aos poucos (para os atrasos de 1–4 s). */

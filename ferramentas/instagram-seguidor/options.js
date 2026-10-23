@@ -1,7 +1,7 @@
 import { lerTudo, enviar, statusAtual, textoProxima, contadoresHoje, textoAlerta, estaParada, retomarAgora } from './painel-comum.js';
 import { formatarSP, diaSP } from './lib/tempo.js';
 import { gerarCsv, resumoBusca } from './lib/estado.js';
-import { MENSAGEM_PADRAO, idsParaVerificarFollowBack } from './lib/regras.js';
+import { MENSAGEM_PADRAO, STATUS, idsParaVerificarFollowBack } from './lib/regras.js';
 
 const $ = (id) => document.getElementById(id);
 const CAMPOS_NUM = ['limiteDiario', 'limiteUnfollowDiario', 'diasParaUnfollow', 'maxBusca'];
@@ -30,7 +30,9 @@ async function render() {
   $('cDms').textContent = k.dms;
   $('tamFila').textContent = e.fila.length;
   $('origemAtual').textContent = e.origemAtual || '—';
-  $('aguardando').textContent = idsParaVerificarFollowBack(e.seguidos).length;
+  const aguardando = idsParaVerificarFollowBack(e.seguidos).length;
+  const solicitados = Object.values(e.seguidos).filter((r) => r.status === STATUS.SOLICITADO).length;
+  $('aguardando').textContent = solicitados ? `${aguardando} (${solicitados} Solicitado${solicitados > 1 ? 's' : ''} — privados, pedido pendente)` : aguardando;
   $('btnPausar').disabled = c.pausado;
 
   const cur = e.cursorOrigem;

@@ -255,7 +255,7 @@ test('pausa automática de 24 h por limite e pausa sem sessão', () => {
 test('contadores zeram na virada do dia (SP) e estado antigo é normalizado', () => {
   const e = normalizarEstado({ contadores: { dia: '2026-10-19', seguidos: 15 } });
   assert.equal(e.config.limiteDiario, 15);
-  assert.equal(e.config.pularPrivados, true);
+  assert.equal(e.config.pularPrivados, false, 'estado antigo migra para o novo padrão (privados entram)');
   assert.equal(virarDiaSeNecessario(e, T0), true);
   assert.equal(e.contadores.seguidos, 0);
   assert.equal(virarDiaSeNecessario(e, T0 + HORA), false);

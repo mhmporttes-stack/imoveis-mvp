@@ -26,12 +26,12 @@ test('simulação de 5 dias: seguir, follow-back, DM e deixar de seguir', { time
   assert.equal(r.ok, true, r.erro);
   e = ext.estado();
   assert.equal(r.resultado.lidos, 120);
-  // 120 - 12 privados - (8 sem foto não são pulados por padrão) = 108
-  assert.equal(e.fila.length, 108);
+  // 1.1.0: privados entram (viram "Solicitado"); sem foto não são pulados por padrão → 120
+  assert.equal(e.fila.length, 120);
   assert.ok(e.fila.every((f) => f.origem === '@perfilref'));
   // Buscar de novo não duplica nada
   await ext.mensagem({ tipo: 'buscarOrigem', username: 'perfilref' });
-  assert.equal(ext.estado().fila.length, 108);
+  assert.equal(ext.estado().fila.length, 120);
   const perfilErrado = await ext.mensagem({ tipo: 'buscarOrigem', username: 'naoexiste' });
   assert.equal(perfilErrado.ok, false);
   assert.match(perfilErrado.erro, /não encontrado/);
