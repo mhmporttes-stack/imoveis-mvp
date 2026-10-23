@@ -410,6 +410,16 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-23 — App de desktop 1.1.0: "Henry" ouvido offline (Vosk) e voz de reserva no PC (Piper)
+- **Data:** 2026-10-23
+- **Área:** Henry / app de desktop (`desktop-app/`) / integração externa (modelos de voz locais)
+- **Alteração:** (1) o app ouve só o nome, offline: janela escondida `mm-wake://app` (sessão própria sem disco, só microfone com eco/ruído cancelados) roda o Vosk WASM (`vosk-browser` 0.0.8 + `vosk-model-small-pt-0.3`) com gramática restrita e porta de energia; liga só enquanto o CRM assina `mmDesktop.onWake`, pausa com o CRM tocando som, 4 s entre acordadas; o CRM abre o Henry ouvindo (mesmo caminho do Ctrl+Shift+H) só com ele parado. Liga/desliga "Ouvir 'Henry' sem atalho" em Voz e personalidade (só no app 1.1, nasce ligado, localStorage do PC). (2) `speakLocal(texto)` → Piper 2023.11.14-2 + `pt_BR-faber-medium` no PC, texto por stdin, WAV devolvido e tocado pelo mesmo `<audio>` (anel e interrupção iguais); ordem de reserva única `henryReserveVoiceChain` (piper-local antes do navegador, só com a ponte), também na "Ouvir amostra". (3) Pacote 1.1.0 com os modelos (`extraResources`), baixados por `scripts/fetch-models.js` com SHA-256 fixo antes de `dist:*`.
+- **Motivo:** fase 1.1 aprovada pelo dono ("Sim", 2026-10-23).
+- **Arquivos afetados:** `desktop-app/src/{core,main,preload,piper,wake-engine}.js`, `desktop-app/src/wake/*` (novos), `desktop-app/scripts/fetch-models.js` (novo), `desktop-app/package.json`/`package-lock.json`, `desktop-app/.gitignore`, `desktop-app/tests/core.test.js`, `desktop-app/README.md`, `lib/henry-desktop-core.mjs`, `lib/henry-voice-providers.mjs`, `components/henry/HenryVoiceAssistant.jsx`, `components/henry/HenrySettingsCard.jsx`, `tests/henry-desktop.test.mjs`; docs `docs/BUSINESS_RULES.md` HENRY-1 "Fase 1.1", `.claude/rules/integracoes-externas.md`.
+- **Medições:** com 4 vozes sintéticas pt-BR: 12 de 36 chamadas reconhecidas, 0 acordada falsa em 80 frases comuns (inclui "o Henrique ligou", "a renda", "entrei"); varia muito por voz (uma acerta 8 de 9). CPU no contêiner Linux de desenvolvimento: ~1,3% de um núcleo em silêncio, ~3-5% com fala contínua. Piper: ~0,5 s para ~4 s de fala. Zip 268 MB (antes 153 MB).
+- **Risco/observação:** o modelo pequeno não conhece "Rênri" (só "henry"/"henri" com pronúncia "Ênri"; "rei ri" foi o mais próximo) — **acerto com a voz do dono A CONFIRMAR**; se ficar ruim, as alternativas (amostras da voz dele/modelo treinado) são decisão do dono. A página da escuta precisa de `'unsafe-eval'` (embind do Vosk), isolada e só com arquivos locais. Electron não testado em Windows real aqui (só Linux + xvfb com áudio simulado).
+- **Autor:** Claude Code (crm-editor)
+
 ### 2026-10-23 — Henry para quando é interrompido (barge-in, plano A)
 - **Data:** 2026-10-23
 - **Área:** Henry (voz) / frontend

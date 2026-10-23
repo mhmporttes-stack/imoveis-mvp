@@ -39,7 +39,7 @@ import {
   isStopCommand,
   nextRestartDelay
 } from "@/lib/henry-voice-conversation.mjs";
-import { pickBestBrowserVoice, pronounceForSpeech, splitSentences } from "@/lib/henry-voice-providers.mjs";
+import { henryReserveVoiceChain, pickBestBrowserVoice, pronounceForSpeech, splitSentences } from "@/lib/henry-voice-providers.mjs";
 import { normalizeHenryScene, pickWaitPhrase, rememberPhrase, shouldNarrate } from "@/lib/henry-voice-narration.mjs";
 import { HENRY_LISTEN_PROMPTS, pickVariant, rememberVariant } from "@/lib/henry-voice-persona.mjs";
 import {
@@ -56,7 +56,16 @@ import {
   pruneAlertPending
 } from "@/lib/henry-voice-client-alerts-core.mjs";
 import { saoPauloNow } from "@/lib/alexa-config-core.mjs";
-import { detectScreenCommand, readHenryDesktopBridge } from "@/lib/henry-desktop-core.mjs";
+import {
+  DESKTOP_WAKE_EVENT,
+  chunkForLocalVoice,
+  desktopCanSpeakLocal,
+  desktopCanWake,
+  detectScreenCommand,
+  readDesktopWakeSetting,
+  readHenryDesktopBridge,
+  shouldHandleDesktopWake
+} from "@/lib/henry-desktop-core.mjs";
 import HenryVoiceView from "./HenryVoiceView";
 import HenryCursor from "./HenryCursor";
 import { captureWebcamFrame } from "./webcam-capture";
@@ -710,6 +719,24 @@ export default function HenryVoiceAssistant() {
       return;
     }
     if (!clip.audio?.base64) {
+      // Servidor sem áudio (ElevenLabs e OpenAI falharam/ausentes): reserva do aparelho — no app de desktop, o Piper do PC
+      // (pelo mesmo <audio>, com anel e interrupção); fora dele, a voz do navegador. Ordem só em henryReserveVoiceChain.
+      const [reserve] = henryReserveVoiceChain({ desktopLocalVoice: desktopCanSpeakLocal(desktopBridgeRef.current) });
+      if (reserve === "piper-local" && clip.text) {
+        const [first, ...rest] = chunkForLocalVoice(clip.text);
+        if (rest.length) queue.clips.unshift(...rest.map((text) => ({ ...clip, text })));
+        Promise.resolve(desktopBridgeRef.current.speakLocal(pronounceForSpeech(first || "")))
+          .catch(() => null)
+          .then((result) => {
+            if (speechQueueRef.current !== queue) return; // interrompido enquanto o PC preparava a voz
+            if (result?.ok && result.audio?.base64) playWithElement({ ...clip, text: first, audio: result.audio }, queue, advance);
+            else {
+              meterActiveRef.current = false;
+              speakBrowser(first, advance);
+            }
+          });
+        return;
+      }
       meterActiveRef.current = false; // voz do navegador: o anel usa o pulso simulado
       speakBrowser(clip.text, advance);
       return;
@@ -1941,22 +1968,45 @@ export default function HenryVoiceAssistant() {
     listenAgain();
   }, [listenAgain, startConversation, startRecording, unlockAudio, warmServer]);
 
-  // App de desktop: atalho global Ctrl+Shift+H (o app traz a janela) → abre o Henry já ouvindo.
+  // App de desktop: atalho global Ctrl+Shift+H (o app traz a janela) ou o nome ouvido pelo app → abre o Henry já ouvindo.
+  const activateFromDesktop = useCallback(() => {
+    if (recordRef.current) return; // já gravando: o toque no Henry envia
+    openScene();
+    if (!recordModeRef.current) {
+      startConversation({ sound: true });
+      listenAgain();
+    }
+  }, [listenAgain, openScene, startConversation]);
+
   useEffect(() => {
     const bridge = desktopBridgeRef.current;
     if (!active || !bridge || typeof bridge.onActivate !== "function") return undefined;
-    const unsubscribe = bridge.onActivate(() => {
-      if (recordRef.current) return; // já gravando: o toque no Henry envia
-      openScene();
-      if (!recordModeRef.current) {
-        startConversation({ sound: true });
-        listenAgain();
-      }
+    const unsubscribe = bridge.onActivate(activateFromDesktop);
+    return () => {
+      if (typeof unsubscribe === "function") unsubscribe();
+    };
+  }, [active, activateFromDesktop]);
+
+  // Fase 1.1: "Henry" ouvido pelo app (Vosk, offline, áudio nunca sai do PC). Assinar liga a escuta no app; cancelar
+  // (liga/desliga "Ouvir 'Henry' sem atalho" em Voz e personalidade, Henry desligado, página fechada) desliga o microfone dele.
+  const [desktopWake, setDesktopWake] = useState(true);
+  useEffect(() => {
+    const read = () => setDesktopWake(readDesktopWakeSetting(window.localStorage));
+    read();
+    window.addEventListener(DESKTOP_WAKE_EVENT, read);
+    return () => window.removeEventListener(DESKTOP_WAKE_EVENT, read);
+  }, []);
+  useEffect(() => {
+    const bridge = desktopBridgeRef.current;
+    if (!active || !desktopWake || !desktopCanWake(bridge)) return undefined;
+    const unsubscribe = bridge.onWake(() => {
+      if (!shouldHandleDesktopWake({ phase: phaseRef.current, recording: Boolean(recordRef.current), muted: mutedRef.current })) return;
+      activateFromDesktop();
     });
     return () => {
       if (typeof unsubscribe === "function") unsubscribe();
     };
-  }, [active, listenAgain, openScene, startConversation]);
+  }, [active, desktopWake, activateFromDesktop]);
 
   const toggleMute = useCallback(() => {
     setMuted((current) => {

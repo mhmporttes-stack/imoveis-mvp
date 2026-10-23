@@ -20,6 +20,8 @@ const {
 } = require("electron");
 const { ALLOWED_ORIGINS, CRM_HOME, classifyNavigation, formatLogLine, isAllowedOrigin, shouldGrantPermission, validateAction } = require("./core");
 const { setMonitorPower } = require("./screen");
+const { synthesize } = require("./piper");
+const { createWakeEngine, registerWakeScheme } = require("./wake-engine");
 
 const APP_ID = "br.com.matheusmachadoimoveis.crm";
 const PARTITION = "persist:mm-crm";
@@ -31,6 +33,13 @@ const LOG_MAX_BYTES = 1024 * 1024;
 let mainWindow = null;
 let tray = null;
 let quitting = false;
+let wakeEngine = null;
+
+// Modelos de voz (Vosk + Piper, fase 1.1): no pacote ficam em resources/models (fora do asar: o Piper é um .exe);
+// no desenvolvimento, em desktop-app/models (baixados por scripts/fetch-models.js).
+const MODELS_DIR = app.isPackaged ? path.join(process.resourcesPath, "models") : path.join(__dirname, "..", "models");
+
+registerWakeScheme();
 
 if (!app.requestSingleInstanceLock()) {
   app.quit();
@@ -178,6 +187,10 @@ function buildTrayMenu() {
 }
 
 async function runAction(action, args) {
+  if (action === "speakLocal") {
+    const wav = await synthesize(args.text, MODELS_DIR);
+    return { audio: { contentType: "audio/wav", base64: wav.toString("base64") } };
+  }
   if (action === "openSpotify" || action === "openUrl") {
     await shell.openExternal(action === "openSpotify" ? args.uri : args.url);
     return;
@@ -189,6 +202,7 @@ async function runAction(action, args) {
     return;
   }
   await setMonitorPower(action === "screenOff" ? "off" : "on");
+  return null;
 }
 
 function setupBridge() {
@@ -205,11 +219,12 @@ function setupBridge() {
       logAction(name, false, checked.error);
       return { ok: false, error: checked.error };
     }
-    const detail = checked.args.uri || checked.args.url || "";
+    // Log: destino (Spotify/endereço) ou, na voz local, só o tamanho — nunca o texto falado.
+    const detail = checked.args.uri || checked.args.url || (checked.action === "speakLocal" ? `${checked.args.text.length} caracteres` : "");
     try {
-      await runAction(checked.action, checked.args);
+      const result = await runAction(checked.action, checked.args);
       logAction(checked.action, true, detail);
-      return { ok: true };
+      return { ok: true, ...(result || {}) };
     } catch (error) {
       logAction(checked.action, false, `${detail} ${error?.message || "erro"}`.trim());
       return { ok: false, error: "falhou" };
@@ -222,6 +237,7 @@ function start() {
   Menu.setApplicationMenu(null);
   setupSession();
   setupBridge();
+  wakeEngine = createWakeEngine({ modelsDir: MODELS_DIR, log: logAction });
   app.on("web-contents-created", (_event, contents) => guardContents(contents));
   powerSaveBlocker.start("prevent-app-suspension"); // o app não é suspenso; o monitor ainda pode apagar
   createWindow({ hidden: process.argv.includes("--hidden") });
@@ -249,4 +265,7 @@ app.on("before-quit", () => {
   session.fromPartition(PARTITION).cookies.flushStore().catch(() => {});
 });
 
-app.on("will-quit", () => globalShortcut.unregisterAll());
+app.on("will-quit", () => {
+  globalShortcut.unregisterAll();
+  wakeEngine?.stop();
+});

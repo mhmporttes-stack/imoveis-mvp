@@ -34,3 +34,53 @@ test("app de desktop sempre grava (sem reconhecimento do Chrome); fora do app na
   assert.equal(henryCaptureMode({ desktop: true, desktopApp: true, hasRecognition: true, hasRecorder: false }), "none");
   assert.equal(henryCaptureMode({ desktop: true, hasRecognition: true, hasRecorder: true }), "recognition");
 });
+
+// --- Fase 1.1 (dono, 2026-10-23): onWake, speakLocal e piper-local ---------------------------------------------------
+import { chunkForLocalVoice, desktopCanSpeakLocal, desktopCanWake, readDesktopWakeSetting, shouldHandleDesktopWake, LOCAL_VOICE_CHUNK, LOCAL_VOICE_MAX } from "../lib/henry-desktop-core.mjs";
+import { henryReserveVoiceChain, HENRY_PROVIDER_LABELS } from "../lib/henry-voice-providers.mjs";
+
+test("app 1.0.0 (sem onWake/speakLocal) continua aceito; as novas são opcionais", () => {
+  assert.equal(readHenryDesktopBridge({ mmDesktop: fullBridge }), fullBridge);
+  assert.equal(desktopCanWake(fullBridge), false);
+  assert.equal(desktopCanSpeakLocal(fullBridge), false);
+  const v11 = { ...fullBridge, onWake: fn, speakLocal: fn };
+  assert.equal(desktopCanWake(v11), true);
+  assert.equal(desktopCanSpeakLocal(v11), true);
+  assert.equal(desktopCanWake(null), false);
+  assert.equal(desktopCanSpeakLocal({ ...fullBridge, speakLocal: "x" }), false);
+});
+
+test("ordem de reserva: piper-local antes do navegador, só no app", () => {
+  assert.deepEqual(henryReserveVoiceChain({ desktopLocalVoice: true }), ["piper-local", "browser"]);
+  assert.deepEqual(henryReserveVoiceChain({ desktopLocalVoice: false }), ["browser"]);
+  assert.deepEqual(henryReserveVoiceChain(), ["browser"]);
+  assert.equal(HENRY_PROVIDER_LABELS["piper-local"], "voz do PC (Piper)");
+});
+
+test("nome ouvido pelo app só abre o Henry parado", () => {
+  assert.equal(shouldHandleDesktopWake({ phase: "idle" }), true);
+  assert.equal(shouldHandleDesktopWake({ phase: "armed" }), true);
+  for (const phase of ["speaking", "thinking", "listening"]) assert.equal(shouldHandleDesktopWake({ phase }), false, phase);
+  assert.equal(shouldHandleDesktopWake({ phase: "idle", recording: true }), false);
+  assert.equal(shouldHandleDesktopWake({ phase: "idle", muted: true }), false);
+});
+
+test("liga/desliga do nome: nasce ligado", () => {
+  assert.equal(readDesktopWakeSetting(null), true);
+  assert.equal(readDesktopWakeSetting({ getItem: () => null }), true);
+  assert.equal(readDesktopWakeSetting({ getItem: () => "1" }), true);
+  assert.equal(readDesktopWakeSetting({ getItem: () => "0" }), false);
+  assert.equal(readDesktopWakeSetting({ getItem: () => { throw new Error("x"); } }), true);
+});
+
+test("texto da voz local em pedaços de até 900 caracteres (o app aceita 1.000), sem perder nada", () => {
+  assert.deepEqual(chunkForLocalVoice("Oi. Tudo bem?"), ["Oi. Tudo bem?"]);
+  assert.deepEqual(chunkForLocalVoice(""), []);
+  const long = Array.from({ length: 40 }, (_, index) => `Frase número ${index} com algum texto a mais.`).join(" ");
+  const chunks = chunkForLocalVoice(long);
+  assert.ok(chunks.length > 1);
+  assert.ok(chunks.every((chunk) => chunk.length <= LOCAL_VOICE_CHUNK && LOCAL_VOICE_CHUNK < LOCAL_VOICE_MAX));
+  assert.equal(chunks.join(" "), long);
+  const giant = "a".repeat(2500);
+  assert.deepEqual(chunkForLocalVoice(giant).map((chunk) => chunk.length), [900, 900, 700]);
+});

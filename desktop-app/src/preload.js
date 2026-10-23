@@ -15,6 +15,7 @@ const allowedOrigins = readArg("mm-allowed-origins").split(",").filter(Boolean);
 const appVersion = readArg("mm-app-version");
 
 if (allowedOrigins.includes(window.location.origin)) {
+  let wakeListeners = 0;
   const run = (action, payload = {}) => ipcRenderer.invoke("mm:action", action, payload);
   contextBridge.exposeInMainWorld("mmDesktop", {
     isDesktopApp: true,
@@ -24,12 +25,31 @@ if (allowedOrigins.includes(window.location.origin)) {
     notify: (title, body) => run("notify", { title, body }),
     screenOff: () => run("screenOff"),
     screenOn: () => run("screenOn"),
+    // Fase 1.1: voz de reserva no PC (Piper). Devolve { ok, audio: { contentType: "audio/wav", base64 } } ou { ok: false }.
+    speakLocal: (text) => run("speakLocal", { text }),
     // Atalho global (Ctrl+Shift+H): o app avisa a página para acionar o Henry. Devolve a função que cancela.
     onActivate: (callback) => {
       if (typeof callback !== "function") return () => {};
       const listener = () => callback();
       ipcRenderer.on("mm:activate-henry", listener);
       return () => ipcRenderer.removeListener("mm:activate-henry", listener);
+    },
+    // Fase 1.1: o app ouviu "Henry" (Vosk, offline). Assinar LIGA a escuta no app; cancelar a última assinatura DESLIGA
+    // (o microfone do app fecha). O callback recebe só { phrase } — nunca áudio.
+    onWake: (callback) => {
+      if (typeof callback !== "function") return () => {};
+      const listener = (_event, info) => callback({ phrase: typeof info?.phrase === "string" ? info.phrase : "" });
+      ipcRenderer.on("mm:wake", listener);
+      wakeListeners += 1;
+      if (wakeListeners === 1) ipcRenderer.send("mm:wake-listen", true);
+      let active = true;
+      return () => {
+        if (!active) return;
+        active = false;
+        ipcRenderer.removeListener("mm:wake", listener);
+        wakeListeners -= 1;
+        if (wakeListeners === 0) ipcRenderer.send("mm:wake-listen", false);
+      };
     }
   });
 }

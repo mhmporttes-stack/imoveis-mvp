@@ -2,8 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import Field, { inputClasses } from "@/components/ui/Field";
-import { pickBestBrowserVoice, pronounceForSpeech } from "@/lib/henry-voice-providers.mjs";
-import { readHenryDesktopBridge } from "@/lib/henry-desktop-core.mjs";
+import { henryReserveVoiceChain, pickBestBrowserVoice, pronounceForSpeech } from "@/lib/henry-voice-providers.mjs";
+import { DESKTOP_WAKE_EVENT, DESKTOP_WAKE_KEY, desktopCanSpeakLocal, desktopCanWake, readDesktopWakeSetting, readHenryDesktopBridge } from "@/lib/henry-desktop-core.mjs";
 
 // Liga/desliga do assistente de voz "Henry" (docs/BUSINESS_RULES.md HENRY-1) e da visão pela webcam (HENRY-2, nasce
 // desligada). Só o dono consegue ler/gravar (a rota /api/admin/henry recusa os demais e "Alterar conta"); para outros
@@ -220,7 +220,19 @@ function HenryVoiceStyleSection({ saved, options, serverVoice, provider = "brows
   const [busy, setBusy] = useState("");
   const [message, setMessage] = useState({ tone: "", text: "" });
   const [desktopApp, setDesktopApp] = useState(false); // app de desktop do dono (desktop-app/): só informa
-  useEffect(() => setDesktopApp(Boolean(readHenryDesktopBridge(window))), []);
+  // Fase 1.1: "Ouvir 'Henry' sem atalho" — só no app 1.1+ (com onWake), deste PC, nasce ligado.
+  const [desktopWake, setDesktopWake] = useState(null);
+  useEffect(() => {
+    const bridge = readHenryDesktopBridge(window);
+    setDesktopApp(Boolean(bridge));
+    if (desktopCanWake(bridge)) setDesktopWake(readDesktopWakeSetting(window.localStorage));
+  }, []);
+  const toggleDesktopWake = () => {
+    const next = !desktopWake;
+    window.localStorage.setItem(DESKTOP_WAKE_KEY, next ? "1" : "0");
+    setDesktopWake(next);
+    window.dispatchEvent(new Event(DESKTOP_WAKE_EVENT));
+  };
   const audioRef = useRef(null);
   const patch = changedFields(form, saved);
   const dirty = Object.keys(patch).length > 0;
@@ -253,9 +265,14 @@ function HenryVoiceStyleSection({ saved, options, serverVoice, provider = "brows
       audioRef.current?.pause();
       window.speechSynthesis?.cancel();
       // Voz do servidor falhou (ex.: chave sem permissão): mostra o motivo e toca com a voz do navegador.
-      if (data.voiceError) setMessage({ tone: "error", text: `${data.voiceError} Tocando com a voz do navegador.` });
-      if (data.audio?.base64) {
-        audioRef.current = new Audio(`data:${data.audio.contentType || "audio/mpeg"};base64,${data.audio.base64}`);
+      if (data.voiceError) setMessage({ tone: "error", text: `${data.voiceError} Tocando com a voz de reserva.` });
+      // Sem áudio do servidor: mesma ordem de reserva da fala (henryReserveVoiceChain) — Piper do PC no app, depois navegador.
+      const bridge = readHenryDesktopBridge(window);
+      const [reserve] = henryReserveVoiceChain({ desktopLocalVoice: desktopCanSpeakLocal(bridge) });
+      const local = !data.audio?.base64 && reserve === "piper-local" && data.text ? await Promise.resolve(bridge.speakLocal(pronounceForSpeech(data.text))).catch(() => null) : null;
+      const audio = data.audio?.base64 ? data.audio : local?.ok ? local.audio : null;
+      if (audio?.base64) {
+        audioRef.current = new Audio(`data:${audio.contentType || "audio/mpeg"};base64,${audio.base64}`);
         await audioRef.current.play();
       } else if (window.speechSynthesis && data.text) {
         const utterance = new SpeechSynthesisUtterance(pronounceForSpeech(data.text));
@@ -286,6 +303,24 @@ function HenryVoiceStyleSection({ saved, options, serverVoice, provider = "brows
         <p className="mt-2 max-w-2xl rounded-control bg-emerald-50 px-3 py-2 text-sm font-bold text-emerald-800" role="status">
           Rodando no app de desktop: microfone liberado, som sem clique e Ctrl+Shift+H chama o Henry.
         </p>
+      ) : null}
+      {desktopApp && desktopWake !== null ? (
+        <div className="mt-3 flex max-w-2xl flex-wrap items-center justify-between gap-3">
+          <div>
+            <p className="text-sm font-black text-navy">Ouvir “Henry” sem atalho</p>
+            <p className="mt-1 text-sm text-muted">
+              Ligado: o app fica ouvindo só o nome, no próprio PC (o som não sai do computador e não é gravado). Desligado: chame por Ctrl+Shift+H ou toque no Henry.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={toggleDesktopWake}
+            aria-pressed={desktopWake}
+            className={`rounded-control px-5 py-2.5 text-sm font-bold ${desktopWake ? "border border-line text-navy" : "bg-navy text-white"}`}
+          >
+            {desktopWake ? "Desligar" : "Ligar"}
+          </button>
+        </div>
       ) : null}
       <p className={`mt-2 max-w-2xl rounded-control px-3 py-2 text-sm font-bold ${provider === "browser" ? "bg-amber-50 text-amber-800" : "bg-emerald-50 text-emerald-800"}`} role="status">
         Voz ativa: {providerLabel}.
