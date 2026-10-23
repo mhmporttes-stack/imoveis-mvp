@@ -209,3 +209,17 @@ test("Anel falando (v12): estado voice só em speaking; demais estados com as me
   assert.equal(HENRY_ORB_STATES.speaking.voice, 1);
   for (const [name, state] of Object.entries(HENRY_ORB_STATES)) if (name !== "speaking") assert.equal(state.voice, 0, name);
 });
+
+test("Pulso no anel (v15): cor viva com a mesma matiz do card", async () => {
+  const { vividColor } = await import("../components/henry/henry-orb-states.mjs");
+  assert.equal(vividColor("#b59cff"), "hsl(255, 100%, 60%)", "roxo do CCA continua roxo, só mais vivo");
+  assert.equal(vividColor("#4fd18b"), "hsl(148, 100%, 60%)");
+});
+
+test("Avatar (v13): canal = ícone, simulação = casa, corretor = foto com anel na cor dele ou inicial", async () => {
+  const { pulseAvatar } = await import("../lib/henry-pulse-core.mjs");
+  assert.deepEqual(pulseAvatar({ type: "whatsapp", broker: { name: "Bruna", photo: "https://x/b.jpg", color: "#fff" } }), { kind: "icon", icon: "whatsapp" });
+  assert.deepEqual(pulseAvatar({ type: "simulacao" }), { kind: "icon", icon: "simulacao" });
+  assert.deepEqual(pulseAvatar({ type: "lead", broker: { name: "Bruna", photo: "https://x/b.jpg", color: "#ff9fb8" } }), { kind: "photo", url: "https://x/b.jpg", color: "#ff9fb8" });
+  assert.deepEqual(pulseAvatar({ type: "chegada", broker: { name: "Bruna", photo: "", color: "#ff9fb8" } }), { kind: "initial", letter: "B", color: "#ff9fb8" });
+});
