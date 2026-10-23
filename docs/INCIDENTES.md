@@ -40,6 +40,17 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-23 — "Toda hora aparece que o WhatsApp está conectado sem receber, com a opção de desconectar"
+- **Data:** 2026-10-23
+- **Sintoma:** corretores recebiam várias vezes por dia o aviso Importante "WhatsApp conectado, mas sem receber" (push + bloqueio da tela) mandando desconectar e ler o QR de novo; o número estava funcionando.
+- **Área:** WhatsApp individual (CRM, `lib/whatsapp-false-connection*`)
+- **Impacto:** 23/10 até 15h30: 12 avisos a 5 números (+20 à equipe) e 2 desconexões automáticas do Eduardo. Em 8 dos 12 as mensagens entravam e saíam (envios "entregues", recebidas logo depois, sem atraso); 4 da ketlin, sem tráfego algum desde 20/10 (reiniciar e reler o QR não mudou nada). O vigia do serviço não achou nenhuma fila travada no dia. Depois dos avisos: 4 "desconectar" manuais, 5 reconexões manuais e 2 desvinculações pelo celular — pareamento repetido é agravante de banimento (Caroline banida no mesmo dia).
+- **Causa raiz:** o alarme era por SILÊNCIO (X h úteis sem receber; desde 23/10, 30 min para número de alto volume) e por quedas repetidas — falta de mensagem não prova falha, e as quedas 500 de ~50 min acontecem em todos os números. O silêncio + 3 quedas em 6 h ainda disparava a desconexão automática (logout → QR). O aviso repetia a cada 2 h e mandava direto ao QR.
+- **Correção:** só com evidência (≥ 3 envios para ≥ 3 conversas sem nada voltar do WhatsApp em ≥ 20 min, ou fila travada 2× em 1 h pelo vigia do serviço); primeiro reinício sem QR no serviço; só se persistir marca e avisa (1 por episódio, máx. 1 a cada 12 h por número), texto sem mandar desconectar. Marcas antigas saem sozinhas. Detalhe: `CHANGELOG_AI.md` (2026-10-23, "só com evidência").
+- **Arquivos/commit:** `lib/whatsapp-false-connection-core.mjs`, `lib/whatsapp-false-connection.js`, `components/WhatsappIndividualStatus.jsx` — commit deste registro.
+- **Prevenção/teste:** `tests/whatsapp-false-connection.test.mjs` (silêncio nunca é evidência; ordem reinício → aviso; teto de 12 h; textos). Conferir: `crm_alert_deliveries` com `dedupe_key like 'wa_false_b:%'` por dia e telemetria `pipeline_restart` kind `crm`.
+- **Status:** Monitorando
+
 ### 2026-10-23 — App desktop lento e travando (Henry em tela cheia / app minimizado)
 - **Data:** 2026-10-23
 - **Sintoma:** "o app desktop está lento e travando"; CPU alta mesmo com o app minimizado ou na bandeja.

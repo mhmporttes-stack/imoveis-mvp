@@ -308,7 +308,8 @@ export default function WhatsappIndividualStatus({ align = "center" }) {
                     <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-center">
                       <p className="text-sm font-black text-rose-700">Conectado, mas sem receber</p>
                       <p className="text-xs text-rose-700/80">{formatPhone(status.phoneNumber) || "Número não identificado"}</p>
-                      <p className="mt-1 text-xs font-semibold text-rose-700">O WhatsApp não está entregando mensagens. Toque em Desconectar e conecte de novo pelo QR Code.</p>
+                      {/* Só aparece com evidência de falha e depois de o CRM tentar reconectar sozinho, sem QR (2026-10-23). */}
+                      <p className="mt-1 text-xs font-semibold text-rose-700">O CRM tentou reconectar sozinho e não resolveu. Confira se o celular está ligado e com internet. Se continuar, toque em Desconectar e conecte de novo pelo QR Code.</p>
                     </div>
                   ) : (
                   <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-center">
