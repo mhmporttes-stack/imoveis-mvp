@@ -40,6 +40,17 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-23 — Henry não para de falar quando o dono interrompe ("para", "Henry" ou falando por cima)
+- **Data:** 2026-10-23
+- **Sintoma:** com o Henry falando no computador, o dono diz "para" ou fala por cima e ele continua; às vezes o microfone "ouve" o próprio Henry.
+- **Área:** Henry / Frontend
+- **Impacto:** só o dono (único usuário do Henry); computador e app de desktop. Sem perda de dado.
+- **Causa raiz:** (1) a voz passava pelo WebAudio para o anel (`createMediaElementSource` → destino), o que provavelmente desliga o cancelamento de eco do Chrome — o reconhecedor ouvia a voz dele misturada com a do dono; (2) "para" era anulado sempre que a resposta inteira tinha "para"; (3) o filtro de eco comparava com a resposta INTEIRA, inclusive palavras comuns, e descartava a fala do dono; (4) medidor com limiar alto (0,12/300 ms) e supressão de ruído; (5) no app de desktop ninguém escutava enquanto ele falava.
+- **Correção:** voz direto do `<audio>` (anel por `captureStream`), regras novas de parada/eco, medidor 0,055/150 ms sem supressão de ruído, VAD local em duas etapas (volume baixo → confirmação → para) — ver CHANGELOG_AI 2026-10-23 e HENRY-1.
+- **Arquivos/commit:** `components/henry/HenryVoiceAssistant.jsx`, `lib/henry-voice-conversation.mjs`, `components/henry/henry-vad.js` — commit deste registro
+- **Prevenção/teste:** `tests/henry-voice-conversation.test.mjs` (parada isolada, palavras comuns, eco puro da frase atual, cauda com "Henry", sem `createMediaElementSource`, VAD sem CDN).
+- **Status:** Monitorando (teste do dono no PC; iPhone sem mudança)
+
 ### 2026-10-23 — Cliente agradeceu "fotos e vídeos" que não aparecem no Chat (visualização única)
 - **Data:** 2026-10-23
 - **Sintoma:** foto/vídeo/áudio que o contato mandou não aparece na conversa do WhatsApp pessoal, embora as mídias comuns do mesmo número cheguem normalmente.

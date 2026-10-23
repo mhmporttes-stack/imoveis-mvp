@@ -5,6 +5,9 @@ import { useRouter } from "next/navigation";
 import { detectWakeWord, isVisualQuestion } from "@/lib/henry-voice-core.mjs";
 import { shouldMinimizeForNavigation } from "@/lib/henry-navigation-core.mjs";
 import {
+  BARGE_DUCK_VOLUME,
+  BARGE_SEGMENT_MAX_MS,
+  BARGE_SEGMENT_MIN_MS,
   INTERIM_FINAL_MS,
   RECORD_MIN_MS,
   RECORD_VOICE_LEVEL,
@@ -25,7 +28,10 @@ import {
   conversationHistory,
   detectBargeIn,
   detectSpeechBargeIn,
+  floatToWavBytes,
+  henryBargeMode,
   micVoiceSustained,
+  shouldRestoreVolume,
   henryCaption as captionFor,
   isConversationEnd,
   isConversationExpired,
@@ -54,6 +60,7 @@ import { detectScreenCommand, readHenryDesktopBridge } from "@/lib/henry-desktop
 import HenryVoiceView from "./HenryVoiceView";
 import HenryCursor from "./HenryCursor";
 import { captureWebcamFrame } from "./webcam-capture";
+import { createHenryVad } from "./henry-vad";
 
 // Assistente de voz "Henry" (pedido do dono, 2026-10-22 — docs/BUSINESS_RULES.md HENRY-1). Montado no layout do painel só
 // para o DONO (conta real, fora de "Alterar conta"); a rota /api/admin/henry confere de novo. Só no computador (≥ 768px).
@@ -178,7 +185,15 @@ export default function HenryVoiceAssistant() {
   const audioCtxRef = useRef(null);
   const micAnalyserRef = useRef(null);
   const outAnalyserRef = useRef(null);
+  const outSourceRef = useRef(null); // voz do Henry → medidor do anel (captureStream, sem ir ao alto-falante)
   const micStreamRef = useRef(null);
+  const micMeterAnalyserRef = useRef(null);
+  // Interrupção (dono, 2026-10-23): frase que está tocando, volume abaixado ("ducking") e detector de voz local (VAD).
+  const currentClipRef = useRef({ text: "", prevText: "", startedAt: 0 });
+  const duckRef = useRef({ ducked: false, lastVoiceAt: 0, waitingSince: 0 });
+  const vadRef = useRef({ instance: null, loading: false, failed: false, running: false, speaking: false, lastAt: 0 });
+  const micLoudAtRef = useRef(0);
+  const bargeBusyRef = useRef(false);
   const askRef = useRef(null);
   const lastHeardRef = useRef(0);
   const lastActivityRef = useRef(Date.now());
@@ -306,6 +321,11 @@ export default function HenryVoiceAssistant() {
   const captureMode = henryCaptureMode({ desktop, desktopApp, hasRecognition: supported, hasRecorder, recognitionFailed, iosStandalone });
   const recordMode = captureMode === "record";
   recordModeRef.current = recordMode;
+  // Como interromper enquanto ele fala: Chrome (parcial + VAD), app de desktop (VAD + trecho curto transcrito) ou celular
+  // (tocar na tela; chave HENRY_MOBILE_BARGE_IN desligada por causa do eco no iOS 26.2+).
+  const bargeMode = henryBargeMode({ desktop, desktopApp, recordMode });
+  const bargeModeRef = useRef(bargeMode);
+  bargeModeRef.current = bargeMode;
   const listenMode = recordMode ? "tap" : henryListenMode({ desktop, mobileWake });
   const listenModeRef = useRef(listenMode);
   listenModeRef.current = listenMode;
@@ -425,7 +445,9 @@ export default function HenryVoiceAssistant() {
   const startMicMeter = useCallback(async () => {
     if (micStreamRef.current || !navigator.mediaDevices?.getUserMedia) return;
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } });
+      // Cancelamento de eco ligado (a voz dele sai do microfone); supressão de ruído desligada (ela abafava a voz do dono
+      // por cima da fala dele e o medidor não passava do limiar). O VAD usa este mesmo microfone.
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: false, autoGainControl: true } });
       micStreamRef.current = stream;
       const context = ensureAudioContext();
       if (!context) return;
@@ -433,6 +455,7 @@ export default function HenryVoiceAssistant() {
       analyser.fftSize = 1024;
       context.createMediaStreamSource(stream).connect(analyser);
       micAnalyserRef.current = analyser;
+      micMeterAnalyserRef.current = analyser;
     } catch {
       // Sem permissão: o reconhecimento também vai falhar e mostrar "microfone bloqueado".
     }
@@ -441,7 +464,9 @@ export default function HenryVoiceAssistant() {
   const stopMicMeter = useCallback(() => {
     micStreamRef.current?.getTracks().forEach((track) => track.stop());
     micStreamRef.current = null;
-    micAnalyserRef.current = null;
+    // Só solta o medidor dele (a gravação do tocar para falar tem o próprio).
+    if (micAnalyserRef.current === micMeterAnalyserRef.current) micAnalyserRef.current = null;
+    micMeterAnalyserRef.current = null;
   }, []);
 
   // --- Sons sutis de início/fim de escuta (respeitam o mudo) ------------------------------------------------------------
@@ -532,11 +557,15 @@ export default function HenryVoiceAssistant() {
   const stopSpeaking = useCallback(() => {
     speechQueueRef.current = { clips: [], playing: false, done: true };
     narratingTextRef.current = "";
+    currentClipRef.current = { text: "", prevText: "", startedAt: 0 };
+    duckRef.current = { ducked: false, lastVoiceAt: 0, waitingSince: 0 };
     const audio = audioRef.current;
     if (audio) {
       audio.onended = null;
       audio.onerror = null;
+      audio.onplaying = null;
       if (!audio.paused) audio.pause();
+      audio.volume = 1;
     }
     try {
       if (webSourceRef.current) {
@@ -560,9 +589,9 @@ export default function HenryVoiceAssistant() {
     if (phaseRef.current === "thinking") listenAgain();
   }, [listenAgain]);
 
-  // Elemento de áudio único. No computador passa pelo medidor (WebAudio) para o anel seguir a voz — ligado UMA vez e só
-  // com o contexto rodando (ligado a um contexto suspenso tocaria mudo). No celular não passa (o iOS suspende o contexto
-  // e calaria a voz); o anel usa o pulso simulado.
+  // Elemento de áudio único. A voz sai DIRETO dele para o alto-falante (dono, 2026-10-23: "ele não para quando é
+  // interrompido"): passar o som pelo WebAudio (fonte do elemento → destino) desligava o cancelamento de eco do
+  // Chrome, que só cancela o áudio tocado direto por <audio>, e o microfone ouvia o próprio Henry.
   const getAudioElement = useCallback(() => {
     if (!audioRef.current) {
       const element = new Audio();
@@ -570,17 +599,39 @@ export default function HenryVoiceAssistant() {
       element.preload = "auto";
       audioRef.current = element;
     }
-    const element = audioRef.current;
+    return audioRef.current;
+  }, []);
+
+  // Anel do computador: lê a voz por audio.captureStream() → AnalyserNode que NÃO vai ao alto-falante (só mede). Sem
+  // captureStream (ou contexto parado), o anel usa o pulso simulado. Chamado a cada parte que começa a tocar.
+  const meterOutput = useCallback((element) => {
     const context = audioCtxRef.current;
-    if (!element.dataset.metered && desktopRef.current && context && context.state === "running") {
-      const analyser = context.createAnalyser();
-      analyser.fftSize = 1024;
-      context.createMediaElementSource(element).connect(analyser);
-      analyser.connect(context.destination);
-      outAnalyserRef.current = analyser;
-      element.dataset.metered = "1";
+    const capture = element.captureStream || element.mozCaptureStream;
+    if (!desktopRef.current || !context || context.state !== "running" || typeof capture !== "function") return false;
+    try {
+      const stream = capture.call(element);
+      if (!stream.getAudioTracks().length) return false;
+      if (!outAnalyserRef.current) {
+        const analyser = context.createAnalyser();
+        analyser.fftSize = 1024;
+        outAnalyserRef.current = analyser;
+      }
+      outSourceRef.current?.disconnect();
+      const source = context.createMediaStreamSource(stream);
+      source.connect(outAnalyserRef.current); // NÃO liga a context.destination
+      outSourceRef.current = source;
+      return true;
+    } catch {
+      return false;
     }
-    return element;
+  }, []);
+
+  // Volume abaixado enquanto o dono pode estar falando por cima (1ª etapa da interrupção). Só no <audio> do computador.
+  const setDuck = useCallback((on) => {
+    duckRef.current.ducked = on;
+    if (!on) duckRef.current.waitingSince = 0;
+    const element = audioRef.current;
+    if (element && desktopRef.current) element.volume = on ? BARGE_DUCK_VOLUME : 1;
   }, []);
 
   // iPhone (Safari 16.4+): "playback" manda a voz para o alto-falante e ignora a chave de silencioso; para ouvir de novo
@@ -650,6 +701,7 @@ export default function HenryVoiceAssistant() {
     queue.playing = true;
     queue.narrating = Boolean(clip.narration);
     narratingTextRef.current = clip.narration ? clip.text : "";
+    currentClipRef.current = { text: clip.text || "", prevText: currentClipRef.current.text, startedAt: Date.now() };
     const advance = () => {
       if (speechQueueRef.current === queue) playNextRef.current();
     };
@@ -677,7 +729,11 @@ export default function HenryVoiceAssistant() {
   // Recusado: guarda a parte e toca no próximo toque/tecla (dentro do gesto), em vez de cair na voz do navegador muda.
   const playWithElement = (clip, queue, advance) => {
     const element = getAudioElement();
-    meterActiveRef.current = Boolean(element.dataset.metered);
+    meterActiveRef.current = false;
+    element.onplaying = () => {
+      meterActiveRef.current = meterOutput(element);
+    };
+    element.volume = desktopRef.current && duckRef.current.ducked ? BARGE_DUCK_VOLUME : 1;
     element.onended = advance;
     element.onerror = advance;
     element.src = `data:${clip.audio.contentType || "audio/mpeg"};base64,${clip.audio.base64}`;
@@ -1148,6 +1204,9 @@ export default function HenryVoiceAssistant() {
     }
   }, [abortRequest, ensureAudioContext, finishRecording, markActivity, setAudioSession, startConversation, stopRecording, stopSpeaking, unlockAudio, updatePhase]);
 
+  const startRecordingRef = useRef(null);
+  startRecordingRef.current = startRecording;
+
   // Toque no anel ou no microfone (modo gravação): começa a gravar; tocando de novo, envia.
   const talk = useCallback(() => {
     if (recordRef.current) stopRecording(false);
@@ -1157,15 +1216,67 @@ export default function HenryVoiceAssistant() {
   // Saiu do modo gravação ou desmontou: microfone desligado.
   useEffect(() => () => recordRef.current && stopRecording("cancel"), [stopRecording]);
 
-  // O que o Henry está falando agora (filtro de eco da interrupção).
-  // Pensando: a frase de espera que está tocando (o "só um instante" dele nunca interrompe a si mesmo).
-  const currentSpeech = useCallback(() => (phaseRef.current === "thinking" ? narratingTextRef.current : lastReplyRef.current), []);
+  // O que o Henry está falando agora (filtro de eco da interrupção) = a parte da fila QUE ESTÁ TOCANDO (dono, 2026-10-23),
+  // mais a parte anterior no 1,5 s inicial (o reconhecedor entrega o fim da frase anterior com atraso). Antes de a 1ª parte
+  // tocar, a resposta inteira. Pensando: a frase de espera que está tocando (ele nunca interrompe a si mesmo).
+  const currentSpeech = useCallback(() => {
+    if (phaseRef.current === "thinking") return narratingTextRef.current;
+    const clip = currentClipRef.current;
+    if (!clip.text) return lastReplyRef.current;
+    return clip.prevText && Date.now() - clip.startedAt < 1500 ? `${clip.prevText} ${clip.text}` : clip.text;
+  }, []);
+
+  // Voz do dono confirmada no microfone (cancelamento de eco ligado): pelo VAD quando ele está rodando; senão pelo medidor.
+  const voiceConfirmed = useCallback((windowMs = 1500) => {
+    const vad = vadRef.current;
+    const now = Date.now();
+    if (vad.running) return vad.speaking || now - vad.lastAt < windowMs;
+    return !micAnalyserRef.current || now - micLoudAtRef.current < windowMs;
+  }, []);
 
   // Interrupção: corta a voz e cancela o pedido (chamado já no resultado parcial, para parar em menos de 0,5 s).
   const interrupt = useCallback(() => {
     stopSpeaking();
     abortRequest();
   }, [abortRequest, stopSpeaking]);
+
+  // App de desktop (sem reconhecimento do Chrome), 2ª etapa da interrupção: o trecho em que o VAD ouviu voz (só ele, só na
+  // memória) vai para a transcrição; parada/nome ou fala do dono que não é eco → para de vez e ouve o pedido (a fala com
+  // pergunta já vira o pedido). Nada confirmado → o volume volta sozinho.
+  const confirmBargeByTranscript = useCallback(async (samples) => {
+    if (bargeModeRef.current !== "transcribe" || phaseRef.current !== "speaking" || bargeBusyRef.current) return;
+    const durationMs = Math.round((samples?.length || 0) / 16);
+    if (durationMs < BARGE_SEGMENT_MIN_MS) return;
+    const clipText = currentSpeech();
+    const piece = durationMs > BARGE_SEGMENT_MAX_MS ? samples.subarray(0, BARGE_SEGMENT_MAX_MS * 16) : samples;
+    bargeBusyRef.current = true;
+    duckRef.current.waitingSince = Date.now();
+    try {
+      const audio = await blobToDataUrl(new Blob([floatToWavBytes(piece, 16000)], { type: "audio/wav" }));
+      const response = await fetch("/api/admin/henry", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ mode: "transcribe", audio, durationMs: Math.min(durationMs, BARGE_SEGMENT_MAX_MS), deviceId: deviceIdRef.current })
+      });
+      const data = await response.json().catch(() => ({}));
+      const text = response.ok ? String(data?.text || "").trim() : "";
+      if (!text || phaseRef.current !== "speaking") return;
+      const named = detectBargeIn(text, clipText);
+      const barge = named.interrupt ? named : detectSpeechBargeIn(text, clipText, { final: true });
+      if (!barge.interrupt) return;
+      interrupt();
+      startConversation();
+      setHeard({ text: text.slice(0, 80), at: Date.now(), accepted: true });
+      if (barge.kind === "question") askRef.current?.({ mode: "question", question: barge.question, shown: text });
+      else if (barge.kind === "report") askRef.current?.({ mode: "report", question: "", shown: text });
+      else startRecordingRef.current?.(); // "para"/"Henry": já ouve o pedido
+    } catch {
+      // sem rede: o volume volta e ele segue falando (tocar continua interrompendo)
+    } finally {
+      bargeBusyRef.current = false;
+      duckRef.current.waitingSince = 0;
+    }
+  }, [currentSpeech, interrupt, startConversation]);
 
   // Frase final reconhecida. Fora do modo conversa só age se começar pelo nome; em conversa, qualquer frase (menos eco e
   // ruído) vira pergunta. Falando/pensando, só o nome e as palavras de parada valem. O resto é descartado aqui.
@@ -1188,9 +1299,12 @@ export default function HenryVoiceAssistant() {
     }
     if (phaseRef.current === "speaking" || phaseRef.current === "thinking") {
       // Falando (computador): qualquer frase dele que não seja eco interrompe e vira a nova pergunta; pensando: só o nome
-      // e as palavras de parada.
-      const barge = phaseRef.current === "speaking" && desktopRef.current ? detectSpeechBargeIn(text, currentSpeech(), { final: true }) : detectBargeIn(text, currentSpeech());
+      // e as palavras de parada. Fala comum (e parada que também está na frase dele) só com a voz confirmada no microfone.
+      const named = detectBargeIn(text, currentSpeech());
+      const speechBarge = phaseRef.current === "speaking" && bargeModeRef.current !== "tap";
+      const barge = named.interrupt || !speechBarge ? named : detectSpeechBargeIn(text, currentSpeech(), { final: true });
       if (!barge.interrupt) return false;
+      if ((named.interrupt ? named.echoRisk : true) && !voiceConfirmed(3000)) return false;
       interrupt();
       startConversation();
       if (barge.kind === "question") ask("question", barge.question); // "Henry, e ontem?" → responde direto, sem bipe
@@ -1238,7 +1352,7 @@ export default function HenryVoiceAssistant() {
       return true;
     }
     return false;
-  }, [currentSpeech, endConversation, interrupt, listenAgain, sayGoodbye, startConversation]);
+  }, [currentSpeech, endConversation, interrupt, listenAgain, sayGoodbye, startConversation, voiceConfirmed]);
 
   // --- Avisos de cliente novo e transferido (HENRY-1, dono 2026-10-23) -----------------------------------------------
   // "Sempre depois de chefe? Ou patrão? etc., ele aguarda uma resposta minha, como 'sim, pode falar' ou 'oi', aí ele me
@@ -1515,23 +1629,104 @@ export default function HenryVoiceAssistant() {
     return () => window.clearInterval(timer);
   }, [inConversation, endConversation]);
 
-  // Medidor do microfone enquanto ele fala (computador): voz do dono por ~300 ms confirma a interrupção por fala.
+  // Enquanto ele fala (computador e app de desktop): microfone com cancelamento de eco + detector de voz local (VAD).
+  // 1ª etapa: VAD ouviu voz e o medidor confirma volume (~0,055 por ~150 ms) → volume dele a 25% na hora. 2ª etapa: o
+  // parcial do Chrome (onresult) ou o trecho transcrito (app de desktop) confirma → para de vez. Sem confirmação em ~1,5 s
+  // depois que a voz acabou → o volume volta. Sem VAD (arquivo não carregou), só o medidor confirma o parcial, sem baixar
+  // o volume. Celular: nada disso (tocar para interromper).
   const micLoudRef = useRef(false);
+  const bargeActive = phase === "speaking" && bargeMode !== "tap" && active && !muted;
   useEffect(() => {
-    if (phase !== "speaking" || !desktop) {
+    if (!bargeActive) {
       micLoudRef.current = false;
+      if (duckRef.current.ducked) setDuck(false);
       return undefined;
     }
+    let cancelled = false;
+    const vad = vadRef.current;
+    // App de desktop: não há escuta contínua — o microfone abre só enquanto ele fala e fecha depois.
+    const ownsMic = bargeModeRef.current === "transcribe";
+    const begin = async () => {
+      if (!micStreamRef.current) await startMicMeter();
+      if (cancelled) {
+        if (ownsMic && phaseRef.current !== "speaking") stopMicMeter(); // abriu depois que ele parou
+        return;
+      }
+      if (!micStreamRef.current || vad.failed) return;
+      const context = ensureAudioContext();
+      if (!context) return;
+      if (!vad.instance && !vad.loading) {
+        vad.loading = true;
+        try {
+          vad.instance = await createHenryVad({
+            audioContext: context,
+            getStream: async () => micStreamRef.current,
+            onSpeechStart: () => {
+              vad.speaking = true;
+              vad.lastAt = Date.now();
+            },
+            onMisfire: () => {
+              vad.speaking = false;
+              vad.lastAt = Date.now();
+            },
+            onSpeechEnd: (samples) => {
+              vad.speaking = false;
+              vad.lastAt = Date.now();
+              confirmBargeRef.current?.(samples);
+            }
+          });
+        } catch {
+          vad.failed = true; // sem os arquivos (ex.: next dev sem prebuild): segue só com o medidor
+        } finally {
+          vad.loading = false;
+        }
+      }
+      if (cancelled || !vad.instance || !micStreamRef.current) return;
+      try {
+        await vad.instance.start();
+        vad.running = !cancelled;
+        if (cancelled) vad.instance.pause().catch(() => {});
+      } catch {
+        vad.running = false;
+      }
+    };
+    begin();
     let since = 0;
     const timer = window.setInterval(() => {
       const analyser = micAnalyserRef.current;
       if (!analyser || !meterBuffer) return;
-      const state = micVoiceSustained({ level: levelFrom(analyser, meterBuffer), since });
+      const now = Date.now();
+      const state = micVoiceSustained({ level: levelFrom(analyser, meterBuffer), since, now });
       since = state.since;
       micLoudRef.current = state.sustained;
+      if (state.sustained) micLoudAtRef.current = now;
+      if (!vad.running) return;
+      const duck = duckRef.current;
+      const voiceActive = vad.speaking && now - micLoudAtRef.current < 400;
+      if (voiceActive) {
+        duck.lastVoiceAt = now;
+        if (!duck.ducked) setDuck(true);
+      } else if (shouldRestoreVolume({ ducked: duck.ducked, voiceActive, lastVoiceAt: duck.lastVoiceAt, waitingSince: duck.waitingSince, now })) {
+        setDuck(false);
+      }
     }, 50);
-    return () => window.clearInterval(timer);
-  }, [phase, desktop]);
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+      vad.speaking = false;
+      if (vad.running) {
+        vad.running = false;
+        vad.instance?.pause().catch(() => {});
+      }
+      if (ownsMic) stopMicMeter();
+    };
+  }, [bargeActive, ensureAudioContext, setDuck, startMicMeter, stopMicMeter]);
+  const confirmBargeRef = useRef(null);
+  confirmBargeRef.current = confirmBargeByTranscript;
+  useEffect(() => () => {
+    vadRef.current.instance?.destroy().catch(() => {});
+    vadRef.current = { instance: null, loading: false, failed: false, running: false, speaking: false, lastAt: 0 };
+  }, []);
 
   // --- Escuta contínua --------------------------------------------------------------------------------------------
   // Handlers por ref: o reconhecimento NÃO é recriado quando a identidade de uma função muda (recriar aborta a sessão e
@@ -1539,7 +1734,7 @@ export default function HenryVoiceAssistant() {
   const handleFinalRef = useRef(handleFinal);
   handleFinalRef.current = handleFinal;
   const recognitionHandlersRef = useRef({});
-  recognitionHandlersRef.current = { markActivity, startMicMeter, stopMicMeter, currentSpeech, interrupt, warmServer, markCalling };
+  recognitionHandlersRef.current = { markActivity, startMicMeter, stopMicMeter, currentSpeech, interrupt, warmServer, markCalling, voiceConfirmed };
   useEffect(() => {
     const { startMicMeter, stopMicMeter } = recognitionHandlersRef.current;
     const Recognition = getRecognitionClass();
@@ -1571,7 +1766,7 @@ export default function HenryVoiceAssistant() {
     // Celular (tocar para falar): só roda com a cena aberta ou em conversa; computador ou "ouvir com o app aberto": sempre.
     // Celular: enquanto o Henry fala, o microfone fica DESLIGADO — com o microfone aberto o iOS/Android manda a voz para o
     // alto-falante de ligação (baixinho ou mudo). Dono, 2026-10-22: "mostra que ele está falando e não sai áudio".
-    const wantsRun = () => shouldRunRecognition({ mode: listenModeRef.current, sessionOpen: sessionOpenRef.current }) && !(!desktopRef.current && phaseRef.current === "speaking");
+    const wantsRun = () => shouldRunRecognition({ mode: listenModeRef.current, sessionOpen: sessionOpenRef.current }) && !(bargeModeRef.current === "tap" && phaseRef.current === "speaking");
     const startSafe = () => {
       if (stopped || !shouldListenRef.current || !wantsRun()) return;
       try {
@@ -1615,10 +1810,13 @@ export default function HenryVoiceAssistant() {
           handlers.warmServer(); // ouviu "Henry": já aquece o relatório enquanto ele fala
           handlers.markCalling(); // e o ícone já cresce
         }
-        if ((phaseRef.current === "speaking" || phaseRef.current === "thinking") && detectBargeIn(text, handlers.currentSpeech()).interrupt) {
-          handlers.interrupt(); // resultado parcial: corta na hora; a frase final decide se já tem pergunta
-        } else if (phaseRef.current === "speaking" && desktopRef.current && detectSpeechBargeIn(text, handlers.currentSpeech()).interrupt && (!micAnalyserRef.current || micLoudRef.current)) {
-          handlers.interrupt(); // ele começou a falar por cima (3+ palavras que não são eco, voz confirmada no microfone)
+        if (phaseRef.current === "speaking" || phaseRef.current === "thinking") {
+          const named = detectBargeIn(text, handlers.currentSpeech());
+          if (named.interrupt && (!named.echoRisk || handlers.voiceConfirmed())) {
+            handlers.interrupt(); // resultado parcial: corta na hora; a frase final decide se já tem pergunta
+          } else if (!named.interrupt && phaseRef.current === "speaking" && bargeModeRef.current !== "tap" && detectSpeechBargeIn(text, handlers.currentSpeech()).interrupt && handlers.voiceConfirmed()) {
+            handlers.interrupt(); // ele começou a falar por cima (fala que não é eco da frase atual, voz confirmada no microfone)
+          }
         }
       }
       if (interim.text) {
@@ -1681,7 +1879,7 @@ export default function HenryVoiceAssistant() {
   // Celular, meia via: fala do Henry → microfone e medidor desligados (o som vai para o alto-falante); acabou de falar e a
   // conversa segue → volta a ouvir. Para interromper no celular: tocar na tela (onInterrupt).
   useEffect(() => {
-    if (desktop) return;
+    if (bargeMode !== "tap") return;
     if (phase === "speaking") {
       stopListeningRef.current?.();
       stopMicMeter();
@@ -1691,7 +1889,7 @@ export default function HenryVoiceAssistant() {
     } else if (phase === "idle") {
       setAudioSession("auto");
     }
-  }, [phase, desktop, stopMicMeter, setAudioSession]);
+  }, [phase, bargeMode, stopMicMeter, setAudioSession]);
 
   // Celular: abrir a cena ou estar em conversa mantém a escuta; fechou e a conversa acabou → para de ouvir (bateria).
   useEffect(() => {

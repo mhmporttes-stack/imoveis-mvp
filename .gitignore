@@ -48,3 +48,6 @@ supabase/.temp/
 
 # scripts descartáveis de investigação (ver .claude/rules/workflow-dev.md)
 scratch/
+
+# detector de voz do Henry: gerado no prebuild (scripts/copy-vad-assets.mjs)
+public/vendor/vad/

@@ -44,8 +44,10 @@ test("interrupção: nome ou parada cortam; a própria voz (eco) não", () => {
   assert.deepEqual(detectBargeIn("Henry, e os leads de ontem?", "Hoje entraram 4 leads."), { interrupt: true, kind: "question", question: "e os leads de ontem?" });
   assert.equal(detectBargeIn("Henry", "Hoje entraram 4 leads.").kind, "wake");
   assert.equal(detectBargeIn("espera", "Hoje entraram 4 leads.").kind, "stop");
-  // "para" dentro da própria fala dele = eco, não interrompe; o nome continua valendo.
-  assert.equal(detectBargeIn("para", "Para hoje temos 3 visitas.").interrupt, false);
+  // "para" isolado SEMPRE interrompe (dono, 2026-10-23), mesmo com "para" na fala dele — só marca o risco de eco (a tela
+  // exige a voz confirmada no microfone).
+  assert.deepEqual(detectBargeIn("para", "Para hoje temos 3 visitas."), { interrupt: true, kind: "stop", question: "", echoRisk: true });
+  assert.equal(detectBargeIn("para hoje temos 3 visitas", "Para hoje temos 3 visitas.").interrupt, false); // eco da frase inteira
   assert.equal(detectBargeIn("hoje entraram 4 leads", "Hoje entraram 4 leads.").interrupt, false);
   assert.equal(detectBargeIn("o Henrique mandou os documentos", "").interrupt, false);
 });
@@ -343,5 +345,87 @@ test("qualquer fala do dono interrompe (3+ palavras, não eco); eco da própria 
   assert.deepEqual(micVoiceSustained({ level: 0.01, since: 1000, now: 1400 }), { sustained: false, since: 0 });
   const src = readFileSync(new URL("../components/henry/HenryVoiceAssistant.jsx", import.meta.url), "utf8");
   assert.match(src, /detectSpeechBargeIn\(text, currentSpeech\(\), \{ final: true \}\)/);
-  assert.match(src, /phaseRef\.current === "speaking" && desktopRef\.current && detectSpeechBargeIn/); // celular: tocar para interromper
+  assert.match(src, /phaseRef\.current === "speaking" && bargeModeRef\.current !== "tap" && detectSpeechBargeIn/); // celular: tocar para interromper
+});
+
+// --- Interrupção de verdade (dono, 2026-10-23: "ele não para quando é interrompido") -------------------------------------
+import {
+  BARGE_CONFIRM_MS,
+  BARGE_DUCK_VOLUME,
+  BARGE_TRANSCRIBE_WAIT_MS,
+  HENRY_MOBILE_BARGE_IN,
+  SPEECH_BARGE_LEVEL,
+  SPEECH_BARGE_LEVEL_MS,
+  contentWords,
+  floatToWavBytes,
+  henryBargeMode,
+  shouldRestoreVolume
+} from "../lib/henry-voice-conversation.mjs";
+
+test("barge-in: 'para'/'pare'/'pára' e palavras fortes interrompem sozinhas ou no começo da frase", () => {
+  const playing = "Para amanhã você tem duas visitas e a equipe está para bater a meta.";
+  for (const phrase of ["para", "Pára!", "pare", "espera", "chega", "peraí", "calma", "silêncio", "Henry", "ei, para"]) {
+    assert.equal(detectBargeIn(phrase, playing).interrupt, true, phrase);
+  }
+  assert.equal(detectBargeIn("para com isso", playing).kind, "stop");
+  assert.deepEqual(detectBargeIn("para, Henry, e ontem?", playing), { interrupt: true, kind: "question", question: "e ontem", echoRisk: true });
+  assert.equal(detectBargeIn("para", "Hoje entraram 4 leads.").echoRisk, false);
+  // eco da frase que está tocando (começa por "para"): não interrompe
+  assert.equal(detectBargeIn("para amanhã você tem duas", playing).interrupt, false);
+});
+
+test("barge-in: frase do dono com palavras comuns interrompe; eco puro da frase atual não", () => {
+  const playing = "Hoje entraram quatro leads e a equipe está em setenta e dois por cento da meta.";
+  assert.deepEqual(contentWords("e a de que o vendas ontem"), ["vendas", "ontem"]);
+  // dono fala por cima: só as palavras comuns ("e", "as", "de") coincidem com a fala dele
+  assert.equal(detectSpeechBargeIn("e as vendas de ontem", playing).interrupt, true);
+  assert.equal(detectSpeechBargeIn("quero saber das visitas de amanhã", playing).interrupt, true);
+  // eco puro da frase atual
+  assert.equal(detectSpeechBargeIn("entraram quatro leads e a equipe está em setenta", playing).interrupt, false);
+  // o Chrome junta o eco com a fala do dono: só as últimas ~8 palavras contam
+  assert.equal(detectSpeechBargeIn("hoje entraram quatro leads e a equipe está em setenta e dois mostra as vendas de ontem", playing).interrupt, true);
+  // compara com a frase QUE ESTÁ TOCANDO, não com a resposta inteira
+  assert.equal(detectSpeechBargeIn("e as vendas de ontem", "Ontem saíram duas vendas.").interrupt, false);
+  // só palavras comuns não decidem
+  assert.equal(detectSpeechBargeIn("e a de que", playing).interrupt, false);
+});
+
+test("barge-in: cauda com 'Henry' interrompe e vira pergunta", () => {
+  const playing = "Bom dia, Matheus. Hoje entraram dois leads e a equipe está on-line.";
+  assert.deepEqual(detectBargeIn("dois leads e a equipe henry quantas visitas hoje", playing), { interrupt: true, kind: "question", question: "quantas visitas hoje" });
+  assert.equal(detectBargeIn("a equipe esta on line henry", playing).kind, "wake");
+});
+
+test("barge-in: medidor mais sensível, volume abaixado e modos por aparelho", () => {
+  assert.ok(SPEECH_BARGE_LEVEL >= 0.05 && SPEECH_BARGE_LEVEL <= 0.06);
+  assert.equal(SPEECH_BARGE_LEVEL_MS, 150);
+  let state = micVoiceSustained({ level: 0.06, since: 0, now: 1000 });
+  state = micVoiceSustained({ level: 0.06, since: state.since, now: 1150 });
+  assert.equal(state.sustained, true);
+  assert.equal(BARGE_DUCK_VOLUME, 0.25);
+  assert.equal(shouldRestoreVolume({ ducked: true, lastVoiceAt: 1000, now: 1000 + BARGE_CONFIRM_MS - 1 }), false);
+  assert.equal(shouldRestoreVolume({ ducked: true, lastVoiceAt: 1000, now: 1000 + BARGE_CONFIRM_MS }), true);
+  assert.equal(shouldRestoreVolume({ ducked: true, voiceActive: true, lastVoiceAt: 0, now: 99999 }), false);
+  assert.equal(shouldRestoreVolume({ ducked: true, lastVoiceAt: 0, waitingSince: 5000, now: 5000 + BARGE_TRANSCRIBE_WAIT_MS - 1 }), false);
+  assert.equal(henryBargeMode({ desktop: true }), "recognition");
+  assert.equal(henryBargeMode({ desktop: true, desktopApp: true, recordMode: true }), "transcribe");
+  assert.equal(HENRY_MOBILE_BARGE_IN, false); // iPhone: tocar para interromper (eco do iOS 26.2+)
+  assert.equal(henryBargeMode({ desktop: false }), "tap");
+  assert.equal(henryBargeMode({ desktop: false, mobileBargeIn: true }), "recognition");
+  const wav = floatToWavBytes(new Float32Array([0, 1, -1]), 16000);
+  assert.equal(String.fromCharCode(...wav.slice(0, 4)), "RIFF");
+  assert.equal(wav.length, 44 + 6);
+});
+
+test("barge-in: a voz sai direto do <audio> (cancelamento de eco do Chrome) e o anel mede por captureStream", () => {
+  const src = readFileSync(new URL("../components/henry/HenryVoiceAssistant.jsx", import.meta.url), "utf8");
+  assert.doesNotMatch(src, /createMediaElementSource/);
+  assert.match(src, /captureStream/);
+  assert.match(src, /noiseSuppression: false/);
+  assert.match(src, /playClipWebAudio/); // iPhone continua pelo WebAudio
+  const vad = readFileSync(new URL("../components/henry/henry-vad.js", import.meta.url), "utf8");
+  assert.match(vad, /const BASE = "\/vendor\/vad\/"/); // arquivos do próprio site, sem CDN
+  assert.doesNotMatch(vad, /https?:\/\//);
+  const card = readFileSync(new URL("../components/henry/HenrySettingsCard.jsx", import.meta.url), "utf8");
+  assert.match(card, /Para interromper, fale &quot;para&quot; ou &quot;Henry&quot;/);
 });

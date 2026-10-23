@@ -5,11 +5,12 @@
   "type": "module",
   "scripts": {
     "dev": "next dev",
-    "prebuild": "node scripts/stamp-service-worker.mjs",
+    "prebuild": "node scripts/stamp-service-worker.mjs && node scripts/copy-vad-assets.mjs",
     "build": "next build",
     "start": "next start"
   },
   "dependencies": {
+    "@ricky0123/vad-web": "0.0.31",
     "@supabase/supabase-js": "^2.110.1",
     "@vercel/analytics": "^1.4.2",
     "@vercel/speed-insights": "^1.1.0",

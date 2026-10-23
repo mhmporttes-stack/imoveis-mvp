@@ -281,6 +281,7 @@ function HenryVoiceStyleSection({ saved, options, serverVoice, provider = "brows
         Escolha a voz, o tom e a velocidade do Henry. Isso muda só o jeito de falar: ele continua só consultando, só para você, e sem falar dados sensíveis.
       </p>
       {extra}
+      <p className="mt-2 max-w-2xl text-sm text-muted">Para interromper, fale &quot;para&quot; ou &quot;Henry&quot;. Com fone de ouvido funciona ainda melhor.</p>
       {desktopApp ? (
         <p className="mt-2 max-w-2xl rounded-control bg-emerald-50 px-3 py-2 text-sm font-bold text-emerald-800" role="status">
           Rodando no app de desktop: microfone liberado, som sem clique e Ctrl+Shift+H chama o Henry.

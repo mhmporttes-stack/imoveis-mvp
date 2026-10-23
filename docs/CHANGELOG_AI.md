@@ -410,6 +410,15 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-23 — Henry para quando é interrompido (barge-in, plano A)
+- **Data:** 2026-10-23
+- **Área:** Henry (voz) / frontend
+- **Alteração:** (1) voz do Henry no computador toca direto pelo `<audio>` (sem `createMediaElementSource`), anel por `captureStream()` sem ir ao alto-falante; iPhone igual. (2) Regras de interrupção: "para"/palavras fortes/"Henry" sempre valem (marcando `echoRisk`), eco comparado com a frase que toca, só palavras de conteúdo e últimas 8 palavras; medidor 0,055/150 ms sem supressão de ruído. (3) Detector de voz local Silero (`@ricky0123/vad-web` 0.0.31 + `onnxruntime-web` 1.30) só enquanto ele fala, servido de `/vendor/vad/` (gerado no `prebuild` por `scripts/copy-vad-assets.mjs`, fora do git): baixa o volume a 25% e para de vez com a confirmação (parcial do Chrome; no app de desktop, trecho curto transcrito pelo Scribe). (4) Dica em "Voz e personalidade". Docs: `BUSINESS_RULES.md` HENRY-1, `INCIDENTES.md`.
+- **Motivo:** dono: "ele não para quando é interrompido"; plano A do Scout (`docs/scout/relatorios/2026-10-23-henry-barge-in.md`) aprovado.
+- **Arquivos afetados:** `lib/henry-voice-conversation.mjs`, `components/henry/HenryVoiceAssistant.jsx`, `components/henry/henry-vad.js` (novo), `components/henry/HenrySettingsCard.jsx`, `scripts/copy-vad-assets.mjs` (novo), `package.json`/`pnpm-lock.yaml` (dependência + `prebuild`), `.gitignore`, `tests/henry-voice-conversation.test.mjs`.
+- **Risco/observação:** ~16 MB estáticos (wasm 14 MB) baixados uma vez no 1º uso no computador; no `next dev` sem `prebuild` o VAD não carrega (cai no medidor). App de desktop: cada fala detectada pelo VAD enquanto ele fala gera uma transcrição paga (Scribe) e conta no limite de 20/min da rota. Celular sem mudança (chave `HENRY_MOBILE_BARGE_IN` desligada). A CONFIRMAR no uso: eficácia do cancelamento de eco com `<audio>` direto e limiares por aparelho.
+- **Autor:** Claude Code (crm-editor)
+
 ### 2026-10-23 — Henry avisa a chegada da equipe na imobiliária ("Meu patrão?")
 - **Data:** 2026-10-23
 - **Área:** Henry / Presença na imobiliária (ROL-2f, só leitura)
