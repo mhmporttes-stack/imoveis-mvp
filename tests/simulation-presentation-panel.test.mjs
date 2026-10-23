@@ -57,6 +57,6 @@ test("rota: copiar grava presentation_link_copied com o mesmo guard e escopo da 
   assert.match(route, /getSimulation\(\(await params\)\.id, auth\)/);
   assert.match(route, /if \(action === "copiar-registrar"\) \{[\s\S]*?eventType: PRESENTATION_LINK_COPIED_EVENT/);
   assert.match(route, /canContact: canSendPresentationTo\(simulation\.registration\)/);
-  const journey = read("components/ClientJourneyActions.jsx");
+  const journey = read("components/ClientJourneyActions.jsx") + read("lib/journey-event-labels.mjs"); // rótulos: fonte única
   assert.match(journey, /case "presentation_link_copied":\s*return \{ title: "LINK DA APRESENTAÇÃO COPIADO"/);
 });

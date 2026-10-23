@@ -163,7 +163,7 @@ test("fontes: só na tela (https), nunca link na voz", () => {
   assert.deepEqual(sources, [{ title: "G1 notícia", host: "g1.globo.com", url: "https://g1.globo.com/sp/x" }]);
   assert.equal(sourcesDetail(sources).sections[0].rows[0].href, "https://g1.globo.com/sp/x");
   assert.equal(stripUrls("veja www.exemplo.com.br e https://a.b/c agora."), "veja e agora.");
-  assert.match(lib, /safeHenryReply\(stripUrls\(replyText\) \|\| fallback\)/);
+  assert.match(lib, /safeHenryReply\(stripUrls\(replyText\) \|\| fallback[,)]/);
 });
 
 // --- Memória do dia (REGRA OFICIAL, dono 2026-10-22) -------------------------------------------------------------------

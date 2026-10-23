@@ -75,5 +75,5 @@ test("linha do tempo: telefone adicionado aparece com quem fez (evento data_upda
   const lib = read("lib/simulation-registrations.js");
   assert.match(lib, /changedFields\.push\(\{ field: "phone", fromLast4/);
   assert.equal((lib.match(/linkUnlinkedConversationsToClient/g) || []).length, 2, "import + chamada, uma vez");
-  assert.match(read("components/ClientJourneyActions.jsx"), /WhatsApp adicionado: final \$\{f\.toLast4\}/);
+  assert.match(read("lib/journey-event-labels.mjs"), /WhatsApp adicionado: final \$\{f\.toLast4\}/);
 });

@@ -115,7 +115,7 @@ test("linha do tempo: eventos próprios, nenhum conta como atendimento humano; c
   const server = source("lib/simulation-auto-send.js");
   assert.match(server, /export async function countAutoSimulationSendsSince\(sinceIso\) \{[\s\S]{0,300}\.eq\("event_type", AUTO_SEND_EVENTS\.sent\)[\s\S]{0,60}\.gte\("occurred_at", sinceIso\)/);
   assert.match(source("lib/henry-morning.js"), /countAutoSimulationSendsSince\(sinceIso\)/);
-  const timeline = source("components/ClientJourneyActions.jsx");
+  const timeline = source("components/ClientJourneyActions.jsx") + source("lib/journey-event-labels.mjs"); // rótulos: fonte única
   for (const event of Object.values(AUTO_SEND_EVENTS)) assert.match(timeline, new RegExp(`case "${event}":`));
 });
 

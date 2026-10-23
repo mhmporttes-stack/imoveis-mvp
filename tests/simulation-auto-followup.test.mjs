@@ -89,6 +89,6 @@ test("travas: janela de 24 h do Oficial (com folga de 5 min) e cadência anti-ba
 test("linha do tempo: eventos próprios, nenhum conta como atendimento humano", () => {
   for (const event of Object.values(AUTO_FOLLOWUP_EVENTS)) {
     assert.ok(!ATTENDANCE_JOURNEY_EVENTS.includes(event), event);
-    assert.match(source("components/ClientJourneyActions.jsx"), new RegExp(`case "${event}"`));
+    assert.match(source("lib/journey-event-labels.mjs"), new RegExp(`case "${event}"`));
   }
 });

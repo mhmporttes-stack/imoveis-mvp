@@ -44,6 +44,15 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 
 
+### 2026-10-23 — Henry: leitura ampla do CRM (vários clientes, Chat, financeiro, presença), continua só leitura
+- **Data:** 2026-10-23
+- **Área:** Henry (voz) / Clientes (linha do tempo)
+- **Alteração:** `buscar_cliente` virou `buscar_clientes` (vários nomes/telefones; etapa, responsável, último atendimento, próxima atividade, simulação/envio, documentos, CCA, origem, 3 últimas movimentações; nome repetido → 3 opções e pergunta). Novas leituras `conversas_aguardando`, `financeiro_resumo` (só dono), `presenca_hoje`; `consultar_crm` com descrição ampliada. Prompt: sem "use só contagens", com "nunca diga que não tem acesso"; resposta barrada com detalhe na tela vira "Pronto, deixei os detalhes na tela." Títulos da linha do tempo movidos de `components/ClientJourneyActions.jsx` para `lib/journey-event-labels.mjs` (fonte única, ficha + Henry; texto igual). `listFinancialSales` ganhou `{ repair: false }` (padrão continua reparando).
+- **Motivo:** dono: "pedi para ele me falar o status de 3 clientes e ele me disse que não consegue". Causa: ferramenta de 1 nome, resposta genérica com vários resultados, prompt restritivo e a barreira da fala derrubando a resposta inteira por causa da etapa "Comprometimento de renda".
+- **Arquivos afetados:** `lib/henry-reports-core.mjs`, `lib/henry-reports.js`, `lib/henry-voice.js`, `lib/henry-voice-core.mjs`, `lib/henry-voice-narration.mjs`, `lib/henry-voice-persona.mjs`, `lib/journey-event-labels.mjs` (novo), `components/ClientJourneyActions.jsx`, `lib/financial.js`, testes `tests/henry-tools-readonly.test.mjs` (novo) e ajustes de leitura de fonte em testes da linha do tempo.
+- **Risco/observação:** logs de produção/`ai_usage_log` não consultados (sem acesso ao banco/Vercel neste ambiente); tempo < 2 s para 3 clientes A CONFIRMAR em produção (log `[henry] tempos buscar_clientes`). `getPrivateJourney` por cliente é a leitura mais pesada.
+- **Autor:** Claude Code (crm-editor)
+
 ### 2026-10-23 — Henry: frases de espera sem repetir no dia (bug "Tô passando os olhos nos números")
 - **Data:** 2026-10-23
 - **Área:** Henry (voz)

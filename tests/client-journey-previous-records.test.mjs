@@ -24,9 +24,11 @@ test("linha do tempo mescla os cadastros anteriores ligados por ad_reentry_of, m
 
 test("tela: selo 'Cadastro anterior', 'Primeiro cadastro' com o corretor, e 'Primeira entrada' no cabeçalho", () => {
   const ui = read("components/ClientJourneyActions.jsx");
+  // Títulos dos eventos: fonte única lib/journey-event-labels.mjs (ficha + Henry, 2026-10-23).
+  const labels = read("lib/journey-event-labels.mjs");
   assert.match(ui, /Cadastro anterior \{event\.previousRecord\.clientCode\}/);
-  assert.match(ui, /PRIMEIRO CADASTRO/);
-  assert.match(ui, /Corretor: \$\{d\.initialResponsibleName\}/);
+  assert.match(labels, /PRIMEIRO CADASTRO/);
+  assert.match(labels, /Corretor: \$\{d\.initialResponsibleName\}/);
   assert.match(ui, /label="Primeira entrada"/);
 });
 
@@ -34,6 +36,5 @@ test("roleta sem corretor on-line: histórico registra com quem o cliente ficou 
   const lib = read("lib/simulation-registrations.js");
   assert.match(lib, /toUserId: responsibleUserId \|\| registration\.responsibleUserId \|\| null/);
   assert.match(lib, /heldByOwner: true/);
-  const ui = read("components/ClientJourneyActions.jsx");
-  assert.match(ui, /if \(d\.heldByOwner\)/);
+  assert.match(read("lib/journey-event-labels.mjs"), /if \(d\.heldByOwner\)/);
 });

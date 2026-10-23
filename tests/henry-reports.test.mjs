@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import {
   buildHenryBrokerReport,
-  buildHenryClientSearch,
+  buildHenryClientsReport,
   buildHenryPeriodReport,
   henryPeriodFromText,
   henryReportKind,
@@ -149,17 +149,17 @@ test("corretor no período: números da linha dele, posição no ranking e 2 nú
   assert.equal(missing.facts.aviso, "sem números deste corretor no período");
 });
 
-test("busca de cliente: etapa, responsável e último contato; telefone só quando pedido e só na tela", () => {
-  const rows = [{ full_name: "Maria Aparecida Souza", status: "in_service", responsible_user_id: "b1", last_whatsapp_contact_at: "2026-10-20T12:00:00Z", phone: "14999990000" }];
-  const base = { term: "maria", rows, statusLabel: () => "Em atendimento", brokerName: () => "Ana Lima", formatDate: () => "20/10 (há 2 dias)" };
-  const plain = buildHenryClientSearch(base);
+test("busca de clientes: telefone só quando pedido e só na tela; nunca no que vai ao modelo/voz", () => {
+  const rows = [{ id: "c1", full_name: "Maria Aparecida Souza", status: "in_service", responsible_user_id: "b1", last_whatsapp_contact_at: "2026-10-20T12:00:00Z", phone: "14999990000" }];
+  const base = { results: [{ query: { kind: "name", term: "maria", label: "maria" }, rows }], statusLabel: () => "Em atendimento", brokerName: () => "Ana Lima", formatDate: () => "20/10 (há 2 dias)" };
+  const plain = buildHenryClientsReport(base);
   assert.match(plain.spoken, /^Maria está em Em atendimento, com Ana/);
   assert.ok(isSafeToSpeak(plain.spoken));
   assert.equal(JSON.stringify(plain.detail).includes("14999990000"), false);
-  const withPhone = buildHenryClientSearch({ ...base, withPhone: true });
+  const withPhone = buildHenryClientsReport({ ...base, withPhone: true });
   assert.equal(JSON.stringify(withPhone.detail).includes("14999990000"), true);
   assert.equal(JSON.stringify(withPhone.facts).includes("14999990000"), false); // nunca vai para o modelo/voz
-  assert.match(buildHenryClientSearch({ term: "zz", rows: [] }).spoken, /Não achei/);
+  assert.equal(withPhone.spoken.includes("14999990000"), false);
   assert.equal(sanitizeClientSearchTerm("Maria%_ (123) , Silva"), "Maria Silva");
 });
 

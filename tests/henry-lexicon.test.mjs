@@ -211,7 +211,7 @@ test("prompt: guia de estilo longo no bloco com cache_control, travas mantidas, 
   assert.match(lib, /const plan = planVocabulary\("question", text, lexicon\)/);
   assert.match(lib, /repertoire: plan\.promptText, usedExpressions: plan\.usedExpressions/);
   assert.match(lib, /recordDayLexicon\(next, today, \{ \.\.\.vocabularyUsage\(reply, plan\), hint: plan\.hint \}\)/);
-  assert.match(lib, /const reply = safeHenryReply\(stripUrls\(replyText\) \|\| fallback\)/);
+  assert.match(lib, /const reply = safeHenryReply\(stripUrls\(replyText\) \|\| fallback[,)]/); // screenFallback (dono, 2026-10-23) não troca a barreira
 });
 
 // --- Risada na voz ---------------------------------------------------------------------------------------------------
