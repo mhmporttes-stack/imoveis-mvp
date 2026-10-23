@@ -55,6 +55,8 @@ Duas categorias de linha na mesma tabela: linhas de **classificação** (`docume
 
 Envio à CCA muda o status do cliente para `APPROVAL_PENDING` automaticamente — regra de negócio explícita do pedido original, não remova sem confirmar.
 
+**[REGRA OFICIAL DE NEGÓCIO — dono, 2026-10-23] Destino no texto e envio direto sem IA (DOC-8).** (1) O texto do envio à CCA começa dizendo para onde vai a documentação ("📂 Documentação para enviar à MENIN — cliente {nome}", nome do destino cadastrado em maiúsculas), com e sem análise; montagem só em `buildCcaSubmissionMessage` (`lib/cca-submission-core.mjs`) — não crie outro texto. (2) No seletor de mídias do Chat e na tela de documentos há duas ações: "Analisar com IA" (de sempre) e "Enviar direto para análise (CCA)" — guarda os arquivos sem IA (lote `summary.analysisSkipped`) e usa o MESMO envio (`submitToCca`: mesmos guard, confirmação de pendências, status, `document_sent_to_cca` com `withoutAnalysis: true`, lido do lote no servidor). Lote sem análise pode ser analisado depois ("Analisar com IA" = `reanalyzeBatch`). A exigência de análise antes do envio era só da implementação (botão só em lote analisado), nunca regra. Detalhe: `docs/BUSINESS_RULES.md` DOC-8; testes `tests/cca-submission.test.mjs`.
+
 ## Rótulos
 
 Fonte única de rótulos (`lib/document-status-labels.js`) em `.claude/rules/crm-clientes-funil.md`. Exemplo real de divergência que esse arquivo corrigiu: "A confirmar" no PDF vs. "Necessita confirmação" na tela, para o mesmo status.

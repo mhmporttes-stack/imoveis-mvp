@@ -14,7 +14,7 @@ export async function POST(request) {
     const body = await request.json();
     const batch = body.retryBatchId
       ? await queueChatDocumentRetry(body.retryBatchId, body.conversationId, auth)
-      : await analyzeSelectedChatMessages(body.conversationId, body.messageIds, auth, body.requestKey);
+      : await analyzeSelectedChatMessages(body.conversationId, body.messageIds, auth, body.requestKey, { skipAnalysis: body.skipAnalysis === true });
     if (batch.queued) after(async () => { try { await reanalyzeBatch(batch.id, auth); } catch (failure) { console.error("Falha ao iniciar análise documental do Chat:", failure); await markChatBatchStartFailure(batch.id, failure); } });
     return NextResponse.json({ batch });
   } catch (error) {

@@ -44,6 +44,15 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 
 
+### 2026-10-23 — Envio à CCA: destino no texto e envio direto sem análise da IA (DOC-8)
+- **Data:** 2026-10-23
+- **Área:** Documentação/CCA
+- **Alteração:** (1) o texto do envio à CCA (prévia e envio) começa com "📂 Documentação para enviar à {DESTINO} — cliente {nome}" (nome do destino cadastrado em maiúsculas); montagem movida para `buildCcaSubmissionMessage` (`lib/cca-submission-core.mjs`), resto do texto igual. (2) "Enviar direto para análise (CCA)" no seletor de mídias do Chat e na tela de documentos: guarda os arquivos sem IA (`summary.analysisSkipped`, parâmetro `skipAnalysis` em `from-chat` e `batches/[id]/confirm`) e abre o mesmo envio à CCA; `submitToCca` lê a marca do lote no servidor e grava `withoutAnalysis` na submissão e no evento `document_sent_to_cca` (linha do tempo "(SEM ANÁLISE)"). Lote sem análise tem "Analisar com IA" (reanálise de sempre).
+- **Motivo:** pedido do dono (Carol recebe e repassa para Menin/Pacaembu; quer escolher entre enviar direto ou analisar). Regra registrada em `.claude/rules/documentacao-cca.md` e `docs/BUSINESS_RULES.md` DOC-8.
+- **Arquivos afetados:** `lib/cca-submission-core.mjs` (novo), `lib/client-documents.js`, `app/api/admin/client-documents/from-chat/route.js`, `app/api/admin/client-documents/batches/[id]/confirm/route.js`, `components/ClientDocumentsModal.jsx`, `components/WhatsappChat.jsx`, `components/ClientJourneyActions.jsx`, `tests/cca-submission.test.mjs`, docs.
+- **Risco/observação:** a exigência de análise antes do envio era só da tela (botão só em lote "analyzed" e importação sempre analisando) — não havia regra oficial; liberada. Sem migration: lote sem análise fica com `status = 'uploading'` (o CHECK da tabela não tem outro valor) e aparece como "Sem análise". O pacote enviado continua sendo TODOS os documentos salvos do cliente (mesmo mecanismo de sempre), não só os escolhidos agora. Status, permissões e cadência iguais ao envio atual. Falha pré-existente, não corrigida: `tests/document-received-offline.test.mjs` teste 5 (1 !== 3) já falhava antes desta mudança.
+- **Autor:** Claude Code (crm-editor)
+
 ### 2026-10-23 — Henry: confirmação de escuta logo depois do fim da fala (HENRY-1)
 - **Data:** 2026-10-23
 - **Área:** Henry (voz)

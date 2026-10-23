@@ -245,7 +245,7 @@ function eventTitleAndDescription(event, context = {}) {
     case "document_deleted":
       return { title: "DOCUMENTO EXCLUÍDO", description: [] };
     case "document_sent_to_cca":
-      return { title: "DOCUMENTAÇÃO ENVIADA PARA CCA", description: [d.ccaName ? `CCA: ${d.ccaName}` : "", d.documentCount ? `Arquivos: ${d.documentCount}` : ""].filter(Boolean) };
+      return { title: d.withoutAnalysis ? "DOCUMENTAÇÃO ENVIADA PARA CCA (SEM ANÁLISE)" : "DOCUMENTAÇÃO ENVIADA PARA CCA", description: [d.ccaName ? `CCA: ${d.ccaName}` : "", d.documentCount ? `Arquivos: ${d.documentCount}` : "", d.withoutAnalysis ? "Enviada direto, sem análise da IA." : ""].filter(Boolean) };
     case "cca_reassigned":
       return { title: "CCA ALTERADA", description: [`${d.fromCcaName || "—"} → ${d.toCcaName || "—"}`] };
     case "cooled_decision":

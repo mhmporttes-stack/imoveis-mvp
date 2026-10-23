@@ -67,6 +67,7 @@ import { parseWhatsappText, stripWhatsappFormatting } from "@/lib/whatsapp-forma
 import { OFFICIAL_WHATSAPP_DIGITS } from "@/lib/official-whatsapp.mjs";
 import { SIMULATION_FIRST_DONE_MESSAGE } from "@/lib/simulation-first-core.mjs";
 import { OLDER_HISTORY_MAX_ROUNDS, OLDER_HISTORY_POLL_MS, OLDER_HISTORY_ROUND_GAP_MS, OLDER_HISTORY_WAIT_MS, olderHistoryMessage, planNextRound, roundPhase } from "@/lib/whatsapp-older-history-core.mjs";
+import { isAnalysisSkippedBatch } from "@/lib/cca-submission-core.mjs";
 import { tabClasses } from "@/components/ui/Tabs";
 
 // Desempenho (2026-10-12): partes que só aparecem depois de um toque (abas Visão geral/Campanhas/Corretores, Guia de
@@ -1154,7 +1155,7 @@ function Thread({ canManage, canEditRules, currentUserId, mySlots = [], onOpenCl
     setHasDocumentReports(false);
     fetch(`/api/admin/client-documents/batches?clientId=${encodeURIComponent(clientId)}`)
       .then((response) => response.ok ? response.json() : null)
-      .then((data) => { if (!cancelled) setHasDocumentReports(Boolean(data?.batches?.some((batch) => batch.status === "analyzed"))); })
+      .then((data) => { if (!cancelled) setHasDocumentReports(Boolean(data?.batches?.some((batch) => batch.status === "analyzed" || isAnalysisSkippedBatch(batch)))); })
       .catch(() => {});
     return () => { cancelled = true; };
   }, [conversation?.client?.id]);
@@ -1567,8 +1568,8 @@ function Thread({ canManage, canEditRules, currentUserId, mySlots = [], onOpenCl
         onReplyInternal={conversation.canInternal ? (message) => { setEditTarget(null); setReplyTo(message); setInternalRequest((value) => value + 1); } : null} /> : null}
       {forwardMessage ? <ForwardDialog message={forwardMessage} currentConversationId={conversation.id} onClose={() => setForwardMessage(null)} onSent={onChanged} /> : null}
 
-      {documentSelectionOpen ? <ChatDocumentSelection conversationId={conversation.id} initialMessages={messages} onClose={() => setDocumentSelectionOpen(false)} onAnalyzed={() => { setHasDocumentReports(true); setDocumentSelectionOpen(false); setDocumentsOpen(true); }} /> : null}
-      {documentsOpen && conversation.client?.id ? <ClientDocumentsModal client={{ id: conversation.client.id, fullName: conversation.client.name || displayName(conversation) }} conversationId={conversation.id} canSendToCca canManage={canManage} canEditRules={canEditRules} reportsOnly onNewAnalysis={() => { setDocumentsOpen(false); setDocumentSelectionOpen(true); }} onClose={() => setDocumentsOpen(false)} /> : null}
+      {documentSelectionOpen ? <ChatDocumentSelection conversationId={conversation.id} initialMessages={messages} onClose={() => setDocumentSelectionOpen(false)} onAnalyzed={() => { setHasDocumentReports(true); setDocumentSelectionOpen(false); setDocumentsOpen(true); }} onDirectSend={(batch) => { setHasDocumentReports(true); setDocumentSelectionOpen(false); setDocumentsOpen(batch.id); }} /> : null}
+      {documentsOpen && conversation.client?.id ? <ClientDocumentsModal client={{ id: conversation.client.id, fullName: conversation.client.name || displayName(conversation) }} conversationId={conversation.id} canSendToCca directSendBatchId={typeof documentsOpen === "string" ? documentsOpen : ""} canManage={canManage} canEditRules={canEditRules} reportsOnly onNewAnalysis={() => { setDocumentsOpen(false); setDocumentSelectionOpen(true); }} onClose={() => setDocumentsOpen(false)} /> : null}
 
       {confirmingDelete ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-navy/40 p-4" role="dialog" aria-modal="true" aria-labelledby="delete-conversation-title" onClick={() => !deleting && setConfirmingDelete(false)}>
@@ -1590,7 +1591,7 @@ function Thread({ canManage, canEditRules, currentUserId, mySlots = [], onOpenCl
   );
 }
 
-function ChatDocumentSelection({ conversationId, initialMessages, onClose, onAnalyzed }) {
+function ChatDocumentSelection({ conversationId, initialMessages, onClose, onAnalyzed, onDirectSend }) {
   const [messages, setMessages] = useState(initialMessages);
   const [selected, setSelected] = useState([]);
   const [hasMore, setHasMore] = useState(initialMessages.length >= 100);
@@ -1604,6 +1605,7 @@ function ChatDocumentSelection({ conversationId, initialMessages, onClose, onAna
   const [error, setError] = useState("");
   const runningRef = useRef(false);
   const requestKeyRef = useRef("");
+  const directKeyRef = useRef("");
   const eligible = messages.filter((message) => !message.internal && (["text", "button", "interactive"].includes(message.type) && message.body?.trim() || ["image", "document"].includes(message.type)));
 
   useEffect(() => {
@@ -1659,6 +1661,21 @@ function ChatDocumentSelection({ conversationId, initialMessages, onClose, onAna
       setError("Não foi possível concluir a análise."); setPhase("failed");
     } finally { runningRef.current = false; }
   }
+  // "Enviar direto para análise (CCA)" (DOC-8): só importa os arquivos
+  // escolhidos, sem IA, e abre o mesmo envio à CCA.
+  async function sendDirect() {
+    if (runningRef.current || !selected.length) return;
+    runningRef.current = true; setPhase("saving"); setError("");
+    if (!directKeyRef.current) directKeyRef.current = crypto.randomUUID();
+    try {
+      const response = await fetch("/api/admin/client-documents/from-chat", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ conversationId, messageIds: selected, requestKey: directKeyRef.current, skipAnalysis: true }) });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok || !data.batch?.id) throw new Error(data.error || "Não foi possível salvar os documentos.");
+      onDirectSend(data.batch);
+    } catch (caught) {
+      setError(caught.message || "Não foi possível salvar os documentos."); setPhase("selection");
+    } finally { runningRef.current = false; }
+  }
   const step = progress < 12 ? "Preparando documentos..." : progress < 29 ? "Identificando informações..." : progress < 47 ? "Conferindo documentos..." : progress < 64 ? "Cruzando dados do cliente..." : progress < 79 ? "Aplicando regras documentais..." : progress < 91 ? "Verificando pendências..." : "Finalizando análise...";
   return <div className="fixed inset-0 z-[90] flex items-center justify-center bg-navy/60 p-3" role="dialog" aria-modal="true" aria-label="Selecionar documentação" onMouseDown={close}>
     <div className="relative flex max-h-[min(85dvh,calc(100dvh-32px))] w-full max-w-xl flex-col overflow-hidden rounded-2xl bg-white p-4 pb-[max(1rem,env(safe-area-inset-bottom))] shadow-2xl" onMouseDown={(event) => event.stopPropagation()}>
@@ -1685,7 +1702,8 @@ function ChatDocumentSelection({ conversationId, initialMessages, onClose, onAna
           </div>;
         })}</div>
         {hasMore ? <button type="button" disabled={loadingOlder} onClick={loadOlder} className="mt-2 text-xs font-bold text-brand disabled:opacity-50">{loadingOlder ? "Carregando..." : "Carregar mensagens anteriores"}</button> : null}
-        <div className="mt-3 flex justify-end gap-2"><button type="button" className="premium-button-secondary px-4 py-2 text-sm" onClick={onClose}>Cancelar</button><button type="button" className="premium-button-primary px-4 py-2 text-sm disabled:opacity-50" disabled={!selected.length || loadingOlder} onClick={analyze}>{phase === "failed" ? "Tentar novamente" : `Analisar ${selected.length} selecionado(s)`}</button></div>
+        <div className="mt-3 flex justify-end gap-2"><button type="button" className="premium-button-secondary px-4 py-2 text-sm" onClick={onClose}>Cancelar</button><button type="button" className="premium-button-primary px-4 py-2 text-sm disabled:opacity-50" disabled={!selected.length || loadingOlder || phase === "saving"} onClick={analyze}>{phase === "failed" ? "Tentar novamente" : `Analisar com IA (${selected.length})`}</button></div>
+        <div className="mt-2 flex justify-end"><button type="button" className="premium-button-secondary px-4 py-2 text-sm disabled:opacity-50" disabled={!selected.length || loadingOlder || phase === "saving"} onClick={sendDirect}>{phase === "saving" ? "Salvando..." : "Enviar direto para análise (CCA)"}</button></div>
       </>}
       {preview ? <div className="absolute inset-0 z-10 flex flex-col bg-white p-3 pb-[max(1rem,env(safe-area-inset-bottom))]" onMouseDown={(event) => event.stopPropagation()}><div className="mb-2 flex min-w-0 items-center justify-between gap-2"><strong className="min-w-0 truncate text-sm text-navy">{preview.media?.name || "Documento"}</strong><button type="button" aria-label="Fechar prévia" onClick={() => setPreview(null)}><X className="h-5 w-5" /></button></div>{failedFiles.includes(preview.id) ? <p className="mb-2 text-xs text-red-700">Não foi possível carregar a prévia</p> : null}{preview.type === "image" ? <img src={preview.media?.url || `/api/admin/whatsapp-chat/media/${preview.id}`} alt={preview.media?.name || "Imagem"} className="min-h-0 flex-1 object-contain" onError={() => markPreviewUnavailable(preview.id)} /> : <iframe title="Prévia do PDF" src={`${preview.media?.url || `/api/admin/whatsapp-chat/media/${preview.id}`}#page=1`} className="min-h-0 flex-1 rounded-lg border border-line" onError={() => markPreviewUnavailable(preview.id)} />}{preview.type === "document" ? <a href={preview.media?.url || `/api/admin/whatsapp-chat/media/${preview.id}`} target="_blank" rel="noreferrer" className="mt-2 self-end text-xs font-bold text-brand">Abrir documento completo</a> : null}</div> : null}
       <style jsx global>{`@keyframes chatDocScan { 0%,100% { transform: translate(-9px,-6px); } 50% { transform: translate(8px,5px); } } .chat-doc-scan { animation: chatDocScan 2.4s ease-in-out infinite; } @media (prefers-reduced-motion: reduce) { .chat-doc-scan { animation: none; } }`}</style>
