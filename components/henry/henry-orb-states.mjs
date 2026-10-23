@@ -16,11 +16,11 @@
 // Estados (dono, 2026-10-23: "preciso identificar quando o Henry está pensando… ou quando ele simplesmente parou"):
 //   idle = conversa encerrada · waiting = janela de conversa aberta · listening · thinking · speaking.
 export const HENRY_ORB_STATES = Object.freeze({
-  idle: { amp: 0.4, levelAmp: 0, swell: 0, levelSwell: 0, speed: 0.3, levelSpeed: 0, spin: 0.05, counterSpin: 0, breath: 0.022, breathRate: 0.12, travel: 0, fan: 0, sphere: 0, warm: 0.15, glowBase: 0, glowLevel: 0, beamOn: 0, dim: 0.35, rim: 0, neural: 0 },
-  waiting: { amp: 0.5, levelAmp: 0, swell: 0.01, levelSwell: 0, speed: 0.45, levelSpeed: 0, spin: 0.07, counterSpin: 0, breath: 0.018, breathRate: 0.2, travel: 0, fan: 0, sphere: 0, warm: 0.05, glowBase: 0.04, glowLevel: 0, beamOn: 0, dim: 0.9, rim: 1, neural: 0 },
-  listening: { amp: 0.75, levelAmp: 1.9, swell: 0.03, levelSwell: 0.16, speed: 1.3, levelSpeed: 2.6, spin: 0.12, counterSpin: 0, breath: 0.01, breathRate: 0.5, travel: 1, fan: 0.1, sphere: 0, warm: 0, glowBase: 0.08, glowLevel: 0.75, beamOn: 0, dim: 1, rim: 0, neural: 0 },
-  thinking: { amp: 0.55, levelAmp: 0, swell: -0.02, levelSwell: 0, speed: 0.7, levelSpeed: 0, spin: 0.1, counterSpin: 1.1, breath: 0.07, breathRate: 0.75, travel: 0.2, fan: 0.15, sphere: 0, warm: 0.45, glowBase: 0.12, glowLevel: 0, beamOn: 1, dim: 0.9, rim: 0, neural: 1 },
-  speaking: { amp: 0.9, levelAmp: 1.6, swell: 0.06, levelSwell: 0.42, speed: 1.1, levelSpeed: 1.8, spin: 0.18, counterSpin: 0.15, breath: 0.01, breathRate: 0.4, travel: 0.3, fan: 1, sphere: 1, warm: 1, glowBase: 0.15, glowLevel: 0.6, beamOn: 0, dim: 1, rim: 0, neural: 0 }
+  idle: { amp: 0.4, levelAmp: 0, swell: 0, levelSwell: 0, speed: 0.3, levelSpeed: 0, spin: 0.05, counterSpin: 0, breath: 0.022, breathRate: 0.12, travel: 0, fan: 0, sphere: 0, warm: 0.15, glowBase: 0, glowLevel: 0, beamOn: 0, dim: 0.35, rim: 0, neural: 0, voice: 0 },
+  waiting: { amp: 0.5, levelAmp: 0, swell: 0.01, levelSwell: 0, speed: 0.45, levelSpeed: 0, spin: 0.07, counterSpin: 0, breath: 0.018, breathRate: 0.2, travel: 0, fan: 0, sphere: 0, warm: 0.05, glowBase: 0.04, glowLevel: 0, beamOn: 0, dim: 0.9, rim: 1, neural: 0, voice: 0 },
+  listening: { amp: 0.75, levelAmp: 1.9, swell: 0.03, levelSwell: 0.16, speed: 1.3, levelSpeed: 2.6, spin: 0.12, counterSpin: 0, breath: 0.01, breathRate: 0.5, travel: 1, fan: 0.1, sphere: 0, warm: 0, glowBase: 0.08, glowLevel: 0.75, beamOn: 0, dim: 1, rim: 0, neural: 0, voice: 0 },
+  thinking: { amp: 0.55, levelAmp: 0, swell: -0.02, levelSwell: 0, speed: 0.7, levelSpeed: 0, spin: 0.1, counterSpin: 1.1, breath: 0.07, breathRate: 0.75, travel: 0.2, fan: 0.15, sphere: 0, warm: 0.45, glowBase: 0.12, glowLevel: 0, beamOn: 1, dim: 0.9, rim: 0, neural: 1, voice: 0 },
+  speaking: { amp: 0.9, levelAmp: 1.6, swell: 0.06, levelSwell: 0.42, speed: 1.1, levelSpeed: 1.8, spin: 0.18, counterSpin: 0.15, breath: 0.01, breathRate: 0.4, travel: 0.3, fan: 1, sphere: 1, warm: 1, glowBase: 0.15, glowLevel: 0.6, beamOn: 0, dim: 1, rim: 0, neural: 0, voice: 1 }
 });
 
 export const HENRY_ORB_MODES = Object.freeze(Object.keys(HENRY_ORB_STATES));
