@@ -446,6 +446,15 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-23 — Cache pesado de métricas (semana/mês) em job próprio do pg_cron
+- **Data:** 2026-10-23
+- **Área:** Infra / Banco (cron) / Henry / Alexa V2
+- **Alteração:** `?mode=heavy` novo em `/api/cron/crm-snapshots` (mesmo token, falha fechado) com trava própria; roda os pesados vencidos do mais atrasado para o menos (semana/mês `everyMinutes` 25, ontem 120, fechados por `rangeKey`) e 2 caches novos do período anterior que o Henry compara com "este mês"/"esta semana" (`overview:este_mes_anterior`, `overview:esta_semana_anterior`, mesma conta `getPerformanceOverview`). O `refresh` faz só as contas de hoje; se o job pesado ficar 30 min sem rodar, ele volta a puxar até 2 pesados (reserva). Validade de semana/mês 60 → 45 min. Jobs `crm-cache-heavy-daytime` (`5-55/10 0,9-23 * * *`) e `crm-cache-heavy-night` (`35 1-8 * * *`), migration `20261023210000`. Nenhuma definição de métrica mudou.
+- **Motivo:** dono aprovou mudar o horário/forma da atualização ("sem problemas"). Medido em `net._http_response` (6 h, 23 rodadas do refresh): as de hoje somam 27–48 s (orçamento 38 s); `overview_este_mes` rodou 4×, foi pulado por orçamento 10× e por limite de pesados 6×; `meta_mes_passado`/`semana_passada` 0×. Cache `overview:este_mes` com 3 h ⇒ Henry recalculava na hora (overview do mês ~7,4 s, meta do mês ~12,9 s).
+- **Arquivos afetados:** `lib/crm-metrics/jobs.js`, `lib/crm-metrics/cache.js` (lê `updated_at`), `lib/crm-metrics/overview.js` (`computeOverviewRange`), `lib/crm-metrics/overview-core.mjs`, `lib/crm-metrics/team-goal-core.mjs`, `lib/henry-reports.js` (período anterior pelo cache), `app/api/cron/crm-snapshots/route.js`, `supabase/migrations/20261023210000_crm_cache_heavy_refresh_job.sql`, `tests/crm-metrics-core.test.mjs`; docs `DATABASE.md` §5, `SYSTEM_ARCHITECTURE.md`.
+- **Risco/observação:** (1) A tela Desempenho não lê este cache (escopo por perfil, payload completo) — não ficou mais rápida por esta mudança; segue com o cache local do navegador. (2) Henry continua exigindo cache em dia (sem "servir velho" sem aviso); à noite (job de hora em hora) semana/mês podem passar de 45 min e calcular na hora. (3) "Últimos 7/30 dias" (padrão do relatório semanal/mensal) não têm cache. (4) As contas de hoje ainda estouram o orçamento às vezes (`overview_hoje` pulado 3× em 23) — fora do escopo.
+- **Autor:** Claude Code (crm-editor)
+
 ### 2026-10-23 — Bônus "Primeiro a chegar" / "Último a sair" da imobiliária (RAN-10)
 - **Data:** 2026-10-23
 - **Área:** Ranking/pontuação / Presença na imobiliária (ROL-2f)

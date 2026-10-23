@@ -51,3 +51,28 @@ test("grupo Todos exclui 'Não contactar' (igual à tela), mas o total e o statu
   assert.equal(result.byGroup.all, 10);
   assert.equal(result.byGroup.archived, 4);
 });
+
+// Job dos pesados (2026-10-23): período anterior da comparação do Henry e validade de semana/mês.
+import { OVERVIEW_VALID_MINUTES, previousOverviewIdFor, previousOverviewRange, rangeKeyOfRange } from "../lib/crm-metrics/overview-core.mjs";
+import { TEAM_GOAL_VALID_MINUTES } from "../lib/crm-metrics/team-goal-core.mjs";
+import { previousHenryPeriod, resolveHenryPeriod } from "../lib/henry-reports-core.mjs";
+
+test("período anterior em cache = o mesmo intervalo que o Henry compara", () => {
+  const today = "2026-10-23";
+  assert.equal(rangeKeyOfRange(previousOverviewRange("este_mes_anterior", today)), "2026-09-01_2026-09-23");
+  assert.equal(rangeKeyOfRange(previousOverviewRange("esta_semana_anterior", today)), "2026-10-14_2026-10-18");
+  for (const base of ["este_mes", "esta_semana"]) {
+    const previous = previousHenryPeriod(resolveHenryPeriod({ periodo: base }, today));
+    assert.equal(previousOverviewIdFor(previous, today), `${base}_anterior`);
+  }
+  assert.equal(previousOverviewIdFor(previousHenryPeriod(resolveHenryPeriod({ periodo: "ultimos_7_dias" }, today)), today), null);
+  assert.equal(previousOverviewIdFor({}, today), null);
+});
+
+test("validade de semana/mês cobre o job dos pesados (recalcula a cada ~30 min)", () => {
+  for (const table of [OVERVIEW_VALID_MINUTES, TEAM_GOAL_VALID_MINUTES]) {
+    assert.equal(table.este_mes, 45);
+    assert.equal(table.esta_semana, 45);
+  }
+  assert.equal(OVERVIEW_VALID_MINUTES.este_mes_anterior, 1500);
+});

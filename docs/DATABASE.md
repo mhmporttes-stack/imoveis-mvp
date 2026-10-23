@@ -104,6 +104,8 @@ Todos chamam `GET` na aplicação (host técnico `https://imoveis-mvp.vercel.app
 | `crm-cache-refresh-business` | `*/10 10-23 * * 1-6` | seg–sáb 07–20 h, de 10 em 10 min (ajustado em `20261001200000`) | `/api/cron/crm-snapshots?mode=refresh` (atualiza o cache da voz) |
 | `crm-cache-refresh-offhours` | `*/30 0-9 * * *` | 21–06 h, de 30 em 30 min | idem |
 | `crm-cache-refresh-sunday` | `*/30 10-23 * * 0` | domingo, de 30 em 30 min | idem |
+| `crm-cache-heavy-daytime` | `5-55/10 0,9-23 * * *` | todo dia 06–21:59 h, de 10 em 10 min (:05, :15…) — migration `20261023210000` | `/api/cron/crm-snapshots?mode=heavy` (semana, mês, meta do mês, ontem, períodos fechados e o período anterior da comparação do Henry; trava própria, só recalcula o vencido: semana/mês a cada ~30 min). Desde 2026-10-23 o `refresh` faz só as contas de hoje (volta a puxar até 2 pesados se este job ficar 30 min sem rodar) |
+| `crm-cache-heavy-night` | `35 1-8 * * *` | 22–05 h, de hora em hora (:35) | idem |
 | `crm-snapshot-stock-2355` | `55 2 * * *` | 23:55 | `/api/cron/crm-snapshots?mode=stock` (foto do estoque: clientes por status/grupo) |
 | `crm-snapshot-close-0010` | `10 3 * * *` | 00:10 | `/api/cron/crm-snapshots?mode=close` (métricas de eventos do dia anterior) |
 | `daily-report-once-a-day` | `0 1 * * *` | 22:00 | `/api/cron/daily-report` |
