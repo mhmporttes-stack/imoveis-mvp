@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Field, { inputClasses } from "@/components/ui/Field";
 import { henryReserveVoiceChain, pickBestBrowserVoice, pronounceForSpeech } from "@/lib/henry-voice-providers.mjs";
+import { HENRY_END_WAIT_EVENT } from "@/lib/henry-voice-conversation.mjs";
 import {
   DESKTOP_WAKE_CUSTOM_MAX_CHARS,
   DESKTOP_WAKE_EVENT,
@@ -214,7 +215,7 @@ export default function HenrySettingsCard() {
   );
 }
 
-const STYLE_FIELDS = ["voice", "elevenVoice", "tone", "speed", "details", "address", "rockMusic", "sertanejoMusic"];
+const STYLE_FIELDS = ["voice", "elevenVoice", "tone", "speed", "endWait", "details", "address", "rockMusic", "sertanejoMusic"];
 const TEXT_FIELDS = ["details", "address", "rockMusic", "sertanejoMusic"];
 
 // Só o que mudou em relação ao salvo (a voz padrão do servidor pode não estar na lista e não é reenviada).
@@ -287,6 +288,8 @@ function HenryVoiceStyleSection({ saved, options, serverVoice, provider = "brows
       if (!response.ok) throw new Error(data?.error || "Não foi possível salvar.");
       onSaved(data.style);
       setForm({ ...data.style });
+      // O Henry desta página passa a usar o novo tempo de espera do fim da fala sem recarregar.
+      if (Number.isFinite(data?.endWaitMs)) window.dispatchEvent(new CustomEvent(HENRY_END_WAIT_EVENT, { detail: { ms: data.endWaitMs } }));
       setMessage({ tone: "ok", text: "Salvo. Vale a partir da próxima fala do Henry (recarregue a página para a voz do navegador)." });
     } catch (saveError) {
       setMessage({ tone: "error", text: saveError?.message || "Não foi possível salvar." });
@@ -476,6 +479,17 @@ function HenryVoiceStyleSection({ saved, options, serverVoice, provider = "brows
             ))}
           </select>
         </Field>
+        {options.endWaits?.length ? (
+          <Field label="Tempo de espera do fim da fala" hint="Quanto silêncio o Henry espera antes de entender que você terminou de falar.">
+            <select className={inputClasses} value={form.endWait || "normal"} onChange={update("endWait")}>
+              {options.endWaits.map((wait) => (
+                <option key={wait.id} value={wait.id}>
+                  {wait.label}
+                </option>
+              ))}
+            </select>
+          </Field>
+        ) : null}
         <Field label="Como tratar você (opcional)" hint={`Em branco = “${options.defaultAddress}”. Ex.: chefe, Sr. Matheus.`}>
           <input className={inputClasses} value={form.address || ""} onChange={update("address")} maxLength={options.addressMax} placeholder={options.defaultAddress} />
         </Field>

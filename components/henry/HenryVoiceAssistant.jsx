@@ -8,9 +8,15 @@ import {
   BARGE_DUCK_VOLUME,
   BARGE_SEGMENT_MAX_MS,
   BARGE_SEGMENT_MIN_MS,
-  INTERIM_FINAL_MS,
+  HENRY_END_WAIT_EVENT,
+  RECORD_CONTINUE_NO_SPEECH_MS,
+  RECORD_MAX_MS,
   RECORD_MIN_MS,
-  RECORD_VOICE_LEVEL,
+  RECORD_SILENCE_MS,
+  interimFinalWaitMs,
+  joinCutTranscripts,
+  recordVoiceThreshold,
+  shouldContinueAfterCut,
   acceptFollowUp,
   classifyArmedUtterance,
   classifyOpenSceneUtterance,
@@ -83,7 +89,7 @@ import HenryVoiceView from "./HenryVoiceView";
 import HenryCursor from "./HenryCursor";
 import { playHenryOpeningSound } from "./HenryOpeningScene";
 import { captureWebcamFrame } from "./webcam-capture";
-import { createHenryVad } from "./henry-vad";
+import { HENRY_VAD_BARGE_OPTIONS, HENRY_VAD_RECORD_OPTIONS, createHenryVad } from "./henry-vad";
 
 // Assistente de voz "Henry" (pedido do dono, 2026-10-22 — docs/BUSINESS_RULES.md HENRY-1). Montado no layout do painel só
 // para o DONO (conta real, fora de "Alterar conta"); a rota /api/admin/henry confere de novo. Só no computador (≥ 768px).
@@ -97,8 +103,11 @@ import { createHenryVad } from "./henry-vad";
 // cancela o pedido). Memória das últimas ~6 trocas só nesta página (zerada ao sair do modo conversa). Regras puras em
 // lib/henry-voice-conversation.mjs.
 // Celular sem reconhecimento de voz (app instalado no iPhone) ou com reconhecimento que falhou: TOCAR PARA FALAR por
-// gravação — toque no anel/microfone grava (MediaRecorder), para no toque ou sozinho com ~1,2 s de silêncio (máx. 20 s),
-// o servidor transcreve (ElevenLabs Scribe) e o texto segue o caminho normal. O áudio não fica guardado em lugar nenhum.
+// gravação — toque no anel/microfone grava (MediaRecorder), para no toque ou sozinho depois do "Tempo de espera do fim da
+// fala" de silêncio contínuo (padrão 2,0 s; resposta curta a uma pergunta dele, 1,2 s; máx. 25 s — dono, 2026-10-23), com
+// histerese (VAD Silero no app de desktop; nível menor depois de ouvir voz). Frase cortada/vazia depois de um corte
+// automático: continua ouvindo e junta o trecho seguinte, uma vez (nunca "Não entendi"). O servidor transcreve
+// (ElevenLabs Scribe) e o texto segue o caminho normal. O áudio não fica guardado em lugar nenhum.
 // Sem silêncio enquanto pensa (dono, 2026-10-22): frases de espera curtas NA VOZ DO HENRY (cache da sessão, mesma fila e
 // mesmo elemento de áudio da resposta), depois de ~0,8 s, no máximo 1 a cada ~2,5 s, sem repetir as últimas 5; a resposta
 // entra quando a frase atual termina. Sem voz do servidor: silêncio (nunca a voz do navegador). A cena mostra a busca.
@@ -251,6 +260,8 @@ export default function HenryVoiceAssistant() {
   const recordModeRef = useRef(false);
   const warmedAtRef = useRef(0);
   const [recording, setRecording] = useState(false);
+  const [recordHeard, setRecordHeard] = useState(false); // já ouviu voz nesta gravação: "pode continuar"
+  const endWaitMsRef = useRef(RECORD_SILENCE_MS); // "Tempo de espera do fim da fala" (Voz e personalidade)
   const [hasRecorder, setHasRecorder] = useState(false);
   const [recognitionFailed, setRecognitionFailed] = useState(false);
   const [iosStandalone, setIosStandalone] = useState(false);
@@ -323,6 +334,15 @@ export default function HenryVoiceAssistant() {
     setSleeping(false);
   }, [expanded]);
 
+  // Tempo de espera do fim da fala trocado na tela de configuração: vale já, sem recarregar.
+  useEffect(() => {
+    const onEndWait = (event) => {
+      if (Number.isFinite(event?.detail?.ms)) endWaitMsRef.current = event.detail.ms;
+    };
+    window.addEventListener(HENRY_END_WAIT_EVENT, onEndWait);
+    return () => window.removeEventListener(HENRY_END_WAIT_EVENT, onEndWait);
+  }, []);
+
   // --- Habilitado? (rota confere o dono e o liga/desliga) -------------------------------------------------------------
   useEffect(() => {
     let alive = true;
@@ -344,6 +364,7 @@ export default function HenryVoiceAssistant() {
         visionRef.current = data?.vision === true;
         setVision(data?.vision === true);
         if (Number.isFinite(data?.browserRate)) browserRateRef.current = data.browserRate;
+        if (Number.isFinite(data?.endWaitMs)) endWaitMsRef.current = data.endWaitMs;
         narrationKeyRef.current = typeof data?.narrationKey === "string" ? data.narrationKey : "";
         // Memória do dia (REGRA OFICIAL, dono 2026-10-22): a conversa de hoje volta ao abrir/recarregar (só texto).
         if (Array.isArray(data?.dayTurns) && data.dayTurns.length && !turnsRef.current.length) {
@@ -1286,12 +1307,65 @@ export default function HenryVoiceAssistant() {
   askRef.current = ask;
 
   // --- Tocar para falar por gravação (celular sem reconhecimento de voz) ---------------------------------------------
+  // VAD Silero (mesma instância da interrupção): no app de desktop também decide o fim da fala na gravação (histerese —
+  // dono, 2026-10-23). getStream entrega o microfone da gravação quando há uma, senão o da interrupção.
+  const ensureVad = useCallback(async () => {
+    const vad = vadRef.current;
+    if (vad.instance) return vad.instance;
+    if (vad.failed || vad.loading) return null;
+    const context = ensureAudioContext();
+    if (!context) return null;
+    vad.loading = true;
+    try {
+      vad.instance = await createHenryVad({
+        audioContext: context,
+        getStream: async () => recordRef.current?.stream || micStreamRef.current,
+        onSpeechStart: () => {
+          vad.speaking = true;
+          vad.lastAt = Date.now();
+        },
+        onMisfire: () => {
+          vad.speaking = false;
+          vad.lastAt = Date.now();
+        },
+        onSpeechEnd: (samples) => {
+          vad.speaking = false;
+          vad.lastAt = Date.now();
+          confirmBargeRef.current?.(samples);
+        }
+      });
+    } catch {
+      vad.failed = true; // sem os arquivos (ex.: next dev sem prebuild): segue só com o medidor
+    } finally {
+      vad.loading = false;
+    }
+    return vad.instance;
+  }, [ensureAudioContext]);
+
+  // VAD da gravação desligado e de volta ao ajuste da interrupção.
+  const releaseRecordVad = useCallback((session) => {
+    if (!session?.vad) return;
+    const vad = vadRef.current;
+    session.vad = false;
+    vad.running = false;
+    vad.speaking = false;
+    vad.instance?.pause().catch(() => {});
+    try {
+      vad.instance?.setOptions(HENRY_VAD_BARGE_OPTIONS);
+    } catch {
+      // instância destruída
+    }
+  }, []);
+
+  const recordingDoneRef = useRef(null);
+
   // Fecha a gravação: microfone desligado na hora (o som volta ao alto-falante) e, se houve voz, manda o áudio para
   // transcrever. O áudio só existe na memória desta função e no corpo do pedido.
   const finishRecording = useCallback(async (session) => {
     if (session.finished) return;
     session.finished = true;
     window.clearInterval(session.timer);
+    releaseRecordVad(session);
     session.stream?.getTracks().forEach((track) => track.stop());
     try {
       session.source?.disconnect();
@@ -1301,6 +1375,7 @@ export default function HenryVoiceAssistant() {
     if (recordRef.current === session) recordRef.current = null;
     if (micAnalyserRef.current === session.analyser) micAnalyserRef.current = null;
     setRecording(false);
+    setRecordHeard(false);
     const durationMs = Date.now() - session.startedAt;
     // Só o tipo base (o iPhone manda 'audio/mp4; codecs="mp4a.40.2"' ou nada): o servidor confere o formato de novo.
     const rawType = session.recorder?.mimeType || session.chunks[0]?.type || "";
@@ -1308,6 +1383,11 @@ export default function HenryVoiceAssistant() {
     const blob = session.chunks.length ? new Blob(session.chunks, { type }) : null;
     session.chunks = [];
     if (session.discard || !blob || !blob.size || durationMs < RECORD_MIN_MS) {
+      // Continuação depois de um corte sem voz nova: vale o trecho que já tinha (nunca "Não ouvi"/"Não entendi").
+      if (session.prefix && session.discard !== "cancel") {
+        recordingDoneRef.current?.(session.prefix, session);
+        return;
+      }
       updatePhase("idle");
       if (session.discard !== "cancel" && missedReplyRef.current({ silent: session.discard === "silence" })) return; // pergunta aberta: repete curta, sem "Não ouvi"
       if (session.discard === "silence") setNotice("Não ouvi nada. Toque no Henry e fale.");
@@ -1329,23 +1409,7 @@ export default function HenryVoiceAssistant() {
       const data = await response.json().catch(() => ({}));
       if (requestIdRef.current !== id) return;
       if (!response.ok) throw new Error(data?.error || "Não consegui entender o áudio agora. Tente de novo.");
-      const text = String(data?.text || "").trim();
-      // Música tocando: o toque/atalho já é o chamado, mas trecho longo sem pausa e sem o nome é a letra (ignora).
-      if (isMusicGuardActive(musicGuardRef.current) && text && !musicListenGate(text, { explicit: true, awaitingReply: isAwaitingReply(pendingReplyRef.current) }).accept) {
-        updatePhase("idle");
-        if (missedReplyRef.current()) return;
-        setNotice("Parecia a música tocando. Toque no Henry e fale de novo.");
-        return;
-      }
-      const intent = classifyTapUtterance(text);
-      if (intent.kind === "report") askRef.current?.({ mode: "report", question: "", shown: text });
-      else if (intent.kind === "question") askRef.current?.({ mode: "question", question: intent.question, shown: text });
-      else {
-        updatePhase("idle");
-        // Transcrição vazia com pergunta aberta (ex.: "Posso dar play?" e a música abafou o "pode"): repete curta, uma vez.
-        if (intent.kind === "empty" && missedReplyRef.current()) return;
-        setNotice(intent.kind === "wake" ? "Pode perguntar: toque no Henry e fale." : "Não entendi. Toque no Henry e fale de novo.");
-      }
+      recordingDoneRef.current?.(joinCutTranscripts(session.prefix, String(data?.text || "").trim()), session);
     } catch (error) {
       if (error?.name === "AbortError" || requestIdRef.current !== id) return;
       updatePhase("idle");
@@ -1353,12 +1417,13 @@ export default function HenryVoiceAssistant() {
     } finally {
       if (abortRef.current === controller) abortRef.current = null;
     }
-  }, [updatePhase]);
+  }, [releaseRecordVad, updatePhase]);
 
-  const stopRecording = useCallback((discard = false) => {
+  const stopRecording = useCallback((discard = false, { autoCut = false } = {}) => {
     const session = recordRef.current;
     if (!session) return;
     session.discard = discard;
+    session.autoCut = autoCut;
     window.clearInterval(session.timer);
     if (session.recorder && session.recorder.state !== "inactive") {
       try {
@@ -1372,16 +1437,18 @@ export default function HenryVoiceAssistant() {
   }, [finishRecording]);
 
   // Começa a gravar DENTRO do toque (o iPhone exige gesto para microfone e som). Corta a fala/pedido em andamento.
-  const startRecording = useCallback(async () => {
+  // prefix/continued = continuação depois de um corte automático (o trecho já ouvido entra na frente do próximo).
+  const startRecording = useCallback(async ({ prefix = "", continued = false } = {}) => {
     if (recordRef.current) return;
     unlockAudio();
     stopSpeaking();
     abortRequest();
     setNotice("");
     setAudioSession("play-and-record");
-    const session = { chunks: [], startedAt: Date.now(), lastVoiceAt: 0, heardVoice: false, finished: false, discard: false };
+    const session = { chunks: [], startedAt: Date.now(), firstVoiceAt: 0, lastVoiceAt: 0, heardVoice: false, finished: false, discard: false, autoCut: false, prefix, continued, vad: false };
     recordRef.current = session;
     setRecording(true);
+    setRecordHeard(Boolean(prefix));
     startConversation();
     updatePhase("armed");
     try {
@@ -1409,27 +1476,96 @@ export default function HenryVoiceAssistant() {
         session.analyser = analyser;
         micAnalyserRef.current = analyser; // o anel reage ao volume real
       }
+      // App de desktop: o VAD Silero confirma o fim da fala (se os arquivos estiverem disponíveis; senão, só o medidor).
+      if (desktopBridgeRef.current) {
+        ensureVad()
+          .then(async (instance) => {
+            if (!instance || recordRef.current !== session || session.finished) return;
+            const vad = vadRef.current;
+            instance.setOptions(HENRY_VAD_RECORD_OPTIONS);
+            vad.speaking = false;
+            vad.lastAt = 0;
+            await instance.start();
+            if (recordRef.current !== session || session.finished) {
+              instance.pause().catch(() => {});
+              instance.setOptions(HENRY_VAD_BARGE_OPTIONS);
+              return;
+            }
+            session.vad = true;
+            vad.running = true;
+          })
+          .catch(() => {});
+      }
       session.timer = window.setInterval(() => {
         const now = Date.now();
-        // Contexto suspenso (iOS) não mede: sem medidor, só o toque ou o limite de 20 s param.
+        // Contexto suspenso (iOS) não mede: sem medidor, só o toque ou o limite de 25 s param.
         const hasMeter = Boolean(session.analyser) && audioCtxRef.current?.state === "running";
-        if (hasMeter && levelFrom(session.analyser, meterBuffer) >= RECORD_VOICE_LEVEL) {
+        const vad = vadRef.current;
+        const vadRunning = session.vad && vad.running;
+        const loud = hasMeter && levelFrom(session.analyser, meterBuffer) >= recordVoiceThreshold(session.heardVoice);
+        if (loud || (vadRunning && vad.speaking)) {
+          if (!session.heardVoice) setRecordHeard(true);
+          if (!session.firstVoiceAt) session.firstVoiceAt = now;
           session.heardVoice = true;
           session.lastVoiceAt = now;
           lastHeardRef.current = now;
           markActivity();
         }
-        const decision = recordingDecision({ startedAt: session.startedAt, lastVoiceAt: session.lastVoiceAt, heardVoice: session.heardVoice, hasMeter, now });
-        if (decision) stopRecording(decision === "discard" ? "silence" : false);
+        const decision = recordingDecision({
+          startedAt: session.startedAt,
+          firstVoiceAt: session.firstVoiceAt,
+          lastVoiceAt: session.lastVoiceAt,
+          heardVoice: session.heardVoice,
+          hasMeter,
+          now,
+          waitMs: endWaitMsRef.current,
+          awaitingReply: isAwaitingReply(pendingReplyRef.current, now),
+          vadRunning,
+          vadSpeaking: vad.speaking,
+          vadEndedAt: vad.lastAt,
+          noSpeechMs: session.continued ? RECORD_CONTINUE_NO_SPEECH_MS : undefined
+        });
+        // Corte automático por silêncio (não pelo limite de tempo): a transcrição curta/vazia pode continuar ouvindo.
+        if (decision) stopRecording(decision === "discard" ? "silence" : false, { autoCut: decision === "send" && now - session.startedAt < RECORD_MAX_MS });
       }, 100);
     } catch {
       if (recordRef.current === session) recordRef.current = null;
       session.stream?.getTracks().forEach((track) => track.stop());
       setRecording(false);
+      setRecordHeard(false);
       updatePhase("idle");
       setNotice("Não consegui abrir o microfone. Libere o microfone para o app (Ajustes do iPhone > Safari > Microfone).");
     }
-  }, [abortRequest, ensureAudioContext, finishRecording, markActivity, setAudioSession, startConversation, stopRecording, stopSpeaking, unlockAudio, updatePhase]);
+  }, [abortRequest, ensureAudioContext, ensureVad, finishRecording, markActivity, setAudioSession, startConversation, stopRecording, stopSpeaking, unlockAudio, updatePhase]);
+
+  // Texto da gravação (já com o trecho anterior, se foi continuação) → pedido. Depois de um corte automático, frase vazia
+  // ou cortada continua ouvindo UMA vez e junta o próximo trecho (dono, 2026-10-23: nunca "Não entendi" depois de um corte).
+  recordingDoneRef.current = (text, session) => {
+    const awaitingReply = isAwaitingReply(pendingReplyRef.current);
+    if (shouldContinueAfterCut(text, { autoCut: session.autoCut, continued: session.continued, awaitingReply })) {
+      updatePhase("idle");
+      startRecording({ prefix: text, continued: true });
+      return;
+    }
+    const afterCut = session.autoCut || session.continued;
+    // Música tocando: o toque/atalho já é o chamado, mas trecho longo sem pausa e sem o nome é a letra (ignora).
+    if (isMusicGuardActive(musicGuardRef.current) && text && !musicListenGate(text, { explicit: true, awaitingReply }).accept) {
+      updatePhase("idle");
+      if (missedReplyRef.current()) return;
+      setNotice("Parecia a música tocando. Toque no Henry e fale de novo.");
+      return;
+    }
+    const intent = classifyTapUtterance(text);
+    if (intent.kind === "report") askRef.current?.({ mode: "report", question: "", shown: text });
+    else if (intent.kind === "question") askRef.current?.({ mode: "question", question: intent.question, shown: text });
+    else {
+      updatePhase("idle");
+      // Transcrição vazia com pergunta aberta (ex.: "Posso dar play?" e a música abafou o "pode"): repete curta, uma vez.
+      if (intent.kind === "empty" && missedReplyRef.current()) return;
+      if (intent.kind === "wake") setNotice("Pode perguntar: toque no Henry e fale.");
+      else setNotice(afterCut ? "Não ouvi nada. Toque no Henry e fale." : "Não entendi. Toque no Henry e fale de novo.");
+    }
+  };
 
   const startRecordingRef = useRef(null);
   startRecordingRef.current = startRecording;
@@ -1935,36 +2071,10 @@ export default function HenryVoiceAssistant() {
         return;
       }
       if (!micStreamRef.current || vad.failed) return;
-      const context = ensureAudioContext();
-      if (!context) return;
-      if (!vad.instance && !vad.loading) {
-        vad.loading = true;
-        try {
-          vad.instance = await createHenryVad({
-            audioContext: context,
-            getStream: async () => micStreamRef.current,
-            onSpeechStart: () => {
-              vad.speaking = true;
-              vad.lastAt = Date.now();
-            },
-            onMisfire: () => {
-              vad.speaking = false;
-              vad.lastAt = Date.now();
-            },
-            onSpeechEnd: (samples) => {
-              vad.speaking = false;
-              vad.lastAt = Date.now();
-              confirmBargeRef.current?.(samples);
-            }
-          });
-        } catch {
-          vad.failed = true; // sem os arquivos (ex.: next dev sem prebuild): segue só com o medidor
-        } finally {
-          vad.loading = false;
-        }
-      }
+      await ensureVad();
       if (cancelled || !vad.instance || !micStreamRef.current) return;
       try {
+        vad.instance.setOptions(HENRY_VAD_BARGE_OPTIONS);
         await vad.instance.start();
         vad.running = !cancelled;
         if (cancelled) vad.instance.pause().catch(() => {});
@@ -2002,7 +2112,7 @@ export default function HenryVoiceAssistant() {
       }
       if (ownsMic) stopMicMeter();
     };
-  }, [bargeActive, ensureAudioContext, setDuck, startMicMeter, stopMicMeter]);
+  }, [bargeActive, ensureVad, setDuck, startMicMeter, stopMicMeter]);
   const confirmBargeRef = useRef(null);
   confirmBargeRef.current = confirmBargeByTranscript;
   useEffect(() => () => {
@@ -2104,11 +2214,13 @@ export default function HenryVoiceAssistant() {
         }
       }
       if (interim.text) {
+        // Mesmo "Tempo de espera do fim da fala" da gravação (curto com pergunta aberta dele) — dono, 2026-10-23.
+        const waitMs = interimFinalWaitMs({ waitMs: endWaitMsRef.current, awaitingReply: isAwaitingReply(pendingReplyRef.current) });
         interimTimer = window.setTimeout(() => {
-          const forced = forceInterimFinal(interim);
+          const forced = forceInterimFinal(interim, Date.now(), waitMs);
           interim = forced.state;
           if (forced.text) deliverFinal(forced.text, forced.named);
-        }, INTERIM_FINAL_MS);
+        }, waitMs);
       }
     };
     recognition.onerror = (event) => {
@@ -2375,7 +2487,7 @@ export default function HenryVoiceAssistant() {
     ? "Olhando pela câmera…"
     : recordMode
       ? recording
-        ? "Ouvindo… toque de novo para enviar"
+        ? recordHeard ? "Ouvindo… pode continuar (toque para enviar)" : "Ouvindo… pode falar"
         : phase === "thinking"
           ? scene.label || "Pensando…"
           : phase === "speaking"
@@ -2426,7 +2538,7 @@ export default function HenryVoiceAssistant() {
       engaged={inConversation || phase !== "idle" || recording || calling}
       heardHint={!heard.accepted && heard.text && Date.now() - heard.at < 8000 ? `Ouvi: “${heard.text}” (diga “Henry” antes)` : ""}
       inConversation={inConversation}
-      caption={captionFor(phase, turns)}
+      caption={recording ? status : captionFor(phase, turns)} /* gravando: "Ouvindo…" também no ícone minimizado */
       turns={turns}
       notice={notice}
       micOff={recordMode ? !recording : muted || !supported || micState === "blocked"}

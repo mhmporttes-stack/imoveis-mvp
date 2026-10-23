@@ -7,6 +7,15 @@ import {
   RECORD_MAX_MS,
   RECORD_NO_SPEECH_MS,
   RECORD_SILENCE_MS,
+  RECORD_REPLY_SILENCE_MS,
+  RECORD_KEEP_LEVEL,
+  RECORD_VOICE_LEVEL,
+  endOfSpeechWaitMs,
+  interimFinalWaitMs,
+  joinCutTranscripts,
+  openPendingReply,
+  recordVoiceThreshold,
+  shouldContinueAfterCut,
   classifyOpenSceneUtterance,
   classifyTapUtterance,
   emptyInterimState,
@@ -252,13 +261,13 @@ test("tocar para falar: gravação no celular sem reconhecimento ou no app do iP
   assert.equal(pickRecorderMimeType(undefined), "");
 });
 
-test("tocar para falar: para sozinho com silêncio, descarta sem voz e corta em 20 s", () => {
+test("tocar para falar: para sozinho com silêncio, descarta sem voz e corta em 25 s", () => {
   const base = { startedAt: 0, hasMeter: true };
   assert.equal(recordingDecision({ ...base, heardVoice: true, lastVoiceAt: 2000, now: 2000 + RECORD_SILENCE_MS - 1 }), null);
   assert.equal(recordingDecision({ ...base, heardVoice: true, lastVoiceAt: 2000, now: 2000 + RECORD_SILENCE_MS }), "send");
   assert.equal(recordingDecision({ ...base, heardVoice: false, now: RECORD_NO_SPEECH_MS }), "discard");
   assert.equal(recordingDecision({ ...base, heardVoice: true, lastVoiceAt: RECORD_MAX_MS, now: RECORD_MAX_MS }), "send");
-  assert.equal(recordingDecision({ startedAt: 0, hasMeter: false, now: 15000 }), null); // sem medidor: só toque ou 20 s
+  assert.equal(recordingDecision({ startedAt: 0, hasMeter: false, now: 15000 }), null); // sem medidor: só toque ou 25 s
   assert.equal(recordingDecision({ startedAt: 0, hasMeter: false, now: RECORD_MAX_MS }), "send");
 });
 
@@ -428,4 +437,68 @@ test("barge-in: a voz sai direto do <audio> (cancelamento de eco do Chrome) e o 
   assert.doesNotMatch(vad, /https?:\/\//);
   const card = readFileSync(new URL("../components/henry/HenrySettingsCard.jsx", import.meta.url), "utf8");
   assert.match(card, /Para interromper, fale &quot;para&quot; ou &quot;Henry&quot;/);
+});
+
+// Bug do dono (2026-10-23, app de desktop 1.3.0): "uma simples pausa de 1 segundo e ele já começa a pensar".
+test("fim da fala: pausa de 1 s não corta; só ~2,0 s de silêncio contínuo (padrão), 25 s no máximo", () => {
+  assert.equal(RECORD_SILENCE_MS, 2000);
+  assert.equal(RECORD_MAX_MS, 25000);
+  const base = { startedAt: 0, firstVoiceAt: 500, heardVoice: true, hasMeter: true };
+  assert.equal(recordingDecision({ ...base, lastVoiceAt: 3000, now: 4000 }), null); // pausa de 1 s
+  assert.equal(recordingDecision({ ...base, lastVoiceAt: 3000, now: 4300 }), null); // 1,3 s (antes cortava em 1,2 s)
+  assert.equal(recordingDecision({ ...base, lastVoiceAt: 3000, now: 5000 }), "send");
+  assert.equal(recordingDecision({ ...base, lastVoiceAt: 3000, now: 4100, waitMs: 1200 }), null);
+  assert.equal(recordingDecision({ ...base, lastVoiceAt: 3000, now: 4200, waitMs: 1200 }), "send"); // "curto"
+  assert.equal(recordingDecision({ ...base, lastVoiceAt: 3000, now: 5900, waitMs: 3000 }), null); // "longo"
+  assert.equal(recordingDecision({ ...base, lastVoiceAt: 3000, now: 6000, waitMs: 3000 }), "send");
+  assert.equal(recordingDecision({ ...base, lastVoiceAt: 24000, now: 25000 }), "send"); // limite de 25 s
+  assert.equal(recordingDecision({ startedAt: 0, heardVoice: false, hasMeter: true, now: 6000 }), null); // ~6 s para começar
+  assert.equal(recordingDecision({ startedAt: 0, heardVoice: false, hasMeter: true, now: 6000, noSpeechMs: 3500 }), "discard"); // continuação
+});
+
+test("fim da fala: histerese — VAD ainda ouvindo voz não fecha; silêncio conta do fim reportado pelo VAD", () => {
+  const base = { startedAt: 0, firstVoiceAt: 500, lastVoiceAt: 3000, heardVoice: true, hasMeter: true, vadRunning: true };
+  assert.equal(recordingDecision({ ...base, vadSpeaking: true, now: 9000 }), null); // medidor calado, VAD diz "tem voz"
+  assert.equal(recordingDecision({ ...base, vadSpeaking: false, vadEndedAt: 4500, now: 6000 }), null); // VAD acabou há 1,5 s
+  assert.equal(recordingDecision({ ...base, vadSpeaking: false, vadEndedAt: 4500, now: 6500 }), "send");
+  // Sem VAD rodando, o fim reportado antes não conta.
+  assert.equal(recordingDecision({ ...base, vadRunning: false, vadSpeaking: true, vadEndedAt: 4500, now: 5000 }), "send");
+  // Medidor: depois de ouvir voz, um nível menor (respirar, "é…") mantém a fala viva.
+  assert.equal(recordVoiceThreshold(false), RECORD_VOICE_LEVEL);
+  assert.equal(recordVoiceThreshold(true), RECORD_KEEP_LEVEL);
+  assert.equal(RECORD_KEEP_LEVEL < RECORD_VOICE_LEVEL, true);
+});
+
+test("fim da fala: resposta curta fecha em 1,2 s só com pergunta pendente", () => {
+  assert.equal(RECORD_REPLY_SILENCE_MS, 1200);
+  assert.equal(endOfSpeechWaitMs({ waitMs: 2000, awaitingReply: false, voiceMs: 400 }), 2000);
+  assert.equal(endOfSpeechWaitMs({ waitMs: 2000, awaitingReply: true, voiceMs: 400 }), 1200); // "sim"
+  assert.equal(endOfSpeechWaitMs({ waitMs: 2000, awaitingReply: true, voiceMs: 4000 }), 2000); // frase longa: espera normal
+  assert.equal(endOfSpeechWaitMs({ waitMs: 3000, awaitingReply: true, voiceMs: 300 }), 1200);
+  assert.equal(endOfSpeechWaitMs({ waitMs: 999999 }), 5000); // valor adulterado: teto
+  const reply = { startedAt: 0, firstVoiceAt: 1000, lastVoiceAt: 1400, heardVoice: true, hasMeter: true, awaitingReply: true };
+  assert.equal(recordingDecision({ ...reply, now: 2600 }), "send");
+  assert.equal(recordingDecision({ ...reply, awaitingReply: false, now: 2600 }), null);
+  // Web Speech (iPhone): mesmo tempo para o parcial virar final.
+  assert.equal(interimFinalWaitMs({ waitMs: 2000 }), 2000);
+  assert.equal(interimFinalWaitMs({ waitMs: 2000, awaitingReply: true }), 1200);
+  assert.equal(forceInterimFinal(trackInterim(emptyInterimState(), { index: 0, text: "quantos leads", now: 0 }), 1500, 2000).text, "");
+});
+
+test("nunca 'Não entendi' depois de um corte: vazio/cortado continua ouvindo uma vez e junta o trecho", () => {
+  const cut = { autoCut: true };
+  assert.equal(shouldContinueAfterCut("", cut), true);
+  assert.equal(shouldContinueAfterCut("quantos", cut), true);
+  assert.equal(shouldContinueAfterCut("e os leads de", cut), true);
+  assert.equal(shouldContinueAfterCut("Henry", cut), true); // só o nome: o pedido vem a seguir
+  assert.equal(shouldContinueAfterCut("quantos leads chegaram hoje", cut), false);
+  assert.equal(shouldContinueAfterCut("bom dia", cut), false); // relatório
+  assert.equal(shouldContinueAfterCut("para", cut), false); // parada
+  assert.equal(shouldContinueAfterCut("sim", { ...cut, awaitingReply: true }), false); // resposta curta válida
+  assert.equal(shouldContinueAfterCut("", { autoCut: false }), false); // toque para enviar não é corte
+  assert.equal(shouldContinueAfterCut("", { autoCut: true, continued: true }), false); // no máximo uma vez
+  assert.equal(joinCutTranscripts("quantos leads", "chegaram hoje"), "quantos leads chegaram hoje");
+  assert.equal(joinCutTranscripts("", " oi "), "oi");
+  assert.equal(joinCutTranscripts("quantos", ""), "quantos");
+  assert.equal(typeof openPendingReply, "function");
 });

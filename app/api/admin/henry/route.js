@@ -22,7 +22,7 @@ import {
   warmHenryReport
 } from "@/lib/henry-voice";
 import { HENRY_MAX_QUESTION_LENGTH, isHenryEligible, parseHenryImage, shouldUseHenryImage } from "@/lib/henry-voice-core.mjs";
-import { henryBrowserRate, henryStyleOptions, parseHenryStylePatch } from "@/lib/henry-voice-style.mjs";
+import { henryBrowserRate, henryEndWaitMs, henryStyleOptions, parseHenryStylePatch } from "@/lib/henry-voice-style.mjs";
 import { splitForSpeech } from "@/lib/henry-voice-conversation.mjs";
 import { henryInitialProgress } from "@/lib/henry-voice-narration.mjs";
 import { isAllowedHenryNavigation, isHenryClientId } from "@/lib/henry-navigation-core.mjs";
@@ -114,6 +114,7 @@ export async function GET(request) {
       style,
       narrationKey: henryNarrationVoiceKey(style), // frases de espera: o navegador reaproveita as da sessão com a mesma chave
       browserRate: henryBrowserRate(style),
+      endWaitMs: henryEndWaitMs(style), // tempo de espera do fim da fala (gravação e parcial do navegador)
       options: henryStyleOptions({ defaultVoice: henryDefaultVoice() }),
       elevenVoices,
       elevenVoicesError,
@@ -127,7 +128,7 @@ export async function GET(request) {
 }
 
 // Liga/desliga o Henry (nasce ligado) e a visão pela webcam (nasce desligada): { enabled?, vision? }.
-// Voz e personalidade: { style: { voice?, tone?, speed?, details?, address? } } validado por Zod (henry-voice-style.mjs).
+// Voz e personalidade: { style: { voice?, tone?, speed?, endWait?, details?, address? } } validado por Zod (henry-voice-style.mjs).
 export async function PUT(request) {
   const auth = await requireHenryOwner(request);
   if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status });
@@ -147,7 +148,7 @@ export async function PUT(request) {
   if (!Object.keys(patch).length) return NextResponse.json({ error: "Informe enabled, vision, webSearch e/ou style." }, { status: 400 });
   try {
     const saved = await setHenrySettings(auth, patch);
-    return NextResponse.json({ ...saved, browserRate: henryBrowserRate(saved.style) });
+    return NextResponse.json({ ...saved, browserRate: henryBrowserRate(saved.style), endWaitMs: henryEndWaitMs(saved.style) });
   } catch (error) {
     console.error("[henry] falha ao salvar a configuração:", error?.message || error);
     return NextResponse.json({ error: "Não foi possível salvar a configuração do Henry." }, { status: 500 });

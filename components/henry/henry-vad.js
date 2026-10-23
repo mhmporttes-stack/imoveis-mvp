@@ -38,6 +38,12 @@ function loadVadLibrary() {
   return libraryPromise;
 }
 
+// Ajustes por uso. Interrupção (ele falando): mais exigente que o padrão (0,3) — o resto do eco da voz dele não pode contar
+// como voz do dono. Gravação do pedido (ele calado, dono 2026-10-23: "uma pausa de 1 segundo e ele já começa a pensar"):
+// menos exigente e com mais tolerância a pausas curtas, para respirar ou "é…" não encerrarem a fala.
+export const HENRY_VAD_BARGE_OPTIONS = Object.freeze({ positiveSpeechThreshold: 0.6, negativeSpeechThreshold: 0.45, redemptionMs: 500 });
+export const HENRY_VAD_RECORD_OPTIONS = Object.freeze({ positiveSpeechThreshold: 0.5, negativeSpeechThreshold: 0.35, redemptionMs: 800 });
+
 // getStream devolve o microfone JÁ aberto pelo Henry (o VAD não abre outro nem o fecha: pauseStream não faz nada).
 export async function createHenryVad({ audioContext, getStream, onSpeechStart, onSpeechEnd, onMisfire }) {
   const vad = await loadVadLibrary();
@@ -50,11 +56,8 @@ export async function createHenryVad({ audioContext, getStream, onSpeechStart, o
     getStream,
     pauseStream: async () => {},
     resumeStream: async () => getStream(),
-    // Mais exigente que o padrão (0,3): o resto do eco da voz dele não pode contar como voz do dono.
-    positiveSpeechThreshold: 0.6,
-    negativeSpeechThreshold: 0.45,
+    ...HENRY_VAD_BARGE_OPTIONS,
     minSpeechMs: 200,
-    redemptionMs: 500,
     preSpeechPadMs: 300,
     onSpeechStart,
     onSpeechEnd,

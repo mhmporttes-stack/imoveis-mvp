@@ -40,6 +40,17 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-23 — Henry corta a fala no meio e responde "Não entendi" (app de desktop 1.3.0)
+- **Data:** 2026-10-23
+- **Sintoma:** "eu estou falando e ele corta minha fala no meio e já sai respondendo que não entendeu. Uma simples pausa de 1 segundo e ele já começa a pensar."
+- **Área:** Henry / Frontend
+- **Impacto:** só o dono; app de desktop (gravação + Scribe), iPhone (gravação) e parcial do Web Speech. Sem perda de dado.
+- **Causa raiz:** a gravação fechava com 1,2 s abaixo de um único nível do medidor (0,1): respirar, "é…" ou trecho mais baixo contavam como silêncio; o pedaço cortado ia para o Scribe e voltava vazio/curto → "Não entendi" ou resposta a meia frase. O parcial do Web Speech também virava final com 1,2 s fixo.
+- **Correção:** fim da fala com silêncio contínuo configurável (padrão 2,0 s; 1,2 s só para resposta curta com pergunta pendente), histerese (VAD Silero no app; nível menor depois de ouvir voz), máximo 25 s, continuação única depois de corte com transcrição vazia/cortada, "Ouvindo… pode continuar" — HENRY-1 "Fim da fala".
+- **Arquivos/commit:** `lib/henry-voice-conversation.mjs`, `lib/henry-voice-style.mjs`, `components/henry/HenryVoiceAssistant.jsx`, `components/henry/henry-vad.js`, `components/henry/HenrySettingsCard.jsx`, `app/api/admin/henry/route.js` — commit deste registro
+- **Prevenção/teste:** `tests/henry-voice-conversation.test.mjs` (pausa de 1 s não corta, histerese do VAD, pergunta pendente, continuação uma vez), `tests/henry-voice-style.test.mjs` (curto/normal/longo).
+- **Status:** Monitorando (teste do dono no app de desktop e no iPhone)
+
 ### 2026-10-23 — Henry: "Não entendi" quando o dono responde "pode" à pergunta da música (com o Spotify tocando)
 - **Data:** 2026-10-23
 - **Sintoma:** com o Spotify tocando, "Bom dia, Henry" → ele pergunta "Posso dar play numa playlist…?" → o dono responde "pode" → aparece "Não entendi. Toque no Henry e fale de novo."

@@ -44,6 +44,15 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 
 
+### 2026-10-23 — Henry: fim da fala com 2,0 s de silêncio, histerese do VAD e continuação depois de corte (bug "corta minha fala")
+- **Data:** 2026-10-23
+- **Área:** Henry (voz)
+- **Alteração:** gravação (app de desktop e iPhone) e parcial do Web Speech só fecham depois de silêncio contínuo do novo ajuste "Tempo de espera do fim da fala" (Voz e personalidade; curto/normal/longo = 1,2/2,0/3,0 s, padrão normal, `henry_voice_assistant.style.endWait`); 1,2 s só para resposta curta com pergunta pendente. Histerese: VAD Silero (mesma instância da interrupção, ajuste mais tolerante durante a gravação) no app de desktop e nível menor do medidor depois de ouvir voz. Máximo 25 s (antes 20 s). Corte automático com transcrição vazia/cortada continua ouvindo uma vez e junta o trecho (nunca "Não entendi"). Status "Ouvindo… pode falar/continuar", também no ícone minimizado. GET/PUT de `/api/admin/henry` devolvem `endWaitMs`.
+- **Motivo:** bug relatado pelo dono no app de desktop 1.3.0: "ele corta minha fala no meio e já sai respondendo que não entendeu… uma simples pausa de 1 segundo e ele já começa a pensar".
+- **Arquivos afetados:** `lib/henry-voice-conversation.mjs`, `lib/henry-voice-style.mjs`, `components/henry/HenryVoiceAssistant.jsx`, `components/henry/henry-vad.js`, `components/henry/HenrySettingsCard.jsx`, `app/api/admin/henry/route.js`, `tests/henry-voice-conversation.test.mjs`, `tests/henry-voice-style.test.mjs`, `docs/BUSINESS_RULES.md` (HENRY-1 "Fim da fala"), `.claude/rules/integracoes-externas.md`, `docs/INCIDENTES.md`.
+- **Risco/observação:** toda pergunta fica ~0,8 s mais lenta para fechar (escolha do dono; "curto" volta ao ritmo antigo). O VAD agora também roda durante a gravação no app de desktop (antes só enquanto ele fala) — sem os arquivos segue só o medidor. Na continuação, o que for dito durante a transcrição do corte (~1 s) não entra. Sem migration. Testes Henry: 189 passam; build limpo.
+- **Autor:** Claude Code (crm-editor)
+
 ### 2026-10-23 — Henry: pergunta aberta libera resposta curta com música tocando (bug do "Não entendi")
 - **Data:** 2026-10-23
 - **Área:** Henry (voz, Spotify)
