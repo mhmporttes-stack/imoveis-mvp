@@ -16,11 +16,11 @@
 // Estados (dono, 2026-10-23: "preciso identificar quando o Henry está pensando… ou quando ele simplesmente parou"):
 //   idle = conversa encerrada · waiting = janela de conversa aberta · listening · thinking · speaking.
 export const HENRY_ORB_STATES = Object.freeze({
-  idle: { amp: 0.4, levelAmp: 0, swell: 0, levelSwell: 0, speed: 0.3, levelSpeed: 0, spin: 0.05, counterSpin: 0, breath: 0.022, breathRate: 0.12, travel: 0, fan: 0, sphere: 0, warm: 0.15, glowBase: 0, glowLevel: 0, beamOn: 0, dim: 0.35, rim: 0, neural: 0 },
-  waiting: { amp: 0.5, levelAmp: 0, swell: 0.01, levelSwell: 0, speed: 0.45, levelSpeed: 0, spin: 0.07, counterSpin: 0, breath: 0.018, breathRate: 0.2, travel: 0, fan: 0, sphere: 0, warm: 0.05, glowBase: 0.04, glowLevel: 0, beamOn: 0, dim: 0.9, rim: 1, neural: 0 },
-  listening: { amp: 0.75, levelAmp: 1.9, swell: 0.03, levelSwell: 0.16, speed: 1.3, levelSpeed: 2.6, spin: 0.12, counterSpin: 0, breath: 0.01, breathRate: 0.5, travel: 1, fan: 0.1, sphere: 0, warm: 0, glowBase: 0.08, glowLevel: 0.75, beamOn: 0, dim: 1, rim: 0, neural: 0 },
-  thinking: { amp: 0.55, levelAmp: 0, swell: -0.02, levelSwell: 0, speed: 0.7, levelSpeed: 0, spin: 0.1, counterSpin: 1.1, breath: 0.07, breathRate: 0.75, travel: 0.2, fan: 0.15, sphere: 0, warm: 0.45, glowBase: 0.12, glowLevel: 0, beamOn: 1, dim: 0.9, rim: 0, neural: 1 },
-  speaking: { amp: 0.9, levelAmp: 1.6, swell: 0.06, levelSwell: 0.42, speed: 1.1, levelSpeed: 1.8, spin: 0.18, counterSpin: 0.15, breath: 0.01, breathRate: 0.4, travel: 0.3, fan: 1, sphere: 1, warm: 1, glowBase: 0.15, glowLevel: 0.6, beamOn: 0, dim: 1, rim: 0, neural: 0 }
+  idle: { amp: 0.4, levelAmp: 0, swell: 0, levelSwell: 0, speed: 0.3, levelSpeed: 0, spin: 0.05, counterSpin: 0, breath: 0.022, breathRate: 0.12, travel: 0, fan: 0, sphere: 0, warm: 0.15, glowBase: 0, glowLevel: 0, beamOn: 0, dim: 0.35, rim: 0, neural: 0, voice: 0 },
+  waiting: { amp: 0.5, levelAmp: 0, swell: 0.01, levelSwell: 0, speed: 0.45, levelSpeed: 0, spin: 0.07, counterSpin: 0, breath: 0.018, breathRate: 0.2, travel: 0, fan: 0, sphere: 0, warm: 0.05, glowBase: 0.04, glowLevel: 0, beamOn: 0, dim: 0.9, rim: 1, neural: 0, voice: 0 },
+  listening: { amp: 0.75, levelAmp: 1.9, swell: 0.03, levelSwell: 0.16, speed: 1.3, levelSpeed: 2.6, spin: 0.12, counterSpin: 0, breath: 0.01, breathRate: 0.5, travel: 1, fan: 0.1, sphere: 0, warm: 0, glowBase: 0.08, glowLevel: 0.75, beamOn: 0, dim: 1, rim: 0, neural: 0, voice: 0 },
+  thinking: { amp: 0.55, levelAmp: 0, swell: -0.02, levelSwell: 0, speed: 0.7, levelSpeed: 0, spin: 0.1, counterSpin: 1.1, breath: 0.07, breathRate: 0.75, travel: 0.2, fan: 0.15, sphere: 0, warm: 0.45, glowBase: 0.12, glowLevel: 0, beamOn: 1, dim: 0.9, rim: 0, neural: 1, voice: 0 },
+  speaking: { amp: 0.9, levelAmp: 1.6, swell: 0.06, levelSwell: 0.42, speed: 1.1, levelSpeed: 1.8, spin: 0.18, counterSpin: 0.15, breath: 0.01, breathRate: 0.4, travel: 0.3, fan: 1, sphere: 1, warm: 1, glowBase: 0.15, glowLevel: 0.6, beamOn: 0, dim: 1, rim: 0, neural: 0, voice: 1 }
 });
 
 export const HENRY_ORB_MODES = Object.freeze(Object.keys(HENRY_ORB_STATES));
@@ -79,6 +79,10 @@ export function buildNeuralNet(count = 22) {
 }
 
 export const ORB_TRANSITION_MS = 300;
+// Vibração dos fios (dono, 2026-10-23, protótipo v14: "ficou muito embaraçado"): ondulação × 0,4 em todos os estados.
+export const HENRY_ORB_VIB = 0.4;
+// Pulso de chegada do Pulso do CRM no anel (protótipos v17/v21): duração total.
+export const HENRY_ORB_HIT_MS = 1400;
 
 // Fator de aproximação por quadro: depois de ORB_TRANSITION_MS o valor percorreu ~95% do caminho, qualquer que seja o fps.
 export function orbEase(deltaSeconds) {
@@ -111,4 +115,49 @@ export function mixHexColor(from, to, t) {
 
 export function orbStops(warm) {
   return COOL.map(([offset, color], index) => [offset, mixHexColor(color, WARM[index][1], warm)]);
+}
+
+// Arco do pulso de chegada (protótipo v21) na idade relativa age (0–1 de HENRY_ORB_HIT_MS): meia-largura de 0,08π a 0,4π
+// (easeOut), alpha 0,9 × (sobe em 6%) × (1 − p)^1,6, inchaço do raio 10% × (1 − age/0,55)^1,5 (mínimo 0).
+export function orbHitArc(age) {
+  const rise = Math.min(1, age / 0.06);
+  const fade = Math.pow(1 - Math.max(0, (age - 0.06) / 0.94), 1.6);
+  return { half: Math.PI * (0.08 + 0.32 * (1 - Math.pow(1 - age, 2))), alpha: rise * fade * 0.9, bump: 0.1 * rise * Math.pow(Math.max(0, 1 - age / 0.55), 1.5) };
+}
+
+// "Bom dia novo" (protótipo v22, dono 2026-10-23): linha do tempo da abertura em segundos — entrada 1,3 s, 3 voltas em
+// 2,1 s acelerando, giro rápido de 1,0 s fechando no anel, boom aos 4,4 s, fim aos 8,6 s (mensagem sai ~3,4 s depois).
+export const HENRY_WAKE = Object.freeze({ in: 1.3, laps: 2.1, fast: 1.0, boom: 4.4, end: 8.6 });
+export function wakeSmooth(a, b, value) {
+  const x = Math.max(0, Math.min(1, (value - a) / (b - a)));
+  return x * x * (3 - 2 * x);
+}
+// Cabeça do feixe da abertura: sobe em curva do meio da lateral esquerda ao meio do topo (raio big), depois gira em volta
+// do centro — 3 voltas com aceleração constante e giro rápido — fechando no raio R do anel. at(t) = [x, y]; omega(tau) =
+// velocidade angular depois da entrada.
+export function wakeHead({ cx, cy, R, big }) {
+  const { in: T_IN, laps: T_LAPS, fast: T_FAST } = HENRY_WAKE;
+  const A = (6 * Math.PI) / (T_LAPS * T_LAPS);
+  const W1 = 2 * A * T_LAPS;
+  const angleAt = (tau) => (tau <= T_LAPS ? A * tau * tau : 6 * Math.PI + W1 * (tau - T_LAPS) + 22 * Math.pow(tau - T_LAPS, 2));
+  const omega = (tau) => (tau <= T_LAPS ? 2 * A * tau : W1 + 44 * (tau - T_LAPS));
+  const radiusAt = (tau) => big + (R - big) * Math.pow(wakeSmooth(0, T_LAPS + T_FAST, tau), 1.3);
+  const x0 = -80;
+  const y0 = cy;
+  const x1 = cx * 0.2;
+  const y1 = cy - big * 1.15;
+  const x2 = cx;
+  const y2 = cy - big;
+  const at = (tt) => {
+    if (tt <= T_IN) {
+      const k = wakeSmooth(0, T_IN, tt) * 0.6 + (tt / T_IN) * 0.4; // começa devagar, chega no topo já andando
+      const m = 1 - k;
+      return [m * m * x0 + 2 * m * k * x1 + k * k * x2, m * m * y0 + 2 * m * k * y1 + k * k * y2];
+    }
+    const tau = tt - T_IN;
+    const theta = -Math.PI / 2 + angleAt(tau);
+    const r = radiusAt(tau);
+    return [cx + r * Math.cos(theta), cy + r * Math.sin(theta)];
+  };
+  return { at, omega, angleAt };
 }

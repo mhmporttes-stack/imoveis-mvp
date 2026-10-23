@@ -170,11 +170,14 @@ test("botão ▶ do bom dia: faz o MESMO pedido do 'bom dia, Henry' falado, sem 
   // Gesto do clique destrava o áudio (iPhone) antes de qualquer coisa.
   const start = assistant.slice(assistant.indexOf("const startMorningPlay"), assistant.indexOf("const finishOpening"));
   assert.match(start, /unlockAudio\(\);/);
-  assert.match(start, /if \(!mutedRef\.current\) playHenryOpeningSound/);
+  // Som da abertura respeita o mudo e é agendado no clique (aos 3,8 s no bom dia novo, v22).
+  assert.match(start, /mutedRef\.current \? null : playHenryOpeningSound\(audioCtxRef\.current, OPENING_SOUND_AT_S\)/);
   assert.doesNotMatch(start, /fetch\([^)]*mode: "report"/);
   const view = readFileSync(new URL("../components/henry/HenryVoiceView.jsx", import.meta.url), "utf8");
   assert.equal((view.match(/<PlayButton /g) || []).length, 3); // minimizado (computador e celular) e tela cheia
   const scene = readFileSync(new URL("../components/henry/HenryOpeningScene.jsx", import.meta.url), "utf8");
-  assert.match(scene, /\/assets\/matheus-machado-symbol\.png/);
+  // Bom dia novo (v22, dono 2026-10-23): sem logo nenhuma na cena (nunca a antiga); movimento reduzido e "pular" mantidos.
+  assert.doesNotMatch(scene, /matheus-machado-logo|premium|company-mark|apple-touch-icon/);
   assert.match(scene, /prefers-reduced-motion/);
+  assert.match(scene, /Toque ou Esc para pular/);
 });

@@ -188,3 +188,32 @@ test("'Henry, bloqueia' e frases do pede a senha", () => {
   assert.match(prompt, /NÃO fala NENHUM dado do CRM/);
   assert.ok(!/TELA BLOQUEADA/.test(buildHenryDynamicPrompt({ todayKey: "2026-10-23" })));
 });
+
+test("'Henry, bloqueia' falado chega ao servidor como pedido e aciona o bloqueio (não vai ao modelo)", async () => {
+  const { detectWakeWord } = await import("../lib/henry-voice-core.mjs");
+  const { classifyArmedUtterance, classifyOpenSceneUtterance, classifyTapUtterance, isConversationEnd } = await import("../lib/henry-voice-conversation.mjs");
+  for (const spoken of ["Henry, bloqueia", "Henry bloqueia a tela", "ei Henry, trava a tela"]) {
+    const wake = detectWakeWord(spoken);
+    assert.equal(wake.called, true, spoken);
+    assert.equal(isHenryLockCommand(wake.question), true, spoken);
+    for (const classify of [classifyArmedUtterance, classifyOpenSceneUtterance, classifyTapUtterance]) assert.equal(classify(spoken, {}).kind, "question", `${classify.name}: ${spoken}`);
+    assert.equal(isConversationEnd(wake.question), false);
+  }
+  // Na rota, o comando é resolvido ANTES do modelo: bloqueia no servidor e a resposta leva `lock: true` (a tela abre bloqueada).
+  const route = read("../app/api/admin/henry/route.js");
+  const command = route.indexOf("isHenryLockCommand(question)) {");
+  assert.ok(command > 0 && command < route.indexOf("return answerStream(auth"));
+  assert.match(route, /await engageHenryLock\(auth\);/);
+  assert.match(route, /lockNow \? "done"/);
+  const lib = read("../lib/henry-voice.js");
+  assert.match(lib, /if \(lockCommand\) \{\n\s+const reply = lockCommand === "done" \? pick\("lockDone", HENRY_LOCK_DONE_PHRASES\)/);
+  const screen = read("../components/henry/HenryVoiceAssistant.jsx");
+  assert.match(screen, /if \(message\?\.lock === true\) \{\n\s+lockLocally\(true\);\n\s+setExpanded\(true\);/);
+});
+
+test("Pulso do CRM fica fora da trava (dono, 2026-10-23), mas o card não tira da tela bloqueada", () => {
+  const pulse = read("../app/api/admin/henry/pulse/route.js");
+  assert.ok(!/resolveHenryLock/.test(pulse), "o Pulso mostra dados reais mesmo bloqueado");
+  const screen = read("../components/henry/HenryVoiceAssistant.jsx");
+  assert.match(screen, /if \(!shouldMinimizeForNavigation\(navigate\) \|\| lockRef\.current\.locked\) return;/);
+});

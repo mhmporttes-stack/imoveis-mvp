@@ -22,7 +22,8 @@ test("contagem por status: normaliza desconhecidos e soma os grupos", () => {
   const result = aggregateStatusCounts(rows, normalize, GROUPS);
   assert.equal(result.total, 21);
   assert.deepEqual(result.byStatus, { pending: 12, in_service: 3, archived: 6 });
-  assert.deepEqual(result.byGroup, { all: 21, service: 3, simulation: 12, archived: 6 });
+  // "all" sem os negativos da aba Todos (CLI-12a): os 6 arquivados saem.
+  assert.deepEqual(result.byGroup, { all: 15, service: 3, simulation: 12, archived: 6 });
 });
 
 test("contagem vazia ou sem linhas", () => {

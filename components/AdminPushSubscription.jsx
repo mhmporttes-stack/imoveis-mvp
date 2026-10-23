@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import { Bell, X } from "lucide-react";
+import { useHenryFullscreen } from "@/components/henry/useHenryFullscreen";
 
 const VAPID_PUBLIC_KEY = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY || "";
 const DISMISS_KEY = "mm_admin_push_hint_dismissed";
@@ -53,6 +54,7 @@ export default function AdminPushSubscription() {
   const pathname = usePathname();
   const [visible, setVisible] = useState(false);
   const [busy, setBusy] = useState(false);
+  const henryOpen = useHenryFullscreen(); // tela cheia do Henry aberta: o convite espera (dono, 2026-10-23)
 
   const shouldRun =
     Boolean(VAPID_PUBLIC_KEY) &&
@@ -121,7 +123,7 @@ export default function AdminPushSubscription() {
     }
   }
 
-  if (!visible) return null;
+  if (!visible || henryOpen) return null;
 
   return (
     <aside className="fixed top-[calc(4.5rem+env(safe-area-inset-top))] left-4 right-4 z-[130] mx-auto max-w-[560px] rounded-[24px] border border-blue-100 bg-white p-4 text-navy shadow-premium md:left-auto md:right-6 md:mx-0">

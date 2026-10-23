@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Download, Share, X } from "lucide-react";
+import { useHenryFullscreen } from "@/components/henry/useHenryFullscreen";
 
 const DISMISS_KEY = "mm_admin_pwa_install_hint_dismissed";
 
@@ -15,6 +16,7 @@ export default function AdminPwaInstallHint() {
   const [visible, setVisible] = useState(false);
   const [deferredPrompt, setDeferredPrompt] = useState(null);
   const [installing, setInstalling] = useState(false);
+  const henryOpen = useHenryFullscreen(); // tela cheia do Henry aberta: a orientação espera (dono, 2026-10-23)
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -75,7 +77,7 @@ export default function AdminPwaInstallHint() {
     }
   }
 
-  if (!visible) return null;
+  if (!visible || henryOpen) return null;
 
   const isAndroid = platform === "android";
 

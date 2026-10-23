@@ -18,6 +18,12 @@ const MAX_SPEAK_TEXT = 1000;
 // Ações da ponte (lista FECHADA). onWake é evento (não é ação), registrado à parte em main.js.
 const BRIDGE_ACTIONS = Object.freeze(["openSpotify", "openUrl", "notify", "screenOff", "screenOn", "speakLocal"]);
 
+// 1.3.1 (app lento, 2026-10-23): a página do CRM some da vista com a janela minimizada, escondida na bandeja ou fechada.
+// Vai à página pelo evento "mm:window-visibility" (onWindowVisibility); com ele ela pausa animações e consultas.
+function isWindowHidden({ exists = true, visible = true, minimized = false } = {}) {
+  return !exists || !visible || minimized === true;
+}
+
 function parseUrl(value) {
   try {
     return new URL(String(value || ""));
@@ -495,6 +501,26 @@ function updateTrayItem({ state = "parado", version = "", percent = 0 } = {}) {
   return { label: "Procurar atualização", enabled: true, install: false };
 }
 
+// 1.3.1 (REGRA OFICIAL — dono, 2026-10-23: nenhum aviso fixo no meio da tela com a tela cheia do Henry aberta). A caixa
+// "Nova versão X pronta — Reiniciar agora / Depois" fica guardada enquanto a página avisa que a tela cheia está aberta
+// (evento henryFullscreen da ponte) e aparece quando ela fecha. Nada se perde: a atualização continua baixada e "pronta"
+// (bandeja e instalação ao Sair seguem iguais). Passo puro: devolve o novo estado e a versão a mostrar AGORA (ou "").
+const UPDATE_PROMPT_INITIAL = Object.freeze({ held: false, pendingVersion: "" });
+function updatePromptStep(state = UPDATE_PROMPT_INITIAL, event = {}) {
+  const current = { held: state?.held === true, pendingVersion: cleanText(state?.pendingVersion, 20) };
+  if (event?.type === "ask") {
+    const version = cleanText(event.version, 20);
+    if (current.held) return { state: { ...current, pendingVersion: version || current.pendingVersion }, show: "" };
+    return { state: { ...current, pendingVersion: "" }, show: version };
+  }
+  if (event?.type === "hold") {
+    const held = event.held === true;
+    if (!held && current.pendingVersion) return { state: { held: false, pendingVersion: "" }, show: current.pendingVersion };
+    return { state: { ...current, held }, show: "" };
+  }
+  return { state: current, show: "" };
+}
+
 // Erro do atualizador → texto curto para o log (sem endereço completo nem pilha).
 function updateErrorDetail(error) {
   const code = cleanText(error?.code, 40);
@@ -503,6 +529,8 @@ function updateErrorDetail(error) {
 }
 
 module.exports = {
+  UPDATE_PROMPT_INITIAL,
+  updatePromptStep,
   UPDATE_FEED_URL,
   UPDATE_FIRST_CHECK_MS,
   UPDATE_INTERVAL_MS,
@@ -516,6 +544,7 @@ module.exports = {
   SPOTIFY_URI,
   MAX_SPEAK_TEXT,
   BRIDGE_ACTIONS,
+  isWindowHidden,
   WAKE_TARGETS,
   WAKE_GRAMMAR,
   WAKE_WORDS_NOT_IN_MODEL,

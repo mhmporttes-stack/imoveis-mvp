@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { RefreshCw, WifiOff, X } from "lucide-react";
+import { useHenryFullscreen } from "@/components/henry/useHenryFullscreen";
 
 const UPDATE_CHECK_INTERVAL_MS = 10 * 60 * 1000;
 
@@ -9,6 +10,9 @@ export default function PwaLifecycle() {
   const [updateWorker, setUpdateWorker] = useState(null);
   const [offline, setOffline] = useState(false);
   const [dismissed, setDismissed] = useState(false);
+  // Tela cheia do Henry aberta (dono, 2026-10-23): os avisos de nova versão/sem conexão esperam ela fechar (a troca
+  // automática de versão ao sair/voltar continua igual).
+  const henryOpen = useHenryFullscreen();
 
   useEffect(() => {
     if (typeof window === "undefined") return undefined;
@@ -132,7 +136,7 @@ export default function PwaLifecycle() {
     };
   }, []);
 
-  if (dismissed || (!updateWorker && !offline)) return null;
+  if (dismissed || henryOpen || (!updateWorker && !offline)) return null;
 
   // Versão nova (dono, 2026-10-14): sem botão "Atualizar" (recarregar na hora demorava e interrompia o trabalho) —
   // só um aviso pequeno no canto. A pessoa termina o que está fazendo e atualiza quando quiser; a troca automática

@@ -9,6 +9,7 @@ import { usePrefersReducedMotion } from "@/components/motion/usePrefersReducedMo
 import { isNewClientSoundEnabled, playNewClientSound } from "@/lib/new-client-sound";
 import scene from "@/components/scenes/scenes.module.css";
 import { formatSupervisionTime, useSupervisionRealtime } from "./useSupervisionRealtime";
+import { useHenryFullscreen } from "@/components/henry/useHenryFullscreen";
 
 const EASE = [0.2, 0, 0, 1];
 const DONE_HOLD_MS = 750;
@@ -102,6 +103,7 @@ export default function SupervisionMessageGate({ userId }) {
   }, [active]);
 
   const visible = Boolean(active) && !blocked;
+  const henryOpen = useHenryFullscreen();
 
   const advance = useCallback((id) => {
     setDone(null);
@@ -110,6 +112,8 @@ export default function SupervisionMessageGate({ userId }) {
     setQueue((current) => current.filter((message) => message.id !== id));
   }, []);
 
+  // Tela cheia do Henry aberta (dono, 2026-10-23): o balão não aparece (nem a saída animada); a fila fica e ele volta ao fechar.
+  if (henryOpen) return null;
   return (
     <SupervisionOverlay
       visible={visible}

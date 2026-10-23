@@ -5,6 +5,7 @@ import Field, { inputClasses } from "@/components/ui/Field";
 import { henryReserveVoiceChain, pickBestBrowserVoice, pronounceForSpeech } from "@/lib/henry-voice-providers.mjs";
 import { HENRY_END_WAIT_EVENT } from "@/lib/henry-voice-conversation.mjs";
 import HenryLockSettings from "./HenryLockSettings";
+import { HENRY_PULSE_INTENSITIES, HENRY_PULSE_TYPES, HENRY_PULSE_TYPE_KEYS } from "@/lib/henry-pulse-core.mjs";
 import {
   DESKTOP_WAKE_CUSTOM_MAX_CHARS,
   DESKTOP_WAKE_EVENT,
@@ -46,6 +47,7 @@ export default function HenrySettingsCard() {
             clientAlerts: data?.clientAlerts !== false,
             teamArrivals: data?.teamArrivals !== false,
             voiceNotices: data?.voiceNotices !== false,
+            pulse: data?.pulse || null,
             serverVoice: Boolean(data?.serverVoice),
             provider: data?.provider || "browser",
             providerLabel: data?.providerLabel || "voz do navegador",
@@ -225,6 +227,7 @@ export default function HenrySettingsCard() {
                 {state.voiceNotices ? "Desligar" : "Ligar"}
               </button>
             </div>
+            {state.pulse ? <HenryPulseSection saved={state.pulse} disabled={!state.enabled} onSaved={(pulse) => setState((current) => ({ ...current, pulse }))} /> : null}
             </>
           }
         />
@@ -619,6 +622,85 @@ function HenrySpotifySection({ status, onChange }) {
           </a>
         )
       ) : null}
+    </div>
+  );
+}
+
+// "Pulso do CRM" (rascunho HENRY-1 "Pulso", [PENDENTE DE VALIDAÇÃO]): na tela cheia do Henry, cards com eventos reais do
+// CRM em volta do anel. Nasce DESLIGADO até o dono aprovar o visual. Grava em henry_voice_assistant.pulse
+// (PUT /api/admin/henry { pulse }, validado por parseHenryPulsePatch). O ícone do canto lê a configuração ao montar.
+function HenryPulseSection({ saved, disabled = false, onSaved }) {
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState("");
+  const save = async (patch) => {
+    setBusy(true);
+    setMessage("");
+    try {
+      const response = await fetch("/api/admin/henry", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ pulse: patch }) });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data?.error || "Não foi possível salvar.");
+      onSaved?.(data.pulse);
+      setMessage("Salvo. Recarregue a página para ver no Henry.");
+    } catch (saveError) {
+      setMessage(saveError?.message || "Não foi possível salvar.");
+    } finally {
+      setBusy(false);
+    }
+  };
+  const toggleType = (key) => {
+    const types = saved.types.includes(key) ? saved.types.filter((item) => item !== key) : [...saved.types, key];
+    save({ types: HENRY_PULSE_TYPE_KEYS.filter((item) => types.includes(item)) });
+  };
+  return (
+    <div className="mt-4 rounded-control border border-line p-4">
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <div className="max-w-xl">
+          <p className="text-sm font-black text-navy">Pulso do CRM</p>
+          <p className="mt-1 text-sm text-muted">
+            Na tela cheia do Henry, o que a equipe está fazendo aparece em volta dele: mensagens, clientes novos, simulações, envios à CCA, chegadas e
+            pontos. Só para você; só mostra primeiro nome e um trecho curto da mensagem (nunca telefone, CPF ou documento). Tocar no card abre a
+            conversa ou o cliente. Conversas particulares, grupos e internas ficam de fora.
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={() => save({ enabled: !saved.enabled })}
+          disabled={busy || disabled}
+          className={`rounded-control px-5 py-2.5 text-sm font-bold disabled:opacity-60 ${saved.enabled ? "border border-line text-navy" : "bg-navy text-white"}`}
+        >
+          {saved.enabled ? "Desligar" : "Ligar"}
+        </button>
+      </div>
+      {saved.enabled ? (
+        <div className="mt-4 grid gap-4 md:grid-cols-2">
+          <Field label="Intensidade">
+            <select className={inputClasses} value={saved.intensity} disabled={busy} onChange={(event) => save({ intensity: event.target.value })}>
+              {Object.entries(HENRY_PULSE_INTENSITIES).map(([key, item]) => (
+                <option key={key} value={key}>
+                  {item.label}
+                </option>
+              ))}
+            </select>
+          </Field>
+          <label className="flex items-center gap-2 self-end text-sm font-bold text-navy">
+            <input type="checkbox" checked={saved.snippets} disabled={busy} onChange={() => save({ snippets: !saved.snippets })} />
+            Mostrar trecho da mensagem
+          </label>
+          <fieldset className="md:col-span-2">
+            <legend className="text-sm font-bold text-navy">Tipos de evento</legend>
+            <div className="mt-2 grid grid-cols-2 gap-2 md:grid-cols-4">
+              {HENRY_PULSE_TYPE_KEYS.map((key) => (
+                <label key={key} className="flex items-center gap-2 text-sm text-navy">
+                  <input type="checkbox" checked={saved.types.includes(key)} disabled={busy} onChange={() => toggleType(key)} />
+                  <span aria-hidden="true" className="inline-block h-2.5 w-2.5 rounded-full" style={{ background: HENRY_PULSE_TYPES[key].color }} />
+                  {HENRY_PULSE_TYPES[key].label}
+                </label>
+              ))}
+            </div>
+          </fieldset>
+        </div>
+      ) : null}
+      {message ? <p className="mt-3 text-sm font-bold text-muted" role="status">{message}</p> : null}
     </div>
   );
 }

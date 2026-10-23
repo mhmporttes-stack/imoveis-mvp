@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { detectWakeWord, isVisualQuestion } from "@/lib/henry-voice-core.mjs";
 import { shouldMinimizeForNavigation } from "@/lib/henry-navigation-core.mjs";
+import { henryPulseConfig } from "@/lib/henry-pulse-core.mjs";
 import {
   BARGE_DUCK_VOLUME,
   BARGE_SEGMENT_MAX_MS,
@@ -80,11 +81,13 @@ import {
   HENRY_NOTICE_DONE_EVENT,
   HENRY_NOTICE_ITEMS_EVENT,
   HENRY_VOICE_NOTICES_EVENT,
+  alertItemOffsets,
   isReadAlertsCommand,
   noticePendingItems
 } from "@/lib/henry-voice-client-alerts-core.mjs";
 import { saoPauloNow } from "@/lib/alexa-config-core.mjs";
 import { morningPlayRequest, morningPlayWindow } from "@/lib/henry-morning-core.mjs";
+import { isHenryFullscreenOpen, setHenryFullscreenOpen, subscribeHenryFullscreen } from "@/lib/henry-fullscreen-signal.mjs";
 import {
   DESKTOP_WAKE_EVENT,
   DESKTOP_WAKE_STATUS_EVENT,
@@ -95,12 +98,14 @@ import {
   readDesktopWakeSetting,
   readDesktopWakeWord,
   readHenryDesktopBridge,
-  shouldHandleDesktopWake
+  shouldHandleDesktopWake,
+  desktopCanReportFullscreen
 } from "@/lib/henry-desktop-core.mjs";
+import { isPageHidden, onPageVisibilityChange } from "@/components/page-visibility";
 import HenryVoiceView from "./HenryVoiceView";
 import { henryOrbMode, thinkingActivity } from "./henry-orb-states.mjs";
 import HenryCursor from "./HenryCursor";
-import { playHenryOpeningSound } from "./HenryOpeningScene";
+import { OPENING_SOUND_AT_S, playHenryOpeningSound } from "./HenryOpeningScene";
 import { captureWebcamFrame } from "./webcam-capture";
 import HenryLockScreen, { HenryUnlockedBadge } from "./HenryLockScreen";
 import { HENRY_LOCK_EVENT, normalizeIdleMinutes } from "@/lib/henry-lock-core.mjs";
@@ -242,7 +247,13 @@ export default function HenryVoiceAssistant() {
   const [alertsOn, setAlertsOn] = useState(false);
   // "Avisos só por voz (sem card na tela)" (dono, 2026-10-23; nasce ligado): os informativos da Central viram aviso do Henry.
   const [voiceNotices, setVoiceNotices] = useState(false);
+  // Pulso do CRM (rascunho HENRY-1 "Pulso"): config do HenryPulse com a configuração salva; null = desligado (nasce assim).
+  const [pulseConfig, setPulseConfig] = useState(null);
   const [pendingAlerts, setPendingAlerts] = useState(0);
+  // Avisos lidos pelo Henry na tela (protótipo v22): [{ id, kicker, text, color, read }]; cada um entra quando ele começa
+  // a falá-lo (alertItemOffsets) e o anterior fica apagado. Some ~8 s depois de ele voltar a ficar parado.
+  const [alertList, setAlertList] = useState([]);
+  const alertListTimersRef = useRef([]);
   // stage: idle | calling (falando o vocativo) | waiting (microfone aberto, esperando "pode falar") | telling (falando a
   // informação). afterAsk = uma pergunta normal está em andamento (ao terminar, oferece o aviso pendente).
   const alertRef = useRef({ stage: "idle", calls: 0, timer: null, afterAsk: false, offer: false, deviceActive: false, nextPollAt: 0 });
@@ -421,6 +432,21 @@ export default function HenryVoiceAssistant() {
     setSleeping(false);
   }, [expanded]);
 
+  // Sinal "tela cheia do Henry aberta" (dono, 2026-10-23): avisos fixos no meio da tela esperam a cena fechar.
+  useEffect(() => {
+    setHenryFullscreenOpen(expanded);
+    return () => setHenryFullscreenOpen(false);
+  }, [expanded]);
+  // App de desktop (1.3.1): o mesmo sinal vai ao app, que guarda a caixa "Nova versão pronta" enquanto a cena está aberta.
+  useEffect(() => {
+    const report = () => {
+      const bridge = readHenryDesktopBridge(window);
+      if (desktopCanReportFullscreen(bridge)) bridge.henryFullscreen(isHenryFullscreenOpen());
+    };
+    report();
+    return subscribeHenryFullscreen(report);
+  }, []);
+
   // Tempo de espera do fim da fala trocado na tela de configuração: vale já, sem recarregar.
   useEffect(() => {
     const onEndWait = (event) => {
@@ -468,6 +494,7 @@ export default function HenryVoiceAssistant() {
         if (data?.lock?.configured) {
           setLock((current) => ({ ...current, configured: true, locked: data.lock.locked === true, idleMinutes: normalizeIdleMinutes(data.lock.idleMinutes), waitSeconds: Number(data.lock.waitSeconds) || 0, turnStart: data.lock.locked ? turnsRef.current.length : 0 }));
         }
+        setPulseConfig(data?.pulse?.enabled === true ? henryPulseConfig(data.pulse) : null);
       })
       .catch(() => alive && setEnabled(false))
       .finally(() => alive && setReady(true));
@@ -750,7 +777,8 @@ export default function HenryVoiceAssistant() {
       const topic = wait.replied ? "geral" : wait.topic; // transcrevendo: o assunto do pedido anterior não conta
       return { mode, level: 0.1, activity: thinkingActivity({ topic, progress: progress.count }), burst: progress.at ? Math.exp(-(now - progress.at) / 700) : 0 };
     }
-    return { mode, level: 0 };
+    // music: a tela cheia não entra no modo econômico (15 fps) com música tocando (HenryOrb, createFullscreenPacer).
+    return { mode, level: 0, music: isMusicGuardActive(musicGuardRef.current) };
   }, []);
 
   // Economia de CPU: minimizado e ocioso por mais de 30 s → o anel para no último quadro (acorda com qualquer atividade).
@@ -1051,6 +1079,7 @@ export default function HenryVoiceAssistant() {
       return;
     }
     queue.playing = true;
+    clip.onStart?.(); // ex.: lista dos avisos entra quando a fala deles começa
     queue.narrating = Boolean(clip.narration);
     queue.acking = Boolean(clip.ack);
     narratingTextRef.current = clip.narration ? clip.text : "";
@@ -2114,14 +2143,41 @@ export default function HenryVoiceAssistant() {
   const syncPending = useCallback((pending) => setPendingAlerts(Array.isArray(pending) ? pending.length : 0), []);
 
   // Fala uma linha do aviso pela mesma fila da resposta (texto também na tela, sem card).
-  const sayAlertLine = useCallback((text, audio) => {
+  const sayAlertLine = useCallback((text, audio, items = null) => {
     const withLine = [...turnsRef.current, { role: "assistant", text }];
     turnsRef.current = withLine;
     setTurns(withLine);
     beginSpeech(text);
-    enqueueClip({ audio: audio || null, text });
+    const list = Array.isArray(items) ? items.filter((item) => item && typeof item.text === "string" && item.text) : [];
+    const onStart = list.length
+      ? () => {
+          alertListTimersRef.current.forEach((timer) => window.clearTimeout(timer));
+          const batch = Date.now();
+          setAlertList([]);
+          alertListTimersRef.current = alertItemOffsets(list, text).map((offset, index) =>
+            window.setTimeout(() => {
+              setAlertList((current) => [...current.map((item) => ({ ...item, read: true })), { ...list[index], id: `${batch}-${index}`, read: false }]);
+            }, offset)
+          );
+        }
+      : null;
+    enqueueClip({ audio: audio || null, text, ...(onStart ? { onStart } : {}) });
     endSpeech();
   }, [beginSpeech, endSpeech, enqueueClip]);
+  // A lista dos avisos some ~8 s depois de ele voltar a ficar parado (ou quando o Henry fecha).
+  useEffect(() => {
+    if (!alertList.length) return undefined;
+    if (!expanded) {
+      setAlertList([]);
+      return undefined;
+    }
+    if (phase === "speaking" || phase === "thinking") return undefined;
+    const timer = window.setTimeout(() => {
+      alertListTimersRef.current.forEach((item) => window.clearTimeout(item));
+      setAlertList([]);
+    }, 8000);
+    return () => window.clearTimeout(timer);
+  }, [alertList.length, phase, expanded]);
 
   // Chamado: só o vocativo (ou "posso falar?"), depois o microfone fica aberto esperando a resposta.
   // Fila da fala espontânea: toca o primeiro da fila quando o Henry está ocioso há ~3 s (canSpeakSpontaneously).
@@ -2237,7 +2293,7 @@ export default function HenryVoiceAssistant() {
     writeAlertStore({ pending: left, away: false, retries: 0, retryAt: 0, recent: data.recent || store.recent || null });
     syncPending(left);
     alertRef.current = { ...alertRef.current, stage: "idle" };
-    if (data.text) sayAlertLine(data.text, data.audio);
+    if (data.text) sayAlertLine(data.text, data.audio, data.items);
     else listenAgain();
   }, [alertPhraseAudio, listenAgain, sayAlertLine, syncPending, updatePhase]);
   const readAlertsRef = useRef(null);
@@ -2466,9 +2522,16 @@ export default function HenryVoiceAssistant() {
     };
     const sync = () => publish(Boolean(active && alertsOn && voiceNotices && !mutedRef.current && alertRef.current.deviceActive && isAlertHour(saoPauloNow().minutes)));
     sync();
-    const timer = window.setInterval(sync, 3000);
+    // Página oculta (aba ou app de desktop minimizado): não recalcula; ao voltar recalcula na hora (2026-10-23).
+    const timer = window.setInterval(() => {
+      if (!isPageHidden()) sync();
+    }, 3000);
+    const stopWatchingVisibility = onPageVisibilityChange(() => {
+      if (!isPageHidden()) sync();
+    });
     return () => {
       window.clearInterval(timer);
+      stopWatchingVisibility();
       publish(false);
     };
   }, [active, alertsOn, voiceNotices]);
@@ -2828,9 +2891,12 @@ export default function HenryVoiceAssistant() {
 
   const [opening, setOpening] = useState(false);
   const openingRef = useRef(false);
+  const openingSoundRef = useRef(null);
   const startMorningPlay = useCallback(() => {
     unlockAudio();
-    if (!mutedRef.current) playHenryOpeningSound(audioCtxRef.current);
+    // Som da abertura aos 3,8 s (bom dia novo, v22), agendado no relógio do áudio destravado por este clique.
+    openingSoundRef.current?.();
+    openingSoundRef.current = mutedRef.current ? null : playHenryOpeningSound(audioCtxRef.current, OPENING_SOUND_AT_S);
     abortRequest();
     stopSpeaking();
     setExpanded(true);
@@ -2847,6 +2913,8 @@ export default function HenryVoiceAssistant() {
   const finishOpening = useCallback(() => {
     if (!openingRef.current) return;
     openingRef.current = false;
+    openingSoundRef.current?.(); // pulou antes do som: não toca depois
+    openingSoundRef.current = null;
     setOpening(false);
     askRef.current?.(morningPlayRequest());
   }, []);
@@ -3141,6 +3209,16 @@ export default function HenryVoiceAssistant() {
           lock.locked ? <HenryLockScreen key={lock.turnStart} mobile={!desktop} initialWaitSeconds={lock.waitSeconds} onSubmit={unlockScreen} /> : <HenryUnlockedBadge onLock={engageLock} />
         ) : null
       }
+      pulse={pulseConfig}
+      alertList={alertList}
+      onPulseOpen={(link) => {
+        // Card do Pulso: mesma navegação guiada das respostas (minimiza + cursor); só destino da lista fechada.
+        const navigate = { key: "pulso", path: link?.path || "", label: "Pulso do CRM", ...(link?.clientId ? { clientId: link.clientId } : {}) };
+        // Tela bloqueada (HENRY-LOCK): o card do Pulso mostra, mas não tira da tela de bloqueio (só sai com a senha).
+        if (!shouldMinimizeForNavigation(navigate) || lockRef.current.locked) return;
+        setExpanded(false);
+        setNavRequest({ ...navigate, id: Date.now() });
+      }}
     />
     <HenryCursor request={navRequest} mobile={!desktop} />
     </>

@@ -2,6 +2,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 import DailyMessageExperience from "./DailyMessageExperience";
+import { useHenryFullscreen } from "@/components/henry/useHenryFullscreen";
 
 const POLL_INTERVAL_MS = 5 * 60 * 1000;
 const RETRY_WHEN_BUSY_MS = 20 * 1000;
@@ -78,6 +79,10 @@ export default function DailyMessageGate({ userId, userName = "" }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pathname]);
 
+  // Tela cheia do Henry aberta (dono, 2026-10-23): a mensagem pendente espera (a cena do Henry também conta como
+  // "modal aberto" em hasBlockingUi) e, ao fechar, consulta na hora em vez de esperar o próximo ciclo.
+  const henryOpen = useHenryFullscreen({ onClose: checkPending });
+
   async function handleComplete() {
     const historyId = pending?.historyId;
     setPending(null);
@@ -93,6 +98,6 @@ export default function DailyMessageGate({ userId, userName = "" }) {
     setTimeout(checkPending, COOLDOWN_BETWEEN_MESSAGES_MS);
   }
 
-  if (!pending) return null;
+  if (!pending || henryOpen) return null;
   return <DailyMessageExperience card={pending.card} font={pending.card.font} userName={userName} onComplete={handleComplete} />;
 }
