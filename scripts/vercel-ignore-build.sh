@@ -5,6 +5,11 @@
 # A Vercel clona só os últimos 10 commits: se o último commit publicado ficou fora da cópia (10+ commits só de docs),
 # o git diff dava erro e a Vercel marcava "Deployment has failed" (2026-10-12). Sem como comparar → publica.
 PREV="${VERCEL_GIT_PREVIOUS_SHA:-HEAD^}"
+# "Redeploy" manual do mesmo commit (ex.: depois de cadastrar variável de ambiente) sempre publica (2026-10-23).
+if [ "$(git rev-parse "$PREV" 2>/dev/null)" = "$(git rev-parse HEAD)" ]; then
+  echo "Redeploy do mesmo commit: publicando."
+  exit 1
+fi
 if git cat-file -e "$PREV^{commit}" 2>/dev/null \
   && git diff --quiet "$PREV" HEAD -- . ":(exclude)docs" ":(exclude).claude" ":(exclude)tests" \
     ":(exclude)whatsapp-individual-service" ":(exclude)scratch" ":(exclude)*.md"; then
