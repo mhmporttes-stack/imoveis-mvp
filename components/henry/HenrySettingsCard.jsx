@@ -47,6 +47,7 @@ export default function HenrySettingsCard() {
             clientAlerts: data?.clientAlerts !== false,
             teamArrivals: data?.teamArrivals !== false,
             voiceNotices: data?.voiceNotices !== false,
+            birthdayAlerts: data?.birthdayAlerts !== false,
             pulse: data?.pulse || null,
             serverVoice: Boolean(data?.serverVoice),
             provider: data?.provider || "browser",
@@ -79,7 +80,7 @@ export default function HenrySettingsCard() {
       });
       const data = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(data?.error || "Não foi possível salvar.");
-      setState((current) => ({ ...current, enabled: data.enabled, vision: data.vision, mobileWake: data.mobileWake === true, webSearch: data.webSearch !== false, clientAlerts: data.clientAlerts !== false, teamArrivals: data.teamArrivals !== false, voiceNotices: data.voiceNotices !== false }));
+      setState((current) => ({ ...current, enabled: data.enabled, vision: data.vision, mobileWake: data.mobileWake === true, webSearch: data.webSearch !== false, clientAlerts: data.clientAlerts !== false, teamArrivals: data.teamArrivals !== false, voiceNotices: data.voiceNotices !== false, birthdayAlerts: data.birthdayAlerts !== false }));
       window.location.reload(); // o ícone do canto lê a configuração ao montar
     } catch (saveError) {
       setError(saveError?.message || "Não foi possível salvar.");
@@ -225,6 +226,24 @@ export default function HenrySettingsCard() {
                 className={`rounded-control px-5 py-2.5 text-sm font-bold disabled:opacity-60 ${state.voiceNotices ? "border border-line text-navy" : "bg-navy text-white"}`}
               >
                 {state.voiceNotices ? "Desligar" : "Ligar"}
+              </button>
+            </div>
+            <div className="mt-4 flex flex-wrap items-center justify-between gap-4 rounded-control border border-line p-4">
+              <div className="max-w-xl">
+                <p className="text-sm font-black text-navy">Avisar aniversariantes</p>
+                <p className="mt-1 text-sm text-muted">
+                  Uma vez por dia o Henry chama e conta quem faz aniversário hoje e com qual corretor está. Se você disser “sim”, ele mostra na tela o aviso
+                  para o corretor — que só sai quando você tocar em “Enviar” (vai para a Central de Alertas e o celular dele, nunca para o cliente). Se o
+                  cliente for seu, ele prepara a mensagem para você copiar ou abrir no WhatsApp; o Henry não envia. Mesmas regras: 7h às 22h, fora do mudo.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => save("birthdayAlerts")}
+                disabled={Boolean(saving) || !state.enabled}
+                className={`rounded-control px-5 py-2.5 text-sm font-bold disabled:opacity-60 ${state.birthdayAlerts ? "border border-line text-navy" : "bg-navy text-white"}`}
+              >
+                {state.birthdayAlerts ? "Desligar" : "Ligar"}
               </button>
             </div>
             {state.pulse ? <HenryPulseSection saved={state.pulse} disabled={!state.enabled} onSaved={(pulse) => setState((current) => ({ ...current, pulse }))} /> : null}

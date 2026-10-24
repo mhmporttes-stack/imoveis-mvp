@@ -44,6 +44,15 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 
 
+### 2026-10-24 — Henry avisa aniversariante e, com confirmação na tela, avisa o corretor (1ª escrita do Henry)
+- **Data:** 2026-10-24
+- **Área:** Henry / Notificações
+- **Alteração:** novo aviso do Henry (mesmo chamado dos avisos de cliente): "A cliente Bruna, atribuída ao Gabriel, faz aniversário hoje. Quer que eu envie uma mensagem para o Gabriel avisando?" / cliente do dono: "Quer que eu prepare uma mensagem para você enviar?". "Sim" → tela com botão "Enviar aviso para o Gabriel" (o envio só sai pelo clique: `POST /api/admin/henry { mode: "birthday_notice" }`) e, para cliente do dono, rascunho com Copiar/Abrir WhatsApp (o Henry não envia). Aviso ao corretor = Central de Alertas **Informativo** + push (`henry_birthday`, nova exceção da AUT-9, lista fechada `INFORMATIVE_PUSH_KINDS`), 1 por cliente/dia (dedupe `henry_birthday:<cliente>:<dia>`), registro no `context` da entrega (`source`, `sent_by`, `via`) + log. Ferramentas novas `aniversariantes_hoje` (leitura) e `avisar_corretor_aniversario` (`escrita_interna_confirmada`, só monta a confirmação; exceção nomeada em `tests/henry-tools-readonly.test.mjs`; fechada com a tela bloqueada). Liga/desliga `henry_voice_assistant.birthdayAlerts` (nasce ligado).
+- **Motivo:** pedido do dono (2026-10-24) — nova decisão para UMA ação de escrita do Henry (HENRY-1).
+- **Arquivos afetados:** `lib/henry-birthday-alerts{-core.mjs,.js}` (novos), `lib/henry-voice-client-alerts{.js,-core.mjs}`, `lib/henry-voice.js`, `lib/henry-voice-core.mjs`, `lib/henry-lock-core.mjs`, `lib/henry-morning-core.mjs`, `lib/henry-voice-conversation.mjs`, `lib/notification-policy-core.mjs`, `lib/crm-alerts.js`, `app/api/admin/henry/route.js`, `components/henry/{HenryVoiceAssistant,HenryVoiceView,HenrySearchScene,HenrySettingsCard}.jsx`, testes `tests/henry-birthday-alerts.test.mjs` (novo), `henry-tools-readonly`, `henry-lock`, `notification-policy`.
+- **Risco/observação:** sem migration (Central já tem dedupe; o sino `crm_notifications` não é usado). Aniversário pela mesma `isBirthdayOn` da Agenda; leitura própria e paginada (colunas mínimas, cache 10 min) em vez de `listBirthdayRegistrations` (`select *` sem paginação). Fora: Não contactar, arquivado, Particular, sem responsável/fila de espera e corretor inativo. Aviso anunciado 1x/dia por aparelho (chaves no `localStorage`); pendente sem resposta some em 2 h (regra geral dos pendentes). O "bom dia" continua perguntando dos aniversariantes do próprio dono (pode repetir o mesmo cliente no mesmo dia). Testes Henry + notificações (433) e `pnpm build` ok; sem teste em produção (sem login real).
+- **Autor:** Claude Code (crm-editor)
+
 ### 2026-10-24 — Henry: boom do bom dia sem plasma e sem anéis
 - **Data:** 2026-10-24
 - **Área:** Henry

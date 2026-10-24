@@ -128,6 +128,7 @@ export default function HenryVoiceView({
   pulse = null,
   onPulseOpen = null,
   alertList = [], // avisos lidos pelo Henry (canto esquerdo; no celular, no topo)
+  onDetailConfirm = null, // botão de confirmação do painel (aviso de aniversariante ao corretor, dono 2026-10-24)
   pulsePoll = undefined,
   fixed = true
 }) {
@@ -359,7 +360,7 @@ export default function HenryVoiceView({
           sceneKey={answer ? `a${turns.length}` : "idle"}
         />
       ) : null}
-      {!mobile ? <HenryDetailPanel detail={detail} /> : null}
+      {!mobile ? <HenryDetailPanel detail={detail} onConfirm={onDetailConfirm} /> : null}
       <HenryNowPlaying nowPlaying={nowPlaying} ducking={speaking} mobile={mobile} />
       <div className="absolute left-5 top-[calc(1rem+env(safe-area-inset-top))] md:left-8 md:top-6">
         <p className="flex items-center gap-2 text-sm font-bold tracking-wide text-white/85">
@@ -408,7 +409,7 @@ export default function HenryVoiceView({
           className={`${keypadFocus ? "hidden" : "flex"} ${lockedMobile ? "max-h-[18vh]" : "max-h-[30vh]"} w-full flex-col items-end gap-1.5 overflow-y-auto text-right text-[14px] leading-snug md:max-h-none md:overflow-visible md:text-[13px]`}
           style={{ textShadow: "0 1px 2px rgba(0,0,0,0.95), 0 0 10px rgba(7,17,31,0.95), 0 0 22px rgba(7,17,31,0.85)" }}
         >
-          {mobile ? <HenryDetailPanel detail={detail} mobile /> : null}
+          {mobile ? <HenryDetailPanel detail={detail} mobile onConfirm={onDetailConfirm} /> : null}
           {recent.length ? (
             recent.map((turn, index) => (
               <p key={`${turns.length - recent.length + index}`} className={turn.role === "user" ? "text-white/80" : ""} style={turn.role === "user" ? undefined : { color: ACCENT }}>

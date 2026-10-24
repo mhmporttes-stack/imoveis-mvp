@@ -37,8 +37,32 @@ test("toda ferramenta do Henry está na lista de acesso e nenhuma escreve no CRM
   assert.ok(names.length >= 14, `ferramentas encontradas: ${names.join(", ")}`);
   for (const name of names) assert.ok(HENRY_TOOL_ACCESS[name], `ferramenta sem classificação: ${name}`);
   assert.deepEqual([...names].sort(), Object.keys(HENRY_TOOL_ACCESS).sort());
-  for (const [name, access] of Object.entries(HENRY_TOOL_ACCESS)) assert.ok(["leitura", "navegacao", "musica"].includes(access), `${name}: ${access}`);
+  // Exceção NOMEADA (dono, 2026-10-24, HENRY-1 "Aniversariante"): avisar_corretor_aniversario = escrita interna confirmada.
+  // Qualquer outra ferramenta continua só leitura/navegação/música; uma segunda escrita quebra este teste de propósito.
+  const WRITE_EXCEPTIONS = { avisar_corretor_aniversario: "escrita_interna_confirmada" };
+  for (const [name, access] of Object.entries(HENRY_TOOL_ACCESS)) {
+    if (WRITE_EXCEPTIONS[name]) assert.equal(access, WRITE_EXCEPTIONS[name], name);
+    else assert.ok(["leitura", "navegacao", "musica"].includes(access), `${name}: ${access}`);
+  }
+  assert.deepEqual(Object.entries(HENRY_TOOL_ACCESS).filter(([, access]) => !["leitura", "navegacao", "musica"].includes(access)).map(([name]) => name), Object.keys(WRITE_EXCEPTIONS));
+  assert.equal(HENRY_TOOL_ACCESS.aniversariantes_hoje, "leitura");
   for (const name of ["buscar_clientes", "conversas_aguardando", "financeiro_resumo", "presenca_hoje"]) assert.equal(HENRY_TOOL_ACCESS[name], "leitura");
+});
+
+test("ferramenta do aniversário não envia: só prepara a confirmação na tela; o envio é só pelo botão (mode birthday_notice)", () => {
+  const lib = read("../lib/henry-voice.js");
+  const tool = lib.slice(lib.indexOf('if (name === "avisar_corretor_aniversario")'), lib.indexOf('if (name === "abrir_cliente")'));
+  assert.match(tool, /prepareBirthdayConfirmation\(/);
+  assert.doesNotMatch(tool, /sendHenryBirthdayNotices|createAlertDeliveries|\.(insert|update|upsert|delete|rpc)\(/);
+  assert.doesNotMatch(lib, /import \{[^}]*sendHenryBirthdayNotices/); // o lib da voz nem importa o envio
+  const route = read("../app/api/admin/henry/route.js");
+  assert.match(route, /body\?\.mode === "birthday_notice"[\s\S]*sendHenryBirthdayNotices\(auth, clientIds\)/);
+  const server = read("../lib/henry-birthday-alerts.js");
+  const prepare = server.slice(server.indexOf("export async function prepareBirthdayConfirmation"), server.indexOf("export async function sendHenryBirthdayNotices"));
+  assert.doesNotMatch(prepare, /createAlertDeliveries|\.(insert|update|upsert|delete|rpc)\(/);
+  // única escrita do arquivo: createAlertDeliveries dentro de sendHenryBirthdayNotices; nada vai ao cliente
+  assert.equal(server.match(/createAlertDeliveries\(/g).length, 1);
+  assert.doesNotMatch(server, /whatsapp|sendMessage|sendPush/i);
 });
 
 test("leituras do Henry não gravam: sem insert/update/upsert/delete/rpc e financeiro sem o auto-reparo", () => {

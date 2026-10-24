@@ -706,7 +706,62 @@ export function HenryBrokerCards({ brokers = [], orbSize = 400, mobile = false }
 }
 
 // Detalhe da resposta na tela (relatório, corretor, cliente): título, período e seções com linhas rótulo/valor/nota.
-export function HenryDetailPanel({ detail, mobile = false }) {
+// Ações de uma linha (rascunho de aniversário do cliente do dono, 2026-10-24): copiar o texto e abrir o WhatsApp (wa.me
+// com o texto pronto). O Henry nunca envia: quem manda é o dono.
+function HenryRowActions({ actions = [] }) {
+  const [copied, setCopied] = useState(false);
+  const list = (actions || []).filter((action) => (action?.kind === "copy" && typeof action.text === "string") || (action?.kind === "link" && /^https:\/\/wa\.me\//.test(action.href || "")));
+  if (!list.length) return null;
+  const copy = async (text) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 2000);
+    } catch {
+      setCopied(false);
+    }
+  };
+  return (
+    <span className="mt-1 flex flex-wrap gap-2" style={{ textShadow: "none" }}>
+      {list.map((action, index) =>
+        action.kind === "copy" ? (
+          <button key={index} type="button" onClick={() => copy(action.text)} className="rounded-full px-3 py-1 text-[11px] font-bold ring-1 ring-white/25 hover:bg-white/10" style={{ color: ACCENT }}>
+            {copied ? "Copiado" : action.label || "Copiar"}
+          </button>
+        ) : (
+          <a key={index} href={action.href} target="_blank" rel="noopener noreferrer" className="rounded-full px-3 py-1 text-[11px] font-bold ring-1 ring-white/25 hover:bg-white/10" style={{ color: ACCENT }}>
+            {action.label || "Abrir WhatsApp"}
+          </a>
+        )
+      )}
+    </span>
+  );
+}
+
+// Confirmação na tela (HENRY-1, dono 2026-10-24): o aviso de aniversariante ao corretor só sai por este clique.
+function HenryConfirmBlock({ confirm, onConfirm }) {
+  const [state, setState] = useState({ busy: false, done: false, text: "" });
+  const key = (confirm?.clientIds || []).join(",");
+  useEffect(() => setState({ busy: false, done: false, text: "" }), [key]);
+  if (!confirm?.label || typeof onConfirm !== "function") return null;
+  const send = async () => {
+    if (state.busy || state.done) return;
+    setState({ busy: true, done: false, text: "" });
+    const result = await onConfirm(confirm).catch(() => ({ ok: false, text: "Não consegui enviar o aviso agora." }));
+    setState({ busy: false, done: result?.ok === true, text: result?.text || "" });
+  };
+  return (
+    <div className="mt-3" style={{ textShadow: "none" }}>
+      {confirm.note ? <p className="mb-2 text-[11px] text-white/75">{confirm.note}</p> : null}
+      <button type="button" onClick={send} disabled={state.busy || state.done} className="rounded-full bg-white px-4 py-2 text-[12px] font-bold text-navy disabled:opacity-60">
+        {state.done ? "Aviso enviado" : state.busy ? "Enviando…" : confirm.label}
+      </button>
+      {state.text ? <p className="mt-2 text-[12px] text-white/90" role="status">{state.text}</p> : null}
+    </div>
+  );
+}
+
+export function HenryDetailPanel({ detail, mobile = false, onConfirm = null }) {
   if (!detail?.sections?.length) return null;
   return (
     <section
@@ -723,7 +778,13 @@ export function HenryDetailPanel({ detail, mobile = false }) {
           <div key={`${section.title}-${index}`}>
             <p className="mb-1 text-[11px] font-bold uppercase tracking-wider" style={{ color: ACCENT }}>{section.title}</p>
             <ul className="space-y-0.5">
-              {(section.rows || []).map((row, rowIndex) => (
+              {(section.rows || []).map((row, rowIndex) => Array.isArray(row.actions) && row.actions.length ? (
+                <li key={rowIndex} className="text-[13px] leading-snug text-white/90">
+                  <span className="font-bold text-white">{row.label}</span>
+                  {row.note ? <span className="mt-0.5 block text-[12px] text-white/85">{row.note}</span> : null}
+                  <HenryRowActions actions={row.actions} />
+                </li>
+              ) : (
                 <li key={rowIndex} className="flex items-baseline gap-2 text-[13px] leading-snug text-white/90">
                   {row.href && /^https:\/\//.test(row.href) ? (
                     <a href={row.href} target="_blank" rel="noopener noreferrer" className="min-w-0 flex-1 truncate underline decoration-white/30 underline-offset-2 hover:text-white">
@@ -740,6 +801,7 @@ export function HenryDetailPanel({ detail, mobile = false }) {
           </div>
         ))}
       </div>
+      {detail.confirm ? <HenryConfirmBlock confirm={detail.confirm} onConfirm={onConfirm} /> : null}
     </section>
   );
 }
