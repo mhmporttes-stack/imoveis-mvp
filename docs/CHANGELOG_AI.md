@@ -620,6 +620,14 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-24 — Henry: bom dia aceita estilo ou cantor na resposta da música — branch `feat/henry-musica-estilo`, NÃO publicado
+- **Data:** 2026-10-24
+- **Área:** Henry (HENRY-1 "Música", bom dia)
+- **Alteração:** [REGRA OFICIAL DE NEGÓCIO — dono, 2026-10-24] "acrescente também opção de estilo musical como rock, sertanejo; aí eu posso ou falar qual estilo ou responder o cantor e ele procura." A frase do bom dia mantém a sugestão concreta e acrescenta uma abertura variada ("Ou prefere outro estilo, tipo rock, sertanejo ou pagode, ou algum cantor?" — 5 variantes, a já dita hoje não volta; `MORNING_OPEN_CHOICES`/`morningSuggestionLine({ said })`). Resposta classificada sem IA (`classifyMorningMusicReply`, `lib/henry-morning-core.mjs`): aceite curto/"tanto faz" = a sugestão; gênero da lista `MORNING_GENRES` (25, com sinônimos) = playlist do gênero (`morningGenreTarget`: configurado na tela → playlist dele com o gênero no nome, só com o gosto do Spotify → padrão rock clássico/Zezé → busca de playlist); nome curto (≤ 5 palavras, sem cara de pergunta/CRM) = cantor, busca larga preferindo o artista (`runSpotifyCommand` `broad`); nada bate = "Achei X, de Y. É essa?" sem tocar, passo novo `music_confirm` (candidato em `crm_settings` `henry_morning_music.confirm`, só do dia); resto = fluxo normal do modelo. "toca X" que antes ia ao modelo agora vira o cantor/estilo pelo mesmo caminho.
+- **Arquivos:** `lib/henry-morning-core.mjs`, `lib/henry-morning-music-core.mjs`, `lib/henry-voice.js`, `lib/henry-voice-narration.mjs`, `lib/henry-voice-conversation.mjs` (repetição "É essa?"), `lib/henry-spotify-core.mjs` (`broad`, `candidate.uri`), `lib/henry-spotify.js` (`acceptBest` opcional); testes `tests/henry-morning-music-style.test.mjs` (novo), `tests/henry-morning.test.mjs`, `tests/henry-morning-music.test.mjs`; `docs/BUSINESS_RULES.md` HENRY-1 "Música", `.claude/rules/integracoes-externas.md`.
+- **Validação:** `node --test tests/henry*.test.mjs` verde; `pnpm build`. Nada tocou de verdade. **A CONFIRMAR** com o dono na voz: nomes de cantor transcritos errado caem no "É essa?".
+- **Risco/observação:** sem migration, rota ou permissão nova; o registro `henry_morning_music` ganhou o campo `confirm` (só URI/nome/data).
+
 ### 2026-10-24 — Formulário abre o WhatsApp direto do "Enviar informações" e valores com ",00" fixo — branch `fix/ficha-whatsapp-sem-tela`, NÃO publicado
 - **Data:** 2026-10-24
 - **Área:** Formulário público de simulação (WA-10b refinada, WA-10c nova)

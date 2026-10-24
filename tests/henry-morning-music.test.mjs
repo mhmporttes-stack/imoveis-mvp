@@ -69,7 +69,7 @@ test("sugestão sem Spotify: clima do momento (domingo leve, segunda animado) e 
       const line = morningSuggestionLine(entry, "Matheus", { now: MONDAY, random: () => r });
       assert.equal(henryAsksQuestion(line), true, line);
       assert.equal(safeHenryReply(line), line, line);
-      assert.ok(line.length <= 140, line);
+      assert.ok(line.length <= 220, line); // + abertura para estilo ou cantor (dono, 2026-10-24)
       assert.equal(/rock ou sertanejo|playlist de rock, sertanejo/i.test(line), false, line);
     }
     assert.ok(entry.target.query && entry.target.type, entry.id);
