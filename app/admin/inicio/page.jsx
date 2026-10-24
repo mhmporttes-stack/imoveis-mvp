@@ -8,7 +8,7 @@ import PainelInicio, { InicioAssistente, InicioDono, InicioDonoCarregando, Inici
 export const dynamic = "force-dynamic";
 
 // Início (pedido do dono, 2026-10-22 — docs/BUSINESS_RULES.md INI-1): resumo do dia de cada perfil, com os números
-// reais no escopo dele (lib/painel-inicio.js). Não é a página de entrada do painel (o redirect atual não mudou), exceto no primeiro acesso do dia do dono (INI-4, components/FirstAccessGate.jsx).
+// reais no escopo dele (lib/painel-inicio.js). Não é a página de entrada do painel (o redirect atual não mudou), exceto no primeiro acesso do dia do dono (INI-4, components/FirstAccessGate.jsx) e na abertura do app/login do dono (INI-6, app/admin/abrir).
 // O mês (funil, aprovados e vendas) é a mesma conta pesada do Desempenho: chega em seguida (streaming), sem segurar o resto.
 
 // Uma única carga do mês, compartilhada pelos dois blocos que a mostram.

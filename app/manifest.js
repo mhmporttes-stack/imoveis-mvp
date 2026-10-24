@@ -3,7 +3,8 @@ export default function manifest() {
     name: "Painel Matheus",
     short_name: "Painel",
     description: "Painel administrativo de imóveis, cadastros, depoimentos e simulações.",
-    start_url: "/admin/simulacoes",
+    // Porta de entrada (INI-6, dono 2026-10-24): dono → Início; demais perfis → Clientes (app/admin/abrir).
+    start_url: "/admin/abrir",
     scope: "/",
     display: "standalone",
     display_override: ["standalone", "minimal-ui"],
