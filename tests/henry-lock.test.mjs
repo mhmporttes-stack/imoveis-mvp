@@ -122,7 +122,7 @@ test("tempo sem interação: só as opções do cartão; padrão 10 min", () => 
 
 test("ferramentas: bloqueado fecha TODAS as que leem o CRM e as que abrem tela; música continua", () => {
   for (const [name, access] of Object.entries(HENRY_TOOL_ACCESS)) {
-    if (access === "leitura" || access === "navegacao") assert.equal(isHenryToolLocked(access), true, name);
+    if (access === "leitura" || access === "navegacao" || access === "escrita_interna_confirmada") assert.equal(isHenryToolLocked(access), true, name);
     else assert.equal(isHenryToolLocked(access), false, name);
   }
   for (const name of ["buscar_clientes", "conversas_aguardando", "financeiro_resumo", "presenca_hoje", "consultar_crm", "relatorio_do_dia", "abrir_cliente", "abrir_tela"]) {

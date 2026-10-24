@@ -491,7 +491,7 @@ export default function HenryVoiceAssistant() {
           setTurns(restored);
         }
         setMobileWake(data?.mobileWake === true);
-        setAlertsOn(data?.clientAlerts !== false || data?.teamArrivals !== false || data?.voiceNotices !== false);
+        setAlertsOn(data?.clientAlerts !== false || data?.teamArrivals !== false || data?.voiceNotices !== false || data?.birthdayAlerts !== false);
         setVoiceNotices(data?.voiceNotices !== false);
         // Tela de bloqueio: bloqueado no servidor (ex.: recarregou com a tela travada) continua bloqueado aqui.
         if (data?.lock?.configured) {
@@ -1453,7 +1453,7 @@ export default function HenryVoiceAssistant() {
     const conversationNow = conversationRef.current;
     const morning = mode === "question" && pendingMorning && conversationNow.active && !isConversationExpired(conversationNow.lastAt) ? { step: pendingMorning.step } : null;
     // Resposta da música/estilo segue como "bom dia" (relatório, com a visão como no bom dia); aniversário = pergunta.
-    if (morning && morning.step !== "birthday") mode = "report";
+    if (morning && morning.step !== "birthday" && morning.step !== "birthday_alert") mode = "report";
     abortRequest();
     // Confirmação de escuta tocando (gravação já confirmou antes da transcrição): termina o som/interjeição e a resposta
     // entra logo depois (beginSpeech) — nunca corta no meio nem atrasa mais que isso.
@@ -2301,7 +2301,7 @@ export default function HenryVoiceAssistant() {
       const response = await fetch("/api/admin/henry", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ mode: "client_alerts", action: "speak", clientIds: pending.filter((item) => item.clientId).map((item) => item.clientId), userIds: pending.filter((item) => item.kind === "arrival" && item.userId).map((item) => item.userId), noticeIds, recent: store.recent || null, away: store.away === true, voice: !mutedRef.current })
+        body: JSON.stringify({ mode: "client_alerts", action: "speak", clientIds: pending.filter((item) => item.clientId && item.kind !== "birthday").map((item) => item.clientId), userIds: pending.filter((item) => item.kind === "arrival" && item.userId).map((item) => item.userId), birthdayIds: pending.filter((item) => item.kind === "birthday" && item.clientId).map((item) => item.clientId), noticeIds, recent: store.recent || null, away: store.away === true, voice: !mutedRef.current })
       });
       data = await response.json().catch(() => null);
       if (!response.ok) data = null;
@@ -2330,9 +2330,30 @@ export default function HenryVoiceAssistant() {
     writeAlertStore({ pending: left, away: false, retries: 0, retryAt: 0, recent: data.recent || store.recent || null });
     syncPending(left);
     alertRef.current = { ...alertRef.current, stage: "idle" };
-    if (data.text) sayAlertLine(data.text, data.audio, data.items);
-    else listenAgain();
-  }, [alertPhraseAudio, listenAgain, sayAlertLine, syncPending, updatePhase]);
+    if (data.text) {
+      // Aniversariante (dono, 2026-10-24): o texto termina na pergunta ("Quer que eu envie uma mensagem para o Gabriel
+      // avisando?"); a resposta curta vale sem o nome e volta ao servidor com o passo (mesmo mecanismo do bom dia).
+      if (data.ask?.step === "birthday_alert") {
+        morningRef.current = { step: "birthday_alert" };
+        startConversation();
+        pendingReplyRef.current = openPendingReply("birthday_alert");
+      }
+      sayAlertLine(data.text, data.audio, data.items);
+    } else listenAgain();
+  }, [alertPhraseAudio, listenAgain, sayAlertLine, startConversation, syncPending, updatePhase]);
+  // Botão de confirmação da tela (dono, 2026-10-24, HENRY-1 "Aniversariante"): ÚNICO caminho do aviso ao corretor. A voz
+  // só prepara; o envio sai daqui, um clique por vez, e o resultado fica no próprio botão (o painel não some).
+  const confirmDetail = useCallback(async (confirm) => {
+    if (confirm?.kind !== "birthday_notice" || !Array.isArray(confirm.clientIds) || !confirm.clientIds.length) return { ok: false, text: "" };
+    try {
+      const response = await fetch("/api/admin/henry", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ mode: "birthday_notice", clientIds: confirm.clientIds, locked: lockRef.current.locked }) });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) return { ok: false, text: data?.error || "Não consegui enviar o aviso agora." };
+      return { ok: true, text: data?.text || "Pronto." };
+    } catch {
+      return { ok: false, text: "Não consegui enviar o aviso agora. Tente de novo." };
+    }
+  }, []);
   const readAlertsRef = useRef(null);
   readAlertsRef.current = () => tellAlerts({ command: true });
 
@@ -2498,7 +2519,7 @@ export default function HenryVoiceAssistant() {
           const response = await fetch("/api/admin/henry", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ mode: "client_alerts", action: "poll", since: store.cursor || "", seen, deviceId: deviceIdRef.current, call: picked.text, voice: !mutedRef.current })
+            body: JSON.stringify({ mode: "client_alerts", action: "poll", since: store.cursor || "", seen, birthdaySeen: Array.isArray(store.birthdaySeen) ? store.birthdaySeen : [], deviceId: deviceIdRef.current, call: picked.text, voice: !mutedRef.current })
           });
           const data = response.ok ? await response.json().catch(() => null) : null;
           if (data?.disabled) {
@@ -2514,7 +2535,10 @@ export default function HenryVoiceAssistant() {
           const events = Array.isArray(data.events) ? data.events : [];
           const latest = readAlertStore();
           const pending = mergeAlertPending(pruneAlertPending(latest.pending || []), events);
-          writeAlertStore({ cursor: data.cursor || latest.cursor || "", pending, seen: addAlertSeen(latest.seen || [], events.map((item) => item.key)) });
+          // Aniversariante: anunciado uma vez por dia (chaves birthday:<id>:<dia>, só as de hoje ficam guardadas).
+          const birthdayKeys = events.filter((item) => item.kind === "birthday").map((item) => item.key);
+          const birthdaySeen = data.birthdayDay ? [...(Array.isArray(latest.birthdaySeen) ? latest.birthdaySeen : []).filter((key) => typeof key === "string" && key.endsWith(`:${data.birthdayDay}`)), ...birthdayKeys].slice(-300) : latest.birthdaySeen || [];
+          writeAlertStore({ cursor: data.cursor || latest.cursor || "", pending, birthdaySeen, seen: addAlertSeen(latest.seen || [], events.map((item) => item.key)) });
           syncPending(pending);
           // Fora do horário ou no mudo: fica pendente e tenta de novo depois (às 7h, ou ao sair do mudo).
           if (events.length && data.quiet && !Number(latest.retryAt || 0)) writeAlertStore({ retryAt: Date.now() + ALERT_RETRY_MS });
@@ -3226,6 +3250,7 @@ export default function HenryVoiceAssistant() {
       }
       onLock={lock.configured && !lock.locked ? engageLock : undefined}
       pulse={pulseConfig}
+      onDetailConfirm={confirmDetail}
       alertList={alertList}
       onPulseOpen={(link) => {
         // Card do Pulso: mesma navegação guiada das respostas (minimiza + cursor); só destino da lista fechada.
