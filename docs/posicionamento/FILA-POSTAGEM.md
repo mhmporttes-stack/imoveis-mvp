@@ -24,6 +24,7 @@ Regra do dono (2026-10-15):
 - (nenhum)
 
 ## Publicados
+- Apê Torres de Marília · Zona Norte (COD4360, imóvel) — Instagram, site e Marketplace em 2026-10-24
 - Casa reformada Nova Marília (COD4359, imóvel) — Instagram + site em 2026-10-23
 - Erros que fazem muita gente continuar no aluguel (2026-10-19, azul) — dono postou na hora
 - Apartamento no Praça Esmeraldas (COD4356, imóvel) — postado pelo dono em 2026-10-18
