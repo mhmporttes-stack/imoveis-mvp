@@ -44,6 +44,15 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 
 
+### 2026-10-24 — Marketplace: migration da resposta automática aplicada e 18 sugestões falsas removidas
+- **Data:** 2026-10-24
+- **Área:** Banco / Marketplace
+- **Alteração:** aplicada `20261024160000_marketplace_auto_reply.sql` (só colunas `auto_kind`/`send_after` + índice único parcial) e rodada a renormalização existente (`/api/cron/marketplace-messages-renormalize`, primeiro sem `apply` = 18 conversas/18 exclusões, depois com `apply=1` = 18 excluídas): mensagens "Sim, você tem interesse?" gravadas como do cliente (sugestão do Facebook, MKT-2l).
+- **Motivo:** "sim" do dono às duas perguntas.
+- **Arquivos afetados:** banco (`marketplace_messages`).
+- **Risco/observação:** resposta automática só sai com a extensão 1.9.7 instalada no PC.
+- **Autor:** Claude Code
+
 ### 2026-10-24 — App do dono abre no Início (INI-6)
 - **Data:** 2026-10-24
 - **Área:** Painel / PWA / app de desktop
