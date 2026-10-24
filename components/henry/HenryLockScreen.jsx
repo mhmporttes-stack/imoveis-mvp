@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { HENRY_PIN_LENGTH } from "@/lib/henry-lock-core.mjs";
+import { HENRY_PIN_LENGTH, henryUnlockDuration, henryUnlockFrame } from "@/lib/henry-lock-core.mjs";
 
 // Tela de bloqueio do Henry (REGRA OFICIAL — dono, 2026-10-23; docs/BUSINESS_RULES.md HENRY-LOCK). Só apresentação e a
 // digitação: embaixo, centralizado, 6 risquinhos com um cadeado fino em cima de cada um; cada dígito vira "*" e abre o
@@ -10,6 +10,7 @@ import { HENRY_PIN_LENGTH } from "@/lib/henry-lock-core.mjs";
 // Paleta do Henry (fundo #07111F, destaque #4FC3E0); prefers-reduced-motion = sem tremor nem transição.
 
 const ACCENT = "#4FC3E0";
+const GOLD = "#E8B85C";
 const BACKDROP = "#07111F";
 
 export function HenryLockIcon({ open = false, size = 14, color = "currentColor", strokeWidth = 1.3 }) {
@@ -24,14 +25,26 @@ export function HenryLockIcon({ open = false, size = 14, color = "currentColor",
 
 const KEYS = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "", "0", "back"];
 
-export default function HenryLockScreen({ onSubmit, mobile = false, initialWaitSeconds = 0, keypadDefault = false, demoDigits = null, demoShake = false }) {
+// inline = dentro da pilha do rodapé do HenryVoiceView (celular bloqueado: fileira da senha sozinha embaixo, nada por
+// cima); sem inline = camada absoluta embaixo, no centro (computador). keypadOpen/onKeypadChange = teclado numérico
+// controlado pelo pai (o HenryVoiceView recolhe a conversa e encolhe o anel enquanto ele está aberto).
+// onUnlocked = chamado no FIM da cena do desbloqueio (o servidor já liberou quando onSubmit voltou ok).
+export default function HenryLockScreen({ onSubmit, onUnlocked = null, mobile = false, inline = false, initialWaitSeconds = 0, keypadDefault = false, keypadOpen = undefined, onKeypadChange = null, demoDigits = null, demoShake = false }) {
   const [digits, setDigits] = useState("");
   const [shake, setShake] = useState(demoShake ? 1 : 0); // demo* = só a vitrine (app/dev/vitrine)
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState(demoShake ? "Senha incorreta." : "");
   const [waitUntil, setWaitUntil] = useState(() => (initialWaitSeconds > 0 ? Date.now() + initialWaitSeconds * 1000 : 0));
   const [now, setNow] = useState(() => Date.now());
-  const [keypad, setKeypad] = useState(keypadDefault);
+  const [keypadOwn, setKeypadOwn] = useState(keypadDefault);
+  const keypad = keypadOpen === undefined ? keypadOwn : keypadOpen;
+  const setKeypad = useCallback((value) => {
+    const next = typeof value === "function" ? value(keypad) : value;
+    setKeypadOwn(next);
+    onKeypadChange?.(next);
+  }, [keypad, onKeypadChange]);
+  // Cena do desbloqueio: unlocking = quadros de caracteres aleatórios (henryUnlockFrame), nunca a senha.
+  const [unlockFrame, setUnlockFrame] = useState(null);
   const busyRef = useRef(false);
   const shown = demoDigits ?? digits;
   const waiting = waitUntil > now;
@@ -43,6 +56,24 @@ export default function HenryLockScreen({ onSubmit, mobile = false, initialWaitS
     return () => window.clearInterval(timer);
   }, [waitUntil]);
 
+  const sceneRef = useRef(0);
+  const playUnlockScene = useCallback(() => {
+    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const total = henryUnlockDuration({ reduced });
+    const started = performance.now();
+    window.clearInterval(sceneRef.current);
+    setUnlockFrame(henryUnlockFrame(0, { reduced }));
+    sceneRef.current = window.setInterval(() => {
+      const elapsed = performance.now() - started;
+      setUnlockFrame(henryUnlockFrame(elapsed, { reduced }));
+      if (elapsed >= total) {
+        window.clearInterval(sceneRef.current);
+        onUnlocked?.();
+      }
+    }, 45);
+  }, [onUnlocked]);
+  useEffect(() => () => window.clearInterval(sceneRef.current), []);
+
   const submit = useCallback(
     async (pin) => {
       if (busyRef.current || !onSubmit) return;
@@ -53,6 +84,8 @@ export default function HenryLockScreen({ onSubmit, mobile = false, initialWaitS
         if (result.ok) {
           setMessage("");
           setDigits("");
+          setKeypad(false);
+          playUnlockScene();
           return;
         }
         setDigits("");
@@ -67,12 +100,12 @@ export default function HenryLockScreen({ onSubmit, mobile = false, initialWaitS
         setBusy(false);
       }
     },
-    [onSubmit]
+    [onSubmit, playUnlockScene, setKeypad]
   );
 
   const press = useCallback(
     (key) => {
-      if (busyRef.current || waiting) return;
+      if (busyRef.current || waiting || unlockFrame) return;
       if (key === "back") {
         setDigits((current) => current.slice(0, -1));
         return;
@@ -86,7 +119,7 @@ export default function HenryLockScreen({ onSubmit, mobile = false, initialWaitS
         return next;
       });
     },
-    [submit, waiting]
+    [submit, waiting, unlockFrame]
   );
 
   // Teclado físico: dígitos (inclusive do teclado numérico) e Backspace. O campo "Digite a pergunta" continua livre.
@@ -108,12 +141,12 @@ export default function HenryLockScreen({ onSubmit, mobile = false, initialWaitS
     return () => window.removeEventListener("keydown", onKey);
   }, [demoDigits, press]);
 
-  const status = waiting ? `Muitas tentativas. Tente de novo em ${waitLeft >= 60 ? `${Math.ceil(waitLeft / 60)} min` : `${waitLeft} s`}.` : message;
+  const status = unlockFrame ? "Desbloqueando…" : waiting ? `Muitas tentativas. Tente de novo em ${waitLeft >= 60 ? `${Math.ceil(waitLeft / 60)} min` : `${waitLeft} s`}.` : message;
 
   return (
     <div
-      className="pointer-events-none absolute inset-x-0 z-20 flex flex-col items-center"
-      style={{ bottom: mobile ? "calc(1rem + env(safe-area-inset-bottom))" : "1.75rem" }}
+      className={inline ? "flex w-full flex-col items-center" : "pointer-events-none absolute inset-x-0 z-20 flex flex-col items-center"}
+      style={inline ? undefined : { bottom: mobile ? "calc(1rem + env(safe-area-inset-bottom))" : "1.75rem" }}
       onClick={(event) => event.stopPropagation()}
     >
       <style>{`
@@ -121,8 +154,8 @@ export default function HenryLockScreen({ onSubmit, mobile = false, initialWaitS
         .henry-lock-shake { animation: henryLockShake 360ms ease-in-out }
         @media (prefers-reduced-motion: reduce) { .henry-lock-shake { animation: none } .henry-lock-slot * { transition: none !important } }
       `}</style>
-      {keypad && mobile ? (
-        <div className="pointer-events-auto mb-3 grid grid-cols-3 gap-2 rounded-3xl p-3 ring-1 ring-white/10" style={{ background: BACKDROP }} role="group" aria-label="Teclado numérico">
+      {keypad && mobile && !unlockFrame ? (
+        <div className="pointer-events-auto mb-3 grid grid-cols-3 gap-1.5 rounded-3xl p-2.5 ring-1 ring-white/10" style={{ background: BACKDROP }} role="group" aria-label="Teclado numérico">
           {KEYS.map((key, index) =>
             key ? (
               <button
@@ -130,7 +163,7 @@ export default function HenryLockScreen({ onSubmit, mobile = false, initialWaitS
                 type="button"
                 disabled={busy || waiting}
                 onClick={() => press(key)}
-                className="flex h-12 w-14 items-center justify-center rounded-2xl text-lg font-semibold text-white/85 transition active:bg-white/15 disabled:opacity-40"
+                className="flex h-11 w-14 items-center justify-center rounded-2xl text-lg font-semibold text-white/85 transition active:bg-white/15 disabled:opacity-40"
                 aria-label={key === "back" ? "Apagar" : key}
               >
                 {key === "back" ? (
@@ -150,22 +183,25 @@ export default function HenryLockScreen({ onSubmit, mobile = false, initialWaitS
       <button
         type="button"
         key={shake}
-        onClick={() => mobile && setKeypad((value) => !value)}
+        onClick={() => mobile && !unlockFrame && setKeypad((value) => !value)}
         className={`pointer-events-auto flex items-end gap-3 rounded-2xl px-3 py-2 ${shake ? "henry-lock-shake" : ""}`}
         aria-label={`Tela bloqueada. Digite a senha de ${HENRY_PIN_LENGTH} dígitos. ${shown.length} digitados.${mobile ? " Toque para abrir o teclado." : ""}`}
         aria-live="polite"
       >
         {Array.from({ length: HENRY_PIN_LENGTH }, (_, index) => {
-          const filled = index < shown.length;
+          const scene = unlockFrame?.[index] || null;
+          const filled = scene ? true : index < shown.length;
+          const open = scene ? scene.locked : filled; // na cena, o cadeado abre quando o caractere trava
+          const color = scene?.locked ? GOLD : ACCENT;
           return (
             <span key={index} className="henry-lock-slot flex w-5 flex-col items-center gap-1.5">
-              <span className="transition-[opacity,transform] duration-200 ease-out" style={{ color: filled ? ACCENT : "rgba(255,255,255,0.42)", transform: filled ? "translateY(-1px)" : "none" }}>
-                <HenryLockIcon open={filled} size={11} strokeWidth={1.2} />
+              <span className="transition-[opacity,transform,color] duration-200 ease-out" style={{ color: scene ? color : filled ? ACCENT : "rgba(255,255,255,0.42)", transform: open ? "translateY(-1px)" : "none" }}>
+                <HenryLockIcon open={open} size={11} strokeWidth={1.2} />
               </span>
-              <span className="h-4 text-[15px] font-semibold leading-4 transition-opacity duration-150" style={{ color: ACCENT, opacity: filled ? 1 : 0 }} aria-hidden="true">
-                *
+              <span className="h-4 font-mono text-[15px] font-semibold leading-4 transition-opacity duration-150" style={{ color: scene ? color : ACCENT, opacity: filled ? 1 : 0 }} aria-hidden="true">
+                {scene ? scene.char : "*"}
               </span>
-              <span className="block h-px w-5 transition-colors duration-200" style={{ background: filled ? ACCENT : "rgba(255,255,255,0.35)" }} />
+              <span className="block h-px w-5 transition-colors duration-200" style={{ background: scene ? color : filled ? ACCENT : "rgba(255,255,255,0.35)" }} />
             </span>
           );
         })}

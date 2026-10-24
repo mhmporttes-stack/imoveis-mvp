@@ -47,6 +47,8 @@ Cada ação do Henry no PC (Spotify, link, aviso, tela, voz do PC, nome ouvido, 
 - Desempenho (1.3.1, app lento e travando): a view do CRM continua com `backgroundThrottling: false` (a voz do Henry minimizada precisa de timers em tempo real), por isso o app avisa a página quando a janela é minimizada/vai para a bandeja (evento `onWindowVisibility`, `isWindowHidden` em `src/core.js`) e o CRM pausa animações e consultas por `components/page-visibility.js`. A caixa "Nova versão pronta" espera a tela cheia do Henry fechar (evento `henryFullscreen` → `updater.setHold`, passo puro `updatePromptStep`); nada se perde nem é cancelado.
 - Fora da Vercel: `.vercelignore`, `tsconfig.json` e `scripts/vercel-ignore-build.sh` excluem esta pasta.
 
+- Chamada (1.3.2, dono 2026-10-24): "Ei, Henry", "Fala, Henry", "Oi Henry" e "Olá Henry" também chamam. Os prefixos (`WAKE_CALL_PREFIXES` em `src/core.js`) entram na gramática do Vosk como palavras soltas, só os que existem no modelo; o nome continua acordando sozinho e o prefixo nunca vai para o pedido (o CRM tira com `detectWakeWord`).
+
 ## Licenças dos componentes de voz (fase 1.1)
 
 | Componente | Versão | Licença |

@@ -275,6 +275,9 @@ export default function HenryVoiceAssistant() {
   const lockRef = useRef(lock);
   lockRef.current = lock;
   const lastTouchRef = useRef(0);
+  const [lockKeypad, setLockKeypad] = useState(false); // celular: teclado numérico da tela de bloqueio aberto
+  const [unlockFx, setUnlockFx] = useState(0); // cena do desbloqueio no anel (HenryVoiceView)
+  const unlockedIdleRef = useRef(10);
   const applyServerLockRef = useRef(null); // resposta do servidor com `lock`/`locked` (definida mais abaixo)
   const [turns, setTurns] = useState([]);
   const [typed, setTyped] = useState("");
@@ -3026,6 +3029,7 @@ export default function HenryVoiceAssistant() {
     if (!current.configured || current.locked) return;
     const start = Math.max(0, turnsRef.current.length - (keepLast ? 1 : 0));
     const next = { ...current, locked: true, turnStart: start };
+    setLockKeypad(false);
     lockRef.current = next;
     setLock(next);
     conversationRef.current = { ...conversationRef.current, historyStart: start }; // o modelo não recebe a conversa de antes
@@ -3050,15 +3054,21 @@ export default function HenryVoiceAssistant() {
       const response = await fetch("/api/admin/henry/lock", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "unlock", pin }) });
       const data = await response.json().catch(() => ({}));
       if (!response.ok) return { ok: false, error: data?.error || "Não consegui conferir a senha.", waitSeconds: Number(data?.waitSeconds) || 0 };
-      const next = { ...lockRef.current, locked: false, waitSeconds: 0, idleMinutes: normalizeIdleMinutes(data?.idleMinutes) };
-      lockRef.current = next;
-      setLock(next);
-      lastActivityRef.current = Date.now();
-      lastTouchRef.current = Date.now();
+      // O servidor já liberou; a tela só sai do bloqueio no FIM da cena do desbloqueio (finishUnlock).
+      unlockedIdleRef.current = normalizeIdleMinutes(data?.idleMinutes);
       return { ok: true };
     } catch {
       return { ok: false, error: "Sem conexão. Tente de novo." };
     }
+  }, []);
+  const finishUnlock = useCallback(() => {
+    const next = { ...lockRef.current, locked: false, waitSeconds: 0, idleMinutes: unlockedIdleRef.current };
+    lockRef.current = next;
+    setLock(next);
+    setLockKeypad(false);
+    lastActivityRef.current = Date.now();
+    lastTouchRef.current = Date.now();
+    setUnlockFx(Date.now()); // varredura e pulso do anel
   }, []);
   // Abriu a tela cheia → bloqueia; saiu dela desbloqueado → o Henry pequeno volta ao comportamento de antes (servidor).
   const wasExpandedRef = useRef(false);
@@ -3210,9 +3220,11 @@ export default function HenryVoiceAssistant() {
       opening={opening}
       onOpeningDone={finishOpening}
       locked={lock.configured && lock.locked}
+      lockKeypadOpen={lockKeypad}
+      unlockFx={unlockFx}
       lockLayer={
         lock.configured && expanded ? (
-          lock.locked ? <HenryLockScreen key={lock.turnStart} mobile={!desktop} initialWaitSeconds={lock.waitSeconds} onSubmit={unlockScreen} /> : <HenryUnlockedBadge onLock={engageLock} />
+          lock.locked ? <HenryLockScreen key={lock.turnStart} mobile={!desktop} inline={!desktop} keypadOpen={lockKeypad} onKeypadChange={setLockKeypad} initialWaitSeconds={lock.waitSeconds} onSubmit={unlockScreen} onUnlocked={finishUnlock} /> : <HenryUnlockedBadge onLock={engageLock} />
         ) : null
       }
       pulse={pulseConfig}
