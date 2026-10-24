@@ -85,3 +85,10 @@ Messenger oficial (Página do Facebook, `pages_messaging`) fica FORA deste plano
 4. Limites iniciais (hora/dia, atraso, máx. respostas no Marketplace): aceita os exemplos acima?
 5. Aprovar a lista de FAQ/objeções e o texto do aviso "atendimento automático".
 6. Messenger oficial com Página: quer avançar depois?
+
+## Adendo do dono (2026-10-24) — Henry relata a automação
+Nas palavras do dono: "Também quero que ele fale quando ele responder a automação. Por exemplo: enquanto você estava fora, entraram 5 clientes. Dos 5 clientes, eu respondi 3. 2 aguardam sua autorização para resposta."
+Requisitos para a implementação:
+- **Fila "aguardando autorização":** conversas em que a automação não deve responder sozinha (assunto sensível, regra do canal, piloto) ficam na fila com a resposta sugerida; o dono autoriza (tela e por voz, com confirmação na tela).
+- **Resumo do Henry:** ao voltar (fim da ausência / próximo chamado do aviso), resume: clientes que entraram, quantos a automação respondeu, quantos aguardam autorização — mesmas travas do aviso de cliente (vocativo, aparelho ativo, 7h–22h).
+- Contagem só da fonte única da automação (registro das respostas automáticas); não criar outra definição de "cliente novo".
