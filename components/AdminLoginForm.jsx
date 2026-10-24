@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { LockKeyhole } from "lucide-react";
 import { getPwaHome } from "@/components/pwaHome";
+import { panelEntryHref } from "@/lib/painel-entrada-core.mjs";
 
 // Velocidade (etapa 3, 2026-10-22): o cliente do Supabase (~50 KB) carrega depois da tela de login pintar, não antes.
 const loadSupabaseBrowserClient = () => import("@/lib/supabase-browser").then((mod) => mod.getSupabaseBrowserClient());
@@ -106,7 +107,8 @@ export default function AdminLoginForm({ initialError = "", nextPath = "" }) {
         window.location.replace(nextPath);
         return;
       }
-      router.replace(getPwaHome() || (mobileApp ? "/admin/simulacoes" : "/admin"));
+      // Porta de entrada (INI-6): o servidor decide — dono → Início; demais → Clientes (celular) ou /admin (computador).
+      router.replace(getPwaHome() || panelEntryHref(mobileApp ? "celular" : "computador"));
       router.refresh();
     } finally {
       setLoading(false);

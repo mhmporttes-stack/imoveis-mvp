@@ -3,7 +3,8 @@
 // Toda decisão de segurança (origem, permissão, navegação, ações da ponte) mora aqui — main.js só aplica.
 "use strict";
 
-const CRM_HOME = "https://www.matheusmachadoimoveis.com.br/admin";
+// Porta de entrada do painel (INI-6, dono 2026-10-24; versão 1.3.3): o servidor manda o dono para o Início.
+const CRM_HOME = "https://www.matheusmachadoimoveis.com.br/admin/abrir?de=computador";
 const ALLOWED_ORIGINS = Object.freeze(["https://www.matheusmachadoimoveis.com.br", "https://matheusmachadoimoveis.com.br"]);
 // Permissões concedidas sozinhas, só para as origens acima: microfone/câmera, notificação, tela cheia e "copiar".
 const AUTO_PERMISSIONS = Object.freeze(["media", "notifications", "fullscreen", "clipboard-sanitized-write"]);

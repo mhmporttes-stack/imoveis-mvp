@@ -44,6 +44,15 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 
 
+### 2026-10-24 — App do dono abre no Início (INI-6)
+- **Data:** 2026-10-24
+- **Área:** Painel / PWA / app de desktop
+- **Alteração:** nova porta de entrada `/admin/abrir` (servidor decide: dono na conta real → `/admin/inicio`; demais → Clientes no celular, `/admin` no computador, como antes). `start_url` do manifest, `CRM_HOME` do app de desktop (versão 1.3.3) e o destino do login/2FA passam por ela.
+- **Motivo:** dono: "quando eu iniciar o aplicativo, eu quero que ele abra na página de início e não na página clientes."
+- **Arquivos afetados:** `app/admin/abrir/page.jsx`, `lib/painel-entrada-core.mjs`, `app/manifest.js`, `components/AdminLoginForm.jsx`, `components/AdminTwoFactorChallenge.jsx`, `desktop-app/src/core.js`, `desktop-app/package.json` (+lock), `tests/painel-entrada.test.mjs`, `docs/BUSINESS_RULES.md` INI-6, `.claude/rules/frontend-pwa.md`.
+- **Risco/observação:** juntar na `main` PUBLICA o app de desktop 1.3.3 (workflow). iPhone com o ícone já instalado mantém o endereço antigo até reinstalar o ícone. Atalhos Financeiro/Chat, INI-4 e pré-carregamento sem mudança. Testes `painel-entrada`, `alexa-bom-dia`, `admin-warmup-plan`, `brand-assets`, desktop-app e build.
+- **Autor:** Claude Code
+
 ### 2026-10-24 — Henry: boom do bom dia sem plasma e sem anéis
 - **Data:** 2026-10-24
 - **Área:** Henry
