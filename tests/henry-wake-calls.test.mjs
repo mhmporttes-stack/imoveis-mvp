@@ -87,11 +87,11 @@ test("todos os caminhos do navegador/PWA usam a mesma regra (toque, gravação/S
   assert.equal(isMusicPauseCommand("Henrri pausa"), true);
 });
 
-test("app de desktop 1.3.2: prefixos na gramática do Vosk, só os que existem no modelo; nome sozinho segue acordando", () => {
+test("app de desktop (desde 1.3.2): prefixos na gramática do Vosk, só os que existem no modelo; nome sozinho segue acordando", () => {
   const require = createRequire(import.meta.url);
   const core = require("../desktop-app/src/core.js");
   const pkg = require("../desktop-app/package.json");
-  assert.equal(pkg.version, "1.3.2");
+  assert.ok(pkg.version.localeCompare("1.3.2", undefined, { numeric: true }) >= 0);
   assert.deepEqual([...core.WAKE_CALL_PREFIXES], ["ei", "hei", "oi", "olá", "ola", "fala"]);
   const config = core.buildWakeConfig("henry");
   for (const word of core.WAKE_CALL_PREFIXES) assert.ok(config.grammar.includes(word), word);
