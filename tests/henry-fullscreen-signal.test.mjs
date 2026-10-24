@@ -68,7 +68,8 @@ test("todo aviso fixo coberto consulta o sinal único", () => {
     "components/celebrations/BrokerCelebrationGate.jsx",
     "components/PwaLifecycle.jsx",
     "components/AdminPwaInstallHint.jsx",
-    "components/AdminPushSubscription.jsx"
+    "components/AdminPushSubscription.jsx",
+    "components/client-popups/ClientPopupStack.jsx"
   ]) {
     assert.match(read(path), /useHenryFullscreen\(/, path);
   }

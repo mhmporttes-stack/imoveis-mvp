@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { requireAdminApi } from "@/lib/admin-auth";
 import { getSupabaseAdminClient } from "@/lib/supabase";
 import { classifyClientOrigin } from "@/lib/crm-automations";
+import { listClientPopups } from "@/lib/client-popups";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -14,6 +15,21 @@ export const dynamic = "force-dynamic";
 // logado (o corretor só ouve alerta de cliente atribuído a ele mesmo) —
 // por isso qualquer usuário autenticado pode chamar, mesmo sem acesso a
 // Gestão: o listener global precisa funcionar para o corretor destinatário.
+//
+// Janelinha de cliente novo (REGRA OFICIAL — dono, 2026-10-24, CLI-16): no MESMO ciclo, com `popups=1` (só enviado com
+// a página visível e a janelinha montada), devolve também `popups` (lib/client-popups.js, escopo no servidor). Falha das
+// janelinhas não derruba o som: volta em `popupsError` (e no log), visível no console do navegador.
+async function readPopups(auth, params) {
+  if (params.get("popups") !== "1") return {};
+  try {
+    const result = await listClientPopups(auth, { since: params.get("popupsSince") || "" });
+    return { popups: result.popups, popupsCursor: result.cursor };
+  } catch (error) {
+    console.error("[client-popups] falha ao ler as janelinhas de cliente novo:", error?.message || error);
+    return { popupsError: error?.message || "Não foi possível ler os clientes novos." };
+  }
+}
+
 export async function GET(request) {
   const auth = await requireAdminApi(request);
   if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status });
@@ -22,7 +38,9 @@ export async function GET(request) {
   const serverTime = new Date().toISOString();
   if (!brokerId) return NextResponse.json({ ok: true, clients: [], serverTime });
 
-  const since = new URL(request.url).searchParams.get("since") || serverTime;
+  const params = new URL(request.url).searchParams;
+  const since = params.get("since") || serverTime;
+  const popupsPromise = readPopups(auth, params);
 
   try {
     const supabase = getSupabaseAdminClient();
@@ -39,7 +57,7 @@ export async function GET(request) {
       .filter((row) => classifyClientOrigin(row) === "form")
       .map((row) => ({ id: row.id, clientCode: row.client_code || "", fullName: row.full_name || "Cliente", createdAt: row.created_at }));
 
-    return NextResponse.json({ ok: true, clients, serverTime });
+    return NextResponse.json({ ok: true, clients, serverTime, ...(await popupsPromise) });
   } catch (error) {
     return NextResponse.json({ error: error.message || "Não foi possível verificar novos clientes." }, { status: 400 });
   }
