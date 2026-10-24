@@ -24,7 +24,8 @@ export function HenryLockIcon({ open = false, size = 14, color = "currentColor",
 
 const KEYS = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "", "0", "back"];
 
-export default function HenryLockScreen({ onSubmit, mobile = false, initialWaitSeconds = 0, keypadDefault = false, demoDigits = null, demoShake = false }) {
+// accessory (2026-10-24): botão do Face ID / Windows Hello (HenryPasskeyUnlockButton) ao lado dos cadeados — opcional.
+export default function HenryLockScreen({ onSubmit, mobile = false, initialWaitSeconds = 0, keypadDefault = false, demoDigits = null, demoShake = false, accessory = null }) {
   const [digits, setDigits] = useState("");
   const [shake, setShake] = useState(demoShake ? 1 : 0); // demo* = só a vitrine (app/dev/vitrine)
   const [busy, setBusy] = useState(false);
@@ -147,6 +148,7 @@ export default function HenryLockScreen({ onSubmit, mobile = false, initialWaitS
           )}
         </div>
       ) : null}
+      <div className="relative">
       <button
         type="button"
         key={shake}
@@ -170,6 +172,9 @@ export default function HenryLockScreen({ onSubmit, mobile = false, initialWaitS
           );
         })}
       </button>
+      {/* fora do fluxo: os cadeados continuam centralizados */}
+      {accessory ? <div className="pointer-events-auto absolute bottom-1 left-full ml-1">{accessory}</div> : null}
+      </div>
       <p className="mt-1.5 min-h-[1rem] text-center text-[11px] text-white/55" role="status">
         {status || (mobile ? "Toque para digitar a senha" : "Digite a senha")}
       </p>

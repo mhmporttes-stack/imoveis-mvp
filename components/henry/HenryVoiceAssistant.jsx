@@ -108,6 +108,7 @@ import HenryCursor from "./HenryCursor";
 import { OPENING_SOUND_AT_S, playHenryOpeningSound } from "./HenryOpeningScene";
 import { captureWebcamFrame } from "./webcam-capture";
 import HenryLockScreen, { HenryUnlockedBadge } from "./HenryLockScreen";
+import HenryPasskeyUnlockButton from "./HenryPasskeyUnlockButton";
 import { HENRY_LOCK_EVENT, normalizeIdleMinutes } from "@/lib/henry-lock-core.mjs";
 import { HENRY_VAD_BARGE_OPTIONS, HENRY_VAD_RECORD_OPTIONS, createHenryVad } from "./henry-vad";
 
@@ -3038,22 +3039,26 @@ export default function HenryVoiceAssistant() {
       setExpanded(true);
     } else if (message?.locked === true) lockLocally(true);
   };
+  // Desbloqueio aceito pelo servidor (senha certa ou Face ID — HenryPasskeyUnlockButton, dono 2026-10-24): mesma saída.
+  const applyUnlocked = useCallback((data) => {
+    const next = { ...lockRef.current, locked: false, waitSeconds: 0, idleMinutes: normalizeIdleMinutes(data?.idleMinutes) };
+    lockRef.current = next;
+    setLock(next);
+    lastActivityRef.current = Date.now();
+    lastTouchRef.current = Date.now();
+  }, []);
   // Senha digitada na tela: o servidor confere (tentativas e esperas são dele) e grava o cookie deste aparelho.
   const unlockScreen = useCallback(async (pin) => {
     try {
       const response = await fetch("/api/admin/henry/lock", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "unlock", pin }) });
       const data = await response.json().catch(() => ({}));
       if (!response.ok) return { ok: false, error: data?.error || "Não consegui conferir a senha.", waitSeconds: Number(data?.waitSeconds) || 0 };
-      const next = { ...lockRef.current, locked: false, waitSeconds: 0, idleMinutes: normalizeIdleMinutes(data?.idleMinutes) };
-      lockRef.current = next;
-      setLock(next);
-      lastActivityRef.current = Date.now();
-      lastTouchRef.current = Date.now();
+      applyUnlocked(data);
       return { ok: true };
     } catch {
       return { ok: false, error: "Sem conexão. Tente de novo." };
     }
-  }, []);
+  }, [applyUnlocked]);
   // Abriu a tela cheia → bloqueia; saiu dela desbloqueado → o Henry pequeno volta ao comportamento de antes (servidor).
   const wasExpandedRef = useRef(false);
   useEffect(() => {
@@ -3206,7 +3211,7 @@ export default function HenryVoiceAssistant() {
       locked={lock.configured && lock.locked}
       lockLayer={
         lock.configured && expanded ? (
-          lock.locked ? <HenryLockScreen key={lock.turnStart} mobile={!desktop} initialWaitSeconds={lock.waitSeconds} onSubmit={unlockScreen} /> : <HenryUnlockedBadge onLock={engageLock} />
+          lock.locked ? <HenryLockScreen key={lock.turnStart} mobile={!desktop} initialWaitSeconds={lock.waitSeconds} onSubmit={unlockScreen} accessory={<HenryPasskeyUnlockButton onUnlocked={applyUnlocked} />} /> : <HenryUnlockedBadge onLock={engageLock} />
         ) : null
       }
       pulse={pulseConfig}

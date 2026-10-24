@@ -29,6 +29,8 @@ Equivalentes para páginas (Server Components): `requireAdminPage`, `requirePrim
 
 **[REGRA OFICIAL DE NEGÓCIO — dono, 2026-10-08] Verificação em duas etapas (TOTP) na conta do dono e dos gestores (estendida em 2026-10-09 — `isTwoFactorEligibleResult`), opt-in individual.** Exigida no servidor por `applyTwoFactorGuard` (`lib/admin-auth.js`, sobre a conta real, antes do view-as) em `requireAdminApi`/`requireRealGeneralAdminApi`/`getAdminFromCookies` — rota/guard novo que valide sessão sem passar por essas três funções precisa repetir a checagem. Nunca afetar outros perfis. Detalhes: `docs/PERMISSIONS.md` §1, `docs/BUSINESS_RULES.md` AUT-2FA.
 
+**[REGRA OFICIAL DE NEGÓCIO — dono, 2026-10-24] Face ID / Windows Hello só para desbloquear a tela do Henry (HENRY-LOCK "Face ID").** Só a conta do dono; alternativa à senha de 6 dígitos, que continua valendo. **Não existe portão de Face ID no login nem ao abrir o app** (o dono descartou: "vai ficar muito trabalhoso") — não acrescente passkey/`mm_app_unlock` em `requireAdminApi`, `applyTwoFactorGuard` ou `proxy.js` sem nova decisão dele (trava em `tests/admin-passkeys.test.mjs`). Ação sensível que precise de "TOTP recente" usa `confirmFreshTotp` (`lib/admin-two-factor.js`, só código do app). Rota `/api/admin/henry/passkey` (`requireHenryOwner`); regras em `lib/admin-passkey-core.mjs`. Detalhe: `docs/PERMISSIONS.md` §6, `docs/BUSINESS_RULES.md` HENRY-LOCK.
+
 ## Escopo por responsável
 
 - `applyResponsibleUserScope` (`lib/simulation-registrations.js` e outras libs de listagem) filtra queries por `responsible_user_id`/`managedUserIds`.

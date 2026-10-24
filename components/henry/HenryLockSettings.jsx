@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Field, { inputClasses } from "@/components/ui/Field";
+import HenryPasskeySettings from "./HenryPasskeySettings";
 import { HENRY_LOCK_EVENT, HENRY_LOCK_IDLE_OPTIONS, isValidHenryPin } from "@/lib/henry-lock-core.mjs";
 
 // "Tela de bloqueio" no cartão do Henry (REGRA OFICIAL — dono, 2026-10-23; docs/BUSINESS_RULES.md HENRY-LOCK). O dono
@@ -125,6 +126,8 @@ export default function HenryLockSettings() {
           {message.text}
         </p>
       ) : null}
+      {/* Face ID / Windows Hello (dono, 2026-10-24): só com a senha definida — é alternativa a ela, nunca substituta. */}
+      {state.configured ? <HenryPasskeySettings /> : null}
     </div>
   );
 }
