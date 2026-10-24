@@ -65,7 +65,7 @@ import {
 } from "@/lib/henry-voice-conversation.mjs";
 import { henryReserveVoiceChain, pickBestBrowserVoice, pronounceForSpeech, splitSentences } from "@/lib/henry-voice-providers.mjs";
 import { HENRY_WAIT_PHRASES, MUSIC_TOPIC, ackToneDurationMs, henryAckContext, henryMusicIntent, isAckPhrase, mergeHenryMusic, musicQueryFromText, narrationWarmBatches, normalizeHenryScene, pickListenAck, pickWaitPhrase, rememberPhrase, shouldAcknowledgeHeard, shouldNarrate, spotifyDeviceRequestKind, waitPhrasesToSynthesize } from "@/lib/henry-voice-narration.mjs";
-import { HENRY_LISTEN_PROMPTS, isHenryGreeting, pickVariant, rememberVariant } from "@/lib/henry-voice-persona.mjs";
+import { HENRY_LISTEN_PROMPTS, henryGreetingRequest, isHenryGreeting, pickVariant, rememberVariant } from "@/lib/henry-voice-persona.mjs";
 import {
   ALERT_ANSWER_WAIT_MS,
   ALERT_MAX_CALLS,
@@ -1379,7 +1379,10 @@ export default function HenryVoiceAssistant() {
   // --- Pergunta ao servidor ---------------------------------------------------------------------------------------
   // Interrompe o que estiver em andamento (pedido e voz) e faz a nova pergunta. Memória: só as trocas do modo conversa
   // atual (no máximo ~6), só desta página — nada vai para o banco.
-  const ask = useCallback(async ({ mode, question, shown }) => {
+  const ask = useCallback(async (request) => {
+    // "Boa noite, Henry" não é o "bom dia" (relatório): vira pergunta e recebe só o cumprimento (dono, 2026-10-24).
+    let { mode, question } = henryGreetingRequest(request);
+    const { shown } = request;
     // Resposta ao chamado do aviso digitada ou transcrita (a falada já passa por handleFinal).
     if (mode === "question" && alertAnswerRef.current(question)) return;
     // "Henry, leia os avisos" (dono, 2026-10-23): fala tudo o que está acumulado, sem ir ao modelo.
@@ -2009,7 +2012,8 @@ export default function HenryVoiceAssistant() {
     if (alertAnswerRef.current(text)) return true; // resposta ao "Chefe?" do aviso de cliente
     const conversation = conversationRef.current;
     const spoken = [lastReplyRef.current];
-    const ask = (mode, question) => {
+    const ask = (detectedMode, detectedQuestion) => {
+      const { mode, question } = henryGreetingRequest({ mode: detectedMode, question: detectedQuestion, shown: text });
       // Lidos ANTES do pedido (ask zera a pergunta aberta): resposta a uma pergunta dele e comando resolvido na hora não
       // ganham confirmação de escuta.
       const awaitingReply = isAwaitingReply(pendingReplyRef.current);
