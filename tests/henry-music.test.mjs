@@ -228,3 +228,24 @@ test("pergunta aberta sem resposta: repete curta uma vez; aviso não repete (o a
   assert.match(ui, /intent\.reason === "empty" && missedReplyRef\.current\(\)/); // gravação do Henry: vazia repete a pergunta (dono, 2026-10-23)
   assert.match(ui, /holdSpotifyDuck\(HENRY_REPLY_WINDOW_MS\)/);
 });
+
+// Dono, 2026-10-24: "toda vez que eu peço uma música, ele fala algo relacionado ao CRM" — pedidos que caíam no tópico
+// padrão (frases de espera "do CRM") e os que nunca podem virar música.
+test("pedido de música reconhecido em todas as formas faladas; perguntas do CRM continuam fora", () => {
+  for (const text of [
+    "quero ouvir Legião Urbana", "quero escutar um rock", "bora ouvir um pagode", "manda um pagode", "bota um rock", "vamos de sertanejo",
+    "coloca uma música", "Toca uma música aí", "toca Racionais", "Henrique, toca Jorge e Mateus", "Enri toca um samba",
+    "Henry, por favor toca Legião", "Henry, você pode tocar Bon Jovi?", "pode colocar Zezé di Camargo", "dá um play", "volta a tocar",
+    "próxima", "próxima música", "pula essa", "pausa", "aumenta o som", "abaixa o volume", "Henry. Toca Legião."
+  ]) {
+    assert.equal(isMusicRequest(text), true, text);
+    assert.equal(henryInitialProgress("question", { question: text }).topic, "music", text);
+  }
+  for (const text of [
+    "quantas músicas tem na playlist?", "quantos clientes entraram hoje?", "status da cliente Bruna", "quero ouvir o relatório da semana",
+    "quero ouvir os avisos", "manda uma mensagem pro Gabriel", "manda o relatório pro celular", "Henrique fechou alguma venda?",
+    "pode me falar o status da Carol?", "como foi a próxima semana?", "volume de leads do mês", "coloca na agenda a visita do Pedro"
+  ]) {
+    assert.equal(isMusicRequest(text), false, text);
+  }
+});
