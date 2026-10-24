@@ -34,7 +34,8 @@ export function criarInstagramFalso({ meuId = '999', referencia = 'perfilref', t
     legadoFunciona: true, // /web/friendships/{id}/follow/ segue de verdade
     showHtml: false, // 1.1.4: friendships/show devolve a página HTML
     showManyHtml: false, // 1.1.4: friendships/show_many devolve a página HTML
-    leituraFalha: false, // 1.1.4: a leitura do botão do perfil não acha o botão
+    leituraFalha: false,
+    dmHtml: false, // 1.1.5: broadcast/text devolve a página HTML // 1.1.4: a leitura do botão do perfil não acha o botão
     sigoReferencia: false, // eu sigo o perfil de referência
     v1Vazio: false, // friendships/{id}/followers devolve users: []
     graphqlVazio: false, // GraphQL de seguidores devolve lista vazia
@@ -135,6 +136,7 @@ export function criarInstagramFalso({ meuId = '999', referencia = 'perfilref', t
       return ok({ friendship_status: { following: false, outgoing_request: ig.pendentes.has(m[1]) }, status: 'ok' });
     }
     if (caminho === '/api/v1/direct_v2/threads/broadcast/text/') {
+      if (ig.dmHtml) return PAGINA_HTML; // 1.1.5: a API de DM devolve a página HTML (nada enviado)
       const dest = JSON.parse(params.get('recipient_users'))[0][0];
       ig.dms.push({ id: dest, texto: params.get('text'), em: agora });
       return ok({ status: 'ok' });

@@ -40,6 +40,17 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-24 — Seguidor Instagram: DM de boas-vindas some em silêncio quando a API responde HTML
+- **Data:** 2026-10-24
+- **Sintoma:** pessoa seguiu de volta, mas a boas-vindas nunca chega e o popup não avisa nada (histórico: "resultado incerto, não será repetida").
+- **Área:** Ferramenta pessoal fora do CRM (`ferramentas/instagram-seguidor/`)
+- **Impacto:** toda DM de boas-vindas perdida enquanto a API privada de mensagens devolver a página HTML (mesma causa do show_many/seguir).
+- **Causa raiz:** HTML 200 em `direct_v2/threads/broadcast/text/` virava `mudanca_api` com status 200; em `processarDm` isso não é bloqueante nem 4xx, então caía no ramo "incerto" (`dmIncerta`, nunca reenviada). Mas HTML significa que o Instagram devolveu a página e não processou o envio.
+- **Correção (1.1.5):** `enviarDm` converte HTML (inclusive na alternativa por conversa) em `nao_enviada`; `processarDm` reagenda (+30 min, +2 h) e na 3ª falha desiste com alerta no popup "DM de boas-vindas não pôde ser enviada para @x" + notificação. A DM já usa os cabeçalhos da página (1.1.4). Sem envio por digitação na tela da DM.
+- **Arquivos/commit:** `ferramentas/instagram-seguidor/{instagram-api.js,background.js}` — branch `fix/instagram-seguidor-1.1.1`
+- **Prevenção/teste:** `ferramentas/instagram-seguidor/tests/dm-html.test.mjs` (fixture HTML na DM, 3 tentativas espaçadas + alerta, volta ao normal envia uma única vez).
+- **Status:** Monitorando
+
 ### 2026-10-24 — Seguidor Instagram: "O endpoint friendships/show_many respondeu de forma inesperada (HTTP 200) … Resposta: HTML (título: Instagram)"
 - **Data:** 2026-10-24
 - **Sintoma:** popup da extensão Seguidor Instagram 1.1.3 mostrando o alerta de mudança de API no show_many (POST `/api/v1/friendships/show_many/` → HTTP 200 `text/html`).

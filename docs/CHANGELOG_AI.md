@@ -44,6 +44,15 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 
 
+### 2026-10-24 — Seguidor Instagram 1.1.5: DM com resposta HTML é reagendada, não perdida
+- **Data:** 2026-10-24
+- **Área:** Ferramenta pessoal fora do CRM (`ferramentas/instagram-seguidor/`)
+- **Alteração:** HTML na API de DM (broadcast/text, get_by_participants e broadcast por conversa) vira tipo `nao_enviada` em vez de cair em "incerto". `processarDm` reagenda (+30 min, depois +2 h); na 3ª falha desiste com alerta `tipo: 'dm'` no popup ("DM de boas-vindas não pôde ser enviada para @x") e notificação. JSON sem confirmação continua "incerto" (nunca reenvia). A DM sai pelo mesmo executor com os cabeçalhos da página (1.1.4). Nenhum envio por digitação na tela da DM (decisão do dono se quiser).
+- **Motivo:** boas-vindas se perdia em silêncio (`dmIncerta`) com a API devolvendo HTML 200.
+- **Arquivos afetados:** `ferramentas/instagram-seguidor/{manifest.json,instagram-api.js,background.js,README.md,tests/ajuda/simulador.mjs,tests/dm-html.test.mjs (novo)}`, `ferramentas/instagram-seguidor.zip`, `docs/INCIDENTES.md`.
+- **Risco/observação:** premissa de que HTML = não enviado (o Instagram devolve a página sem processar); se um dia o envio sair E a resposta vier HTML, a pessoa pode receber a boas-vindas repetida (até 3x). Não testado contra o Instagram real. `node --test tests/*.test.mjs`: 74/74.
+- **Autor:** Claude Code (crm-editor)
+
 ### 2026-10-24 — Seguidor Instagram 1.1.4: checagem de amizade sem quebrar com HTML na API
 - **Data:** 2026-10-24
 - **Área:** Ferramenta pessoal fora do CRM (`ferramentas/instagram-seguidor/`)

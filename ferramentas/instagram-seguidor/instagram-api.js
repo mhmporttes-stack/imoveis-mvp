@@ -59,7 +59,8 @@ export class ErroInstagram extends Error {
     this.name = 'ErroInstagram';
     // 'indisponivel' (1.1.4) = checagem de amizade sem resposta utilizável (API respondeu HTML e a leitura do
     // botão do perfil também falhou): não é sessão, não é bloqueio, não gasta perfil da fila nem cota.
-    this.tipo = tipo; // 'limite' | 'sessao' | 'nao_encontrado' | 'mudanca_api' | 'indisponivel' | 'aba' | 'sem_janela' | 'incerto' | 'outro'
+    // 'nao_enviada' (1.1.5) = DM que certamente não saiu (API respondeu HTML): reagendar, nunca marcar incerta.
+    this.tipo = tipo; // 'limite' | 'sessao' | 'nao_encontrado' | 'mudanca_api' | 'indisponivel' | 'nao_enviada' | 'aba' | 'sem_janela' | 'incerto' | 'outro'
     this.status = status;
     this.endpoint = endpoint;
     this.corpo = String(corpo || '').slice(0, 500);
@@ -220,6 +221,16 @@ export function criarApiInstagram({ executar, obterCsrf = async () => '', clicar
       falhas.push(falha || `${rotulo} respondeu, mas o friendships/show não confirmou`);
     }
     throw new ErroInstagram('mudanca_api', `Não consegui ${nome} (sem confirmação no friendships/show após ${usadas.join(' e ')}): ${falhas.join(' | ')}`, { endpoint: tentativas[0][0] });
+  }
+
+  /**
+   * 1.1.5: a API de DM devolveu a página HTML do Instagram (HTTP 2xx/3xx): o pedido não foi processado,
+   * então a mensagem certamente NÃO saiu. Vira 'nao_enviada' (pode reagendar), nunca 'incerto'.
+   */
+  function naoEnviadaSeHtml(e) {
+    if (e instanceof ErroInstagram && e.html) {
+      throw new ErroInstagram('nao_enviada', `DM não enviada: a API de mensagens respondeu a página HTML do Instagram (nada foi processado). ${e.message}`, { status: e.status, endpoint: e.endpoint, corpo: e.corpo });
+    }
   }
 
   return {
@@ -416,20 +427,33 @@ export function criarApiInstagram({ executar, obterCsrf = async () => '', clicar
           corpo: form({ ...comum, recipient_users: JSON.stringify([[String(id)]]) }),
         });
       } catch (e) {
+        naoEnviadaSeHtml(e);
         // Só tenta a alternativa quando o Instagram claramente RECUSOU o pedido
         // (400/404/405) — assim não há risco de a mensagem ter saído duas vezes.
         const recusado = e instanceof ErroInstagram && [400, 404, 405].includes(e.status) && e.tipo !== 'limite' && e.tipo !== 'sessao';
         if (!recusado) throw e;
         // Alternativa: localizar a conversa e enviar por thread_ids.
-        const conv = await chamar('direct_v2/get_by_participants', ENDPOINTS.dmConversaPorParticipante(id));
+        let conv;
+        try {
+          conv = await chamar('direct_v2/get_by_participants', ENDPOINTS.dmConversaPorParticipante(id));
+        } catch (e2) {
+          naoEnviadaSeHtml(e2);
+          throw e2;
+        }
         const threadId = conv && conv.thread && conv.thread.thread_id;
         if (!threadId) {
           throw new ErroInstagram('mudanca_api', `Não foi possível enviar a DM: broadcast/text falhou (${e.message}) e não há conversa existente. O Instagram pode ter mudado a API de mensagens.`, { endpoint: 'direct_v2' });
         }
-        const j2 = await chamar('direct_v2/broadcast/text(thread)', ENDPOINTS.dmTexto(), {
-          metodo: 'POST',
-          corpo: form({ ...comum, client_context: idNumericoCliente(), mutation_token: uuid(), thread_ids: JSON.stringify([threadId]) }),
-        });
+        let j2;
+        try {
+          j2 = await chamar('direct_v2/broadcast/text(thread)', ENDPOINTS.dmTexto(), {
+            metodo: 'POST',
+            corpo: form({ ...comum, client_context: idNumericoCliente(), mutation_token: uuid(), thread_ids: JSON.stringify([threadId]) }),
+          });
+        } catch (e2) {
+          naoEnviadaSeHtml(e2);
+          throw e2;
+        }
         if (j2 && j2.status === 'ok') return { modo: 'thread_ids' };
         throw new ErroInstagram('incerto', 'broadcast/text (thread) respondeu sem confirmar o envio — confira a conversa no Instagram.', { endpoint: 'direct_v2/broadcast/text', corpo: JSON.stringify(j2) });
       }

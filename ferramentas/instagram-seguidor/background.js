@@ -34,6 +34,9 @@ const VARREDURA_COMPLETA_MS = 30 * MINUTO; // show_many em todos os seguidos, de
 // 1.1.4: com o show_many respondendo HTML, a varredura lê o botão de no máximo N perfis por rodada (30 min),
 // com intervalo humano entre eles — nunca uma rajada de visitas.
 const PERFIS_POR_VARREDURA = 5;
+// 1.1.5: DM com resposta HTML (não saiu): até 3 tentativas (agora, +30 min, +2 h) e então alerta no popup.
+const DM_MAX_TENTATIVAS_HTML = 3;
+const HORA_DM = 60 * MINUTO;
 const INTERVALO_MIN_ENTRE_DMS = 60 * 1000;
 const INTERVALO_REABASTECER_MS = 20 * MINUTO;
 
@@ -278,6 +281,24 @@ async function processarDm(e, agora) {
       tratarErro(e, err, 'DM', r.username);
       const volta = Math.max(e.pausaAte || 0, e.esfriarAte || 0, Date.now());
       r.dmAgendadaPara = ajustarParaJanela(volta + atrasoDmMs(), volta, cfg);
+      return tipo;
+    }
+    if (tipo === 'nao_enviada') {
+      // 1.1.5: a API de DM devolveu a página HTML — certamente não saiu. Reagenda (30 min, depois 2 h); na 3ª
+      // falha desiste COM alerta no popup (nunca em silêncio). Não há envio por digitação na tela da DM.
+      r.dmTentativaEm = null;
+      r.dmFalhas = (r.dmFalhas || 0) + 1;
+      if (r.dmFalhas >= DM_MAX_TENTATIVAS_HTML) {
+        r.dmDesistiu = true;
+        const texto = `DM de boas-vindas não pôde ser enviada para @${r.username}: o Instagram respondeu a página HTML em vez de processar a mensagem (${r.dmFalhas} tentativas). Envie manualmente pelo Instagram, se quiser.`;
+        e.alerta = { tipo: 'dm', em: Date.now(), texto };
+        log(e, { username: r.username, acao: 'DM', resultado: `não enviada após ${r.dmFalhas} tentativas (resposta HTML) — desistindo, alerta no popup`, origem: r.origem });
+        notificar('Instagram: DM não enviada', texto.slice(0, 200));
+      } else {
+        const espera = r.dmFalhas === 1 ? 30 * MINUTO : 2 * HORA_DM;
+        r.dmAgendadaPara = ajustarParaJanela(Date.now() + espera, Date.now(), cfg);
+        log(e, { username: r.username, acao: 'DM', resultado: `não enviada (Instagram respondeu HTML) — tentativa ${r.dmFalhas + 1} às ${formatarSP(r.dmAgendadaPara)}`, origem: r.origem });
+      }
       return tipo;
     }
     if (tipo !== 'incerto' && status >= 400 && status < 500) {
