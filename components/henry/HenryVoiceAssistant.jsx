@@ -65,7 +65,7 @@ import {
 } from "@/lib/henry-voice-conversation.mjs";
 import { henryReserveVoiceChain, pickBestBrowserVoice, pronounceForSpeech, splitSentences } from "@/lib/henry-voice-providers.mjs";
 import { HENRY_WAIT_PHRASES, MUSIC_TOPIC, ackToneDurationMs, henryAckContext, henryMusicIntent, isAckPhrase, mergeHenryMusic, musicQueryFromText, narrationWarmBatches, normalizeHenryScene, pickListenAck, pickWaitPhrase, rememberPhrase, shouldAcknowledgeHeard, shouldNarrate, spotifyDeviceRequestKind, waitPhrasesToSynthesize } from "@/lib/henry-voice-narration.mjs";
-import { HENRY_LISTEN_PROMPTS, pickVariant, rememberVariant } from "@/lib/henry-voice-persona.mjs";
+import { HENRY_LISTEN_PROMPTS, isHenryGreeting, pickVariant, rememberVariant } from "@/lib/henry-voice-persona.mjs";
 import {
   ALERT_ANSWER_WAIT_MS,
   ALERT_MAX_CALLS,
@@ -1280,7 +1280,8 @@ export default function HenryVoiceAssistant() {
       heard: true,
       awaitingReply: awaitingReply || Boolean(morningRef.current),
       instant,
-      speaking: queue.playing
+      speaking: queue.playing,
+      greeting: mode === "question" && isHenryGreeting(question)
     });
     if (!allowed) return false;
     const usedToday = [...readUsedWaits(), ...recentPhrasesRef.current];
@@ -1353,7 +1354,7 @@ export default function HenryVoiceAssistant() {
       const name = wait.names.find((item) => !recentPhrasesRef.current.includes(item.id));
       const waits = phrases.filter((phrase) => !phrase.topics?.includes("bye") && !isAckPhrase(phrase)); // despedidas só no fim; confirmações só no fim da fala
       const hasAudio = Boolean(name) || waits.length > 0;
-      if (!shouldNarrate({ now: Date.now(), startedAt: wait.startedAt, lastNarrationAt: wait.lastAt, playing: queue.playing, replied: wait.replied || wait.id !== requestIdRef.current, hasAudio, ackEndedAt: ackRef.current.endedAt, acked: wait.acked })) return;
+      if (!shouldNarrate({ now: Date.now(), startedAt: wait.startedAt, lastNarrationAt: wait.lastAt, playing: queue.playing, replied: wait.replied || wait.id !== requestIdRef.current, hasAudio, ackEndedAt: ackRef.current.endedAt, acked: wait.acked, quiet: wait.quiet })) return;
       const usedToday = usedWaitsInOrder(recentPhrasesRef.current);
       const readyIds = waits.map((phrase) => phrase.id);
       const picked = name ? null : pickWaitPhrase({ topic: wait.topic, recentIds: usedToday, usedToday, available: readyIds, phrases: HENRY_WAIT_PHRASES });
@@ -1442,7 +1443,8 @@ export default function HenryVoiceAssistant() {
     // Pedido de música (texto ou resposta da música do bom dia): narração e cena do Spotify desde o início, sem números.
     const musicIntent = henryMusicIntent({ mode, question, morningStep: morning?.step || "" });
     const startTopic = musicIntent ? MUSIC_TOPIC : mode === "report" ? "relatorio" : "geral";
-    waitRef.current = { id, startedAt: Date.now(), replied: false, topic: startTopic, lastAt: 0, names: [], acked: ackedBeforeAsk, synthAsked: false };
+    // Saudação/cortesia pura ("boa noite", "obrigado"): só o cumprimento de volta, sem frase de espera (dono, 2026-10-24).
+    waitRef.current = { id, startedAt: Date.now(), replied: false, topic: startTopic, lastAt: 0, names: [], acked: ackedBeforeAsk, synthAsked: false, quiet: mode === "question" && isHenryGreeting(question) };
     // Pedido novo: toda cena do pedido anterior sai (cards de corretor, música, assunto adiado) — nenhuma fica órfã.
     deferredTopicRef.current = "";
     setScene({ topic: startTopic, label: "", brokers: [], live: mode === "report" && !musicIntent });
