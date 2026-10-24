@@ -106,7 +106,9 @@ export default function FinancialHealthTab({ sales = [], initialExpenses = [], i
       <Panel title="Indicadores do período" subtitle={`${periodTitle} · só o que de fato entrou e saiu`}>
         <dl className="divide-y divide-line">
           <IndicatorRow title="Comissão recebida" value={formatMoney(summary.revenueGross)} tag="Recebido" delta={changes.revenue} vsLabel={vsLabel} sub="Comissão bruta efetivamente recebida" />
-          <IndicatorRow title="Repasses" value={formatMoney(summary.repasses)} tag="Realizado" delta={changes.repasses} vsLabel={vsLabel} inverse sub="Corretor, gestor e outros participantes da venda. Não são despesas operacionais." />
+          <IndicatorRow title="Repasses" value={formatMoney(summary.repasses)} tag="Realizado" delta={changes.repasses} vsLabel={vsLabel} inverse sub="Corretor da equipe, gestor e parceiros externos da venda. Não são despesas operacionais. Nas suas vendas, a parte do corretor é ganho seu, não repasse." />
+          <IndicatorRow title="Ganho da imobiliária" value={formatMoney(summary.netRevenue)} tag="Realizado" sub="Parte da imobiliária nas comissões recebidas." />
+          <IndicatorRow title="Ganho como corretor" value={formatMoney(summary.ownerBrokerGain)} tag="Realizado" sub="Parte do corretor nas vendas feitas por você. Entra no resultado líquido." />
           <IndicatorRow title="Nota fiscal" value={formatMoney(summary.invoice)} tag="Realizado" delta={changes.invoice} vsLabel={vsLabel} inverse sub="Despesa fiscal de cada venda (percentual próprio) sobre a comissão recebida." />
           <IndicatorRow title="Despesas operacionais" value={formatMoney(summary.operatingTotal)} tag="Realizado" delta={changes.operating} vsLabel={vsLabel} inverse
             sub={`Pagas: da empresa ${formatMoney(summary.operatingExpenses)} + ligadas a vendas ${formatMoney(summary.saleExpenses)}. Previstas não entram.`} />
@@ -202,7 +204,7 @@ function ResultCard({ summary, changes, vsLabel }) {
         </span>
         <Delta value={change} vsLabel={vsLabel} fallback="Sem base comparável" />
       </div>
-      <p className="mt-auto pt-3 text-xs leading-4 text-muted max-sm:hidden">Comissão recebida − repasses − nota fiscal − despesas pagas.</p>
+      <p className="mt-auto pt-3 text-xs leading-4 text-muted max-sm:hidden">Comissão recebida − repasses − nota fiscal − despesas pagas. Inclui seu ganho como corretor nas suas vendas.</p>
     </HeroCard>
   );
 }
@@ -342,7 +344,7 @@ function ExpectationBlock({ health }) {
   const rows = [
     { label: "Comissão (receita)", real: c.revenueGross, planned: c.expectedGross, sign: 1,
       sub: [expectation.forecastIncluded > 0 ? `previsto inclui ${formatMoney(expectation.forecastIncluded)} da previsão de recebimento do saldo` : null, expectation.overdue > 0 ? `${formatMoney(expectation.overdue)} vencido` : null].filter(Boolean).join(" · ") || null },
-    { label: "Repasses", real: c.repasses, planned: c.expectedRepasses, sign: -1, sub: "corretor, gestor e participantes" },
+    { label: "Repasses", real: c.repasses, planned: c.expectedRepasses, sign: -1, sub: "corretor da equipe, gestor e parceiros (nas suas vendas, a parte do corretor é ganho seu)" },
     { label: "Nota fiscal", real: c.invoice, planned: c.expectedInvoice, sign: -1 },
     { label: "Despesas operacionais", real: c.operatingTotal, planned: c.expectedOperating, sign: -1,
       sub: expectation.operatingOverdue > 0 ? `previstas incluem ${formatMoney(expectation.operatingOverdue)} vencidas aguardando confirmação` : null }
@@ -409,7 +411,7 @@ function BreakEvenBlock({ be }) {
   return (
     <div>
       <div className="grid grid-cols-1 gap-2.5 min-[420px]:grid-cols-3">
-        <Metric label="Ponto de equilíbrio" value={formatMoney(needed)} sub={useGross ? "receita bruta necessária" : "parte da imobiliária necessária"} />
+        <Metric label="Ponto de equilíbrio" value={formatMoney(needed)} sub={useGross ? "receita bruta necessária" : "valor líquido necessário"} />
         <Metric label="Recebido" value={formatMoney(received)} />
         <Metric label={gap > 0 ? "Falta" : "Meta atingida"} value={gap > 0 ? formatMoney(gap) : "Sim"} />
       </div>
@@ -419,7 +421,7 @@ function BreakEvenBlock({ be }) {
       <p className="mt-1 text-right text-xs tabular-nums text-muted">{pct}% do ponto de equilíbrio</p>
       <p className="mt-2 text-sm leading-5 text-ink-2">
         Fórmula: despesas operacionais do período ({formatMoney(be.operatingNeeded)}, realizadas + previstas)
-        {useGross ? <> ÷ margem de contribuição de {fmtNumber(be.contributionPercent)}% (parte da imobiliária ÷ comissão bruta recebida nos últimos 6 meses)</> : <>. Ainda não há recebimentos históricos para calcular a margem de contribuição; mostrando o valor líquido da imobiliária.</>}.
+        {useGross ? <> ÷ margem de contribuição de {fmtNumber(be.contributionPercent)}% (parte da imobiliária + seu ganho como corretor nas suas vendas ÷ comissão bruta recebida nos últimos 6 meses)</> : <>. Ainda não há recebimentos históricos para calcular a margem de contribuição; mostrando o valor líquido (imobiliária + seu ganho como corretor).</>}.
       </p>
     </div>
   );

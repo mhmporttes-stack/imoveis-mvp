@@ -369,3 +369,34 @@ test("migração de confirmações na divisão: leva as que existem na série no
   const blocked = planOverrideMigration([paid("r1", "2026-11-05", 2000)], q.newRow, "2026-10-01");
   assert.equal(blocked.blocked.length, 1);
 });
+
+// FIN-8 (regra do dono, 2026-10-24): venda do próprio dono — a parte do corretor é ganho dele, não repasse.
+test("venda do dono: parte do corretor é ganho como corretor, fora dos repasses, e entra no resultado", () => {
+  const totals = { agencyCommission: 4400, brokerCommission: 4400, managerCommission: 0, invoiceDeduction: 1200 };
+  const base = { grossCommission: 10000, totals, payments: [pay({ amount: 10000, receivedDate: "2026-10-03" })] };
+  const own = computeHealth({ sales: [sale({ ...base, brokerIsOwner: true })], expenses: [], today: TODAY });
+  assert.equal(own.summary.repasses, 0);
+  assert.equal(own.summary.ownerBrokerGain, 4400);
+  assert.equal(own.summary.netRevenue, 4400);
+  assert.equal(own.summary.ownerGain, 8800);
+  assert.equal(own.summary.invoice, 1200);
+  assert.equal(own.summary.profit, 8800); // 10.000 − 1.200 de nota; nada de repasse
+  assert.equal(own.byBroker[0].ownerBrokerGain, 4400);
+  assert.equal(own.byBroker[0].repasses, 0);
+  // mesma venda de corretor da equipe: repasse continua
+  const team = computeHealth({ sales: [sale({ ...base, brokerIsOwner: false })], expenses: [], today: TODAY });
+  assert.equal(team.summary.repasses, 4400);
+  assert.equal(team.summary.ownerBrokerGain, 0);
+  assert.equal(team.summary.profit, 4400);
+});
+
+test("venda do dono com corretor parceiro externo: parceiro continua repasse", () => {
+  const totals = { agencyCommission: 4000, brokerCommission: 4000, managerCommission: 0, invoiceDeduction: 0 };
+  const s = sale({ brokerIsOwner: true, grossCommission: 10000, totals, expenses: [{ category: "Corretor parceiro", amount: 2000 }], payments: [pay({ amount: 5000, receivedDate: "2026-10-03" })] });
+  const h = computeHealth({ sales: [s], expenses: [], today: TODAY });
+  // recebido 5.000 (metade): imobiliária 2.000, ganho como corretor 2.000, parceiro 1.000
+  assert.equal(h.summary.netRevenue, 2000);
+  assert.equal(h.summary.ownerBrokerGain, 2000);
+  assert.equal(h.summary.repasses, 1000);
+  assert.equal(h.summary.profit, 4000);
+});

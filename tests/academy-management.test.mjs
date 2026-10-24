@@ -108,3 +108,20 @@ test("nova trilha: nasce em rascunho, só aparece ao aluno depois de publicada; 
   assert.equal(w.db.tables.academy_certificates.length, 1, "certificado por trilha concluída");
   assert.equal(w.db.tables.academy_certificates[0].snapshot.track_title, "Atendimento Avançado");
 });
+
+// ACA-11 (regra do dono, 2026-10-24): formação parcial não conta atraso no prazo da regra new_user; o prazo volta a
+// contar a partir da publicação completa (mesmo número de dias), nunca da criação do usuário.
+test("prazo da regra new_user: suspenso com formação parcial, conta a partir da publicação completa", async () => {
+  const w = buildWorld(); team(w);
+  w.ver.settings = { ...w.ver.settings, partial: true };
+  w.ins("academy_enrollments", { user_id: STUDENT_A, track_id: w.track.id, track_version_id: w.ver.id, source: "auto_new_broker", required: true, status: "assigned", created_at: "2026-09-01T12:00:00.000Z", due_at: "2026-10-01T12:00:00.000Z" });
+  const partial = await w.management.listTeam(ALL, { status: "overdue" });
+  assert.equal(partial.members.length, 0);
+  assert.equal(partial.summary.overdue, 0);
+  const row = (await w.management.listTeam(ALL)).members.find((m) => m.name === "Ana").enrollments[0];
+  assert.deepEqual([row.overdue, row.dueAt, row.dueSuspended], [false, null, true]);
+  // formação completa publicada em 03/10: 30 dias a partir daí (02/11), ainda no prazo em 04/10
+  w.ins("academy_track_versions", { track_id: w.track.id, version_number: 2, status: "published", published_at: "2026-10-03T12:00:00.000Z", settings: { unlock_mode: "sequential", pass_score: 70, max_attempts: 3 } });
+  const complete = (await w.management.listTeam(ALL)).members.find((m) => m.name === "Ana").enrollments[0];
+  assert.deepEqual([complete.overdue, complete.dueAt, complete.dueSuspended], [false, "2026-11-02T12:00:00.000Z", false]);
+});

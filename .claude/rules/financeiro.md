@@ -6,6 +6,8 @@ paths:
   - "app/api/financeiro/**"
   - "lib/whatsapp-broadcast-finance.js"
   - "components/FinancialHealth*"
+  - "components/FinancialManager*"
+  - "lib/sale-paid-guard-core.mjs"
   - "docs/FINANCEIRO_SAUDE.md"
 ---
 
@@ -51,6 +53,10 @@ Cálculo inteiramente em centavos para controlar arredondamento — não reescre
 
 **[REGRA OFICIAL DE NEGÓCIO — confirmada pelo dono em 2026-10-01]** Cliente que entra no status `sale_paid` ("Pago", última etapa do pipeline de venda — ver `.claude/rules/crm-clientes-funil.md`) marca automaticamente a `financial_sales` correspondente como `financial_status = 'received'` ("Recebido") **e conta nos totais mensais do mês em que a mudança aconteceu** (regra do dono: "a venda recebida deve ser computada no mês que eu alterei o status para pago"). Implementação: `markFinancialSaleReceivedForRegistration` (`lib/financial.js`), chamada por `updateSimulationRegistration` (`lib/simulation-registrations.js`) só na transição PARA `sale_paid` (nunca retroativo em toda atualização). Como `financial_status` é sempre DERIVADO da soma dos `financial_payments` contra a comissão bruta (`deriveFinancialStatus`), a função lança um `financial_payments` novo com o valor que falta receber (comissão bruta − já recebido), `received_date` = a data do recebimento informada por quem marcou "Pago" (regra do dono, 2026-10-01: a tela pergunta a data; só sem data informada — chamada de outro lugar — cai em hoje, `getTodayInSaoPaulo`; `lib/financial.js`) — nunca mexe em recebimentos/despesas/repasses já lançados, só complementa o que falta.
 
+**[REGRA OFICIAL DE NEGÓCIO — dono, 2026-10-24] "Pago" só pelo dono.** Só a conta REAL do dono (`isOwnerAdminEmail`, fora de "Alterar conta") coloca o cliente em "Pago"; demais perfis, dono emulando e automação sem usuário recebem 403 claro; data de recebimento futura recusada. Barreira única `assertSalePaidAllowed` (`lib/sale-paid-guard-core.mjs`) em `updateSimulationRegistration`, antes de gravar; a tela só oferece "Pago" com `canMarkSalePaid`. Não crie outra checagem. Detalhes: `docs/BUSINESS_RULES.md` FIN-7.
+
+**[REGRA OFICIAL DE NEGÓCIO — dono, 2026-10-24] Gestor vê as próprias comissões de gestor.** Refina "gestor sem acesso": em `/admin/financeiro` o gestor vê só as vendas em que é o gestor da venda, só a parte dele, somente leitura; nada de Saúde, despesas ou outras vendas. Allowlist única `lib/financial-manager-view-core.mjs` (`listManagerCommissionSales`, `lib/financial.js`). Detalhes: `docs/BUSINESS_RULES.md` FIN-9.
+
 ## Previsão de recebimento + Agenda
 
 **[REGRA OFICIAL DE NEGÓCIO — pedido do dono em 2026-10-02]** Três datas diferentes, nunca misturar: **data da venda** (`sale_date`) ≠ **previsão de recebimento** (`financial_sales.expected_receipt_date`, campo "Previsão de recebimento" na Edição Financeira, perto do status) ≠ **data real do recebimento** (`financial_payments.received_date`). A previsão é a expectativa de entrada do SALDO: valor previsto = comissão BRUTA − recebido − parcelas já datadas (`computeForecastAmount`, nunca gravado). Previsão **nunca** vira recebido sozinha; vencida sem confirmação continua pendente (atividade segue aberta, valor em "Vencidas de meses anteriores"). Venda recebida/cancelada não tem previsão nem atividade.
@@ -63,6 +69,8 @@ Cálculo inteiramente em centavos para controlar arredondamento — não reescre
 ## Aba "Saúde" (2026-10-02)
 
 Só admin geral. Despesas **da empresa** vivem em `financial_operating_expenses` (≠ `financial_expenses`, que são repasses/despesas de UMA venda); caixa/reserva em `financial_health_settings`. Cálculo puro em `lib/financial-health-core.mjs` — **toda fórmula (realizado × previsto × estimado, caixa, reserva, ponto de equilíbrio, resultado por corretor) está em `docs/FINANCEIRO_SAUDE.md`**; não duplique nem reinvente. Nunca assumir saldo de caixa; nunca materializar recorrência futura; nunca contar previsão como recebido. **[COMPORTAMENTO ATUAL DA IMPLEMENTAÇÃO]** pedido do dono em 2026-10-02 (implementado como descrito no doc).
+
+**[REGRA OFICIAL DE NEGÓCIO — dono, 2026-10-24] Vendas do próprio dono na Saúde.** "A parte do corretor é meu ganho como corretor e a parte da imobiliária é meu ganho como dono de imobiliária. Às vezes a comissão é dividida com corretores de fora, corretores parceiros." Venda cujo corretor é o dono (`brokerIsOwner`): a parte do corretor não é repasse — "Ganho como corretor", separado do "Ganho da imobiliária" e somado ao resultado. Repasse continua para corretor da equipe, gestor e parceiro externo. Só em `splitSaleShares` (`lib/financial-health-core.mjs`). Detalhes: `docs/FINANCEIRO_SAUDE.md`, `docs/BUSINESS_RULES.md` FIN-8.
 
 **[REGRA OFICIAL DE NEGÓCIO — dono, 2026-10-02]** Despesa operacional só é **paga** após **Confirmar pagamento** manual (a data chegar não paga); previstas (inclusive vencidas) entram só nas projeções; **reagendar** move a data prevista. Alterar recorrente vale **só dali para frente** (série antiga encerrada, nova criada) — nunca reescrever meses passados. Tabela `financial_operating_expense_occurrences`; detalhes em `docs/FINANCEIRO_SAUDE.md`.
 

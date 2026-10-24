@@ -5,7 +5,8 @@ import ChatAppHome from "@/components/ChatAppHome";
 import DeferredPanelGates from "@/components/DeferredPanelGates";
 import { WhatsappAccessProvider } from "@/components/WhatsappAccessProvider";
 import { getAdminFromCookies } from "@/lib/admin-auth";
-import { isGeneralAdminAuth, isManagerProfile } from "@/lib/admin-profiles";
+import { isGeneralAdminAuth, isManagerProfile, isOwnerAdminEmail } from "@/lib/admin-profiles";
+import { canMarkSalePaid } from "@/lib/sale-paid-guard-core.mjs";
 import { isChatDisabled, isChatRestrictedProfile } from "@/lib/chat-control";
 import { isArchivedChatViewer } from "@/lib/whatsapp-chat-scope.mjs";
 import { isBasicMode, isEffectivelyBlocked } from "@/lib/whatsapp-access-core.mjs";
@@ -40,7 +41,7 @@ export default async function ChatAppPage({ searchParams }) {
           gate de alertas (os demais avisos ficam fora do Chat, components/panel-gates-by-app.mjs); fora de "Alterar conta". */}
       <DeferredPanelGates alerts={auth.accountSwitchMode ? null : { userId: auth.profile?.id }} />
       <main className="bg-mist">
-        <WhatsappChat appMode canManage={canManage} canEditRules={isGeneralAdminAuth(auth)} currentUserId={auth.profile?.id || ""} currentUserName={auth.profile?.name || ""} viewerKey={chatViewerKey(auth)} canSeeArchived={isArchivedChatViewer(auth)} initialClientId={typeof params.client === "string" ? params.client : ""} initialText="" />
+        <WhatsappChat appMode canManage={canManage} canEditRules={isGeneralAdminAuth(auth)} currentUserId={auth.profile?.id || ""} currentUserName={auth.profile?.name || ""} viewerKey={chatViewerKey(auth)} canSeeArchived={isArchivedChatViewer(auth)} canMarkSalePaid={canMarkSalePaid(auth, isOwnerAdminEmail)} initialClientId={typeof params.client === "string" ? params.client : ""} initialText="" />
       </main>
     </WhatsappAccessProvider>
   );

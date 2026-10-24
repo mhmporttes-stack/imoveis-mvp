@@ -32,7 +32,8 @@ export async function PATCH(request, { params }) {
     }, auth);
     return NextResponse.json(registration);
   } catch (error) {
-    return NextResponse.json({ error: formatSimulationRegistrationError(error) }, { status: 400 });
+    // "Pago" só pelo dono (FIN-7, 2026-10-24): recusa de permissão sai como 403.
+    return NextResponse.json({ error: formatSimulationRegistrationError(error) }, { status: error?.code === "SALE_PAID_OWNER_ONLY" ? 403 : 400 });
   }
 }
 
