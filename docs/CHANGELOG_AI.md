@@ -584,6 +584,16 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-24 — Formulário vai direto ao WhatsApp ao concluir o cadastro — branch `feat/ficha-direto-whatsapp`, NÃO publicado
+- **Data:** 2026-10-24
+- **Área:** Formulário público de simulação (WA-10 / PRES-25 / SIM-AUTO-ENVIO)
+- **Alteração:** [REGRA OFICIAL DE NEGÓCIO — dono, 2026-10-24] ao confirmar a última pergunta e o cadastro ser salvo, o formulário vai direto à tela final curta ("Recebemos, <primeiro nome>." / "Abrindo o WhatsApp…") e, ~1,2 s depois, abre sozinho (`window.location.href`, funciona no iPhone) o MESMO link do botão "Receber minha simulação" (número oficial, "Olá, preenchi meu cadastro. Gostaria de receber a minha simulação." + "Código do atendimento: MM-XXXXXXXX"). Botão continua como reserva ("Abrir o WhatsApp"). Estados de espera/indisponível da WA-10 não abrem nada (como antes). A tela final não mostra mais os valores da estimativa (dono: "não acho que essa página faz sentido"). Link montado num só lugar (`buildReceiveSimulationWhatsappUrl`) e decisão de abrir em `shouldAutoOpenWhatsapp` (`lib/receive-simulation-contact.mjs`).
+- **Envio duplicado:** não muda nada no envio. A SIM-AUTO-ENVIO só decide o canal 2 min depois do cadastro (`AUTO_SEND_DELAY_MS`) e reserva UM envio por cadastro (`simulation-auto-send:<id>`); a mensagem do cliente no Oficial abre a janela e o caso sai pelo Oficial (caminho (a)). O fluxo "Formulário concluído" continua pausado (sem segunda resposta). Cliente que não envia a mensagem em 2 min segue o caminho (c) de sempre (individual do dono / do corretor do link).
+- **Efeito colateral (avisar o dono):** o convite "Cadastro concluído — responda perguntas sobre o imóvel que procura" (`PropertyPreferencesInvite`/`PropertyPreferencesFlow`) deixa de aparecer depois do cadastro, porque a página troca para o WhatsApp. Componentes e rota de preferências continuam no projeto, sem uso neste caminho; voltar com eles (ex.: no link `/s/`) é decisão do dono.
+- **Arquivos:** `components/simulation-form/SimulationForm.jsx`, `SimulationSuccess.jsx`, `ReceiveSimulationWhatsappButton.jsx`, `lib/receive-simulation-contact.mjs`, `app/dev/vitrine/estimativa/page.dev.jsx` (vitrine nunca abre sozinha), testes `tests/simulation-form-direct-whatsapp.test.mjs` (novo), `tests/official-whatsapp-links.test.mjs`, `tests/whatsapp-contact-code.test.mjs`; `docs/BUSINESS_RULES.md` WA-10, `.claude/rules/integracoes-externas.md`.
+- **Validação:** testes da área verdes (falha pré-existente em `official-whatsapp-links` sobre `WhatsappChat.jsx`, sem relação); `pnpm build`. Nenhuma mensagem enviada. **A CONFIRMAR** em produção com o próximo cadastro real (conversa no Oficial com código + `simulation_auto_sent` canal `official`).
+- **Risco/observação:** sem migration, rota ou permissão nova.
+
 ### 2026-10-24 — Henry diz em qual WhatsApp está a conversa do cliente e entende "ela" depois do aviso — branch `fix/henry-canal-whatsapp`, NÃO publicado
 - **Data:** 2026-10-24
 - **Área:** Henry (HENRY-1 "Leitura ampla") / WhatsApp Chat (só leitura)

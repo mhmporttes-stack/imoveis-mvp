@@ -1,11 +1,14 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { MessageCircle } from "lucide-react";
 
-import { FORM_COMPLETION_MESSAGE as MESSAGE } from "@/lib/whatsapp-form-completion.mjs";
-import { RECEIVE_CONTACT_STATE } from "@/lib/receive-simulation-contact.mjs";
-import { withContactCode } from "@/lib/whatsapp-contact-code-core.mjs";
+import {
+  AUTO_OPEN_WHATSAPP_DELAY_MS,
+  RECEIVE_CONTACT_STATE,
+  buildReceiveSimulationWhatsappUrl,
+  shouldAutoOpenWhatsapp
+} from "@/lib/receive-simulation-contact.mjs";
 
 // Enquanto o cadastro espera um corretor on-line (fila de espera da roleta),
 // consulta de novo a cada 15 s por até ~10 min — depois disso para e mostra
@@ -19,9 +22,12 @@ const WAITING_MAX_ATTEMPTS = 40;
 // oficial entrega a conversa ao corretor responsável (sem roleta, sem cliente
 // novo — lib/whatsapp-contact-code.js). Os estados de espera/indisponível
 // continuam tratados aqui (modo antigo da rota).
-export default function ReceiveSimulationWhatsappButton({ brokerRef = "", registrationId = "", accessToken = "" }) {
+// Desde 2026-10-24 (dono, "Ir direto ao WhatsApp") o formulário passa `autoOpen`: com o link pronto, abre o MESMO link
+// sozinho (location.href — funciona no iPhone, onde abrir janela sem toque é bloqueado); o botão fica como reserva.
+export default function ReceiveSimulationWhatsappButton({ brokerRef = "", registrationId = "", accessToken = "", autoOpen = false }) {
   const [contact, setContact] = useState({ state: "loading", phone: "" });
   const [gaveUpWaiting, setGaveUpWaiting] = useState(false);
+  const openedRef = useRef(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -61,22 +67,38 @@ export default function ReceiveSimulationWhatsappButton({ brokerRef = "", regist
     };
   }, [brokerRef, registrationId, accessToken]);
 
+  const whatsappUrl = contact.state === RECEIVE_CONTACT_STATE.READY ? buildReceiveSimulationWhatsappUrl(contact.phone, registrationId) : "";
+
+  useEffect(() => {
+    if (!whatsappUrl || !shouldAutoOpenWhatsapp({ autoOpen, state: contact.state, phone: contact.phone, alreadyOpened: openedRef.current })) return undefined;
+    const timer = setTimeout(() => {
+      openedRef.current = true;
+      window.location.href = whatsappUrl;
+    }, AUTO_OPEN_WHATSAPP_DELAY_MS);
+    return () => clearTimeout(timer);
+  }, [autoOpen, contact.state, contact.phone, whatsappUrl]);
+
   if (contact.state === "loading") return null;
 
   if (contact.state === RECEIVE_CONTACT_STATE.READY) {
     return (
       <div className="mx-auto mt-9 max-w-md">
+        {autoOpen ? (
+          <p className="mb-4 text-base font-black text-navy" role="status">Abrindo o WhatsApp…</p>
+        ) : null}
         <a
           className="inline-flex min-h-[58px] w-full items-center justify-center gap-3 rounded-full bg-[#25D366] px-7 py-3 text-lg font-black text-white shadow-[0_18px_45px_rgba(37,211,102,0.25)] transition duration-200 hover:-translate-y-0.5 hover:bg-[#1fb857] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#25D366]"
-          href={`https://wa.me/${contact.phone}?text=${encodeURIComponent(withContactCode(MESSAGE, registrationId))}`}
+          href={whatsappUrl}
           rel="noopener noreferrer"
           target="_blank"
         >
           <MessageCircle aria-hidden="true" className="h-6 w-6" />
-          Receber minha simulação
+          {autoOpen ? "Abrir o WhatsApp" : "Receber minha simulação"}
         </a>
         <p className="mt-3 text-sm font-semibold leading-6 text-muted">
-          Toque no botão e envie a mensagem no WhatsApp para agilizar o seu atendimento.
+          {autoOpen
+            ? "Se o WhatsApp não abrir sozinho, toque no botão. Depois é só enviar a mensagem pronta para receber a sua simulação."
+            : "Toque no botão e envie a mensagem no WhatsApp para agilizar o seu atendimento."}
         </p>
       </div>
     );
