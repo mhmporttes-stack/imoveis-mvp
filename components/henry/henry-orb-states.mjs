@@ -137,17 +137,22 @@ export function wakeSmooth(a, b, value) {
 // velocidade angular depois da entrada.
 export function wakeHead({ cx, cy, R, big }) {
   const { in: T_IN, laps: T_LAPS, fast: T_FAST } = HENRY_WAKE;
-  const A = (6 * Math.PI) / (T_LAPS * T_LAPS);
-  const W1 = 2 * A * T_LAPS;
-  const angleAt = (tau) => (tau <= T_LAPS ? A * tau * tau : 6 * Math.PI + W1 * (tau - T_LAPS) + 22 * Math.pow(tau - T_LAPS, 2));
-  const omega = (tau) => (tau <= T_LAPS ? 2 * A * tau : W1 + 44 * (tau - T_LAPS));
-  const radiusAt = (tau) => big + (R - big) * Math.pow(wakeSmooth(0, T_LAPS + T_FAST, tau), 1.3);
+  // Emenda suave (dono, 2026-10-24, protótipo v27: "um risco no topo, os fios dobrando"): a subida termina na HORIZONTAL
+  // (controle na altura do topo) e o giro começa com a mesma velocidade com que a subida chega — antes o giro partia do
+  // zero (A·τ²) e a cabeça parava ali, dobrando os fios.
   const x0 = -80;
   const y0 = cy;
-  const x1 = cx * 0.2;
-  const y1 = cy - big * 1.15;
+  const x1 = cx * 0.25;
+  const y1 = cy - big;
   const x2 = cx;
   const y2 = cy - big;
+  const vEnd = 2 * (x2 - x1) * (0.4 / T_IN); // velocidade da cabeça no fim da subida (px/s)
+  const W0 = vEnd / big; // mesma velocidade, em ângulo, no início do giro
+  const A = (6 * Math.PI - W0 * T_LAPS) / (T_LAPS * T_LAPS); // 3 voltas em T_LAPS, acelerando a partir de W0
+  const W1 = W0 + 2 * A * T_LAPS;
+  const angleAt = (tau) => (tau <= T_LAPS ? W0 * tau + A * tau * tau : 6 * Math.PI + W1 * (tau - T_LAPS) + 22 * Math.pow(tau - T_LAPS, 2));
+  const omega = (tau) => (tau <= T_LAPS ? W0 + 2 * A * tau : W1 + 44 * (tau - T_LAPS));
+  const radiusAt = (tau) => big + (R - big) * Math.pow(wakeSmooth(0, T_LAPS + T_FAST, tau), 1.3);
   const at = (tt) => {
     if (tt <= T_IN) {
       const k = wakeSmooth(0, T_IN, tt) * 0.6 + (tt / T_IN) * 0.4; // começa devagar, chega no topo já andando
@@ -160,4 +165,25 @@ export function wakeHead({ cx, cy, R, big }) {
     return [cx + r * Math.cos(theta), cy + r * Math.sin(theta)];
   };
   return { at, omega, angleAt };
+}
+
+// Distância percorrida pela cabeça do feixe (px) desde o início, em função do tempo (protótipo v30): tabela de 2400
+// amostras de 0 até o boom, com interpolação linear. O embaraçado dos fios usa essa distância (/90) como posição no
+// caminho — mesma escala na subida e no giro, sem "nó" na emenda do topo.
+export function wakePathLength(head, { samples = 2400, end = HENRY_WAKE.boom + 0.05 } = {}) {
+  const table = new Float32Array(samples + 1);
+  let [lx, ly] = head.at(0);
+  for (let i = 1; i <= samples; i += 1) {
+    const [x, y] = head.at((end * i) / samples);
+    table[i] = table[i - 1] + Math.hypot(x - lx, y - ly);
+    lx = x;
+    ly = y;
+  }
+  const step = end / samples;
+  return (tt) => {
+    const f = Math.max(0, tt) / step;
+    const i = Math.min(samples - 1, Math.floor(f));
+    const r = Math.min(1, f - i);
+    return table[i] + (table[i + 1] - table[i]) * r;
+  };
 }
