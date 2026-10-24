@@ -44,6 +44,15 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 
 
+### 2026-10-24 — Henry: Enter segurado vale com a tela cheia aberta mesmo com botão do CRM focado
+- **Data:** 2026-10-24
+- **Área:** Henry
+- **Alteração:** `pushToTalkKeyAction` ganha `expanded`: com a tela cheia aberta, o Enter segurado começa a ouvir mesmo se o foco ficou num botão/link do CRM por trás (só campo de digitação continua de fora); minimizado, como antes.
+- **Motivo:** dono: "quando ele estiver aberto, eu aperto Enter e mantenho segurado, como gravar um áudio no WhatsApp; quando soltar, ele envia" — o foco num botão do CRM (último clique) bloqueava o Enter.
+- **Arquivos afetados:** `lib/henry-voice-conversation.mjs`, `components/henry/HenryVoiceAssistant.jsx`, `tests/henry-push-to-talk.test.mjs`
+- **Risco/observação:** testes do Henry e build.
+- **Autor:** Claude Code
+
 ### 2026-10-24 — Henry: papo do dia a dia, "Vez de falar" e frustração do dono
 - **Data:** 2026-10-24
 - **Área:** Henry (assistente de voz)

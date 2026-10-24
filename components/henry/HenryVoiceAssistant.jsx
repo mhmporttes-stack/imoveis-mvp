@@ -3339,6 +3339,7 @@ export default function HenryVoiceAssistant() {
         isComposing: event.isComposing,
         target: event.target,
         henryActive: true,
+        expanded: expandedRef.current,
         locked: lockRef.current.locked || openingRef.current
       });
       if (action && beginPushToTalk(action)) event.preventDefault();

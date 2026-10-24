@@ -55,6 +55,15 @@ test("Enter: dispara fora de campos; nunca em input/textarea/contenteditable/sel
   assert.equal(pushToTalkTargetKind(el("svg", { parent: el("button", { parent: henry }) })), "free");
 });
 
+test("Enter com a tela cheia aberta: vale até com botão/link do CRM focado por trás; campo de texto continua de fora", () => {
+  assert.equal(enter(el("button", { parent: el("form", { parent: body }) }), { expanded: true }), "enter");
+  assert.equal(enter(el("a", { parent: body }), { expanded: true }), "enter");
+  assert.equal(enter(body, { expanded: true }), "enter");
+  assert.equal(enter(el("input", { parent: body, type: "text" }), { expanded: true }), null);
+  assert.equal(enter(el("textarea", { parent: body }), { expanded: true }), null);
+  assert.equal(enter(body, { expanded: true, locked: true }), null);
+});
+
 test("Enter: só com o Henry ativo, sem modificador, fora de composição e fora da tela de bloqueio", () => {
   assert.equal(enter(body, { henryActive: false }), null);
   assert.equal(enter(body, { locked: true }), null);
