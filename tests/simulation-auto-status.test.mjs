@@ -30,11 +30,15 @@ test("status novo existe, logo após Aguardando simulação, sem pontuação e f
   assert.ok(CLIENT_STATUS_FILTER_GROUPS.find((group) => group.key === "simulation").statuses.includes("auto_simulation"));
 });
 
-test("roleta: o prazo da simulação e a regra 'simulação primeiro' continuam valendo", () => {
-  assert.ok(PRE_SIMULATION_STATUSES.includes("auto_simulation"));
+// [REGRA OFICIAL — dono, 2026-10-24] Simulação automática tem a mesma função de "Simulação realizada" no prazo e na
+// redistribuição (substitui o "continua no prazo" de 2026-10-19); a trava "1ª mensagem = link" segue como em completed.
+test("roleta: simulação automática segura o cliente como 'Simulação realizada'; 'simulação primeiro' continua", () => {
+  assert.ok(!PRE_SIMULATION_STATUSES.includes("auto_simulation"));
   assert.ok(SIMULATION_FIRST_STATUSES.includes("auto_simulation"));
   const client = { status: "auto_simulation", primary_monthly_income: 2500, created_at: "2026-10-19T12:00:00Z" };
-  assert.deepEqual(rouletteRuleConditions([{ type: "status_equals", value: "pending" }], client), []);
+  const rule = [{ type: "status_equals", value: "pending" }];
+  assert.deepEqual(rouletteRuleConditions(rule, client), rule);
+  assert.deepEqual(rouletteRuleConditions(rule, { ...client, status: "completed" }), rule);
 });
 
 test("mensagem humana no Chat: Simulação automática → Tentando contato (igual a Aguardando simulação)", () => {

@@ -6,7 +6,8 @@ import Badge from "@/components/ui/Badge";
 // Aviso "Cliente transferido para você" da fila de reativação (FUN-15l, dono 2026-10-19): contagem regressiva do prazo
 // para mandar a 1ª mensagem; ao vencer (ou se o servidor já devolveu o cliente) vira "Prazo encerrado — o cliente voltou
 // para a fila". `reactivation` vem do servidor (attachReactivationNoticeStates, lib/cooled-clients-reactivation.js):
-// { state: "pending" | "expired" | "requeued" | "kept", deadlineAt }. "kept" (mandou mensagem / saiu por outro motivo) = nada.
+// { state: "pending" | "expired" | "requeued" | "kept", deadlineAt, returned? }. "kept" (mandou mensagem / saiu por outro
+// motivo) = nada. `returned` = devolvido ao dono no fim da volta (uma volta só — dono, 2026-10-24).
 export default function ReactivationNoticeStatus({ reactivation, className = "" }) {
   const deadline = Date.parse(reactivation?.deadlineAt || "");
   const counting = reactivation?.state === "pending" && Number.isFinite(deadline);
@@ -31,7 +32,7 @@ export default function ReactivationNoticeStatus({ reactivation, className = "" 
   }
   return (
     <Badge tone="danger" className={`whitespace-normal ${className}`}>
-      Prazo encerrado — o cliente voltou para a fila
+      {reactivation.returned ? "Prazo encerrado — o cliente foi devolvido" : "Prazo encerrado — o cliente voltou para a fila"}
     </Badge>
   );
 }

@@ -27,7 +27,7 @@ const SAMPLE_DETAIL = {
     { title: "Funil", rows: [{ label: "Atendimento", value: "96" }, { label: "Simulação", value: "58" }, { label: "Documentação", value: "21" }, { label: "Enviados para aprovação", value: "12" }, { label: "Aprovados", value: "7" }, { label: "Vendas", value: "3", note: "igual" }] },
     { title: "Ranking e pontuação", rows: [{ label: "1º Ana", value: "412 pts" }, { label: "2º Bruno", value: "377 pts" }, { label: "3º Carla", value: "301 pts" }] },
     { title: "Meta Diária", rows: [{ label: "Equipe", value: "87%", note: "1.040 de 1.196 atividades" }] },
-    { title: "Atenção agora", rows: [{ label: "Clientes aguardando resposta", value: "9" }, { label: "Clientes esfriados para você decidir", value: "2" }] }
+    { title: "Atenção agora", rows: [{ label: "Clientes aguardando resposta", value: "9" }, { label: "Clientes frios para você decidir", value: "2" }] }
   ]
 };
 

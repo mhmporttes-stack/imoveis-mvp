@@ -12,8 +12,7 @@ import {
   autoSendSkipReason,
   closedWindowRoute,
   decideAutoSendChannel,
-  isWaitReason,
-  pickOfflineConnectedBroker
+  isWaitReason
 } from "../lib/simulation-auto-send-core.mjs";
 import { ATTENDANCE_JOURNEY_EVENTS } from "../lib/client-attendance-core.mjs";
 
@@ -36,23 +35,16 @@ test("canal: Oficial com janela aberta, número do corretor, janela fechada e ni
   assert.deepEqual(decideAutoSendChannel({ official: { conversationId: "x", lastInboundAt: null }, nowMs: NOW }), { kind: "owner" });
 });
 
-test("janela fechada: responsável com WhatsApp conectado fica; senão roleta (on-line primeiro, depois conectado off-line)", () => {
+test("janela fechada: responsável com WhatsApp conectado fica; senão roleta só com corretor on-line (dono, 2026-10-24)", () => {
   assert.deepEqual(closedWindowRoute({ responsibleId: "b1", responsibleConnected: true }), { kind: "responsible", brokerId: "b1" });
   assert.deepEqual(closedWindowRoute({ responsibleId: "b1", responsibleConnected: false }), { kind: "roulette" });
   assert.deepEqual(closedWindowRoute({ responsibleId: "", responsibleConnected: true }), { kind: "roulette" });
-  assert.equal(pickOfflineConnectedBroker([
-    { id: "b", lastReceivedAt: "2026-10-23T10:00:00Z" },
-    { id: "a", lastReceivedAt: null },
-    { id: "c", lastReceivedAt: "2026-10-22T10:00:00Z" }
-  ]), "a");
-  assert.equal(pickOfflineConnectedBroker([{ id: "b", lastReceivedAt: "2026-10-23T10:00:00Z" }, { id: "c", lastReceivedAt: "2026-10-22T10:00:00Z" }]), "c");
-  assert.equal(pickOfflineConnectedBroker([]), null);
   const server = source("lib/simulation-auto-send.js");
-  // Roleta de sempre (on-line + WhatsApp conectado + ROL-2h) antes; off-line só com reserva da ROL-2h.
+  // Só a roleta de sempre (on-line + WhatsApp conectado + presença + ROL-2h); desconectado/off-line nunca recebe.
   const picker = server.split("async function pickClosedWindowBroker()")[1].split("\n}\n")[0];
-  assert.ok(picker.indexOf("assignRoundRobinLead()") < picker.indexOf("filterRouletteCooldownFreeIds"));
-  assert.ok(picker.indexOf("filterRouletteCooldownFreeIds") < picker.indexOf("claimRouletteReceipt"));
-  assert.match(picker, /whatsapp_restrictions/);
+  assert.match(picker, /assignRoundRobinLead\(\)/);
+  assert.doesNotMatch(picker, /whatsapp_individual_sessions|claimRouletteReceipt|conectado_offline/);
+  assert.doesNotMatch(source("lib/simulation-auto-send-core.mjs"), /pickOfflineConnectedBroker/);
   // Entrega grava o "de quem" (FUN-15h) e avisa o corretor.
   assert.match(server, /recordLeadDistributionHistory\(\{[\s\S]{0,200}fromUserId: registration\.responsible_user_id/);
 });
