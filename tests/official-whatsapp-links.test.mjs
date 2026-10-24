@@ -25,7 +25,7 @@ test("botão Receber minha simulação, Minha Jornada e o 'te chamar' do Chat us
 // Dono, 2026-10-11: o botão tinha sumido da tela final (04/10) e nenhum cliente iniciava conversa — volta e fica.
 test("tela final do formulário mostra o botão Receber minha simulação", () => {
   const success = readFileSync(new URL("../components/simulation-form/SimulationSuccess.jsx", import.meta.url), "utf8");
-  assert.match(success, /<ReceiveSimulationWhatsappButton accessToken=\{accessToken\} autoOpen=\{autoOpenWhatsapp\} brokerRef=\{brokerRef\} registrationId=\{registrationId\} \/>/);
+  assert.match(success, /<ReceiveSimulationWhatsappButton accessToken=\{accessToken\} alreadyOpened=\{whatsappAlreadyOpened\} autoOpen=\{autoOpenWhatsapp\} brokerRef=\{brokerRef\} registrationId=\{registrationId\} \/>/);
   const form = readFileSync(new URL("../components/simulation-form/SimulationForm.jsx", import.meta.url), "utf8");
   assert.match(form, /<SimulationSuccess accessToken=\{registrationContext\.preferencesAccessToken\} autoOpenWhatsapp /);
 });

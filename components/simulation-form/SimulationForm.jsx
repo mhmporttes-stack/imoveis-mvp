@@ -17,6 +17,12 @@ import { persistCampaignId, readStoredCampaignId } from "@/lib/campaign-link-cli
 import { incomeBracketLabel } from "@/lib/meta-pixel-shared";
 import { trackMetaLead } from "@/lib/meta-pixel-client";
 import {
+  FORM_WHATSAPP_FALLBACK_MS,
+  buildReceiveContactQuery,
+  resolveFormWhatsappRedirect,
+  shouldShowWhatsappFallback
+} from "@/lib/receive-simulation-contact.mjs";
+import {
   buildRegistrationSteps,
   getDefaultSimulationRegistration,
   sanitizeText,
@@ -55,7 +61,12 @@ export default function SimulationForm({ brokerRefOverride = "", journeySelected
     preferencesAccessToken: ""
   });
   const [firstName, setFirstName] = useState("");
+  // "Abrindo o WhatsApp…" no próprio botão "Enviar informações" (WA-10b, dono 2026-10-24: "sem essa outra aba").
+  const [openingWhatsapp, setOpeningWhatsapp] = useState(false);
+  // A troca de app não aconteceu → a tela de reserva aparece sem abrir de novo sozinha.
+  const [whatsappAlreadyOpened, setWhatsappAlreadyOpened] = useState(false);
   const advanceTimer = useRef(null);
+  const fallbackCleanup = useRef(null);
 
   const steps = useMemo(() => buildRegistrationSteps(form), [form.simulationType]);
   const currentStep = steps[currentIndex] || steps[0];
@@ -70,6 +81,7 @@ export default function SimulationForm({ brokerRefOverride = "", journeySelected
   useEffect(() => {
     return () => {
       if (advanceTimer.current) window.clearTimeout(advanceTimer.current);
+      if (fallbackCleanup.current) fallbackCleanup.current();
     };
   }, []);
 
@@ -184,19 +196,74 @@ export default function SimulationForm({ brokerRefOverride = "", journeySelected
 
       setRegistrationContext(nextContext);
       setFirstName(String(validation.data.fullName || "").trim().split(/\s+/)[0] || "");
-      // [REGRA OFICIAL DE NEGÓCIO — dono, 2026-10-24] "Ir direto ao WhatsApp": cadastro salvo → tela curta "Recebemos" que
-      // abre sozinha o WhatsApp com a mensagem pronta (a simulação chega por lá, SIM-AUTO-ENVIO). O convite de preferências
-      // de imóvel não aparece mais neste caminho (a página troca de app); os componentes continuam no projeto.
-      setCompletionView("success");
 
       const totalIncome = validation.data.primaryMonthlyIncome + (validation.data.secondaryMonthlyIncome || 0);
-      // Só conta lead na Meta quando virou cadastro novo no CRM (mesma regra do servidor).
+      // Só conta lead na Meta quando virou cadastro novo no CRM (mesma regra do servidor). Antes de trocar de app; o
+      // servidor também manda o Lead pela Conversions API com o mesmo eventId.
       if (data.isNewRegistration !== false) trackMetaLead({ phone: validation.data.phoneNormalized, eventId, incomeBracket: incomeBracketLabel(totalIncome) });
+
+      // [REGRA OFICIAL DE NEGÓCIO — dono, 2026-10-24] "Ir direto ao WhatsApp", refinada no mesmo dia: "ele deve abrir no
+      // botão anterior já, sem informar, sem essa outra aba". Cadastro salvo → o próprio botão vira "Abrindo o WhatsApp…" e a
+      // página vai na hora para o MESMO link do botão de reserva (a simulação chega por lá, SIM-AUTO-ENVIO). A tela
+      // "Recebemos" com o botão de reserva só aparece se a troca de app não acontecer (~3 s com a página visível) ou nos
+      // estados espera/indisponível da WA-10. O convite de preferências de imóvel não aparece neste caminho.
+      setOpeningWhatsapp(true);
+      await openWhatsappOrFallback(nextContext);
     } catch {
       setSubmitError("Não foi possível enviar seus dados. Verifique sua conexão e tente novamente.");
     } finally {
       setSubmitting(false);
     }
+  }
+
+  // Cadastro JÁ salvo: nada aqui pode virar "não foi possível enviar seus dados". Qualquer falha ao descobrir o link leva à
+  // tela de reserva, cujo botão consulta a rota de novo e mostra espera/indisponível (WA-10).
+  async function openWhatsappOrFallback(context) {
+    let url = "";
+    try {
+      const query = buildReceiveContactQuery({ registrationId: context.id, accessToken: context.preferencesAccessToken, brokerRef });
+      const response = await fetch(`/api/whatsapp-contact${query}`, { cache: "no-store" });
+      const contact = response.ok ? await response.json() : null;
+      url = resolveFormWhatsappRedirect({ state: contact?.state, phone: contact?.phone, registrationId: context.id });
+    } catch (error) {
+      console.warn("WhatsApp do formulário: link não resolvido, mostrando a tela de reserva.", error?.message || error);
+    }
+
+    if (!url) {
+      setOpeningWhatsapp(false);
+      setCompletionView("success");
+      return;
+    }
+
+    setWhatsappAlreadyOpened(true);
+    window.location.href = url;
+    watchWhatsappFallback();
+  }
+
+  // Se a página continuar visível ~3 s depois (WhatsApp não abriu) — ou quando o cliente voltar do WhatsApp — mostra a tela
+  // com o botão de reserva "Abrir o WhatsApp".
+  function watchWhatsappFallback() {
+    if (fallbackCleanup.current) fallbackCleanup.current();
+    let timer = null;
+    const showFallback = () => {
+      cleanup();
+      setOpeningWhatsapp(false);
+      setCompletionView("success");
+    };
+    const onVisibility = () => {
+      if (shouldShowWhatsappFallback(document.visibilityState)) showFallback();
+    };
+    function cleanup() {
+      if (timer) window.clearTimeout(timer);
+      document.removeEventListener("visibilitychange", onVisibility);
+      fallbackCleanup.current = null;
+    }
+    timer = window.setTimeout(() => {
+      timer = null;
+      if (shouldShowWhatsappFallback(document.visibilityState)) showFallback();
+      else document.addEventListener("visibilitychange", onVisibility);
+    }, FORM_WHATSAPP_FALLBACK_MS);
+    fallbackCleanup.current = cleanup;
   }
 
   async function skipPreferences() {
@@ -243,7 +310,7 @@ export default function SimulationForm({ brokerRefOverride = "", journeySelected
     );
   }
 
-  if (completionView === "success") return <SimulationSuccess accessToken={registrationContext.preferencesAccessToken} autoOpenWhatsapp brokerRef={brokerRef} firstName={firstName} registrationId={registrationContext.id} />;
+  if (completionView === "success") return <SimulationSuccess accessToken={registrationContext.preferencesAccessToken} autoOpenWhatsapp brokerRef={brokerRef} firstName={firstName} registrationId={registrationContext.id} whatsappAlreadyOpened={whatsappAlreadyOpened} />;
 
   return (
     <article className="mx-auto w-full max-w-3xl rounded-[32px] border border-line bg-white p-6 shadow-soft sm:p-8 lg:p-10">
@@ -289,7 +356,7 @@ export default function SimulationForm({ brokerRefOverride = "", journeySelected
       <div className="mt-8 flex flex-col-reverse gap-3 border-t border-line pt-6 sm:flex-row sm:items-center sm:justify-between">
         <button
           className="premium-button-secondary justify-center disabled:pointer-events-none disabled:opacity-40"
-          disabled={currentIndex === 0 || submitting}
+          disabled={currentIndex === 0 || submitting || openingWhatsapp}
           onClick={goBack}
           type="button"
         >
@@ -299,12 +366,12 @@ export default function SimulationForm({ brokerRefOverride = "", journeySelected
 
         <button
           className="premium-button-primary justify-center disabled:pointer-events-none disabled:opacity-70"
-          disabled={submitting}
+          disabled={submitting || openingWhatsapp}
           onClick={goNext}
           type="button"
         >
-          {submitting ? "Enviando informações..." : isLastStep ? "Enviar informações" : "Continuar"}
-          {!submitting ? <ArrowRight className="ml-2 h-5 w-5" aria-hidden="true" /> : null}
+          {openingWhatsapp ? "Abrindo o WhatsApp…" : submitting ? "Enviando informações..." : isLastStep ? "Enviar informações" : "Continuar"}
+          {!submitting && !openingWhatsapp ? <ArrowRight className="ml-2 h-5 w-5" aria-hidden="true" /> : null}
         </button>
       </div>
     </article>

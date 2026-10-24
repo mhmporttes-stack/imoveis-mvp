@@ -611,6 +611,15 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-24 — Formulário abre o WhatsApp direto do "Enviar informações" e valores com ",00" fixo — branch `fix/ficha-whatsapp-sem-tela`, NÃO publicado
+- **Data:** 2026-10-24
+- **Área:** Formulário público de simulação (WA-10b refinada, WA-10c nova)
+- **Alteração 1 (WA-10b):** [REGRA OFICIAL DE NEGÓCIO — dono, 2026-10-24] "ele deve abrir no botão anterior já, sem informar, sem essa outra aba". Cadastro salvo → o botão "Enviar informações" vira "Abrindo o WhatsApp…", o formulário consulta `/api/whatsapp-contact` e faz `location.href` na hora para o MESMO link (sem a tela "Recebemos" e sem a espera de 1,2 s). A tela de reserva com "Abrir o WhatsApp" só aparece se a página seguir visível ~3 s depois (ou quando o cliente volta do WhatsApp) — sem abrir de novo sozinha — ou se a rota responder espera/indisponível/erro. Lead do pixel passou a sair antes da troca de app. Funções novas em `lib/receive-simulation-contact.mjs`: `buildReceiveContactQuery` (consulta única, usada também pelo botão), `resolveFormWhatsappRedirect`, `FORM_WHATSAPP_FALLBACK_MS`/`shouldShowWhatsappFallback`; botão ganhou `alreadyOpened`.
+- **Alteração 2 (WA-10c):** [REGRA OFICIAL DE NEGÓCIO — dono, 2026-10-24] "deixe ali vírgula e 00 na frente". A máscara de renda/valor disponível preenchia pelos centavos ("3800" → "R$ 38,00"); agora o cliente digita reais inteiros e o ",00" é fixo ("R$ 3.800,00"), cursor antes da vírgula. Texto gravado no mesmo formato (`parseCurrencyNumber` → 3800); validação de renda ≥ R$ 1.000 inalterada. `lib/whole-reais-input.mjs` (novo), `CurrencyInputStep.jsx`. `formatCurrencyFromDigits` ficou sem uso no formulário (não removida).
+- **Arquivos:** `components/simulation-form/SimulationForm.jsx`, `SimulationSuccess.jsx`, `ReceiveSimulationWhatsappButton.jsx`, `CurrencyInputStep.jsx`, `lib/receive-simulation-contact.mjs`, `lib/whole-reais-input.mjs`; testes `tests/simulation-form-direct-whatsapp.test.mjs`, `tests/whole-reais-input.test.mjs` (novo), `tests/official-whatsapp-links.test.mjs`; `docs/BUSINESS_RULES.md` WA-10b/WA-10c, `.claude/rules/integracoes-externas.md`.
+- **Validação:** testes da área verdes (falha pré-existente em `official-whatsapp-links` sobre `WhatsappChat.jsx`, sem relação); `pnpm build`. Nenhuma mensagem enviada. **A CONFIRMAR** no celular real (iPhone/Android): troca de app direta e o cursor antes da vírgula.
+- **Risco/observação:** sem migration, rota ou permissão nova.
+
 ### 2026-10-24 — Formulário vai direto ao WhatsApp ao concluir o cadastro — branch `feat/ficha-direto-whatsapp`, NÃO publicado
 - **Data:** 2026-10-24
 - **Área:** Formulário público de simulação (WA-10 / PRES-25 / SIM-AUTO-ENVIO)

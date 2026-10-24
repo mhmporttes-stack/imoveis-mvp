@@ -6,6 +6,7 @@ import { MessageCircle } from "lucide-react";
 import {
   AUTO_OPEN_WHATSAPP_DELAY_MS,
   RECEIVE_CONTACT_STATE,
+  buildReceiveContactQuery,
   buildReceiveSimulationWhatsappUrl,
   shouldAutoOpenWhatsapp
 } from "@/lib/receive-simulation-contact.mjs";
@@ -24,19 +25,19 @@ const WAITING_MAX_ATTEMPTS = 40;
 // continuam tratados aqui (modo antigo da rota).
 // Desde 2026-10-24 (dono, "Ir direto ao WhatsApp") o formulário passa `autoOpen`: com o link pronto, abre o MESMO link
 // sozinho (location.href — funciona no iPhone, onde abrir janela sem toque é bloqueado); o botão fica como reserva.
-export default function ReceiveSimulationWhatsappButton({ brokerRef = "", registrationId = "", accessToken = "", autoOpen = false }) {
+// `alreadyOpened`: o formulário já mandou abrir o WhatsApp direto do botão "Enviar informações" e a troca de app não
+// aconteceu — a tela vira só a reserva (não abre de novo sozinha, não mostra "Abrindo o WhatsApp…").
+export default function ReceiveSimulationWhatsappButton({ brokerRef = "", registrationId = "", accessToken = "", autoOpen = false, alreadyOpened = false }) {
   const [contact, setContact] = useState({ state: "loading", phone: "" });
   const [gaveUpWaiting, setGaveUpWaiting] = useState(false);
-  const openedRef = useRef(false);
+  const openedRef = useRef(Boolean(alreadyOpened));
 
   useEffect(() => {
     let cancelled = false;
     let timer = null;
     let attempts = 0;
 
-    const query = registrationId && accessToken
-      ? `?registrationId=${encodeURIComponent(registrationId)}&token=${encodeURIComponent(accessToken)}`
-      : brokerRef ? `?ref=${encodeURIComponent(brokerRef)}` : "";
+    const query = buildReceiveContactQuery({ registrationId, accessToken, brokerRef });
 
     async function load() {
       attempts += 1;
@@ -83,7 +84,7 @@ export default function ReceiveSimulationWhatsappButton({ brokerRef = "", regist
   if (contact.state === RECEIVE_CONTACT_STATE.READY) {
     return (
       <div className="mx-auto mt-9 max-w-md">
-        {autoOpen ? (
+        {autoOpen && !alreadyOpened ? (
           <p className="mb-4 text-base font-black text-navy" role="status">Abrindo o WhatsApp…</p>
         ) : null}
         <a

@@ -1,14 +1,19 @@
-// [REGRA OFICIAL DE NEGÓCIO — dono, 2026-10-24] Ficha direto no WhatsApp: cadastro salvo → abre sozinho o WhatsApp (mesmo
-// link do botão "Receber minha simulação"), tela final sem os valores, botão de reserva continua.
+// [REGRA OFICIAL DE NEGÓCIO — dono, 2026-10-24] Ficha direto no WhatsApp: cadastro salvo → abre o WhatsApp direto do botão
+// "Enviar informações" (mesmo link do botão "Receber minha simulação"), sem a tela intermediária ("sem essa outra aba");
+// tela final só como reserva, sem os valores; botão de reserva continua.
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
 import {
   AUTO_OPEN_WHATSAPP_DELAY_MS,
+  FORM_WHATSAPP_FALLBACK_MS,
   RECEIVE_CONTACT_STATE,
+  buildReceiveContactQuery,
   buildReceiveSimulationWhatsappUrl,
-  shouldAutoOpenWhatsapp
+  resolveFormWhatsappRedirect,
+  shouldAutoOpenWhatsapp,
+  shouldShowWhatsappFallback
 } from "../lib/receive-simulation-contact.mjs";
 import { FORM_COMPLETION_MESSAGE, isFormCompletionMessage } from "../lib/whatsapp-form-completion.mjs";
 import { extractContactCode } from "../lib/whatsapp-contact-code-core.mjs";
@@ -41,20 +46,42 @@ test("abre sozinho só com link pronto, uma vez, e só quando o formulário pedi
 
 test("a abertura acontece bem antes de o envio automático decidir o canal (sem mandar pelo número do dono antes da hora)", () => {
   assert.ok(AUTO_OPEN_WHATSAPP_DELAY_MS <= 3000);
+  assert.ok(FORM_WHATSAPP_FALLBACK_MS <= 5000);
   assert.ok(AUTO_SEND_DELAY_MS >= 60 * 1000);
 });
 
-test("formulário: cadastro salvo vai direto à tela final com abertura automática; tela sem valores; botão continua", () => {
+test("formulário: link direto só com 'ready' e número válido; o resto vai para a reserva", () => {
+  const url = resolveFormWhatsappRedirect({ state: RECEIVE_CONTACT_STATE.READY, phone: OFFICIAL_WHATSAPP_DIGITS, registrationId: ID });
+  assert.equal(url, buildReceiveSimulationWhatsappUrl(OFFICIAL_WHATSAPP_DIGITS, ID), "MESMO link do botão de reserva");
+  assert.equal(resolveFormWhatsappRedirect({ state: RECEIVE_CONTACT_STATE.WAITING, registrationId: ID }), "");
+  assert.equal(resolveFormWhatsappRedirect({ state: RECEIVE_CONTACT_STATE.UNAVAILABLE, registrationId: ID }), "");
+  assert.equal(resolveFormWhatsappRedirect({}), "", "erro na rota → reserva");
+  assert.equal(shouldShowWhatsappFallback("visible"), true, "página ainda visível = WhatsApp não abriu");
+  assert.equal(shouldShowWhatsappFallback("hidden"), false);
+  assert.equal(buildReceiveContactQuery({ registrationId: "a b", accessToken: "t" }), "?registrationId=a%20b&token=t");
+  assert.equal(buildReceiveContactQuery({ brokerRef: "bruna" }), "?ref=bruna");
+  assert.equal(buildReceiveContactQuery({}), "");
+});
+
+test("formulário: abre direto do botão 'Enviar informações', sem trocar de tela; reserva só se não abrir", () => {
   const form = read("components/simulation-form/SimulationForm.jsx");
-  assert.match(form, /setCompletionView\("success"\);/);
   assert.ok(!form.includes('? "invite" : "success"'), "não passa mais pelo convite de preferências antes do WhatsApp");
-  assert.match(form, /<SimulationSuccess [^>]*autoOpenWhatsapp/);
+  assert.match(form, /window\.location\.href = url;/, "location.href (funciona no iPhone, sem window.open)");
+  assert.ok(!form.includes("window.open"));
+  assert.match(form, /"Abrindo o WhatsApp…"/, "o próprio botão mostra que está abrindo");
+  const submit = form.slice(form.indexOf("async function submitForm"), form.indexOf("async function openWhatsappOrFallback"));
+  assert.ok(!submit.includes('setCompletionView("success")'), "sucesso do POST não troca para a tela 'Recebemos'");
+  assert.ok(submit.indexOf("trackMetaLead") < submit.indexOf("openWhatsappOrFallback"), "Lead do pixel antes de trocar de app");
+  assert.match(form, /resolveFormWhatsappRedirect\(/);
+  assert.match(form, /FORM_WHATSAPP_FALLBACK_MS/);
+  assert.match(form, /<SimulationSuccess [^>]*autoOpenWhatsapp[^>]*whatsappAlreadyOpened=\{whatsappAlreadyOpened\}/);
   const success = read("components/simulation-form/SimulationSuccess.jsx");
   assert.ok(!/EstimateResult|estimate/.test(success.replace(/\/\/.*$/gm, "")), "tela final sem os valores da estimativa");
   assert.match(success, /Recebemos/);
-  assert.match(success, /<ReceiveSimulationWhatsappButton /);
+  assert.match(success, /<ReceiveSimulationWhatsappButton [^>]*alreadyOpened=\{whatsappAlreadyOpened\}/);
   const button = read("components/simulation-form/ReceiveSimulationWhatsappButton.jsx");
-  assert.match(button, /window\.location\.href = whatsappUrl/, "location.href (funciona no iPhone, sem window.open)");
+  assert.match(button, /useRef\(Boolean\(alreadyOpened\)\)/, "reserva depois da tentativa não abre de novo sozinha");
+  assert.match(button, /window\.location\.href = whatsappUrl/);
   assert.ok(!button.includes("window.open"));
   assert.match(button, /href=\{whatsappUrl\}/, "botão de reserva usa o MESMO link");
 });
