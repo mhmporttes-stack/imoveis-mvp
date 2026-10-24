@@ -298,6 +298,18 @@ test("Bom dia novo (v27, emenda suave): no topo a subida vira giro sem quina nem
   }
 });
 
+test("Bom dia novo (v30): o embaraçado usa a distância percorrida — mesma escala na subida e no giro (sem nó no topo)", async () => {
+  const { HENRY_WAKE, wakeHead, wakePathLength } = await import("../components/henry/henry-orb-states.mjs");
+  const head = wakeHead({ cx: 720, cy: 450, R: 200, big: 380 });
+  const length = wakePathLength(head);
+  const T = HENRY_WAKE.in;
+  const h = 0.01;
+  const rateBefore = (length(T) - length(T - h)) / h;
+  const rateAfter = (length(T + h) - length(T)) / h;
+  assert.ok(rateBefore > 0 && Math.abs(rateAfter - rateBefore) / rateBefore < 0.05, `ritmo contínuo na emenda (${rateBefore.toFixed(0)} → ${rateAfter.toFixed(0)} px/s)`);
+  assert.ok(length(HENRY_WAKE.boom) > length(T), "cresce sempre");
+});
+
 test("Avisos lidos (v22): um item por aviso falado, na ordem, cada um entra quando a fala dele começa", async () => {
   const { alertDisplayItems, alertItemOffsets, composeHenryNoticeLines } = await import("../lib/henry-voice-client-alerts-core.mjs");
   const notices = composeHenryNoticeLines([{ id: "n1", title: "Reunião", body: "Amanhã às 9h", created_at: "2026-10-23T10:00:00Z" }]);

@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { morningSceneDate } from "@/lib/henry-morning-core.mjs";
-import { HENRY_WAKE, orbStops, wakeHead, wakeSmooth } from "./henry-orb-states.mjs";
+import { HENRY_WAKE, orbStops, wakeHead, wakePathLength, wakeSmooth } from "./henry-orb-states.mjs";
 import styles from "./HenryOpeningScene.module.css";
 
 // Cena de abertura do "bom dia" (HENRY-1; "Bom dia novo", protótipo v22 aprovado pelo dono em 2026-10-23 — substitui a
@@ -106,6 +106,7 @@ function useWakeCanvas(canvasRef, { enabled, geometryRef, onBoom }) {
     const parts = [];
     let frame = 0;
     const stops = orbStops(0);
+    const lut = { key: "", length: null }; // distância ao longo do caminho (wakePathLength), refeita só se a tela mudar
     const draw = (now) => {
       const time = (now - started) / 1000;
       const dt = Math.min(0.05, (now - last) / 1000);
@@ -130,10 +131,11 @@ function useWakeCanvas(canvasRef, { enabled, geometryRef, onBoom }) {
         const alpha = Math.min(1, time / 0.3) * (0.55 + 0.4 * close); // bem visível, se sobressaindo
         // Fluidez (dono, 2026-10-23/24, protótipos v26/v28): a trajetória (centro + normal) é calculada UMA vez por quadro
         // em Float32Array e cada fio só soma o próprio deslocamento; corpo de cada fio num traço só (pontos densos).
-        // Final da linha (v28): sem corte reto — a partir de 60% do comprimento a cauda some aos poucos (alpha e espessura
-        // até zero), em 6 trechos encostados sem sobrepor (lineCap butt: no modo aditivo sobreposição marcaria) e os fios se
-        // juntam enquanto somem. Sem a faixa larga de brilho (o dono via como uma "marca"). Computador 16 fios × 200
-        // pontos; celular (< 820 px) 14 × 160.
+        // Final da linha (v28/v29): sem corte reto — a partir de 60% do comprimento a cauda some aos poucos (alpha e
+        // espessura até zero), em 16 trechos encostados, e os fios se juntam enquanto somem. Sem a faixa larga de brilho
+        // (o dono via como uma "marca"). Computador 16 fios × 200 pontos; celular (< 820 px) 14 × 160. v29: fios presos ao
+        // caminho (Q) e curvas pelos pontos médios; v30: Q pela distância percorrida; v31: ponta de cometa (headIn) e
+        // pontas arredondadas.
         const phone = W < 820;
         const strands = phone ? 14 : 16;
         const points = phone ? 160 : WAKE_POINTS;
@@ -143,12 +145,24 @@ function useWakeCanvas(canvasRef, { enabled, geometryRef, onBoom }) {
         const NX = new Float32Array(n + 1);
         const NY = new Float32Array(n + 1);
         const U = new Float32Array(n + 1);
+        // Q = posição AO LONGO DO CAMINHO (v29): o embaraçado fica preso ao trajeto e anda junto com ele — antes dependia
+        // da fração da cauda, que muda de tamanho a cada quadro, e os fios "nadavam". v30: Q = distância percorrida em px
+        // / 90 (tabela calculada uma vez por tamanho de tela), mesma escala na subida e no giro — sem "nó" no topo.
+        const Q = new Float32Array(n + 1);
+        const lutKey = `${W}x${H}x${R}x${big}`;
+        if (lut.key !== lutKey) {
+          lut.key = lutKey;
+          lut.length = wakePathLength(head);
+        }
+        const pathPos = (tt) => lut.length(tt) / 90;
         for (let k = 0; k <= n; k += 1) {
           const u = k / points;
-          const [hx, hy] = head.at(Math.max(0, time - u * trail));
+          const tt = Math.max(0, time - u * trail);
+          const [hx, hy] = head.at(tt);
           PX[k] = hx;
           PY[k] = hy;
           U[k] = u;
+          Q[k] = pathPos(tt);
         }
         for (let k = 0; k <= n; k += 1) {
           const k0 = Math.max(0, k - 1);
@@ -162,9 +176,12 @@ function useWakeCanvas(canvasRef, { enabled, geometryRef, onBoom }) {
         const tailStart = Math.floor(n * 0.6);
         const fade = (k) => (k <= tailStart ? 1 : Math.max(0, 1 - (k - tailStart) / Math.max(1, n - tailStart)));
         const width = 1.1 + close * 0.4;
+        // Ponta (dono, 2026-10-24, v31: "linhas cortadas, retas" na frente): os fios convergem suavemente para a cabeça de
+        // luz, como um cometa, e as pontas são arredondadas — nenhum fio termina solto com corte reto.
+        const headIn = (k) => wakeSmooth(0, 1, Math.min(1, k / Math.max(1, n * 0.14)));
         const X = new Float32Array(n + 1);
         const Y = new Float32Array(n + 1);
-        ctx.lineCap = "butt";
+        ctx.lineCap = "round";
         ctx.lineJoin = "round";
         for (let index = 0; index < strands; index += 1) {
           const seed = WAKE_SEEDS[index];
@@ -172,31 +189,36 @@ function useWakeCanvas(canvasRef, { enabled, geometryRef, onBoom }) {
           const w1 = 3 + seed.k * 2;
           for (let k = 0; k <= n; k += 1) {
             const u = U[k];
-            // fios cruzando entre si (embaraçado); na cauda se juntam enquanto somem
-            const o = tangle * (Math.sin(u * f1 + time * w1 + seed.a) * 0.65 + Math.sin(u * 13 - time * 4 + seed.b) * 0.35) * (0.4 + 0.6 * Math.sin(Math.PI * Math.min(1, u * 1.2 + 0.1))) * (0.35 + 0.65 * fade(k));
+            const q = Q[k];
+            // fios cruzando entre si (embaraçado), presos ao caminho; ondulam devagar no tempo; na cauda se juntam e somem
+            const o = tangle * (Math.sin(q * f1 * 0.35 + time * w1 * 0.35 + seed.a) * 0.65 + Math.sin(q * 1.9 - time * 1.3 + seed.b) * 0.35) * (0.4 + 0.6 * Math.sin(Math.PI * Math.min(1, u * 1.2 + 0.1))) * (0.35 + 0.65 * fade(k)) * headIn(k);
             X[k] = PX[k] + NX[k] * o;
             Y[k] = PY[k] + NY[k] * o;
           }
+          // Curvas pelos pontos médios (v29), sem quinas mesmo no giro rápido; cada trecho começa onde o anterior termina.
+          const curve = (path, a0, a1) => {
+            path.moveTo(a0 === 0 ? X[0] : (X[a0 - 1] + X[a0]) / 2, a0 === 0 ? Y[0] : (Y[a0 - 1] + Y[a0]) / 2);
+            for (let k = a0; k < a1; k += 1) path.quadraticCurveTo(X[k], Y[k], (X[k] + X[k + 1]) / 2, (Y[k] + Y[k + 1]) / 2);
+          };
           let path = new Path2D(); // corpo até onde começa a cauda, num traço só
-          path.moveTo(X[0], Y[0]);
-          for (let k = 1; k <= tailStart; k += 1) path.lineTo(X[k], Y[k]);
+          curve(path, 0, tailStart);
           ctx.globalAlpha = alpha;
           ctx.lineWidth = width;
           ctx.stroke(path);
-          const length = n - tailStart; // cauda: 6 trechos encostados, cada um mais fino e mais apagado
-          for (let c = 0; c < 6; c += 1) {
-            const s0 = tailStart + Math.floor((length * c) / 6);
-            const s1 = tailStart + Math.floor((length * (c + 1)) / 6);
+          const length = n - tailStart; // cauda: 16 trechos encostados (v29), cada um mais fino e mais apagado
+          for (let c = 0; c < 16; c += 1) {
+            const s0 = tailStart + Math.floor((length * c) / 16);
+            const s1 = tailStart + Math.floor((length * (c + 1)) / 16);
             if (s1 <= s0) continue;
             path = new Path2D();
-            path.moveTo(X[s0], Y[s0]);
-            for (let k = s0 + 1; k <= s1; k += 1) path.lineTo(X[k], Y[k]);
+            curve(path, s0, s1);
             const f = fade((s0 + s1) / 2);
             ctx.globalAlpha = alpha * f * f;
             ctx.lineWidth = width * (0.4 + 0.6 * f);
             ctx.stroke(path);
           }
         }
+        ctx.lineCap = "butt";
         ctx.lineJoin = "miter";
         if (time < HENRY_WAKE.boom) {
           const [hx, hy] = head.at(time); // cabeça do feixe: ponto de luz que puxa os fios

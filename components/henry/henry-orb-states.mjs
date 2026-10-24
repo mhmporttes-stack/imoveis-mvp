@@ -166,3 +166,24 @@ export function wakeHead({ cx, cy, R, big }) {
   };
   return { at, omega, angleAt };
 }
+
+// Distância percorrida pela cabeça do feixe (px) desde o início, em função do tempo (protótipo v30): tabela de 2400
+// amostras de 0 até o boom, com interpolação linear. O embaraçado dos fios usa essa distância (/90) como posição no
+// caminho — mesma escala na subida e no giro, sem "nó" na emenda do topo.
+export function wakePathLength(head, { samples = 2400, end = HENRY_WAKE.boom + 0.05 } = {}) {
+  const table = new Float32Array(samples + 1);
+  let [lx, ly] = head.at(0);
+  for (let i = 1; i <= samples; i += 1) {
+    const [x, y] = head.at((end * i) / samples);
+    table[i] = table[i - 1] + Math.hypot(x - lx, y - ly);
+    lx = x;
+    ly = y;
+  }
+  const step = end / samples;
+  return (tt) => {
+    const f = Math.max(0, tt) / step;
+    const i = Math.min(samples - 1, Math.floor(f));
+    const r = Math.min(1, f - i);
+    return table[i] + (table[i + 1] - table[i]) * r;
+  };
+}
