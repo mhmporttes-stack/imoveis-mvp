@@ -44,6 +44,15 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 
 
+### 2026-10-24 — Henry: modo treino (conversa simulada em texto, somente leitura)
+- **Data:** 2026-10-24
+- **Área:** Henry
+- **Alteração:** cartão "Treino do Henry" em `/admin/alexa` + rota `GET/POST /api/admin/henry/treino` (só o dono). Roteiro de 8 cenários (40 trocas) enviado ao mesmo `answerHenry`, com "dono simulado" opcional; respostas em texto (voz só a do navegador, por botão) e relatório automático de repetições e falas erradas. Em `lib/henry-voice.js`, contexto de treino (`AsyncLocalStorage`): memória do dia/lembretes/música/elogios isolados da rodada, outras gravações em `crm_settings` ignoradas, Spotify simulado, custo em `ai_usage_log` origem `henry_training`.
+- **Motivo:** pedido do dono: treinar as respostas do Henry sem gastar ElevenLabs, ver repetições e falas erradas.
+- **Arquivos afetados:** `lib/henry-training-core.mjs` (novo), `lib/henry-training.js` (novo), `lib/henry-voice.js`, `app/api/admin/henry/treino/route.js` (novo), `components/henry/HenryTrainingCard.jsx` (novo), `app/admin/alexa/page.jsx`, `tests/henry-training.test.mjs` (novo), `docs/BUSINESS_RULES.md` (HENRY-1 "Modo treino", PENDENTE DE VALIDAÇÃO).
+- **Risco/observação:** fora do treino nada muda (todo desvio só com o contexto de treino ativo). Ferramentas de leitura do CRM rodam de verdade (custo de leitura do banco normal). Relógio real: "dia inteiro" é simulado pelo texto. Sem script de linha de comando (rota exige sessão do dono). `node --test tests/henry*.test.mjs` e `pnpm build`. Não rodado contra a API real nesta sessão (sem chaves/sessão no container).
+- **Autor:** Claude Code (crm-editor)
+
 ### 2026-10-24 — Henry: boom do bom dia sem plasma e sem anéis
 - **Data:** 2026-10-24
 - **Área:** Henry

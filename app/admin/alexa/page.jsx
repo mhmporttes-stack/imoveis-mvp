@@ -2,6 +2,7 @@ import AdminSectionNav from "@/components/AdminSectionNav";
 import AlexaSettings from "@/components/alexa/AlexaSettings";
 import WifiPresenceSection from "@/components/alexa/WifiPresenceSection";
 import HenrySettingsCard from "@/components/henry/HenrySettingsCard";
+import HenryTrainingCard from "@/components/henry/HenryTrainingCard";
 import { requireGeneralAdminPage } from "@/lib/admin-auth";
 import { getAlexaEnvStatus, loadAlexaSettings } from "@/lib/alexa-service";
 import { getArrivalStatus } from "@/lib/alexa-arrival";
@@ -22,6 +23,8 @@ export default async function AdminAlexaPage() {
       <WifiPresenceSection />
       {/* Liga/desliga do assistente de voz Henry (HENRY-1): o cartão só aparece para o dono. */}
       <HenrySettingsCard />
+      {/* Treino do Henry (HENRY-1 "Modo treino"): só o dono; conversa simulada em texto, somente leitura. */}
+      <HenryTrainingCard />
     </main>
   );
 }
