@@ -6,7 +6,11 @@ Dados enviados pelo dono: apartamento à venda no Condomínio Torres de Marília
 
 ## Site / CRM
 
-Pendente.
+**No site desde 2026-10-24:** `properties` id `901fe375-85ca-4694-bfc8-db1b71bf25b7`, publicado, contato Agnelo salvo. Fotos no GitHub (commit 1cb2723). Página: https://www.matheusmachadoimoveis.com.br/empreendimentos/901fe375-85ca-4694-bfc8-db1b71bf25b7
+
+**Marketplace:** na fila, aprovado (id b0fad2c3).
+
+**Instagram:** enviado 1x em 2026-10-24, tempo esgotado; não apareceu no Windsor (cache). NÃO reenviar sem o dono confirmar.
 
 ## Legenda
 
