@@ -17,15 +17,15 @@ import { HENRY_LOCK_COOKIE } from "@/lib/henry-lock-core.mjs";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-// Tela de bloqueio do Henry (REGRA OFICIAL — dono, 2026-10-23; docs/BUSINESS_RULES.md HENRY-LOCK). Só o dono (mesmo
+// Tela de bloqueio do Henry (REGRA OFICIAL — dono, 2026-10-24, bloqueio só manual; docs/BUSINESS_RULES.md HENRY-LOCK). Só o dono (mesmo
 // guard do Henry). Estado, tentativas e esperas ficam no SERVIDOR (lib/henry-lock.js); a senha nunca vai para log.
 //   GET                                → { configured, locked, fullscreen, idleMinutes, waitSeconds }
-//   POST { action: "engage" }          → bloqueia (abriu a tela cheia, "Henry, bloqueia", botão, inatividade)
+//   POST { action: "engage" }          → bloqueia (cadeado da barra da tela cheia ou "Henry, bloqueia")
 //   POST { action: "unlock", pin }     → desbloqueia e grava o cookie HttpOnly deste aparelho
-//   POST { action: "touch" }           → interação na tela cheia: renova a inatividade (ou devolve locked)
+//   POST { action: "touch" }           → devolve o estado (sem efeito desde 2026-10-24: não há trava por inatividade)
 //   POST { action: "leave" }           → saiu da tela cheia desbloqueado (Henry pequeno = como antes)
 //   POST { action: "set_pin", pin, currentPin? } → definir/trocar a senha (trocar exige a atual)
-//   POST { action: "idle", minutes }   → minutos sem interação até bloquear (2, 5, 10, 15, 30, 60)
+//   POST { action: "idle", minutes }   → grava os minutos (legado, SEM efeito desde 2026-10-24; a tela não oferece mais)
 
 function lockError(error) {
   if (error instanceof HenryLockError) {
@@ -71,7 +71,7 @@ export async function POST(request) {
       return response;
     }
     if (action === "touch") return NextResponse.json(await resolveHenryLock(auth, { tokenHash, touch: true }));
-    if (action === "leave") return NextResponse.json(await leaveHenryFullscreen(auth, { tokenHash }));
+    if (action === "leave") return NextResponse.json(await leaveHenryFullscreen(auth));
     if (action === "idle") return NextResponse.json(await setHenryLockIdle(auth, body?.minutes));
     return NextResponse.json({ error: "Ação inválida." }, { status: 400 });
   } catch (error) {

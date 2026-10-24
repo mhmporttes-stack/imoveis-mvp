@@ -107,7 +107,7 @@ import { henryOrbMode, thinkingActivity } from "./henry-orb-states.mjs";
 import HenryCursor from "./HenryCursor";
 import { OPENING_SOUND_AT_S, playHenryOpeningSound } from "./HenryOpeningScene";
 import { captureWebcamFrame } from "./webcam-capture";
-import HenryLockScreen, { HenryUnlockedBadge } from "./HenryLockScreen";
+import HenryLockScreen from "./HenryLockScreen";
 import { HENRY_LOCK_EVENT, normalizeIdleMinutes } from "@/lib/henry-lock-core.mjs";
 import { HENRY_VAD_BARGE_OPTIONS, HENRY_VAD_RECORD_OPTIONS, createHenryVad } from "./henry-vad";
 
@@ -268,13 +268,12 @@ export default function HenryVoiceAssistant() {
   const [micState, setMicState] = useState("idle"); // idle | listening | blocked
   const [phase, setPhase] = useState("idle"); // idle | armed | thinking | speaking
   const [expanded, setExpanded] = useState(false);
-  // Tela de bloqueio (REGRA OFICIAL — dono, 2026-10-23; HENRY-LOCK). configured = senha definida (sem senha, nada muda);
+  // Tela de bloqueio (REGRA OFICIAL — dono, 2026-10-24, só manual; HENRY-LOCK). configured = senha definida (sem senha, nada muda);
   // locked = bloqueado (a tela cheia não minimiza, a conversa de antes some e todo pedido vai com locked: true — quem barra o
-  // dado é o servidor). turnStart = conversa visível desde o bloqueio. lastTouch = última renovação da inatividade no servidor.
+  // dado é o servidor). turnStart = conversa visível desde o bloqueio.
   const [lock, setLock] = useState({ configured: false, locked: false, idleMinutes: 10, waitSeconds: 0, turnStart: 0 });
   const lockRef = useRef(lock);
   lockRef.current = lock;
-  const lastTouchRef = useRef(0);
   const [lockKeypad, setLockKeypad] = useState(false); // celular: teclado numérico da tela de bloqueio aberto
   const [unlockFx, setUnlockFx] = useState(0); // cena do desbloqueio no anel (HenryVoiceView)
   const unlockedIdleRef = useRef(10);
@@ -3034,7 +3033,7 @@ export default function HenryVoiceAssistant() {
     setLock(next);
     conversationRef.current = { ...conversationRef.current, historyStart: start }; // o modelo não recebe a conversa de antes
   }, []);
-  // Abrir a tela cheia, "Henry, bloqueia", botão do cadeado e inatividade.
+  // Cadeado da barra da tela cheia e "Henry, bloqueia" (únicos jeitos de travar, dono 2026-10-24).
   const engageLock = useCallback(() => {
     if (!lockRef.current.configured) return;
     lockLocally();
@@ -3067,17 +3066,17 @@ export default function HenryVoiceAssistant() {
     setLock(next);
     setLockKeypad(false);
     lastActivityRef.current = Date.now();
-    lastTouchRef.current = Date.now();
     setUnlockFx(Date.now()); // varredura e pulso do anel
   }, []);
-  // Abriu a tela cheia → bloqueia; saiu dela desbloqueado → o Henry pequeno volta ao comportamento de antes (servidor).
+  // Bloqueio só MANUAL (REGRA OFICIAL — dono, 2026-10-24): abrir a tela cheia NÃO bloqueia e não há trava por
+  // inatividade; trava só pelo cadeado da barra (onLock) ou "Henry, bloqueia". Saiu da tela cheia desbloqueado → avisa o
+  // servidor (Henry pequeno = comportamento de antes).
   const wasExpandedRef = useRef(false);
   useEffect(() => {
     const was = wasExpandedRef.current;
     wasExpandedRef.current = expanded;
     if (!lockRef.current.configured) return;
-    if (expanded && !was && !lockRef.current.locked) engageLock(); // já bloqueado (engageLock/servidor): nada a fazer
-    else if (!expanded && was && !lockRef.current.locked) {
+    if (!expanded && was && !lockRef.current.locked) {
       fetch("/api/admin/henry/lock", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "leave" }) })
         .then((response) => (response.ok ? null : response.json().catch(() => null)))
         .then((data) => {
@@ -3085,38 +3084,7 @@ export default function HenryVoiceAssistant() {
         })
         .catch(() => {});
     }
-  }, [expanded, engageLock, lockLocally]);
-  // Inatividade na tela cheia desbloqueada: toque/tecla/fala contam; passou do tempo → bloqueia. A cada ~1 min com
-  // interação, renova no servidor (que também expira sozinho se a tela parar de avisar).
-  useEffect(() => {
-    if (!expanded || !lock.configured || lock.locked) return undefined;
-    const mark = () => {
-      lastActivityRef.current = Date.now();
-    };
-    window.addEventListener("pointerdown", mark);
-    window.addEventListener("keydown", mark);
-    const timer = window.setInterval(() => {
-      const now = Date.now();
-      if (now - lastActivityRef.current > lock.idleMinutes * 60_000) {
-        engageLock();
-        return;
-      }
-      if (lastActivityRef.current > lastTouchRef.current && now - lastTouchRef.current > 60_000) {
-        lastTouchRef.current = now;
-        fetch("/api/admin/henry/lock", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "touch" }) })
-          .then((response) => (response.ok ? response.json() : null))
-          .then((data) => {
-            if (data?.locked) lockLocally();
-          })
-          .catch(() => {});
-      }
-    }, 10_000);
-    return () => {
-      window.removeEventListener("pointerdown", mark);
-      window.removeEventListener("keydown", mark);
-      window.clearInterval(timer);
-    };
-  }, [expanded, lock.configured, lock.locked, lock.idleMinutes, engageLock, lockLocally]);
+  }, [expanded, lockLocally]);
   // Cartão do Henry definiu a senha ou mudou o tempo: vale já, sem recarregar.
   useEffect(() => {
     const onSettings = (event) => {
@@ -3224,9 +3192,10 @@ export default function HenryVoiceAssistant() {
       unlockFx={unlockFx}
       lockLayer={
         lock.configured && expanded ? (
-          lock.locked ? <HenryLockScreen key={lock.turnStart} mobile={!desktop} inline={!desktop} keypadOpen={lockKeypad} onKeypadChange={setLockKeypad} initialWaitSeconds={lock.waitSeconds} onSubmit={unlockScreen} onUnlocked={finishUnlock} /> : <HenryUnlockedBadge onLock={engageLock} />
+          lock.locked ? <HenryLockScreen key={lock.turnStart} mobile={!desktop} inline={!desktop} keypadOpen={lockKeypad} onKeypadChange={setLockKeypad} initialWaitSeconds={lock.waitSeconds} onSubmit={unlockScreen} onUnlocked={finishUnlock} /> : null
         ) : null
       }
+      onLock={lock.configured && !lock.locked ? engageLock : undefined}
       pulse={pulseConfig}
       alertList={alertList}
       onPulseOpen={(link) => {

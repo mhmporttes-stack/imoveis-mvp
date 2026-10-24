@@ -79,28 +79,37 @@ test("esperas crescentes: 5 erros = 1 min, 10 = 5 min, 15 e depois = 15 min", ()
   assert.equal(henryLockFailure({ failed_attempts: 14 }, NOW).locked_until, iso(NOW + 15 * MIN));
 });
 
-test("estado: sem senha = como antes; bloqueado; só o aparelho do token; expira por inatividade só na tela cheia", () => {
+test("estado: bloqueio só MANUAL (dono, 2026-10-24) — abrir a tela cheia, outro aparelho e inatividade não travam", () => {
   const token = hashHenryUnlockToken(newHenryUnlockToken());
   const base = { pin_hash: "scrypt$x", idle_minutes: 10, locked_at: null, fullscreen: true, unlock_token_hash: token, last_activity_at: iso(NOW - 2 * MIN) };
 
   assert.deepEqual(evaluateHenryLock(null, { now: NOW }), { configured: false, locked: false, reason: "no_pin", expire: false });
   assert.equal(evaluateHenryLock({ ...base, pin_hash: null }, { now: NOW, clientLocked: true }).locked, false);
 
-  assert.equal(evaluateHenryLock({ ...base, locked_at: iso(NOW) }, { tokenHash: token, now: NOW }).locked, true);
-  assert.equal(evaluateHenryLock(base, { tokenHash: token, now: NOW }).locked, false);
-  assert.equal(evaluateHenryLock(base, { tokenHash: "", now: NOW }).reason, "other_device");
-  assert.equal(evaluateHenryLock(base, { tokenHash: "f".repeat(64), now: NOW }).locked, true);
+  // Travado pelo cadeado (locked_at): continua travado em qualquer aparelho e depois de recarregar, até a senha.
+  assert.deepEqual(evaluateHenryLock({ ...base, locked_at: iso(NOW) }, { tokenHash: token, now: NOW }), { configured: true, locked: true, reason: "locked", expire: false });
+  assert.equal(evaluateHenryLock({ ...base, locked_at: iso(NOW) }, { tokenHash: "", now: NOW }).locked, true);
   assert.equal(evaluateHenryLock(base, { tokenHash: token, now: NOW, clientLocked: true }).locked, true, "a tela bloqueada só restringe");
 
-  // Inatividade: 10 min padrão; 11 min sem interação → bloqueia e grava (expire).
-  const idle = evaluateHenryLock({ ...base, last_activity_at: iso(NOW - 11 * MIN) }, { tokenHash: token, now: NOW });
-  assert.deepEqual(idle, { configured: true, locked: true, reason: "idle", expire: true });
-  assert.equal(evaluateHenryLock({ ...base, idle_minutes: 15, last_activity_at: iso(NOW - 11 * MIN) }, { tokenHash: token, now: NOW }).locked, false);
-  assert.equal(evaluateHenryLock({ ...base, idle_minutes: 2, last_activity_at: iso(NOW - 3 * MIN) }, { tokenHash: token, now: NOW }).expire, true);
+  // Sem locked_at: liberado — tela cheia aberta em outro aparelho (sem cookie) e muito tempo sem interação NÃO travam.
+  assert.equal(evaluateHenryLock(base, { tokenHash: token, now: NOW }).locked, false);
+  assert.equal(evaluateHenryLock(base, { tokenHash: "", now: NOW }).locked, false);
+  assert.equal(evaluateHenryLock(base, { tokenHash: "f".repeat(64), now: NOW }).locked, false);
+  const idle = evaluateHenryLock({ ...base, last_activity_at: iso(NOW - 600 * MIN) }, { tokenHash: token, now: NOW });
+  assert.deepEqual(idle, { configured: true, locked: false, reason: "unlocked", expire: false });
+  assert.equal(evaluateHenryLock({ ...base, last_activity_at: null }, { now: NOW }).expire, false);
+  assert.equal(evaluateHenryLock({ ...base, fullscreen: false, unlock_token_hash: null }, { now: NOW }).locked, false);
+});
 
-  // Fora da tela cheia, desbloqueado: Henry pequeno = comportamento de antes (sem token, sem expirar).
-  const minimized = { ...base, fullscreen: false, unlock_token_hash: null, last_activity_at: iso(NOW - 600 * MIN) };
-  assert.equal(evaluateHenryLock(minimized, { now: NOW }).locked, false);
+test("tela: abrir a tela cheia não bloqueia, sem trava por inatividade; cadeado na barra de ícones", () => {
+  const screen = read("../components/henry/HenryVoiceAssistant.jsx");
+  assert.ok(!/expanded && !was && !lockRef\.current\.locked\) engageLock\(\)/.test(screen), "abrir a tela cheia não chama engageLock");
+  assert.ok(!/lock\.idleMinutes \* 60_000/.test(screen), "sem temporizador de inatividade");
+  assert.match(screen, /onLock=\{lock\.configured && !lock\.locked \? engageLock : undefined\}/);
+  const view = read("../components/henry/HenryVoiceView.jsx");
+  assert.match(view, /\{onLock && !locked \? \(\n\s+<RoundButton onClick=\{onLock\} label="Bloquear a tela do Henry" dark>/);
+  const server = read("../lib/henry-lock.js");
+  assert.ok(!/bloqueado por inatividade/.test(server), "o servidor não grava trava sozinho");
 });
 
 test("tempo sem interação: só as opções do cartão; padrão 10 min", () => {

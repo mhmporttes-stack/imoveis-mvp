@@ -213,20 +213,5 @@ export default function HenryLockScreen({ onSubmit, onUnlocked = null, mobile = 
   );
 }
 
-// Desbloqueado: cadeado aberto bem discreto num canto (no topo, ao lado do "minimizar"). Clicar bloqueia na hora.
-export function HenryUnlockedBadge({ onLock }) {
-  return (
-    <button
-      type="button"
-      onClick={(event) => {
-        event.stopPropagation();
-        onLock?.();
-      }}
-      className="absolute right-16 top-[calc(0.75rem+env(safe-area-inset-top))] flex h-11 w-11 items-center justify-center rounded-full text-white/35 transition hover:bg-white/10 hover:text-white/80 md:right-16 md:top-5 md:h-9 md:w-9"
-      aria-label="Bloquear a tela do Henry"
-      title="Bloquear a tela"
-    >
-      <HenryLockIcon open size={13} />
-    </button>
-  );
-}
+// Desbloqueado: o cadeado fica na barra de ícones da tela cheia (HenryVoiceView `onLock`, dono 2026-10-24) — o antigo
+// cadeado do canto do topo saiu.
