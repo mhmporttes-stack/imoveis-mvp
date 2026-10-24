@@ -40,6 +40,17 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-23 — "Cliente transferido só aparece na notificação, não no card de aguardando atendimento"
+- **Data:** 2026-10-23
+- **Sintoma:** corretor que recebe cliente por transferência (principalmente "mais de 3 dias sem contato") só vê o aviso; o cliente não entra em "Novos atendimentos" e se perde.
+- **Área:** Clientes / Pendências
+- **Impacto:** todos os perfis; 26 transferidos sem atendimento em 23/10; fila de reativação com ~100 clientes/semana para uma corretora.
+- **Causa raiz:** `getUnattendedClientIds` só considerava status "Atendimento automático" sem atendimento humano em toda a vida do cliente — transferido vem em outro status ou já atendido pelo corretor anterior.
+- **Correção:** soma os transferidos não atendidos desde o recebimento (CLI-7b). Detalhe no CHANGELOG_AI.
+- **Arquivos/commit:** `lib/simulation-list-query.js`, `lib/transferred-awaiting-core.mjs` — commit deste registro.
+- **Prevenção/teste:** `tests/transferred-awaiting-card.test.mjs`.
+- **Status:** Monitorando (aguarda publicação com o ok do dono)
+
 ### 2026-10-23 — "Toda hora aparece que o WhatsApp está conectado sem receber, com a opção de desconectar"
 - **Data:** 2026-10-23
 - **Sintoma:** corretores recebiam várias vezes por dia o aviso Importante "WhatsApp conectado, mas sem receber" (push + bloqueio da tela) mandando desconectar e ler o QR de novo; o número estava funcionando.
