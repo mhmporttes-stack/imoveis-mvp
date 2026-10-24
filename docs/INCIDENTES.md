@@ -40,6 +40,17 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-24 — Henry: segurando Enter, ao soltar ele "pega só a última coisa que eu falei"
+- **Data:** 2026-10-24
+- **Sintoma:** aperta Enter, fala uma frase longa, solta — o Henry responde só ao último pedaço e "não entende".
+- **Área:** Henry (aperte-para-falar, Chrome)
+- **Impacto:** só o dono; computador com o reconhecimento do Chrome.
+- **Causa raiz:** (1) o final do último trecho chegava DEPOIS do envio (~0,5 s após soltar) com palavras diferentes do parcial já usado; a checagem de "trecho já usado" (`remainderAfter`) não reconhecia e ele virava um 2º pedido (janela de conversa aberta) que substituía o 1º; (2) reinício do reconhecimento no meio do aperto descartava o parcial em aberto; (3) reapertar logo depois de soltar zerava o que ainda não tinha sido enviado.
+- **Correção:** acumulador por (sessão do reconhecedor, índice) enquanto aperta + resultados atrasados desses trechos ignorados depois de soltar + reaperto em ~0,5 s continua o mesmo pedido (`trackPttResult`/`pttLateResultIgnored`, `lib/henry-voice-conversation.mjs`).
+- **Arquivos/commit:** `lib/henry-voice-conversation.mjs`, `components/henry/HenryVoiceAssistant.jsx` — branch `feat/henry-ptt-ao-vivo`.
+- **Prevenção/teste:** `tests/henry-push-to-talk.test.mjs` (junção de vários trechos, reinício, final atrasado).
+- **Status:** Corrigido (não publicado — aguarda merge)
+
 ### 2026-10-24 — Henry "não consegue visualizar" se a cliente do aviso está no oficial ou no WhatsApp pessoal
 - **Data:** 2026-10-24
 - **Sintoma:** o Henry avisou "entrou uma cliente nova e está com você"; o dono perguntou se ela estava no número da API oficial ou no pessoal e ele respondeu que não conseguia visualizar.

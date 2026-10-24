@@ -13,7 +13,18 @@ import {
   pushToTalkReleaseAction,
   pushToTalkTargetKind,
   readHenryVoiceMuted,
-  recordingDecision
+  recordingDecision,
+  pttLateResultIgnored,
+  pttTranscriptText,
+  startPttTranscript,
+  trackPttResult,
+  CONVERSATION_IDLE_MS,
+  HENRY_PTT_ONLY_KEY,
+  HENRY_PTT_ONLY_REPLY_MS,
+  conversationIdleMsFor,
+  henryBargeMode,
+  henryListenPolicy,
+  readHenryPttOnly
 } from "../lib/henry-voice-conversation.mjs";
 import {
   HENRY_SPEECH_DUCK_RATIO,
@@ -183,4 +194,83 @@ test("ligações: tela usa as regras únicas (teclas, mudo, abaixar na fala, sub
   assert.match(view, /onToggleVoiceMute/);
   const route = readFileSync(new URL("../app/api/admin/henry/spotify/player/route.js", import.meta.url), "utf8");
   assert.match(route, /restoreHenrySpotify\(body\.volume, \{ expect \}\)/);
+});
+
+// Bug do dono (2026-10-24): "quando eu solto para enviar, ele pega só a última coisa que eu falei".
+test("aperte para falar: junta todos os trechos (finais + parcial) na ordem, desde o começo", () => {
+  let state = startPttTranscript({ session: 1, fromIndex: 0 });
+  state = trackPttResult(state, { session: 1, index: 0, text: "quantos clientes", final: false });
+  state = trackPttResult(state, { session: 1, index: 0, text: "quantos clientes novos", final: true });
+  state = trackPttResult(state, { session: 1, index: 1, text: "entraram hoje", final: true });
+  state = trackPttResult(state, { session: 1, index: 2, text: "e quem atendeu", final: false });
+  assert.equal(pttTranscriptText(state), "quantos clientes novos entraram hoje e quem atendeu");
+});
+
+test("aperte para falar: reconhecimento reinicia no meio sem perder o começo", () => {
+  let state = startPttTranscript({ session: 3, fromIndex: 2 });
+  state = trackPttResult(state, { session: 3, index: 1, text: "frase de antes de apertar", final: true }); // já era final: fora
+  state = trackPttResult(state, { session: 3, index: 2, text: "me fala o status", final: false }); // parcial sem final (sessão caiu)
+  state = trackPttResult(state, { session: 4, index: 0, text: "da Bruna e do Gabriel", final: true }); // sessão nova, índice 0
+  state = trackPttResult(state, { session: 4, index: 1, text: "por favor", final: false });
+  assert.equal(pttTranscriptText(state), "me fala o status da Bruna e do Gabriel por favor");
+  // parcial velho depois do final não troca o texto
+  state = trackPttResult(state, { session: 4, index: 0, text: "da bruna", final: false });
+  assert.equal(pttTranscriptText(state), "me fala o status da Bruna e do Gabriel por favor");
+  // sessão anterior à do aperto é ignorada
+  assert.equal(pttTranscriptText(trackPttResult(state, { session: 2, index: 0, text: "velho", final: true })), pttTranscriptText(state));
+});
+
+test("aperte para falar: final atrasado depois de soltar não vira um 2º pedido", () => {
+  const ignore = { session: 4, upTo: 1 };
+  assert.equal(pttLateResultIgnored(ignore, { session: 4, index: 1 }), true); // final do último trecho chegando depois
+  assert.equal(pttLateResultIgnored(ignore, { session: 4, index: 0 }), true);
+  assert.equal(pttLateResultIgnored(ignore, { session: 4, index: 2 }), false); // fala nova
+  assert.equal(pttLateResultIgnored(ignore, { session: 5, index: 0 }), false); // sessão nova
+  assert.equal(pttLateResultIgnored(null, { session: 4, index: 0 }), false);
+});
+
+// "Só quando eu apertar" (dono, 2026-10-24): "conversar comigo só quando eu apertar Enter e não ficar escutando".
+test("só quando eu apertar: nasce desligado e é lembrado no aparelho", () => {
+  assert.equal(readHenryPttOnly({ getItem: () => null }), false);
+  assert.equal(readHenryPttOnly({ getItem: (key) => (key === HENRY_PTT_ONLY_KEY ? "1" : null) }), true);
+  assert.equal(readHenryPttOnly({ getItem: () => { throw new Error("x"); } }), false);
+});
+
+test("só quando eu apertar: nada ouve sem o aperto; desligado = como antes", () => {
+  assert.deepEqual(henryListenPolicy({ pttOnly: false }), { recognition: true, wakeWord: true, desktopWake: true, autoRecord: true, voiceBargeIn: true, micMeter: true });
+  const off = henryListenPolicy({ pttOnly: true, holding: false });
+  assert.deepEqual(off, { recognition: false, wakeWord: false, desktopWake: false, autoRecord: false, voiceBargeIn: false, micMeter: false });
+  assert.equal(henryListenPolicy({ pttOnly: true, holding: true }).recognition, true);
+  assert.equal(henryListenPolicy({ pttOnly: true, holding: true }).desktopWake, false);
+  // sem interrupção por voz: apertar é que interrompe
+  assert.equal(henryBargeMode({ desktop: true, pttOnly: true }), "tap");
+  assert.equal(henryBargeMode({ desktopApp: true, recordMode: true, pttOnly: true }), "tap");
+  assert.equal(henryBargeMode({ desktop: true }), "recognition");
+});
+
+test("só quando eu apertar: pergunta do bom dia espera o aperto (5 min)", () => {
+  assert.equal(conversationIdleMsFor({ pttOnly: true, pendingStep: "music" }), HENRY_PTT_ONLY_REPLY_MS);
+  assert.equal(conversationIdleMsFor({ pttOnly: true, pendingStep: "" }), CONVERSATION_IDLE_MS);
+  assert.equal(conversationIdleMsFor({ pttOnly: false, pendingStep: "music" }), CONVERSATION_IDLE_MS);
+});
+
+test("ligações: só quando eu apertar desliga escuta, chamada do app e gravação automática", () => {
+  const ui = readFileSync(new URL("../components/henry/HenryVoiceAssistant.jsx", import.meta.url), "utf8");
+  assert.match(ui, /henryListenPolicy\(\{ pttOnly: pttOnlyRef\.current, holding: pttHeld\(\) \}\)\.recognition/);
+  assert.match(ui, /henryListenPolicy\(\{ pttOnly \}\)\.desktopWake/);
+  assert.match(ui, /henryListenPolicy\(\{ pttOnly: pttOnlyRef\.current \}\)\.autoRecord\) startRecording\(\)/);
+  assert.match(ui, /henryBargeMode\(\{ desktop, desktopApp, recordMode, pttOnly \}\)/);
+  const view = readFileSync(new URL("../components/henry/HenryVoiceView.jsx", import.meta.url), "utf8");
+  assert.match(view, /onTogglePttOnly/);
+  assert.match(view, /Mudo: deixar o Henry sem voz/);
+  const card = readFileSync(new URL("../components/henry/HenrySettingsCard.jsx", import.meta.url), "utf8");
+  assert.match(card, /Só quando eu apertar/);
+});
+
+test("ligações: aperte para falar usa o acumulador (nada de só o último trecho)", () => {
+  const ui = readFileSync(new URL("../components/henry/HenryVoiceAssistant.jsx", import.meta.url), "utf8");
+  assert.match(ui, /trackPttResult\(ptt\.transcript/);
+  assert.match(ui, /pttLateResultIgnored\(ptt\.ignore/);
+  assert.match(ui, /pttTranscriptText\(/);
+  assert.doesNotMatch(ui, /speech\.buffer/);
 });

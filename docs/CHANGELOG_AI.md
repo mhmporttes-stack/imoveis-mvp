@@ -44,6 +44,15 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 
 
+### 2026-10-24 — Henry: aperte-para-falar sem perder o começo, transcrição ao vivo e "Só quando eu apertar"
+- **Data:** 2026-10-24
+- **Área:** Henry
+- **Alteração:** (1) Bug: no Chrome, só o último trecho virava pedido — o final atrasado do último trecho (chegava depois de soltar, com palavras diferentes do parcial) virava um 2º pedido que substituía o 1º, e o reinício do reconhecimento no meio perdia o parcial em aberto. Agora um acumulador por (sessão, índice) junta tudo e ignora os atrasados (`startPttTranscript`/`trackPttResult`/`pttLateResultIgnored`); reapertar em ~0,5 s continua o mesmo pedido. (2) Transcrição ao vivo (app de desktop/iPhone): Scribe v2 Realtime por token de uso único (`mode: "transcribe_live"`), "Ouvindo… <texto>" na tela, texto pronto ao soltar; reserva = gravação de sempre. (3) "Só quando eu apertar" (`mm_henry_ptt_only`, nasce desligado): sem escuta contínua, sem "Henry" (nem o offline do app), sem gravação automática e sem interrupção por voz (`henryListenPolicy`). Botão do Mudo com dica "Mudo:" nos dois lugares.
+- **Motivo:** pedidos do dono de 24/10 ("ele pega só a última coisa que eu falei"; "já ir acompanhando a leitura… só responde quando eu tirar o dedo do Enter"; "só quando eu apertar Enter e não ficar escutando").
+- **Arquivos afetados:** `lib/henry-voice-conversation.mjs`, `lib/henry-voice-providers.mjs`, `lib/henry-voice.js`, `app/api/admin/henry/route.js`, `components/henry/HenryVoiceAssistant.jsx`, `components/henry/HenryVoiceView.jsx`, `components/henry/HenrySettingsCard.jsx`, `tests/henry-ptt-live.test.mjs`, `tests/henry-push-to-talk.test.mjs` (+ regex de ligação em `tests/henry-morning.test.mjs`/`tests/henry-voice-conversation.test.mjs`).
+- **Risco/observação:** custo do STT ao vivo US$ 0,39/h (vs. 0,22/h): ~+US$ 0,0005 por pedido de 10 s; teto 25 s por aperto. Ganho estimado: some o upload+Scribe depois de soltar (~0,8–1,5 s → ~0,2–0,5 s do fechamento). A CONFIRMAR em produção: a chave da ElevenLabs precisa permitir token de uso único (sem permissão → cai na gravação, sem custo extra); no "Só quando eu apertar" do Chrome o reconhecimento liga no aperto (~0,3 s) — a 1ª sílaba pode se perder. App de desktop sem versão nova. Testes `node --test tests/henry*.test.mjs` (361 ok) e `pnpm build` ok.
+- **Autor:** Claude Code
+
 ### 2026-10-24 — Henry: Enter segurado vale com a tela cheia aberta mesmo com botão do CRM focado
 - **Data:** 2026-10-24
 - **Área:** Henry

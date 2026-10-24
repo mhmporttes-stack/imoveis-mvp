@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Field, { inputClasses } from "@/components/ui/Field";
 import { henryReserveVoiceChain, pickBestBrowserVoice, pronounceForSpeech } from "@/lib/henry-voice-providers.mjs";
-import { HENRY_END_WAIT_EVENT } from "@/lib/henry-voice-conversation.mjs";
+import { HENRY_END_WAIT_EVENT, HENRY_PTT_ONLY_EVENT, HENRY_PTT_ONLY_KEY, readHenryPttOnly } from "@/lib/henry-voice-conversation.mjs";
 import HenryLockSettings from "./HenryLockSettings";
 import { HENRY_PULSE_INTENSITIES, HENRY_PULSE_TYPES, HENRY_PULSE_TYPE_KEYS } from "@/lib/henry-pulse-core.mjs";
 import {
@@ -285,6 +285,24 @@ function HenryVoiceStyleSection({ saved, options, serverVoice, provider = "brows
     setDesktopApp(Boolean(bridge));
     if (desktopCanWake(bridge)) setDesktopWake(readDesktopWakeSetting(window.localStorage));
   }, []);
+  // "Só quando eu apertar" (dono, 2026-10-24): deste aparelho, nasce desligado; o Henry da página ouve o evento.
+  const [pttOnly, setPttOnly] = useState(null);
+  useEffect(() => {
+    const read = () => setPttOnly(readHenryPttOnly(window.localStorage));
+    read();
+    window.addEventListener(HENRY_PTT_ONLY_EVENT, read);
+    return () => window.removeEventListener(HENRY_PTT_ONLY_EVENT, read);
+  }, []);
+  const togglePttOnly = () => {
+    const next = !pttOnly;
+    try {
+      window.localStorage.setItem(HENRY_PTT_ONLY_KEY, next ? "1" : "0");
+    } catch {
+      // armazenamento indisponível
+    }
+    setPttOnly(next);
+    window.dispatchEvent(new Event(HENRY_PTT_ONLY_EVENT));
+  };
   const toggleDesktopWake = () => {
     const next = !desktopWake;
     window.localStorage.setItem(DESKTOP_WAKE_KEY, next ? "1" : "0");
@@ -389,6 +407,24 @@ function HenryVoiceStyleSection({ saved, options, serverVoice, provider = "brows
         <p className="mt-2 max-w-2xl rounded-control bg-emerald-50 px-3 py-2 text-sm font-bold text-emerald-800" role="status">
           Rodando no app de desktop: microfone liberado, som sem clique e Ctrl+Shift+H chama o Henry.
         </p>
+      ) : null}
+      {pttOnly !== null ? (
+        <div className="mt-3 flex max-w-2xl flex-wrap items-center justify-between gap-3">
+          <div>
+            <p className="text-sm font-black text-navy">Só quando eu apertar</p>
+            <p className="mt-1 text-sm text-muted">
+              Ligado: o Henry não fica escutando — só ouve enquanto você segura Enter, Ctrl+Shift+H ou o microfone (o “Henry” sem atalho do app também para). Os avisos continuam chamando; para responder, aperte. Vale para este aparelho.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={togglePttOnly}
+            aria-pressed={pttOnly}
+            className={`rounded-control px-5 py-2.5 text-sm font-bold ${pttOnly ? "border border-line text-navy" : "bg-navy text-white"}`}
+          >
+            {pttOnly ? "Desligar" : "Ligar"}
+          </button>
+        </div>
       ) : null}
       {desktopApp && desktopWake !== null ? (
         <div className="mt-3 flex max-w-2xl flex-wrap items-center justify-between gap-3">
