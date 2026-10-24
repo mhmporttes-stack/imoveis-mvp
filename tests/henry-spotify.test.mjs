@@ -37,7 +37,7 @@ test("intenção: comando da ferramenta vira ação validada", () => {
 });
 
 test("autorização: escopos pedidos, state anti-CSRF e só a busca do Spotify Web no fallback", () => {
-  assert.deepEqual([...SPOTIFY_SCOPES], ["user-read-playback-state", "user-modify-playback-state", "user-read-currently-playing"]);
+  assert.deepEqual([...SPOTIFY_SCOPES], ["user-read-playback-state", "user-modify-playback-state", "user-read-currently-playing", "user-top-read", "user-read-recently-played", "playlist-read-private"]);
   const url = new URL(buildSpotifyAuthorizeUrl({ clientId: "abc", redirectUri: "https://www.matheusmachadoimoveis.com.br/api/admin/henry/spotify/callback", state: "s".repeat(48) }));
   assert.equal(url.origin + url.pathname, "https://accounts.spotify.com/authorize");
   assert.equal(url.searchParams.get("response_type"), "code");

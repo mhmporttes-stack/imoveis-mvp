@@ -97,8 +97,8 @@ test("sugestão com o gosto do Spotify: usa a URI exata e prefere o gosto dele",
   assert.equal(pickMorningSuggestion({ taste: [], now: TUESDAY, random: () => 0 }).taste, undefined);
 });
 
-test("escopos: o OAuth de hoje não pede o gosto (precisa reconectar) e a leitura usa só o liberado", () => {
-  for (const scope of SPOTIFY_TASTE_SCOPES) assert.equal(SPOTIFY_SCOPES.includes(scope), false, scope);
+test("escopos: o OAuth pede o gosto (dono, 24/10) e a leitura usa só o que a conexão liberou", () => {
+  for (const scope of SPOTIFY_TASTE_SCOPES) assert.equal(SPOTIFY_SCOPES.includes(scope), true, scope);
   assert.deepEqual(grantedTasteScopes("user-read-playback-state user-top-read"), ["user-top-read"]);
   assert.deepEqual(grantedTasteScopes(undefined), []);
 });
