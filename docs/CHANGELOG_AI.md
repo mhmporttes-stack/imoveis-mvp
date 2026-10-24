@@ -500,6 +500,15 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-24 — Henry: bom dia sugere a música em vez da frase fixa "rock ou sertanejo" — branch `feat/henry-bomdia-musica`, NÃO publicado
+- **Data:** 2026-10-24
+- **Área:** Henry / Spotify
+- **Alteração:** com o Spotify conectado e nada tocando, o "bom dia, Henry" passa a abrir com UMA sugestão concreta e variada (artista, música, playlist dele ou estilo), em uma frase curta terminada em "?" (ex.: "Fala, Matheus! Bora de um Barão Vermelho pra começar a semana?"); "pode"/"manda"/"bora" tocam EXATAMENTE o sugerido pela busca atual do Spotify (`startHenryMorningMusic`, volume 28%); "não" segue sem música; "rock"/"sertanejo" continuam tocando o configurado em "Voz e personalidade"; "toca <outra coisa>" vai para a ferramenta do Spotify (`isOtherMusicRequest`), nunca toca a sugestão no lugar. Escolha em `lib/henry-morning-music-core.mjs`: banco fixo de 25 sugestões (rock e sertanejo raiz) com o momento (fim de semana/antes das 7h = mais leve; segunda/sexta = mais animado), tipo diferente do da última sugestão e o MESMO sorteio sem repetição das frases de espera (`pickWaitPhrase`) sobre os ids dos últimos dias — nunca a mesma de ontem; esgotado, nunca uma das últimas 10. Registro novo em `crm_settings` `henry_morning_music` (`{ recent: [{ id, date, kind, say, choice, target }] }`, até 20; sem fala nem dado de cliente; sem migration), gravado antes da resposta para o "pode" tocar a de hoje. Sem a sugestão gravada (falha) → abertura e pergunta do estilo de antes (`morningOpening`/`MORNING_STYLE_QUESTION`, agora só reserva). Gosto do dono no Spotify (mais ouvidos, recentes, playlists) **preparado mas desligado**: `readHenrySpotifyTaste` só lê se a conexão tiver os escopos `SPOTIFY_TASTE_SCOPES` (`user-top-read`, `user-read-recently-played`, `playlist-read-private`), que o OAuth de hoje NÃO pede; a conexão passa a guardar os escopos concedidos (`henry_spotify.scopes`).
+- **Motivo:** pedido do dono (2026-10-24): "não quero frase combinada; quero que soe natural, com o Henry sugerindo músicas, playlists ou estilos, variando de dia para dia".
+- **Arquivos afetados:** `lib/henry-morning-music-core.mjs` (novo), `lib/henry-voice.js`, `lib/henry-spotify.js`, `lib/henry-spotify-core.mjs`, `lib/henry-morning-core.mjs` (comentários), `tests/henry-morning-music.test.mjs` (novo), `tests/henry-morning.test.mjs`, `docs/BUSINESS_RULES.md` (HENRY-1), `.claude/rules/integracoes-externas.md`.
+- **Risco/observação:** (1) **DECISÃO NECESSÁRIA**: usar o gosto real do dono exige acrescentar os 3 escopos em `SPOTIFY_SCOPES` e o dono reconectar o Spotify uma vez; até lá vale o banco fixo. (2) Clima do dia não entra: o Henry não tem leitura de clima (só a pesquisa na internet, sob pedido). (3) Uma sugestão por dia (1 música/artista), para tocar exatamente o que foi dito; sugerir duas exigiria fila no Spotify.
+- **Validação:** `node --test tests/henry-*.test.mjs` (273 ok, 0 falha); `pnpm build` ok.
+
 ### 2026-10-23 — Tela de bloqueio do Henry (HENRY-LOCK) — branch `feat/henry-bloqueio`, NÃO publicado
 - **Data:** 2026-10-23
 - **Área:** Henry / Permissões / Banco / Notificações
