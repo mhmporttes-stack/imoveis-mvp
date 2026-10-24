@@ -549,6 +549,14 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-24 — Simulação automática: por qual número sai o link (cliente que não escreveu / link do corretor) — branch `link-simulacao`, NÃO publicado
+- **Data:** 2026-10-24
+- **Área:** WhatsApp / envio automático da simulação (SIM-AUTO-ENVIO, ROL-2i)
+- **Alteração:** cliente que veio pelo link pessoal do corretor (`direct_broker_link`) e não escreveu em nenhum número (antes: WhatsApp do dono), ou escreveu no Oficial com a janela fechada (antes: responsável conectado, senão roleta), agora recebe o link pelo WhatsApp individual DO CORRETOR; desconectado → pendente (`whatsapp_nao_conectado`) e tentado nas próximas rodadas (72 h), nunca roleta nem o número do dono. Demais clientes sem conversa (inclusive já com corretor da roleta) seguem pelo WhatsApp do dono (confirmado). Oficial com janela aberta segue pelo Oficial. Travas (Não contactar/bloqueado, cadência anti-ban, reserva por cadastro) intactas.
+- **Motivo:** REGRA OFICIAL do dono (2026-10-24), resolve o PENDENTE do commit eafe55a6: "Se tiver conversa dentro da janela pelo oficial → pelo oficial. Se não tiver → pelo meu não oficial. Se o cliente veio do link do corretor → mesmas regras, porém no WhatsApp dele."
+- **Arquivos afetados:** `lib/simulation-auto-send-core.mjs` (`brokerLinkSenderId`, `nonOfficialSender`, `closedWindowRoute({ directBrokerLink })`), `lib/simulation-auto-send.js` (lê `direct_broker_link`), `tests/simulation-auto-send.test.mjs`; docs `BUSINESS_RULES.md` (ROL-2i, SIM-AUTO-ENVIO (e)), `WHATSAPP.md` §9-D, rules `roleta-prospeccao-campanhas.md` e `crm-clientes-funil.md`.
+- **Risco/observação:** **PENDENTE DE VALIDAÇÃO** (não mudado): cliente sem link do corretor que escreveu no Oficial e a janela fechou continua indo ao responsável conectado/roleta — a frase do dono "se não tiver → pelo meu não oficial" pode valer também aí. Campanha do Gerador de Links com destino corretor não conta como "link do corretor". Sem migration.
+- **Validação:** `node --test tests/simulation-auto-send*.test.mjs` (10 ok, 0 falha); `pnpm build` ok. Falhas em `tests/whatsapp*` (escopo de sessão, botão do card, runtime do Railway) não tocam nestes arquivos (pré-existentes).
 ### 2026-10-24 — Henry: bom dia sugere a música em vez da frase fixa "rock ou sertanejo" — branch `feat/henry-bomdia-musica`, NÃO publicado
 - **Data:** 2026-10-24
 - **Área:** Henry / Spotify

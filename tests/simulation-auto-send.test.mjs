@@ -10,9 +10,11 @@ import {
   autoSendClaimKey,
   autoSendJourneyText,
   autoSendSkipReason,
+  brokerLinkSenderId,
   closedWindowRoute,
   decideAutoSendChannel,
-  isWaitReason
+  isWaitReason,
+  nonOfficialSender
 } from "../lib/simulation-auto-send-core.mjs";
 import { ATTENDANCE_JOURNEY_EVENTS } from "../lib/client-attendance-core.mjs";
 
@@ -47,6 +49,34 @@ test("janela fechada: responsável com WhatsApp conectado fica; senão roleta s�
   assert.doesNotMatch(source("lib/simulation-auto-send-core.mjs"), /pickOfflineConnectedBroker/);
   // Entrega grava o "de quem" (FUN-15h) e avisa o corretor.
   assert.match(server, /recordLeadDistributionHistory\(\{[\s\S]{0,200}fromUserId: registration\.responsible_user_id/);
+});
+
+test("número do link (dono, 2026-10-24): janela aberta no Oficial → Oficial; sem janela → não oficial do dono; link do corretor → WhatsApp dele", () => {
+  const official = { conversationId: "of-1", lastInboundAt: hoursAgo(1) };
+  // (a) Conversa no Oficial dentro da janela de 24 h → Oficial, com ou sem link do corretor (o canal não olha a origem).
+  assert.equal(decideAutoSendChannel({ official, nowMs: NOW }).kind, "official");
+  // (b) Cliente não escreveu e já tem corretor atribuído pela roleta → WhatsApp não oficial do DONO.
+  const roulette = { responsible_user_id: "b1", direct_broker_link: false };
+  assert.equal(decideAutoSendChannel({ nowMs: NOW }).kind, "owner");
+  assert.deepEqual(nonOfficialSender({ registration: roulette, ownerId: "dono" }), { kind: "owner", senderId: "dono" });
+  assert.deepEqual(nonOfficialSender({ registration: { responsible_user_id: "b1" }, ownerId: "dono" }), { kind: "owner", senderId: "dono" });
+  // (c) Cliente do link do corretor → mesmas regras, mas pelo WhatsApp do corretor (nunca o do dono, nunca roleta).
+  const brokerLink = { responsible_user_id: "b1", direct_broker_link: true };
+  assert.equal(brokerLinkSenderId(brokerLink), "b1");
+  assert.equal(brokerLinkSenderId({ direct_broker_link: true, responsible_user_id: null }), "");
+  assert.deepEqual(nonOfficialSender({ registration: brokerLink, ownerId: "dono" }), { kind: "responsible", senderId: "b1" });
+  // Janela fechada: corretor do link sempre (desconectado = a cadência devolve pendente; nunca roleta).
+  assert.deepEqual(closedWindowRoute({ responsibleId: "b1", responsibleConnected: false, directBrokerLink: true }), { kind: "responsible", brokerId: "b1" });
+  assert.deepEqual(closedWindowRoute({ responsibleId: "b1", responsibleConnected: false, directBrokerLink: false }), { kind: "roulette" });
+  const server = source("lib/simulation-auto-send.js");
+  assert.match(server, /direct_broker_link/);
+  assert.match(server, /nonOfficialSender\(\{ registration, ownerId: await findOwnerUserId\(\) \}\)/);
+  // Corretor sem WhatsApp conectado: não sai por ele, fica PENDENTE (não final) e volta nas próximas rodadas.
+  assert.match(server, /if \(!gate\.ok\) return isWaitReason\(gate\.reason\) \? \{ status: "wait", reason: gate\.reason \} : \{ status: "pending", reason: gate\.reason \}/);
+  assert.equal(isWaitReason("whatsapp_nao_conectado"), false);
+  assert.ok(!FINAL_AUTO_SEND_EVENTS.includes(AUTO_SEND_EVENTS.pending));
+  // Mesma rubrica de canal do envio pelo corretor (o áudio de boas-vindas reconhece "responsible").
+  assert.match(source("lib/client-voice-audio.js"), /\["broker", "roulette", "responsible"\]/);
 });
 
 test("travas: Não contactar, telefone bloqueado, arquivado, Particular, equipe, sem telefone e sem valores nunca recebem", () => {
