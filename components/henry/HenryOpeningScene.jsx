@@ -9,7 +9,7 @@ import styles from "./HenryOpeningScene.module.css";
 // abertura futurística anterior). Por cima da tela cheia do Henry, no mesmo centro e raio do anel:
 //   0–1,3 s um feixe embaraçado (30 fios + cabeça de luz) sai do meio da lateral esquerda e sobe em curva até o meio do
 //   topo · 1,3–3,4 s 3 voltas em torno do centro, acelerando · 3,4–4,4 s giro muito rápido fechando no raio do anel, com o
-//   centro brilhando · 4,4 s BOOM (clarão, onda de choque, faíscas): o anel de verdade acorda com um pulso de fala curto
+//   centro brilhando · 4,4 s BOOM de plasma (clarão, núcleo, filamentos e poeira — v32): o anel de verdade acorda com um pulso de fala curto
 //   (onBoom) e aparece "BOM DIA, MATHEUS" + data no meio dele (tamanho pelo raio), saindo em ~3,4 s · 8,6 s onDone.
 // Antes do boom o fundo cobre o anel (ele ainda "não acordou"); depois o fundo some e o anel real aparece. O som de
 // abertura (playHenryOpeningSound) é agendado por quem abre a cena para tocar aos 3,8 s. Toque/clique/Esc pula.
@@ -75,6 +75,12 @@ export function playHenryOpeningSound(context, delay = 0) {
 
 // Mesmos fios do anel (sementes do HenryOrb) para o feixe embaraçado: até 16 fios × 200 pontos (fluidez, v28).
 const WAKE_POINTS = 200;
+// Núcleo do boom de plasma (v32): [escala, alpha, cor, onde o gradiente some (× base)] — violeta por fora, branco por dentro.
+const PLASMA_LAYERS = [
+  [2.6, 0.38, "120,90,255", 0.82],
+  [1.8, 0.55, "79,195,224", 0.95],
+  [1.1, 0.95, "225,250,255", 1.15]
+];
 const WAKE_SEEDS = Array.from({ length: 16 }, (_, index) => {
   const i = (index * 7) % 52;
   return { a: i * 2.399963 + 0.3, b: i * 1.618 + 1.1, k: 0.65 + (((i * 37) % 100) / 100) * 0.7 };
@@ -104,6 +110,7 @@ function useWakeCanvas(canvasRef, { enabled, geometryRef, onBoom }) {
     let last = started;
     let boomed = false;
     const parts = [];
+    const tendrils = [];
     let frame = 0;
     const stops = orbStops(0);
     const lut = { key: "", length: null }; // distância ao longo do caminho (wakePathLength), refeita só se a tela mudar
@@ -232,7 +239,8 @@ function useWakeCanvas(canvasRef, { enabled, geometryRef, onBoom }) {
         const pre = wakeSmooth(HENRY_WAKE.boom - 0.8, HENRY_WAKE.boom, time); // centro brilhando antes do boom
         if (pre > 0.01) {
           const glow = ctx.createRadialGradient(cx, cy, 0, cx, cy, R * 1.4);
-          glow.addColorStop(0, `rgba(255,246,221,${0.5 * pre})`);
+          glow.addColorStop(0, `rgba(225,250,255,${0.5 * pre})`); // branco-ciano com um toque violeta de plasma (v32)
+          glow.addColorStop(0.5, `rgba(120,110,255,${0.12 * pre})`);
           glow.addColorStop(1, "rgba(79,195,224,0)");
           ctx.globalAlpha = 1;
           ctx.fillStyle = glow;
@@ -240,12 +248,27 @@ function useWakeCanvas(canvasRef, { enabled, geometryRef, onBoom }) {
         }
         ctx.restore();
       }
+      // BOOM de plasma (dono, 2026-10-24, protótipo v32: "não acho legal aqueles anéis dourados… um boom como se fosse de
+      // plasma"): sem anéis nem faíscas retas. Clarão curto, núcleo de plasma de borda viva (3 camadas que ondulam,
+      // tremeluzem, incham e se dissolvem), 13 filamentos elétricos tortuosos saindo do centro (piscando e ramificando) e
+      // 70 pontos de poeira luminosa girando. Cores do Henry (branco → ciano → azul) com um toque violeta.
       if (time >= HENRY_WAKE.boom && !boomed) {
         boomed = true;
-        for (let i = 0; i < 90; i += 1) {
-          const a = Math.random() * Math.PI * 2;
-          const v = 300 + Math.random() * 900;
-          parts.push({ x: cx + Math.cos(a) * R, y: cy + Math.sin(a) * R, vx: Math.cos(a) * v, vy: Math.sin(a) * v, life: 0.6 + Math.random() * 0.6, age: 0, gold: Math.random() < 0.4 });
+        for (let i = 0; i < 13; i += 1) {
+          tendrils.push({
+            a: (i / 13) * Math.PI * 2 + (Math.random() - 0.5) * 0.5,
+            len: R * (1.1 + Math.random() * 1.4),
+            s: Math.random() * 100,
+            born: Math.random() * 0.12,
+            life: 0.8 + Math.random() * 0.5,
+            fork: Math.random() < 0.6 ? 0.45 + Math.random() * 0.25 : 0,
+            fa: (Math.random() < 0.5 ? -1 : 1) * (0.35 + Math.random() * 0.4)
+          });
+        }
+        for (let i = 0; i < 70; i += 1) {
+          const angle = Math.random() * Math.PI * 2;
+          const r = R * (0.3 + Math.random() * 0.7);
+          parts.push({ a: angle, r, v: 120 + Math.random() * 420, spin: (Math.random() < 0.5 ? -1 : 1) * (0.8 + Math.random() * 1.6), life: 0.7 + Math.random() * 0.9, age: 0, size: 1 + Math.random() * 2.2, violet: Math.random() < 0.3 });
         }
         boomRef.current?.();
       }
@@ -253,31 +276,88 @@ function useWakeCanvas(canvasRef, { enabled, geometryRef, onBoom }) {
         const bt = time - HENRY_WAKE.boom;
         ctx.save();
         ctx.globalCompositeOperation = "lighter";
-        if (bt < 0.6) {
-          const f = 1 - bt / 0.6;
-          const flash = ctx.createRadialGradient(cx, cy, 0, cx, cy, Math.max(W, H) * 0.6);
-          flash.addColorStop(0, `rgba(255,255,255,${0.85 * f})`);
-          flash.addColorStop(0.25, `rgba(243,220,166,${0.35 * f})`);
+        if (bt < 0.35) {
+          const f0 = Math.pow(1 - bt / 0.35, 2); // clarão inicial curto (luz, sem anel)
+          const flash = ctx.createRadialGradient(cx, cy, 0, cx, cy, Math.max(W, H) * 0.55);
+          flash.addColorStop(0, `rgba(235,250,255,${0.75 * f0})`);
+          flash.addColorStop(0.3, `rgba(110,120,255,${0.22 * f0})`);
           flash.addColorStop(1, "rgba(79,195,224,0)");
+          ctx.globalAlpha = 1;
           ctx.fillStyle = flash;
           ctx.fillRect(0, 0, W, H);
         }
-        if (bt < 1.1) {
-          const k = bt / 1.1;
-          const r = R + (Math.hypot(W, H) * 0.6 - R) * (1 - Math.pow(1 - k, 3));
-          ctx.strokeStyle = "#F3DCA6";
-          ctx.globalAlpha = (1 - k) * 0.9;
-          ctx.lineWidth = 2 + 6 * (1 - k);
-          ctx.beginPath();
-          ctx.arc(cx, cy, r, 0, Math.PI * 2);
-          ctx.stroke();
-          ctx.strokeStyle = "#4FC3E0";
-          ctx.globalAlpha = (1 - k) * 0.5;
-          ctx.lineWidth = 1.2;
-          ctx.beginPath();
-          ctx.arc(cx, cy, r * 0.82, 0, Math.PI * 2);
-          ctx.stroke();
+        if (bt < 1.6) {
+          // núcleo de plasma: 3 camadas de borda ondulante, crescendo e se dissolvendo; as de fora somem antes da borda
+          const k = bt / 1.6;
+          const f = Math.pow(1 - k, 1.6);
+          const grow = 1 - Math.pow(1 - Math.min(1, bt / 0.5), 3);
+          PLASMA_LAYERS.forEach(([scale, layerAlpha, rgb, edge], li) => {
+            const base = R * (0.35 + scale * grow);
+            ctx.beginPath();
+            for (let j = 0; j <= 96; j += 1) {
+              const th = (j / 96) * Math.PI * 2;
+              const wobble = 0.1 * Math.sin(5 * th + bt * 9 + li) + 0.06 * Math.sin(9 * th - bt * 14 + li * 2) + 0.035 * Math.sin(15 * th + bt * 23);
+              const rr = base * (1 + wobble * (0.6 + 0.6 * k));
+              if (j === 0) ctx.moveTo(cx + Math.cos(th) * rr, cy + Math.sin(th) * rr);
+              else ctx.lineTo(cx + Math.cos(th) * rr, cy + Math.sin(th) * rr);
+            }
+            ctx.closePath();
+            const fill = ctx.createRadialGradient(cx, cy, 0, cx, cy, base * edge);
+            const flicker = 0.85 + 0.15 * Math.sin(bt * 47 + li * 3); // tremeluz
+            fill.addColorStop(0, `rgba(255,255,255,${layerAlpha * f * flicker})`);
+            fill.addColorStop(0.45, `rgba(${rgb},${layerAlpha * 0.8 * f * flicker})`);
+            fill.addColorStop(1, `rgba(${rgb},0)`);
+            ctx.globalAlpha = 1;
+            ctx.fillStyle = fill;
+            ctx.fill();
+          });
         }
+        // filamentos elétricos: curvas suaves que tremem, nunca retas
+        const strand = (a0, r0, length, seed, amp) => {
+          const M = 22;
+          const xs = [];
+          const ys = [];
+          for (let j = 0; j <= M; j += 1) {
+            const u = j / M;
+            const rr = r0 + length * u;
+            const off = amp * u * (Math.sin(u * 9 + seed + bt * 30) * 0.6 + Math.sin(u * 23 - bt * 45 + seed * 1.7) * 0.4);
+            const th = a0 + off / Math.max(rr, 1);
+            xs.push(cx + Math.cos(th) * rr);
+            ys.push(cy + Math.sin(th) * rr);
+          }
+          const path = new Path2D();
+          path.moveTo(xs[0], ys[0]);
+          for (let j = 1; j < M; j += 1) path.quadraticCurveTo(xs[j], ys[j], (xs[j] + xs[j + 1]) / 2, (ys[j] + ys[j + 1]) / 2);
+          path.lineTo(xs[M], ys[M]);
+          return path;
+        };
+        ctx.lineCap = "round";
+        ctx.lineJoin = "round";
+        for (const td of tendrils) {
+          const lt = bt - td.born;
+          if (lt < 0 || lt > td.life) continue;
+          const k = lt / td.life;
+          const reach = 1 - Math.pow(1 - Math.min(1, k * 2.2), 2);
+          const fadeT = Math.pow(1 - k, 1.4);
+          const flick = 0.55 + 0.45 * Math.abs(Math.sin(bt * 38 + td.s));
+          const paths = [strand(td.a, R * 0.2, td.len * reach, td.s, 34)];
+          if (td.fork && reach > td.fork) paths.push(strand(td.a + td.fa * 0.35, R * 0.2 + td.len * td.fork, td.len * (reach - td.fork) * 0.8, td.s + 5, 20));
+          for (const path of paths) {
+            ctx.strokeStyle = "rgba(120,110,255,1)";
+            ctx.globalAlpha = 0.22 * fadeT * flick;
+            ctx.lineWidth = 14;
+            ctx.stroke(path);
+            ctx.strokeStyle = "rgba(79,195,224,1)";
+            ctx.globalAlpha = 0.5 * fadeT * flick;
+            ctx.lineWidth = 4.5;
+            ctx.stroke(path);
+            ctx.strokeStyle = "rgba(235,252,255,1)";
+            ctx.globalAlpha = fadeT * flick;
+            ctx.lineWidth = 1.6;
+            ctx.stroke(path);
+          }
+        }
+        // poeira de plasma: pontos de luz que se afastam girando e se apagam
         for (let i = parts.length - 1; i >= 0; i -= 1) {
           const p = parts[i];
           p.age += dt;
@@ -285,19 +365,19 @@ function useWakeCanvas(canvasRef, { enabled, geometryRef, onBoom }) {
             parts.splice(i, 1);
             continue;
           }
-          const px = p.x;
-          const py = p.y;
-          p.x += p.vx * dt;
-          p.y += p.vy * dt;
-          p.vx *= 0.96;
-          p.vy *= 0.96;
-          ctx.strokeStyle = p.gold ? "#F3DCA6" : "#BFF1FF";
-          ctx.globalAlpha = 1 - p.age / p.life;
-          ctx.lineWidth = 1.3;
-          ctx.beginPath();
-          ctx.moveTo(px, py);
-          ctx.lineTo(p.x, p.y);
-          ctx.stroke();
+          p.v *= 0.965;
+          p.r += p.v * dt;
+          p.a += (p.spin * dt * 60) / Math.max(60, p.r);
+          const x = cx + Math.cos(p.a) * p.r;
+          const y = cy + Math.sin(p.a) * p.r;
+          const life = 1 - p.age / p.life;
+          const rad = p.size * 3.5;
+          const dot = ctx.createRadialGradient(x, y, 0, x, y, rad);
+          dot.addColorStop(0, p.violet ? `rgba(200,180,255,${life})` : `rgba(225,250,255,${life})`);
+          dot.addColorStop(1, "rgba(79,195,224,0)");
+          ctx.globalAlpha = 1;
+          ctx.fillStyle = dot;
+          ctx.fillRect(x - rad, y - rad, rad * 2, rad * 2);
         }
         ctx.restore();
       }
