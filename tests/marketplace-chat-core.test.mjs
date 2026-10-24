@@ -158,14 +158,24 @@ test("resposta do corretor: texto obrigatório, até 2000; sem prefixo automáti
   assert.deepEqual(toOutboxPayload({ id: "m1", body: "Olá!", attempts: 1 }, { thread_key: "123", thread_url: "u" }), { id: "m1", threadKey: "123", threadUrl: "u", body: "Olá!", attempt: 1 });
 });
 
-test("retorno do envio: enviada; falha antes do Enter volta à fila (até 3 tentativas, com intervalo); depois do Enter não", () => {
-  const sending = { status: "sending", attempts: 1, claimed_at: ago(1) };
+test("retorno do envio (dono, 2026-10-24): falha antes do Enter volta à fila sem limite de tentativas até 24 h; depois do Enter só a extensão que confere reenvia", () => {
+  const sending = { status: "sending", attempts: 1, claimed_at: ago(1), created_at: ago(5) };
   assert.equal(planOutboundResult(sending, { status: "sent" }, now).status, "sent");
   const retry = planOutboundResult(sending, { status: "failed", retry: true, error: "x" }, now);
-  assert.deepEqual([retry.status, retry.claimed_at], ["queued", now.toISOString()], "claimed_at = agora segura o intervalo");
+  assert.deepEqual([retry.status, retry.claimed_at], ["queued", now.toISOString()], "claimed_at = agora segura os 30 s");
   assert.equal(planOutboundResult({ ...sending, attempts: 2 }, { status: "failed", retry: true }, now).status, "queued");
-  assert.equal(planOutboundResult({ ...sending, attempts: 3 }, { status: "failed", retry: true }, now).status, "failed");
+  assert.equal(planOutboundResult({ ...sending, attempts: 40 }, { status: "failed", retry: true }, now).status, "queued", "sem o teto antigo de 3");
+  // Depois do Enter sem confirmação: extensão antiga = "Não enviada" (regra de antes); 1.9.6+ = volta e confere antes.
   assert.equal(planOutboundResult(sending, { status: "failed", retry: false }, now).status, "failed");
+  assert.equal(planOutboundResult(sending, { status: "failed", retry: false, unconfirmed: true }, now, { extensionVersion: "1.9.5" }).status, "failed");
+  assert.equal(planOutboundResult(sending, { status: "failed", retry: false, unconfirmed: true }, now, { extensionVersion: "1.9.6" }).status, "queued");
+  // Para de vez: conversa bloqueada pelo Facebook, teto de 24 h.
+  const closed = planOutboundResult(sending, { status: "failed", retry: false, closed: true, error: "bloqueada" }, now, { extensionVersion: "1.9.6" });
+  assert.equal(closed.status, "failed");
+  assert.match(closed.error, /^\[reenvio parado: conversa_bloqueada\]/);
+  const old = { ...sending, created_at: ago(24 * 60) };
+  assert.match(planOutboundResult(old, { status: "failed", retry: true }, now).error, /^\[reenvio parado: prazo_24h\]/);
+  assert.equal(planOutboundResult({ ...sending, created_at: ago(24 * 60 - 1) }, { status: "failed", retry: true }, now).status, "queued");
   assert.throws(() => planOutboundResult({ status: "sent" }, { status: "sent" }, now), /não está em envio/);
 });
 
@@ -411,12 +421,12 @@ test("abrir conversa do Marketplace só marca lida pelo corretor atribuído (ou 
 
 // Envio pelo CRM (dono, 2026-10-22: os corretores dependem 100% dele). Caso Gabriel Ribeiro: "Falhou — A conversa não
 // abriu em 20 s depois do clique (aba em /marketplace/inbox/)".
-test("envio: corretor vê situação simples (tentando de novo n/3, Não enviada + Tentar de novo); erro técnico só admin", async () => {
+test("envio: corretor vê situação simples (Mensagem não entregue — reenviando, Não enviada + Tentar de novo); erro técnico só admin", async () => {
   const { outboundStatusView, isSafeToResend } = await import("../lib/marketplace-chat-core.mjs");
   const error = "A conversa não abriu em 20 s depois do clique (aba em /marketplace/inbox/).";
   const base = { direction: "outbound", sender_user_id: "u1", error };
-  assert.deepEqual(outboundStatusView({ ...base, status: "queued", attempts: 1 }), { statusLabel: "Não enviada — tentando de novo (1/3)", canRetry: false, error: null });
-  assert.deepEqual(outboundStatusView({ ...base, status: "failed", attempts: 3 }), { statusLabel: "Não enviada", canRetry: true, error: null });
+  assert.deepEqual(outboundStatusView({ ...base, status: "queued", attempts: 1 }), { statusLabel: "Mensagem não entregue — reenviando automaticamente", canRetry: false, error: null, undelivered: true });
+  assert.deepEqual(outboundStatusView({ ...base, status: "failed", attempts: 3 }), { statusLabel: "Não enviada", canRetry: true, error: null, undelivered: false });
   assert.equal(outboundStatusView({ ...base, status: "failed" }, { technical: true }).error, error);
   assert.equal(outboundStatusView({ direction: "outbound", sender_user_id: "u1", status: "sent" }).statusLabel, "Enviada");
   assert.equal(outboundStatusView({ direction: "inbound", status: "received" }).statusLabel, "");

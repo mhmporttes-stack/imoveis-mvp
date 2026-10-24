@@ -93,11 +93,31 @@ export function rememberPreviews(known = {}, threads = []) {
   return next;
 }
 
-// Corpo do retorno de um envio: só pede nova tentativa se não chegou a apertar Enter (nada saiu no Facebook).
+// Corpo do retorno de um envio: retry=true só se não chegou a apertar Enter (nada saiu no Facebook). 1.9.6: verified =
+// a conferência achou a resposta já na conversa (nada foi digitado); closed = o Facebook não deixa responder (o CRM para
+// de reenviar).
 export function outboundResultBody(outcome = {}) {
-  if (outcome.ok) return { status: "sent" };
-  return { status: "failed", error: String(outcome.error || "Falha sem descrição.").slice(0, 500), retry: !outcome.sentAttempted && !outcome.checkpoint, unconfirmed: Boolean(outcome.unconfirmed) };
+  if (outcome.ok) return outcome.verified ? { status: "sent", verified: true } : { status: "sent" };
+  const body = { status: "failed", error: String(outcome.error || "Falha sem descrição.").slice(0, 500), retry: !outcome.sentAttempted && !outcome.checkpoint && !outcome.closed, unconfirmed: Boolean(outcome.unconfirmed) };
+  if (outcome.closed) body.closed = true;
+  return body;
 }
+
+// 1.9.6 (dono, 2026-10-24): resultado da conferência antes do reenvio → o que fazer. null = pode digitar (não houve
+// conferência, ou a resposta não está na conversa). Não deu para conferir → NÃO digita (unconfirmed: o CRM pede de novo
+// em 30 s e confere outra vez) — nunca reenvia no escuro.
+export function verifyOutcome(check) {
+  if (!check) return null;
+  if (check.ok && check.present) return { ok: true, verified: true, sentAttempted: false };
+  if (check.ok) return null;
+  if (check.closed) return { ok: false, sentAttempted: false, closed: true, error: check.error || "Conversa bloqueada ou encerrada pelo Facebook." };
+  if (check.checkpoint) return { ok: false, sentAttempted: false, checkpoint: true, error: check.error || "O Facebook mostrou verificação/limite." };
+  return { ok: false, sentAttempted: true, unconfirmed: true, error: check.error || "Não consegui conferir a conversa antes de reenviar." };
+}
+
+// 1.9.6: depois de uma falha, espera isto antes de tentar de novo na mesma rodada (dono: "você espera 30 segundos e
+// tenta enviar de novo"). O CRM só devolve a mesma resposta 30 s depois da falha (SEND_RETRY_INTERVAL_MS).
+export const SEND_RETRY_WAIT_MS = 30 * 1000;
 
 // Nova tentativa espaçada por conversa (1.9.3). Diagnóstico real de 21–22/10: a mesma conversa que não abria era
 // tentada de novo a cada rodada (2 min), gastando 25 s a 3,5 min, trocando a aba do Facebook na frente e travando as

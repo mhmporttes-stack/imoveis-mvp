@@ -44,6 +44,24 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 
 
+### 2026-10-24 — Marketplace: mensagem não entregue é reenviada a cada 30 s até sair (MKT-2e, extensão 1.9.6)
+- **Data:** 2026-10-24
+- **Área:** Marketplace / Chat / Roleta / Extensão
+- **Alteração:** resposta do corretor que não saiu volta à fila e é tentada de novo a cada 30 s (antes: 3 vezes, 2 min), sem teto de tentativas; depois do Enter sem confirmação (ou sem retorno) a extensão 1.9.6 confere a conversa antes de digitar (`verify`/`knownSame`) — extensão antiga mantém "Não enviada". Para (fica "Não enviada" + Importante aos admins, com motivo) se o Facebook bloquear/encerrar a conversa, se o cliente estiver em Não contactar/telefone bloqueado ou depois de 24 h. Cada tentativa conta no limite por hora (`crm_settings` `marketplace_outbox_attempts`). Corretor vê "Mensagem não entregue — reenviando automaticamente" (faixa no topo do chat + na mensagem). Transferência pela roleta: resposta em qualquer status já segurava o cliente — mantido e coberto por teste.
+- **Motivo:** decisão do dono (REGRA OFICIAL, 2026-10-24).
+- **Arquivos afetados:** `lib/marketplace-chat-core.mjs`, `lib/marketplace-chat.js`, `app/api/marketplace/chat/outbox/[id]/result/route.js`, `components/marketplace/MarketplaceChat.jsx`, `ferramentas/marketplace-publicador/{manifest.json,background.js,inbox.js,selectors.js,lib/chat-agenda.js,README.md,tests/chat.test.js,tests/resend.test.js}`, `tests/marketplace-undelivered-resend.test.mjs` (novo), `tests/marketplace-chat-core.test.mjs`, rule `roleta-prospeccao-campanhas.md`, `docs/BUSINESS_RULES.md` MKT-2e. Sem migration.
+- **Risco/observação:** textos de "conversa bloqueada" do Facebook (`MP.closedConversationTexts`) são A CONFIRMAR com print real — sem casar, a conversa bloqueada só para no teto de 24 h. Conferência compara com as últimas 15 mensagens; texto idêntico a uma mensagem antiga fora dessa janela pode gerar um reenvio a mais. O dono precisa atualizar a extensão para 1.9.6 (zip por cima da pasta + recarregar em `chrome://extensions`); até lá vale só o reenvio de falha antes do Enter (a cada rodada de 2 min).
+- **Autor:** Claude Code (crm-editor)
+
+### 2026-10-24 — Bloqueios (Importante + cliente esfriado) também no app "Chat" da tela inicial
+- **Data:** 2026-10-24
+- **Área:** Central de Alertas / PWA / Funil (FUN-15)
+- **Alteração:** `DeferredPanelGates` saiu do `HideInFinanceiroApp` (`app/admin/layout.jsx`) e decide por app em `gatesForApp` (`components/panel-gates-by-app.mjs`): Financeiro sem avisos; Chat só a Central em modo `importantOnly` (Importante e janela do esfriado; Informativo, Mensagem do dia, Celebração e Supervisão fora); Painel igual. `/chat-app` monta o gate de alertas (fora de "Alterar conta").
+- **Motivo:** decisão do dono (REGRA OFICIAL, 2026-10-24).
+- **Arquivos afetados:** `components/panel-gates-by-app.mjs` (novo), `components/DeferredPanelGates.jsx`, `components/alerts/AlertCenterGate.jsx`, `app/admin/layout.jsx`, `app/chat-app/page.jsx`, `tests/panel-gates-by-app.test.mjs` (novo), rule `automacoes-notificacoes.md`, `docs/BUSINESS_RULES.md` AL-APP.
+- **Risco/observação:** "Entendi e abrir" leva a outra área → o app Chat volta ao Chat (ciência já registrada). Sem mudança de servidor.
+- **Autor:** Claude Code (crm-editor)
+
 ### 2026-10-23 — Avisos fixos esperam a tela cheia do Henry fechar
 - **Data:** 2026-10-23
 - **Área:** Henry (voz) / Central de Alertas / Notificações / PWA
