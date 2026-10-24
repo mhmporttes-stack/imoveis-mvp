@@ -609,12 +609,17 @@
   }
 
   // Envia UMA resposta. sentAttempted=true a partir do Enter (o background não tenta de novo depois disso).
-  async function sendText(text) {
+  // automatic (1.9.7, MKT-2l): resposta automática do CRM — se o campo já tem texto (alguém digitando no Facebook), não
+  // digita nada e devolve humanTyping (o CRM cancela a automática).
+  async function sendText(text, { automatic = false } = {}) {
     if (pageCheckpoint()) return { ok: false, checkpoint: true, sentAttempted: false, error: "O Facebook mostrou verificação/limite." };
     // Campo "Aa" da janela de chat aberta (ou da página da conversa).
     const win = await waitFor(() => chatWindow(), 15000);
     const composer = await waitFor(() => [...(win || document).querySelectorAll(MP.inbox.composer)].find((element) => visible(element)), 15000);
     if (!composer) return missingComposer(win, "Campo de mensagem não encontrado.");
+    if (automatic && String(composer.innerText || composer.textContent || "").trim()) {
+      return { ok: false, sentAttempted: false, humanTyping: true, error: "Alguém está digitando nesta conversa no Facebook — resposta automática cancelada." };
+    }
     composer.scrollIntoView({ block: "center" });
     await sleep(between(300, 600));
     const rect = composer.getBoundingClientRect();
@@ -825,7 +830,7 @@
       case "mp-inbox-read":
         return readThread(message.threadKey, message.full === true, message.contactName || "", Number(message.maxMs) || 0);
       case "mp-inbox-send":
-        return sendText(message.text);
+        return sendText(message.text, { automatic: message.automatic === true });
       case "mp-inbox-send-file":
         return sendFile(message.file);
       case "mp-inbox-verify":

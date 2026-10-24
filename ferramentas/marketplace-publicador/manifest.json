@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Publicador Marketplace — Matheus Machado Corretor de Imóveis",
   "short_name": "Publicador Marketplace",
-  "version": "1.9.6",
+  "version": "1.9.7",
   "description": "Publica no Marketplace os anúncios aprovados no CRM e espelha no CRM as conversas do Marketplace.",
   "minimum_chrome_version": "116",
   "icons": { "48": "icones/icon-192-mm.png", "128": "icones/icon-192-mm.png" },

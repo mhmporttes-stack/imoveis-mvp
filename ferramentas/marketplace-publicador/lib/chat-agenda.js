@@ -100,6 +100,8 @@ export function outboundResultBody(outcome = {}) {
   if (outcome.ok) return outcome.verified ? { status: "sent", verified: true } : { status: "sent" };
   const body = { status: "failed", error: String(outcome.error || "Falha sem descrição.").slice(0, 500), retry: !outcome.sentAttempted && !outcome.checkpoint && !outcome.closed, unconfirmed: Boolean(outcome.unconfirmed) };
   if (outcome.closed) body.closed = true;
+  // 1.9.7 (MKT-2l): resposta automática não digitada porque havia texto no campo do Facebook.
+  if (outcome.humanTyping) body.humanTyping = true;
   return body;
 }
 

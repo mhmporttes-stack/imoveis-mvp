@@ -111,6 +111,11 @@ export function SettingsCard() {
       <label className="inline-flex items-center gap-1 text-muted">até
         <input type="number" min={1} max={60} className="w-16 rounded-control border border-line px-2 py-1" value={settings.maxSendsPerHour} onChange={(event) => save({ ...settings, maxSendsPerHour: Number(event.target.value) })} /> envios por hora
       </label>
+      {/* MKT-2l (dono, 2026-10-24): resposta automática à pergunta padrão de disponibilidade. Nasce ligada. */}
+      <label className="inline-flex items-center gap-2 font-medium text-ink">
+        <input type="checkbox" checked={settings.availabilityAutoReply !== false} onChange={(event) => save({ ...settings, availabilityAutoReply: event.target.checked })} />
+        Responder sozinho “Sim, esse item ainda está disponível”
+      </label>
       {/* 1ª carga (dono, 2026-10-21): pares dia → pessoa e "não importar anteriores a" continuam valendo pelo que está
           salvo em crm_settings (lib/marketplace-chat.js), mas não aparecem na tela — dono: "isso não precisa ficar visível". */}
       {message ? <span className="text-muted">{message}</span> : null}
@@ -309,6 +314,8 @@ export default function MarketplaceChat({ canEditSettings = false, canAssign = f
   }, [initialConversationId]);
   const [thread, setThread] = useState(null);
   const [text, setText] = useState("");
+  // Resposta automática de disponibilidade (MKT-2l): a 1ª tecla do corretor numa conversa com ela ainda na fila a cancela.
+  const typingSentRef = useRef("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [shortcuts, setShortcuts] = useState(null);
@@ -493,6 +500,15 @@ export default function MarketplaceChat({ canEditSettings = false, canAssign = f
   }
 
   // "Tentar de novo" (dono, 2026-10-22): o servidor confere antes se a resposta já saiu (nunca duplica).
+  function notifyTyping() {
+    const pendingAuto = (thread?.messages || []).some((message) => message.automatic && message.status === "queued");
+    if (!pendingAuto || !selectedId || typingSentRef.current === selectedId) return;
+    typingSentRef.current = selectedId;
+    fetch(`/api/admin/marketplace-chat/conversations/${selectedId}/typing`, { method: "POST", cache: "no-store" })
+      .then(() => loadThread(selectedId))
+      .catch(() => { typingSentRef.current = ""; });
+  }
+
   async function retry(messageId) {
     try {
       const result = await callApi(`/api/admin/marketplace-chat/conversations/${selectedId}/messages/${messageId}/retry`, { method: "POST" });
@@ -623,7 +639,12 @@ export default function MarketplaceChat({ canEditSettings = false, canAssign = f
               ) : (
                 <div key={message.id} className={`flex ${message.direction === "outbound" ? "justify-end" : "justify-start"}`}>
                   <div data-message-id={message.id} className={`max-w-[80%] rounded-card px-3 py-2 text-sm ${message.direction === "outbound" ? "bg-info-soft text-ink" : "bg-white text-ink"}`}>
-                    {message.direction === "outbound" ? <p className="text-2xs font-medium text-muted">{message.senderName}</p> : null}
+                    {message.direction === "outbound" ? (
+                      <p className="flex items-center gap-1.5 text-2xs font-medium text-muted">
+                        {message.senderName}
+                        {message.automatic ? <Badge tone="info" data-auto-reply>{message.automaticLabel || "automática"}</Badge> : null}
+                      </p>
+                    ) : null}
                     {message.body ? <p className="whitespace-pre-wrap break-words">{message.body}</p> : null}
                     {(message.attachments || []).map((attachment) => (
                       attachment.type === "image"
@@ -670,7 +691,7 @@ export default function MarketplaceChat({ canEditSettings = false, canAssign = f
               <input ref={fileInputRef} type="file" multiple accept={MARKETPLACE_MEDIA_ACCEPT} className="hidden" onChange={(event) => { const files = [...(event.target.files || [])]; event.target.value = ""; addFiles(files); }} />
               <Button type="button" variant="ghost" size="icon" className="shrink-0" disabled={busy} onClick={() => fileInputRef.current?.click()} aria-label="Anexar fotos ou PDF" title="Anexar fotos ou PDF (pode escolher vários)"><Paperclip className="h-4 w-4" /></Button>
               {conversation.canInternal ? <InternalToggle active={false} onClick={() => setInternalMode(true)} /> : null}
-              <textarea ref={textRef} className={`${inputClasses} min-h-touch py-2`} rows={2} maxLength={MAX_OUTBOUND_LENGTH} value={text} onChange={(event) => setText(event.target.value)}
+              <textarea ref={textRef} className={`${inputClasses} min-h-touch py-2`} rows={2} maxLength={MAX_OUTBOUND_LENGTH} value={text} onChange={(event) => { setText(event.target.value); notifyTyping(); }}
                 onPaste={(event) => { const files = filesFromTransfer(event.clipboardData); if (files.length) { event.preventDefault(); addFiles(files); } }}
                 placeholder={attachments.items.length ? "Mensagem (opcional) — sai antes dos arquivos" : "Escreva a resposta ou / para atalhos (sai pelo Facebook em ~1–2 min)"} />
               <Button type="submit" loading={busy} disabled={(!text.trim() && !attachments.items.length) || slashQuery !== null} aria-label="Enviar"><Send className="h-4 w-4" /></Button>

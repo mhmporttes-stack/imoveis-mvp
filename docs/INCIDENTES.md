@@ -40,6 +40,17 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-24 — "Sim, você tem interesse?" volta a aparecer como mensagem do cliente no Chat Marketplace
+- **Data:** 2026-10-24
+- **Sintoma:** conversa "Andreza" (origem Roleta) com "Sim, você tem interesse?" como mensagem da cliente às 00:52 — é a sugestão de resposta rápida do Facebook ao vendedor. "Voltou a informar errado" (mesmo sintoma do caso Debora, 22/10).
+- **Área:** Chat Marketplace / extensão
+- **Impacto:** 18 conversas de 22/10 06:31 a 24/10 03:52 com a mensagem falsa (2 delas como última mensagem na lista).
+- **Causa raiz:** não foi regressão de layout: a correção de 22/10 (1.9.1) partia de que a sugestão não tem `data-message-id`, mas o bloco da sugestão TEM id próprio do Facebook (todas as 18 gravadas como `fb:mid…`); o leitor tirava o texto do chip (botão com `aria-label` igual ao texto) e o servidor só descartava o que não tinha id. PC na 1.9.4 (já com a 1.9.1).
+- **Correção:** extensão 1.9.7 ignora painel/chips no texto do balão e descarta o texto exato da sugestão; servidor descarta inbound "Sim, você tem interesse?"/"Yes, are you interested?" (`isQuickReplySuggestion`) também na renormalização. Detalhe: `CHANGELOG_AI.md` (2026-10-24).
+- **Arquivos/commit:** `ferramentas/marketplace-publicador/selectors.js`, `lib/marketplace-chat-core.mjs` — branch `fix/marketplace-sugestoes-autoresposta`.
+- **Prevenção/teste:** `ferramentas/marketplace-publicador/tests/estrutura-real.test.js` (fixture com a sugestão com `data-message-id`, com e sem título), `tests/marketplace-auto-reply.test.mjs`, `tests/marketplace-chat-core.test.mjs`. Diagnóstico: `select body, count(distinct conversation_id) from marketplace_messages where direction='inbound' group by 1 having count(distinct conversation_id) >= 3`.
+- **Status:** Diagnosticado, correção pendente de publicação + instalar extensão 1.9.7; limpeza das 18 linhas aguarda o dono (renormalização `apply=1`).
+
 ### 2026-10-24 — "Apareceu uma conversa com o meu próprio número nas Particulares, cheia de 'Mensagem enviada pelo celular'"
 - **Data:** 2026-10-24
 - **Sintoma:** Chat > Particular: conversa com o número do próprio corretor (responsável ele mesmo, "Janela fechada"), só com bolhas "Mensagem enviada pelo celular — o CRM não conseguiu ler o conteúdo."
