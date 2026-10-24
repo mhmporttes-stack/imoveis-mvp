@@ -88,7 +88,7 @@ test("cursor: alvo real quando visível, aproximado quando escondido, duração 
 
 test("ícone minimizado dobra de tamanho ao ouvir o nome, gravando, pensando ou falando", () => {
   const client = readFileSync(new URL("../components/henry/HenryVoiceAssistant.jsx", import.meta.url), "utf8");
-  assert.match(client, /engaged=\{inConversation \|\| phase !== "idle" \|\| recording \|\| calling\}/);
+  assert.match(client, /engaged=\{inConversation \|\| phase !== "idle" \|\| recording \|\| calling \|\| pttHolding\}/);
   assert.match(client, /handlers\.markCalling\(\)/);
   const view = readFileSync(new URL("../components/henry/HenryVoiceView.jsx", import.meta.url), "utf8");
   assert.match(view, /const box = engaged \? ICON_BIG : ICON_SMALL;/);

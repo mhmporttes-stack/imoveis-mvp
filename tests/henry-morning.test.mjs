@@ -172,7 +172,7 @@ test("botão ▶ do bom dia: faz o MESMO pedido do 'bom dia, Henry' falado, sem 
   const start = assistant.slice(assistant.indexOf("const startMorningPlay"), assistant.indexOf("const finishOpening"));
   assert.match(start, /unlockAudio\(\);/);
   // Som da abertura respeita o mudo e é agendado no clique (aos 3,8 s no bom dia novo, v22).
-  assert.match(start, /mutedRef\.current \? null : playHenryOpeningSound\(audioCtxRef\.current, OPENING_SOUND_AT_S\)/);
+  assert.match(start, /silencedRef\.current\(\) \? null : playHenryOpeningSound\(audioCtxRef\.current, OPENING_SOUND_AT_S\)/);
   assert.doesNotMatch(start, /fetch\([^)]*mode: "report"/);
   const view = readFileSync(new URL("../components/henry/HenryVoiceView.jsx", import.meta.url), "utf8");
   assert.equal((view.match(/<PlayButton /g) || []).length, 3); // minimizado (computador e celular) e tela cheia
