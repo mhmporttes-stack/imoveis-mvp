@@ -31,6 +31,9 @@ const ALARME_ACAO = 'acao'; // próxima ação agendada (one-shot)
 const ALARME_VERIFICAR = 'verificar'; // checagem de follow-back (a cada 2 min)
 const ALARME_VIGIA = 'vigia'; // rede de segurança (a cada 5 min): virada de dia, abertura da janela etc.
 const VARREDURA_COMPLETA_MS = 30 * MINUTO; // show_many em todos os seguidos, de 30 em 30 min
+// 1.1.4: com o show_many respondendo HTML, a varredura lê o botão de no máximo N perfis por rodada (30 min),
+// com intervalo humano entre eles — nunca uma rajada de visitas.
+const PERFIS_POR_VARREDURA = 5;
 const INTERVALO_MIN_ENTRE_DMS = 60 * 1000;
 const INTERVALO_REABASTECER_MS = 20 * MINUTO;
 
@@ -46,6 +49,7 @@ function serializar(fn) {
 
 const esperar = (ms) => new Promise((r) => setTimeout(r, ms));
 const pausaHumana = () => esperar(atrasoHumanoMs());
+const pausaEntrePerfis = () => esperar(5000 + Math.round(Math.random() * 7000) + atrasoHumanoMs());
 
 async function carregar() {
   const { estado } = await chrome.storage.local.get('estado');
@@ -124,6 +128,9 @@ function tratarErro(e, err, contexto, username = '') {
     aplicarPausaPorErro(e, 'sessao', agora, msg);
     log(e, { username, acao: contexto, resultado: `Sessão não reconhecida pelo Instagram — pausado até entrar de novo (${msg})` });
     if (!jaEstava) notificar('Instagram: sem sessão', 'O Instagram não reconheceu o login deste Chrome. Abra o instagram.com e entre de novo.');
+  } else if (tipo === 'indisponivel') {
+    // 1.1.4: HTML na resposta da API → só registra; não pausa, não vira "sem sessão" nem alerta de mudança de API.
+    log(e, { username, acao: contexto, resultado: `checagem indisponível: ${msg}` });
   } else {
     log(e, { username, acao: contexto, resultado: `erro (${tipo}): ${msg}` });
     if (tipo === 'mudanca_api') {
@@ -315,10 +322,16 @@ async function processarSeguir(e, agora) {
     await pausaHumana();
     let st;
     try {
-      st = await api.amizade(cand.id);
+      st = await api.amizade(cand.id, cand.username);
     } catch (err) {
       const tipo = tratarErro(e, err, 'checar antes de seguir', cand.username);
       if (bloqueante(tipo)) { e.fila.unshift(cand); return tipo; }
+      if (tipo === 'indisponivel') {
+        // 1.1.4: checagem indisponível (API respondeu HTML e o botão do perfil não foi lido). O perfil volta para
+        // a fila sem ser marcado e o limite do dia não é tocado; o horário perdido é replanejado (1.1.1).
+        e.fila.unshift(cand);
+        return tipo;
+      }
       e.vistos[cand.id] = `erro:${tipo}`;
       continue;
     }
@@ -351,7 +364,7 @@ async function processarSeguir(e, agora) {
     } catch (err) {
       const tipo = tratarErro(e, err, 'seguir', cand.username);
       if (bloqueante(tipo)) { e.fila.unshift(cand); return tipo; }
-      if (tipo === 'mudanca_api') {
+      if (tipo === 'mudanca_api' || tipo === 'indisponivel') {
         // Resposta inesperada (ex.: HTML) mesmo após o endpoint legado: não é sucesso
         // nem bloqueio. Suspende o SEGUIR até o fim do dia; o perfil volta para a fila.
         e.fila.unshift(cand);
@@ -403,13 +416,19 @@ async function processarDeixarDeSeguir(e, agora) {
     await pausaHumana();
     let st;
     try {
-      st = await api.amizade(r.id);
+      st = await api.amizade(r.id, r.username);
     } catch (err) {
       const tipo = tratarErro(e, err, 'checar antes de deixar de seguir', r.username);
-      if (bloqueante(tipo)) return tipo;
+      if (bloqueante(tipo) || tipo === 'indisponivel') return tipo;
       continue;
     }
     if (st.meSegue) { marcarFollowBack(e, r, Date.now()); continue; }
+    if (st.meSegue === undefined) {
+      // 1.1.4: lido pelo botão "Seguindo"/"Solicitado" (API respondeu HTML) — não diz se a pessoa me segue.
+      // Na dúvida não deixa de seguir (seria desfazer com quem seguiu de volta).
+      log(e, { username: r.username, acao: 'deixar de seguir', resultado: `adiado: não deu para confirmar se segue de volta (${st.via || 'sem dado'})`, origem: r.origem });
+      continue;
+    }
     if (atualizarSolicitacao(r, st, Date.now())) {
       log(e, { username: r.username, acao: 'solicitação aceita', resultado: 'aceitou a solicitação (perfil privado), mas não seguiu de volta', origem: r.origem });
     }
@@ -477,12 +496,57 @@ async function verificarFollowBacks(e, agora) {
           if (st.meSegue === true) marcarFollowBack(e, reg, Date.now());
         }
       } catch (err) {
+        if (err instanceof ErroInstagram && err.tipo === 'indisponivel') {
+          // 1.1.4: show_many respondeu HTML. Não é sessão nem bloqueio e não gera alerta: segue pelo botão do perfil.
+          log(e, { acao: 'verificar follow-back', resultado: `checagem em lote indisponível (show_many respondeu HTML) — conferindo até ${PERFIS_POR_VARREDURA} perfis pelo botão` });
+          const r2 = await verificarPeloPerfil(e, lista);
+          if (r2 !== 'ok') return r2;
+          break;
+        }
         const tipo = tratarErro(e, err, 'verificar follow-back (show_many)');
         if (bloqueante(tipo)) return tipo;
         break;
       }
+      limparAlertaShowMany(e);
     }
   }
+  return 'ok';
+}
+
+/** O alerta antigo de "show_many respondeu de forma inesperada" some quando a checagem volta a funcionar. */
+function limparAlertaShowMany(e) {
+  if (e.alerta && e.alerta.tipo === 'mudanca_api' && /show_many/.test(e.alerta.texto || '')) e.alerta = null;
+}
+
+/**
+ * 1.1.4: plano B da varredura — lê o botão do perfil (sem clicar) de no máximo PERFIS_POR_VARREDURA seguidos,
+ * os menos conferidos primeiro, com intervalo humano entre as visitas.
+ */
+async function verificarPeloPerfil(e, ids) {
+  const regs = ids
+    .map((id) => e.seguidos[id])
+    .filter((r) => r && r.username)
+    .sort((a, b) => (a.checadoPerfilEm || 0) - (b.checadoPerfilEm || 0))
+    .slice(0, PERFIS_POR_VARREDURA);
+  let conferidos = 0;
+  for (const reg of regs) {
+    await pausaEntrePerfis();
+    let st;
+    try {
+      st = await api.amizadePeloPerfil(reg.username);
+    } catch (err) {
+      const tipo = tratarErro(e, err, 'verificar follow-back (perfil)', reg.username);
+      if (bloqueante(tipo)) return tipo;
+      break; // leitura indisponível: tenta de novo na próxima varredura
+    }
+    reg.checadoPerfilEm = Date.now();
+    conferidos += 1;
+    if (atualizarSolicitacao(reg, st, Date.now())) {
+      log(e, { username: reg.username, acao: 'solicitação aceita', resultado: 'aceitou a solicitação (perfil privado)', origem: reg.origem });
+    }
+    if (st.meSegue === true) marcarFollowBack(e, reg, Date.now());
+  }
+  if (conferidos) limparAlertaShowMany(e);
   return 'ok';
 }
 

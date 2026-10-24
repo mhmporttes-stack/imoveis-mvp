@@ -44,6 +44,15 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 
 
+### 2026-10-24 — Seguidor Instagram 1.1.4: checagem de amizade sem quebrar com HTML na API
+- **Data:** 2026-10-24
+- **Área:** Ferramenta pessoal fora do CRM (`ferramentas/instagram-seguidor/`)
+- **Alteração:** chamadas à API levam os cabeçalhos tirados da página aberta do Instagram (app-id, asbd, `x-instagram-ajax`, csrf, claim; os fixos viram reserva) e o diagnóstico mostra quais vieram da página. HTML numa resposta da API de checagem (show_many/show) vira tipo `indisponivel`: não pausa, não vira "sem sessão", não gera alerta, não marca perfil da fila nem gasta o limite (o perfil volta para a fila). Plano B: leitura do botão do perfil sem clicar (`lerEstadoNaPagina`/`lerPerfilNaAba`), até 5 perfis por varredura de 30 min com 6–16 s entre eles. Com o estado lido só pelo botão "Seguindo"/"Solicitado" (não diz se segue de volta), deixar de seguir fica adiado. Alerta antigo de show_many some quando a checagem volta.
+- **Motivo:** erro visto pelo dono na 1.1.3: show_many respondeu HTTP 200 com a página HTML do Instagram.
+- **Arquivos afetados:** `ferramentas/instagram-seguidor/{manifest.json,instagram-api.js,background.js,README.md,tests/ajuda/simulador.mjs,tests/checagem-html.test.mjs (novo)}`, `ferramentas/instagram-seguidor.zip`, `docs/INCIDENTES.md`.
+- **Risco/observação:** não testado contra o Instagram real (só simulador e fixtures). Se os cabeçalhos da página não resolverem, cada seguir passa a abrir o perfil 2–3 vezes (checar, clicar, confirmar) — mesmo ritmo de ações, só mais visitas de página. Com o friendships/show em HTML, o deixar de seguir fica parado (seguro, mas a lista de seguidos cresce) até a API voltar — decisão do dono se quiser outro critério. `node --test tests/*.test.mjs`: 70/70.
+- **Autor:** Claude Code (crm-editor)
+
 ### 2026-10-23 — Henry: leitura ampla do CRM (vários clientes, Chat, financeiro, presença), continua só leitura
 - **Data:** 2026-10-23
 - **Área:** Henry (voz) / Clientes (linha do tempo)

@@ -43,15 +43,28 @@ export const ENDPOINTS = {
 export const TEXTOS_SEGUIR = ['seguir', 'follow', 'seguir de volta', 'follow back'];
 export const TEXTOS_SEGUINDO = ['seguindo', 'following', 'solicitado', 'requested'];
 export const TEXTOS_DEIXAR = ['deixar de seguir', 'unfollow', 'cancelar solicitação', 'cancel request'];
+// 1.1.4: leitura (sem clicar) do botão do perfil, para checar a amizade quando a API responde HTML.
+export const TEXTOS_LEITURA = {
+  seguir_de_volta: ['seguir de volta', 'follow back'],
+  seguir: ['seguir', 'follow'],
+  seguindo: ['seguindo', 'following'],
+  solicitado: ['solicitado', 'requested'],
+  segueVoce: ['segue você', 'follows you'],
+  privado: ['esta conta é privada', 'this account is private'],
+};
 
 export class ErroInstagram extends Error {
   constructor(tipo, mensagem, { status = 0, endpoint = '', corpo = '' } = {}) {
     super(mensagem);
     this.name = 'ErroInstagram';
-    this.tipo = tipo; // 'limite' | 'sessao' | 'nao_encontrado' | 'mudanca_api' | 'aba' | 'sem_janela' | 'incerto' | 'outro'
+    // 'indisponivel' (1.1.4) = checagem de amizade sem resposta utilizável (API respondeu HTML e a leitura do
+    // botão do perfil também falhou): não é sessão, não é bloqueio, não gasta perfil da fila nem cota.
+    this.tipo = tipo; // 'limite' | 'sessao' | 'nao_encontrado' | 'mudanca_api' | 'indisponivel' | 'aba' | 'sem_janela' | 'incerto' | 'outro'
     this.status = status;
     this.endpoint = endpoint;
     this.corpo = String(corpo || '').slice(0, 500);
+    // true quando a API (JSON) devolveu uma página HTML com HTTP 2xx/3xx — a página do site, não um erro da API.
+    this.html = status > 0 && status < 400 && /^\s*</.test(String(corpo || ''));
   }
 }
 
@@ -79,7 +92,7 @@ function form(obj) {
  * `{ status, texto }` (nos testes é um falso; na extensão é a aba do Instagram).
  * `obterCsrf()` devolve o csrftoken atual (ou '').
  */
-export function criarApiInstagram({ executar, obterCsrf = async () => '', clicar = null }) {
+export function criarApiInstagram({ executar, obterCsrf = async () => '', clicar = null, lerPerfil = null }) {
   /**
    * Faz uma chamada. `referer` é o caminho da página "de onde" a chamada parte
    * (ex.: '/fulano/'), como o site faz. `bruto: true` devolve o texto (HTML) sem
@@ -136,8 +149,36 @@ export function criarApiInstagram({ executar, obterCsrf = async () => '', clicar
     }
   }
 
-  async function amizadeDe(id) {
-    return normalizarAmizade(await chamar('friendships/show', ENDPOINTS.amizade(id)));
+  /** 1.1.4: amizade lida do botão do perfil (Seguir / Seguir de volta / Seguindo / Solicitado), sem clicar. */
+  async function amizadePeloPerfil(username, motivo = '') {
+    if (!lerPerfil || !username) {
+      throw new ErroInstagram('indisponivel', `Checagem de amizade indisponível${motivo ? ` (${motivo})` : ''}${username ? '' : ' — sem o @ do perfil para ler o botão'}.`, { endpoint: 'perfil (botão)' });
+    }
+    let r;
+    try {
+      r = await lerPerfil({ username });
+    } catch (e) {
+      if (e instanceof ErroInstagram && e.tipo !== 'aba' && e.tipo !== 'outro') throw e; // sem_janela etc. sobem como estão
+      throw new ErroInstagram('indisponivel', `Checagem de amizade indisponível: falha ao ler o perfil @${username} (${e.message || e})${motivo ? ` — ${motivo}` : ''}.`, { endpoint: 'perfil (botão)' });
+    }
+    const st = amizadeDoBotao(r);
+    if (!st) {
+      throw new ErroInstagram('indisponivel', `Checagem de amizade indisponível: ${r && r.erro ? r.erro : 'botão não reconhecido'} no perfil @${username}${motivo ? ` — ${motivo}` : ''}.`, { endpoint: 'perfil (botão)' });
+    }
+    return st;
+  }
+
+  /**
+   * Amizade com UM perfil: friendships/show; se a API devolver HTML (1.1.4), lê o botão do perfil.
+   * HTML aqui nunca vira "sessão" nem "mudança de API": vira 'indisponivel' se a leitura também falhar.
+   */
+  async function amizadeDe(id, username = '') {
+    try {
+      return { ...normalizarAmizade(await chamar('friendships/show', ENDPOINTS.amizade(id))), via: 'friendships/show' };
+    } catch (e) {
+      if (!(e instanceof ErroInstagram) || !e.html) throw e;
+      return amizadePeloPerfil(username, 'friendships/show respondeu HTML');
+    }
   }
 
   /**
@@ -165,15 +206,15 @@ export function criarApiInstagram({ executar, obterCsrf = async () => '', clicar
           await chamar(rotulo, caminho, { metodo: 'POST', corpo, referer });
         }
       } catch (e) {
-        if (!(e instanceof ErroInstagram) || (e.tipo !== 'mudanca_api' && e.tipo !== 'outro')) throw e;
+        if (!(e instanceof ErroInstagram) || (e.tipo !== 'mudanca_api' && e.tipo !== 'outro' && e.tipo !== 'indisponivel')) throw e;
         falha = e.message;
       }
-      let st = await amizadeDe(id);
+      let st = await amizadeDe(id, username);
       if (!confirmado(st) && (!falha || opcoes.clique)) {
         // 1.1.2: o friendships/show às vezes demora a refletir a ação; confere de novo antes de tentar o legado
         // (evita mandar um segundo pedido para quem já foi seguido).
         await new Promise((r) => setTimeout(r, 2500));
-        st = await amizadeDe(id);
+        st = await amizadeDe(id, username);
       }
       if (confirmado(st)) return { ...st, via: rotulo };
       falhas.push(falha || `${rotulo} respondeu, mas o friendships/show não confirmou`);
@@ -280,9 +321,17 @@ export function criarApiInstagram({ executar, obterCsrf = async () => '', clicar
       return { usuarios, proximo: pi.has_next_page && pi.end_cursor ? pi.end_cursor : null, via: 'graphql', trecho: trechoSeguro(JSON.stringify(j)) };
     },
 
-    /** Status de amizade com UM perfil: { seguindo, meSegue, pedidoPendente, privado }. */
-    async amizade(id) {
-      return amizadeDe(id);
+    /**
+     * Status de amizade com UM perfil: { seguindo, meSegue, pedidoPendente, privado, via }.
+     * Com `username`, se a API responder HTML, lê o botão do perfil (aí meSegue pode vir `undefined`).
+     */
+    async amizade(id, username = '') {
+      return amizadeDe(id, username);
+    },
+
+    /** 1.1.4: amizade lida direto do botão do perfil (sem API). */
+    async amizadePeloPerfil(username) {
+      return amizadePeloPerfil(username);
     },
 
     /**
@@ -292,7 +341,15 @@ export function criarApiInstagram({ executar, obterCsrf = async () => '', clicar
      */
     async amizadeVarios(ids) {
       if (!ids.length) return {};
-      const j = await chamar('friendships/show_many', ENDPOINTS.amizadeVarios(), { metodo: 'POST', corpo: form({ user_ids: ids.join(',') }) });
+      let j;
+      try {
+        j = await chamar('friendships/show_many', ENDPOINTS.amizadeVarios(), { metodo: 'POST', corpo: form({ user_ids: ids.join(',') }) });
+      } catch (e) {
+        // 1.1.4 (caso real 24/10): show_many respondeu a página HTML do Instagram (HTTP 200). Não é sessão nem
+        // bloqueio: a checagem em lote fica indisponível e quem chama segue com a leitura do botão do perfil.
+        if (!(e instanceof ErroInstagram) || !e.html) throw e;
+        throw new ErroInstagram('indisponivel', `Checagem em lote (show_many) indisponível: a API respondeu a página HTML do Instagram. ${e.message}`, { status: e.status, endpoint: 'friendships/show_many', corpo: e.corpo });
+      }
       const mapa = (j && j.friendship_statuses) || {};
       const r = {};
       for (const [id, st] of Object.entries(mapa)) r[String(id)] = normalizarAmizade(st);
@@ -386,6 +443,7 @@ export function criarApiInstagram({ executar, obterCsrf = async () => '', clicar
 export function diagnostico({ metodo, url, cabecalhos = {}, corpo = null, resp = {} }) {
   const partes = [`${resp.metodoUsado || metodo} ${resp.urlPedida || url}`];
   if (cabecalhos['content-type']) partes.push(`content-type enviado ${cabecalhos['content-type']}`);
+  if (Array.isArray(resp.cabecalhosDaPagina)) partes.push(`cabeçalhos da página: ${resp.cabecalhosDaPagina.length ? resp.cabecalhosDaPagina.join(' ') : 'nenhum'}`);
   if (metodo !== 'GET') partes.push(`corpo ${corpo ? `enviado (${String(corpo).length} caracteres)` : 'VAZIO'}`);
   if (resp.status != null) partes.push(`→ HTTP ${resp.status}${resp.tipoResposta ? ` (${resp.tipoResposta})` : ''}`);
   if (resp.redirecionado) partes.push(`redirecionado para ${resp.urlFinal}`);
@@ -406,6 +464,25 @@ export function extrairIdDoHtml(html, username) {
     if (m) return m[1];
   }
   return null;
+}
+
+/**
+ * 1.1.4: leitura do botão do perfil → mesmo formato de normalizarAmizade (ou null se não reconheceu).
+ * "Seguir de volta" = a pessoa me segue e eu não; "Seguir" = não me segue. "Seguindo"/"Solicitado" não dizem
+ * se ela me segue: `meSegue` só é true com o selo "Segue você"; senão fica `undefined` (nunca deduzir "não segue").
+ */
+export function amizadeDoBotao(leitura) {
+  if (!leitura || !leitura.ok) return null;
+  const privado = Boolean(leitura.privado);
+  const segue = leitura.segueVoce ? true : undefined;
+  const via = 'perfil (botão)';
+  switch (leitura.botao) {
+    case 'seguir_de_volta': return { seguindo: false, meSegue: true, pedidoPendente: false, privado, via };
+    case 'seguir': return { seguindo: false, meSegue: Boolean(leitura.segueVoce), pedidoPendente: false, privado, via };
+    case 'seguindo': return { seguindo: true, meSegue: segue, pedidoPendente: false, privado, via };
+    case 'solicitado': return { seguindo: false, meSegue: segue, pedidoPendente: true, privado: true, via };
+    default: return null;
+  }
 }
 
 export function normalizarAmizade(st) {
@@ -430,14 +507,36 @@ export function normalizarAmizade(st) {
 export async function requisicaoNaPagina(url, metodo, corpo, cabecalhos, referer) {
   const h = { ...cabecalhos };
   const ehApi = Object.keys(h).length > 0;
+  const daPagina = [];
   if (ehApi) {
-    // csrftoken do cookie da própria página (mais atual que o lido pela extensão).
+    // 1.1.4: os cabeçalhos que o próprio site manda, tirados da página aberta (configuração embutida nos
+    // <script> do instagram.com). Os fixos da extensão ficam só como reserva se a página não tiver o valor.
+    try {
+      const fontes = [];
+      for (const s of document.querySelectorAll('script')) {
+        const t = s.textContent || '';
+        if (t && t.length < 5000000) fontes.push(t);
+      }
+      const texto = fontes.join('\n');
+      const achar = (re) => { const x = texto.match(re); return x ? x[1] : ''; };
+      const valores = {
+        'x-ig-app-id': achar(/"(?:X-IG-App-ID|APP_ID|appId|app_id|instagramWebDesktopFBAppId)"\s*:\s*"?(\d{6,20})/),
+        'x-asbd-id': achar(/"(?:X-ASBD-ID|ASBD_ID|asbd_id|asbdId)"\s*:\s*"?(\d{3,10})/),
+        'x-instagram-ajax': achar(/"rollout_hash"\s*:\s*"([0-9a-z]{6,64})"/i) || achar(/"(?:server_revision|client_revision|__spin_r)"\s*:\s*(\d{6,15})/),
+        'x-csrftoken': achar(/"csrf_token"\s*:\s*"([^"]{8,128})"/),
+      };
+      for (const [k, v] of Object.entries(valores)) {
+        if (v) { h[k] = v; daPagina.push(k); }
+      }
+    } catch { /* sem acesso aos scripts: segue com os cabeçalhos fixos */ }
+    // csrftoken do cookie da própria página (mais atual que o lido pela extensão e que o embutido no HTML).
     const m = document.cookie.match(/(?:^|;\s*)csrftoken=([^;]+)/);
     if (m) h['x-csrftoken'] = decodeURIComponent(m[1]);
     // x-ig-www-claim: o site guarda no sessionStorage; se não houver, manda '0' como o site.
     try {
       const claim = sessionStorage.getItem('www-claim-v2');
       h['x-ig-www-claim'] = claim || '0';
+      if (claim) daPagina.push('x-ig-www-claim');
     } catch {
       h['x-ig-www-claim'] = '0';
     }
@@ -462,6 +561,7 @@ export async function requisicaoNaPagina(url, metodo, corpo, cabecalhos, referer
       urlFinal: r.url,
       redirecionado: r.redirected,
       tipoResposta: r.headers.get('content-type') || '',
+      cabecalhosDaPagina: daPagina, // só os NOMES (nunca os valores) — para o diagnóstico
     };
   } catch (e) {
     return { status: 0, texto: `fetch falhou: ${e && e.message ? e.message : e}`, origem: location.origin, metodoUsado: metodo, urlPedida: url };
@@ -615,6 +715,53 @@ export async function clicarNaPagina(passos) {
   return { ok: true, origem: location.origin };
 }
 
+/**
+ * 1.1.4 — roda NA PÁGINA do perfil, SEM clicar: espera (até 8 s) o botão principal do perfil e devolve
+ * { ok, botao: 'seguir'|'seguir_de_volta'|'seguindo'|'solicitado', segueVoce, privado }. Procura no <header>
+ * do perfil (as sugestões "Seguir" da página ficam fora dele). Texto exato, só botões visíveis.
+ */
+export async function lerEstadoNaPagina(textos) {
+  const norm = (t) => String(t || '').replace(/\s+/g, ' ').trim().toLowerCase();
+  const visivel = (el) => { const r = el.getBoundingClientRect(); return r.width > 0 && r.height > 0; };
+  const ordem = ['seguir_de_volta', 'seguindo', 'solicitado', 'seguir'];
+  const achar = () => {
+    const raiz = document.querySelector('header') || document;
+    for (const el of raiz.querySelectorAll('button, div[role="button"]')) {
+      if (!visivel(el)) continue;
+      const t = norm(el.innerText || el.textContent);
+      const tipo = ordem.find((k) => textos[k].includes(t));
+      if (tipo) return tipo;
+    }
+    return null;
+  };
+  let botao = null;
+  for (let t = 0; t < 32 && !botao; t += 1) {
+    botao = achar();
+    if (!botao) await new Promise((r) => setTimeout(r, 250));
+  }
+  if (!botao) return { ok: false, erro: 'botão Seguir/Seguindo não apareceu', origem: location.origin };
+  const cab = norm((document.querySelector('header') || {}).innerText || '');
+  const corpo = norm(document.body ? document.body.innerText : '');
+  return {
+    ok: true,
+    botao,
+    segueVoce: textos.segueVoce.some((x) => cab.includes(x)),
+    privado: textos.privado.some((x) => corpo.includes(x)),
+    origem: location.origin,
+  };
+}
+
+/** 1.1.4: abre o perfil na janela de trabalho (sem foco) e LÊ o botão (não clica). */
+export async function lerPerfilNaAba({ username }) {
+  if (!username) return { ok: false, erro: 'sem @ do perfil' };
+  const tabId = await garantirAbaInstagram();
+  await chrome.tabs.update(tabId, { url: `${BASE}/${encodeURIComponent(username)}/` });
+  await new Promise((r) => setTimeout(r, 400));
+  await esperarCarregar(tabId);
+  const [res] = await chrome.scripting.executeScript({ target: { tabId }, world: 'MAIN', func: lerEstadoNaPagina, args: [TEXTOS_LEITURA] });
+  return (res && res.result) || { ok: false, erro: 'a aba não respondeu' };
+}
+
 /** Abre o perfil na janela de trabalho (sem foco) e executa os cliques. */
 export async function clicarNaAba({ username, passos }) {
   if (!username) return { ok: false, erro: 'sem @ do perfil' };
@@ -628,5 +775,5 @@ export async function clicarNaAba({ username, passos }) {
 
 /** API pronta para uso dentro da extensão. */
 export function criarApiChrome() {
-  return criarApiInstagram({ executar: executarNaAba, obterCsrf: async () => (await lerSessao()).csrf, clicar: clicarNaAba });
+  return criarApiInstagram({ executar: executarNaAba, obterCsrf: async () => (await lerSessao()).csrf, clicar: clicarNaAba, lerPerfil: lerPerfilNaAba });
 }

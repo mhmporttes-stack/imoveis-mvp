@@ -32,6 +32,9 @@ export function criarInstagramFalso({ meuId = '999', referencia = 'perfilref', t
     perfilPrivado: false, // perfil de referência privado
     createHtml: false, // friendships/create devolve a página HTML (sem seguir)
     legadoFunciona: true, // /web/friendships/{id}/follow/ segue de verdade
+    showHtml: false, // 1.1.4: friendships/show devolve a página HTML
+    showManyHtml: false, // 1.1.4: friendships/show_many devolve a página HTML
+    leituraFalha: false, // 1.1.4: a leitura do botão do perfil não acha o botão
     sigoReferencia: false, // eu sigo o perfil de referência
     v1Vazio: false, // friendships/{id}/followers devolve users: []
     graphqlVazio: false, // GraphQL de seguidores devolve lista vazia
@@ -97,6 +100,9 @@ export function criarInstagramFalso({ meuId = '999', referencia = 'perfilref', t
       const pagina = usuarios.slice(inicio, inicio + n);
       return ok({ users: pagina, next_max_id: inicio + n < usuarios.length ? String(inicio + n) : null, status: 'ok' });
     }
+    const PAGINA_HTML = { status: 200, texto: '<!DOCTYPE html><html><head><title>Instagram</title></head></html>' };
+    if (ig.showHtml && caminho.startsWith('/api/v1/friendships/show/')) return PAGINA_HTML; // 1.1.4
+    if (ig.showManyHtml && caminho === '/api/v1/friendships/show_many/') return PAGINA_HTML; // 1.1.4 (caso real 24/10)
     if ((m = caminho.match(/^\/api\/v1\/friendships\/show\/(\w+)\/$/))) {
       const usr = usuarios.find((x) => x.pk === m[1]);
       return ok({ following: ig.sigo.has(m[1]), followed_by: ig.meSeguem.has(m[1]), outgoing_request: ig.pendentes.has(m[1]), is_private: Boolean(usr && usr.is_private), status: 'ok' });
@@ -198,11 +204,20 @@ export function criarChromeFalso(ig, { logado = true, semJanelas = false } = {})
       onUpdated: { addListener: (f) => ouvintes.tabUpdated.push(f), removeListener() {} },
     },
     scripting: {
-      async executeScript({ target, args }) {
+      async executeScript({ target, args, func }) {
         const alvo = acharAba(target.tabId);
         if (!alvo) throw new Error(`No tab with id: ${target.tabId}`);
         registro.execucoes = (registro.execucoes || 0) + 1;
         if (alvo.w.id === 1) throw new Error('usou aba da janela do dono');
+        if (func && func.name === 'lerEstadoNaPagina') {
+          // 1.1.4: leitura do botão do perfil (sem clicar). O site web não mostra "Segue você" no simulador.
+          const usuario = decodeURIComponent((String(alvo.t.url || '').match(/instagram\.com\/([^/?#]+)\/?/) || [])[1] || '');
+          const u = ig.usuarios.find((x) => x.username === usuario);
+          ig.chamadas.push({ em: Date.now(), caminho: `leitura:${usuario}`, metodo: 'READ' });
+          if (!u || ig.leituraFalha) return [{ result: { ok: false, erro: 'botão Seguir/Seguindo não apareceu' } }];
+          const botao = ig.sigo.has(u.pk) ? 'seguindo' : ig.pendentes.has(u.pk) ? 'solicitado' : ig.meSeguem.has(u.pk) ? 'seguir_de_volta' : 'seguir';
+          return [{ result: { ok: true, botao, segueVoce: false, privado: Boolean(u.is_private) } }];
+        }
         if (Array.isArray(args[0])) {
           // 1.1.3: clique no botão do perfil (clicarNaPagina). Funciona quando o "legado" funcionaria.
           const usuario = decodeURIComponent((String(alvo.t.url || '').match(/instagram\.com\/([^/?#]+)\/?/) || [])[1] || '');
