@@ -44,6 +44,16 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 
 
+### 2026-10-24 — Henry: menos travadas ao abrir e na conversa (frases de espera na sessão, ondas da tela cheia)
+- **Data:** 2026-10-24
+- **Área:** Henry (voz) / desempenho
+- **Alteração:** (1) a cópia das frases de espera na `sessionStorage` (~4,4 milhões de caracteres de áudio em base64) era gravada a cada lote do pré-aquecimento (até 19 seguidas ao abrir) e a cada frase pedida no meio da conversa; agora é UMA gravação ~3 s depois do último lote, só com o Henry fora de gravação/pensando/falando, e na hora ao sair/recarregar (`scheduleNarrationSave`/`flushNarrationSave`, `HenryVoiceAssistant`). (2) `WavesScene` (`HenryAnswerScenes`) só grava `--lvl` quando o valor muda (parado = nenhum recálculo de estilo por quadro).
+- **Motivo:** dono: Henry lento "em tudo" (abrir, ouvir/responder, animações); pente-fino de desempenho.
+- **Medição (Chromium headless, sem GPU):** `setItem` do pacote = 55–110 ms de tela travada por gravação (1x CPU) → antes até ~19 travadas ao abrir + 1 por frase nova durante a conversa, agora 1, fora da fala. Tela cheia parada (CPU 4x): recálculo de estilo 27 → 9 ms/s. Visual e comportamento iguais.
+- **Arquivos afetados:** `components/henry/HenryVoiceAssistant.jsx`, `components/henry/HenryAnswerScenes.jsx`.
+- **Risco/observação:** sessão fechada à força antes da gravação perde só a cópia local (a sessão some de qualquer jeito). Não mexido (decisão do dono/design): animações CSS infinitas das ondas (`breathe` com `filter` em 4 anéis grandes + 16 partículas) mantêm o compositor a 60 fps mesmo no modo econômico do anel — sem GPU custam ~0,7 núcleo; microfone reaberto a cada gravação no app de desktop; transcrição e resposta em 2 pedidos separados.
+- **Autor:** Claude Code (crm-editor)
+
 ### 2026-10-24 — Henry: boom do bom dia sem plasma e sem anéis
 - **Data:** 2026-10-24
 - **Área:** Henry

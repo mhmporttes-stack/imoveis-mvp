@@ -172,6 +172,7 @@ function claimAlertLeader(tabId) {
   }
 }
 const IDLE_SLEEP_MS = 30000;
+const NARRATION_SAVE_DELAY_MS = 3000; // cópia das frases de espera na sessão: uma gravação só, fora da fala (ver scheduleNarrationSave)
 
 // Diagnóstico (dono, 2026-10-23: "ouve e não responde", "demora muito"): motivo de cada transcrição descartada e tempos
 // de cada etapa, só no console do navegador e num contador da página (window.__henryDebug). Nunca o texto nem o áudio.
@@ -638,6 +639,38 @@ export default function HenryVoiceAssistant() {
   // Frases de espera na voz do Henry: da sessão do navegador (mesma voz/estilo = mesma chave) ou do servidor (cache dele).
   // O que faltar (pacote que voltou pela metade, frase nova no banco) vem depois em lotes pequenos (warmNarration), só o
   // que ainda não está no cache — nunca sintetiza de novo o que já tem (dono, 2026-10-23: "repete muito a mesma frase").
+  // Cópia na sessão (só serve para recarregar sem pedir de novo): o pacote tem ~4 milhões de caracteres (áudio em base64)
+  // e cada gravação custava ~55–110 ms de tela travada (medido, 2026-10-24) — antes era uma por lote do pré-aquecimento
+  // (até 19 seguidas ao abrir) e uma no meio da conversa. Agora: uma só, ~3 s depois do último lote e com o Henry fora de
+  // gravação/pensando/falando; ao sair/recarregar a página grava na hora o que estiver pendente (nada se perde).
+  const narrationSaveRef = useRef({ timer: 0, key: "", phrases: null });
+  const flushNarrationSave = useCallback(() => {
+    const pending = narrationSaveRef.current;
+    window.clearTimeout(pending.timer);
+    narrationSaveRef.current = { timer: 0, key: "", phrases: null };
+    if (!pending.phrases) return;
+    try {
+      window.sessionStorage.setItem(`mm-henry-narration:${pending.key}`, JSON.stringify({ phrases: pending.phrases }));
+    } catch {
+      // sem espaço na sessão: fica só na memória da página
+    }
+  }, []);
+  const scheduleNarrationSave = useCallback((key, phrases) => {
+    window.clearTimeout(narrationSaveRef.current.timer);
+    const attempt = () => {
+      const busy = Boolean(recordRef.current) || ["armed", "thinking", "speaking"].includes(phaseRef.current);
+      if (busy) narrationSaveRef.current.timer = window.setTimeout(attempt, NARRATION_SAVE_DELAY_MS);
+      else flushNarrationSave();
+    };
+    narrationSaveRef.current = { key, phrases, timer: window.setTimeout(attempt, NARRATION_SAVE_DELAY_MS) };
+  }, [flushNarrationSave]);
+  useEffect(() => {
+    window.addEventListener("pagehide", flushNarrationSave);
+    return () => {
+      window.removeEventListener("pagehide", flushNarrationSave);
+      flushNarrationSave();
+    };
+  }, [flushNarrationSave]);
   const mergeNarration = useCallback((key, incoming) => {
     const state = narrationRef.current;
     if (state.key !== key || !incoming.length) return;
@@ -645,12 +678,8 @@ export default function HenryVoiceAssistant() {
     for (const phrase of incoming) byId.set(phrase.id, phrase);
     const phrases = [...byId.values()];
     narrationRef.current = { ...state, phrases };
-    try {
-      window.sessionStorage.setItem(`mm-henry-narration:${key}`, JSON.stringify({ phrases }));
-    } catch {
-      // sem espaço na sessão: fica só na memória da página
-    }
-  }, []);
+    scheduleNarrationSave(key, phrases);
+  }, [scheduleNarrationSave]);
   const fetchNarrationIds = useCallback((ids) => {
     const key = narrationRef.current.key;
     const pending = narrationPendingRef.current;

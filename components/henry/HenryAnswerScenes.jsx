@@ -47,10 +47,16 @@ function WavesScene({ getSignal, orbSize, centerTop, running, quiet = false }) {
     if (!running) return undefined;
     let raf = 0;
     let level = 0;
+    let written = "";
     const frame = () => {
       const target = Math.max(0, Math.min(1, Number(signalRef.current?.()?.level) || 0));
       level += (target - level) * 0.18;
-      ref.current?.style.setProperty("--lvl", level.toFixed(3));
+      // Só grava quando o valor muda: parado (nível 0) não recalcula o estilo das 20 peças a cada quadro.
+      const value = level.toFixed(3);
+      if (value !== written) {
+        written = value;
+        ref.current?.style.setProperty("--lvl", value);
+      }
       raf = requestAnimationFrame(frame);
     };
     raf = requestAnimationFrame(frame);
