@@ -88,7 +88,8 @@ test("todos os botões de contato do link e o 'Receber minha simulação' levam 
   assert.match(read("lib/documents-forecast-store.mjs"), /buildBrokerWhatsappUrl\(client\?\.id \|\| registrationId, message\)/);
   assert.equal((read("lib/client-appointments.js").match(/buildBrokerWhatsappUrl\(ctx\.client\.id, message\)/g) || []).length, 2);
   assert.match(read("lib/payment-strategy.js"), /buildBrokerWhatsappUrl\(loaded\.simulation\.registration\?\.id \|\| loaded\.simulation\.registrationId, message\)/);
-  assert.match(read("components/simulation-form/ReceiveSimulationWhatsappButton.jsx"), /withContactCode\(MESSAGE, registrationId\)/);
+  assert.match(read("lib/receive-simulation-contact.mjs"), /withContactCode\(FORM_COMPLETION_MESSAGE, registrationId\)/);
+  assert.match(read("components/simulation-form/ReceiveSimulationWhatsappButton.jsx"), /buildReceiveSimulationWhatsappUrl\(contact\.phone, registrationId\)/);
 });
 
 test("aviso ao corretor (exceção do dono, 2026-10-18): sino + push só na ATRIBUIÇÃO, uma vez", () => {
