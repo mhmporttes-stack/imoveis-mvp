@@ -40,6 +40,17 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-24 — "Apareceu uma conversa com o meu próprio número nas Particulares, cheia de 'Mensagem enviada pelo celular'"
+- **Data:** 2026-10-24
+- **Sintoma:** Chat > Particular: conversa com o número do próprio corretor (responsável ele mesmo, "Janela fechada"), só com bolhas "Mensagem enviada pelo celular — o CRM não conseguiu ler o conteúdo."
+- **Área:** WhatsApp
+- **Impacto:** conversas-lixo com o próprio número em várias sessões (a maior com 563 linhas); essas linhas também contavam como "contato humano" do corretor consigo mesmo. Mensagens para contatos reais não foram desviadas.
+- **Causa raiz:** o celular manda à própria conta mensagens de protocolo (nó "peer", ex.: resposta ao pedido de reenvio do conteúdo) com remoteJid = o próprio LID; as que não decifram viravam `undecrypted_message`. Sem o telefone do LID no serviço, o CRM o achava em OUTRA sessão (que conversa com esse corretor) e criava a conversa com o próprio número.
+- **Correção:** serviço não entrega mensagem da própria conta nem de nó "peer" e não pede reenvio de nó "peer"; CRM nunca cria/junta conversa com o `phone_number` da própria sessão. Detalhe: `docs/WHATSAPP.md` §1-L, `CHANGELOG_AI.md` (2026-10-24).
+- **Arquivos/commit:** `whatsapp-individual-service/src/{message-extract,pipeline-guard,sessions}.js`, `lib/whatsapp-self-chat-core.mjs`, `lib/whatsapp-individual-inbound.js` — branch `fix-self-chat`.
+- **Prevenção/teste:** `tests/whatsapp-self-chat.test.mjs`. Diagnóstico: conversa cujo `contact_phone` = `whatsapp_individual_sessions.phone_number` da mesma sessão; `metadata->>remote_jid` igual ao LID com que outras sessões falam com esse número; cruzar `message_at` com `placeholder_req` em `whatsapp_session_telemetry`.
+- **Status:** Diagnosticado, correção pendente de publicação (Vercel + Railway); limpeza das conversas antigas aguarda o dono.
+
 ### 2026-10-24 — "Um corretor fica com 0 contatos novos na meta do dia e os outros com todos"
 - **Data:** 2026-10-24
 - **Sintoma:** em `daily_goal_wallet_freeze` de 21-23/10 um corretor não tinha nenhum dos 10 novos do dia no congelamento; os demais tinham todos.
