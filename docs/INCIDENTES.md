@@ -40,6 +40,17 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-24 — Henry "não consegue visualizar" se a cliente do aviso está no oficial ou no WhatsApp pessoal
+- **Data:** 2026-10-24
+- **Sintoma:** o Henry avisou "entrou uma cliente nova e está com você"; o dono perguntou se ela estava no número da API oficial ou no pessoal e ele respondeu que não conseguia visualizar.
+- **Área:** Henry / WhatsApp (Chat)
+- **Impacto:** só o dono (Henry); qualquer pergunta de canal/número da conversa de um cliente.
+- **Causa raiz:** (1) nenhuma ferramenta do Henry devolvia o canal da conversa: `buscar_clientes` e a conversa do `conversas_aguardando` liam etapa, datas e resumo, nunca `session_key`/`session_slot` de `whatsapp_conversations`; (2) o aviso falado (`speakHenryClientAlerts`) não entrava na memória do dia, que é o histórico que vai ao modelo quando existe — "ela" não tinha a quem se referir.
+- **Correção:** `listClientChatChannels` (`lib/whatsapp-chat.js`, mesmo escopo/canal do Chat) → `describeChatChannels` (`lib/henry-reports-core.mjs`) no campo `whatsapp` de `buscar_clientes` e da conversa do cliente; o aviso grava na memória do dia a linha "[Aviso do Henry] Cliente do aviso: <nome completo> (novo, com você)" + o texto falado (`alertMemoryContext`, `rememberHenryAlert`); prompt explica o marcador e o campo.
+- **Arquivos/commit:** `lib/whatsapp-chat.js`, `lib/henry-reports*.{js,mjs}`, `lib/henry-voice-client-alerts*.{js,mjs}`, `lib/henry-voice.js`, `lib/henry-voice-persona.mjs` — branch `fix/henry-canal-whatsapp`.
+- **Prevenção/teste:** `tests/henry-client-channel.test.mjs`.
+- **Status:** Corrigido (não publicado — aguarda merge)
+
 ### 2026-10-24 — "Apareceu uma conversa com o meu próprio número nas Particulares, cheia de 'Mensagem enviada pelo celular'"
 - **Data:** 2026-10-24
 - **Sintoma:** Chat > Particular: conversa com o número do próprio corretor (responsável ele mesmo, "Janela fechada"), só com bolhas "Mensagem enviada pelo celular — o CRM não conseguiu ler o conteúdo."

@@ -575,6 +575,15 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-24 — Henry diz em qual WhatsApp está a conversa do cliente e entende "ela" depois do aviso — branch `fix/henry-canal-whatsapp`, NÃO publicado
+- **Data:** 2026-10-24
+- **Área:** Henry (HENRY-1 "Leitura ampla") / WhatsApp Chat (só leitura)
+- **Alteração:** `buscar_clientes` (e a conversa de um cliente em `conversas_aguardando`) ganham o campo `whatsapp` = onde está a conversa (número oficial / seu WhatsApp pessoal / pessoal de um corretor, Número 1 ou 2 com apelido) e de quem foi a última mensagem, sem telefone. Leitura nova `listClientChatChannels` em `lib/whatsapp-chat.js` com o escopo do Chat (`chatScope` + `canSeeConversation`, WA-11), dono da sessão por `conversationSessionOwner` e `slotDisplayName` (WA-15); Particular, excluída e grupo ficam fora. O aviso de cliente novo/transferido, depois de falado, vai para a memória do dia (`henry_day_memory`, mesma escrita única de sempre) como "[Aviso do Henry] Cliente do aviso: <nome completo> (novo|transferido, com X)" + o texto falado; o prompt explica o marcador e manda responder o canal pelo campo `whatsapp`.
+- **Motivo:** relato do dono: o Henry avisou a cliente nova e, perguntado se ela estava no oficial ou no pessoal, disse que não conseguia visualizar. Causa: nenhuma ferramenta lia o canal e o aviso não entrava no histórico do modelo (ver `docs/INCIDENTES.md`).
+- **Arquivos:** `lib/whatsapp-chat.js`, `lib/henry-reports.js`, `lib/henry-reports-core.mjs`, `lib/henry-voice-client-alerts.js`, `lib/henry-voice-client-alerts-core.mjs`, `lib/henry-voice.js`, `lib/henry-voice-persona.mjs`, `tests/henry-client-channel.test.mjs`, `docs/BUSINESS_RULES.md` (HENRY-1 Leitura ampla), `docs/INCIDENTES.md`.
+- **Validação:** `node --test tests/henry*.test.mjs tests/whatsapp-chat*.test.mjs` verde; `pnpm build`. `HENRY_TOOL_ACCESS` sem ferramenta nova (continua só leitura). **A CONFIRMAR** em produção com o próximo aviso real.
+- **Risco/observação:** nenhuma migration, rota ou permissão nova.
+
 ### 2026-10-24 — Simulação automática: por qual número sai o link (cliente que não escreveu / link do corretor) — branch `link-simulacao`, NÃO publicado
 - **Data:** 2026-10-24
 - **Área:** WhatsApp / envio automático da simulação (SIM-AUTO-ENVIO, ROL-2i)
