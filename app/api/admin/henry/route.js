@@ -6,6 +6,8 @@ import { checkPublicRateLimit } from "@/lib/rate-limit";
 import {
   answerHenry,
   claimHenryDevice,
+  createHenryLiveSttUrl,
+  recordHenryLiveSttUsage,
   getHenryNarration,
   henryNarrationVoiceKey,
   readHenryDayTurns,
@@ -370,6 +372,26 @@ export async function POST(request) {
     } catch (error) {
       console.warn(`[henry] frases de espera indisponíveis (${error?.name || "erro"}).`);
       return NextResponse.json({ error: "Frases de espera indisponíveis agora." }, { status: 502 });
+    }
+  }
+  // Transcrição ao vivo do aperte-para-falar (dono, 2026-10-24): { action: "token" } → { url } (WebSocket do Scribe
+  // Realtime com token de USO ÚNICO — a chave nunca sai daqui; url vazia = o navegador segue só com a gravação);
+  // { action: "usage", durationMs, ok } → registra o custo (henry_voice_stt). Nenhum áudio passa por esta rota.
+  if (body?.mode === "transcribe_live") {
+    try {
+      if (body?.action === "usage") {
+        await recordHenryLiveSttUsage(auth, { durationMs: Number(body?.durationMs) || 0, ok: body?.ok !== false });
+        return NextResponse.json({ ok: true });
+      }
+      if (body?.action !== "token") return NextResponse.json({ error: "Ação inválida." }, { status: 400 });
+      const [{ enabled }, allowedRate] = await Promise.all([readHenrySettings(), checkPublicRateLimit(`henry-live:${auth.profile?.id}`, { windowSeconds: 60, maxAttempts: 20 })]);
+      if (!enabled) return NextResponse.json({ error: "O Henry está desligado. Ligue em Alexa e Henry." }, { status: 409 });
+      if (!allowedRate) return NextResponse.json({ url: "", reason: "limite" });
+      const live = await createHenryLiveSttUrl();
+      return NextResponse.json({ url: live.url || "", ...(live.url ? {} : { reason: live.reason || "erro" }) });
+    } catch (error) {
+      console.warn(`[henry] fala ao vivo indisponível (${error?.name || "erro"}).`);
+      return NextResponse.json({ error: "Fala ao vivo indisponível agora." }, { status: 502 });
     }
   }
   if (body?.mode === "transcribe") {

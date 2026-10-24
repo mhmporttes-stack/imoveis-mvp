@@ -141,7 +141,7 @@ test("bom dia: fluxo ligado no servidor e na tela (só o dono, somente leitura, 
   const route = readFileSync(new URL("../app/api/admin/henry/route.js", import.meta.url), "utf8");
   assert.match(route, /parseMorningState\(body\?\.morning\)/);
   const ui = readFileSync(new URL("../components/henry/HenryVoiceAssistant.jsx", import.meta.url), "utf8");
-  assert.match(ui, /isConversationExpired\(conversationNow\.lastAt\)/);
+  assert.match(ui, /isConversationExpired\(conversationNow\.lastAt, Date\.now\(\), idleMs\)/); // "Só quando eu apertar": passo pendente espera até 5 min (conversationIdleMsFor)
   assert.match(ui, /morningRef\.current = null;/);
 });
 

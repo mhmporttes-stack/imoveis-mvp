@@ -82,6 +82,10 @@ export default function HenryVoiceView({
   // Mudo (dono, 2026-10-24): voz do Henry desligada (ele responde só na tela). null = sem o botão.
   voiceMuted = false,
   onToggleVoiceMute = null,
+  // "Só quando eu apertar" (dono, 2026-10-24): sem escuta contínua, só com Enter/atalho/microfone apertado. null = sem botão.
+  pttOnly = false,
+  onTogglePttOnly = null,
+  pttCaption = "", // transcrição ao vivo enquanto aperta ("Ouvindo… <texto>")
   getSignal,
   sleeping = false,
   showKeyboard = false,
@@ -293,9 +297,16 @@ export default function HenryVoiceView({
             <PlayButton onClick={onMorningPlay} />
           </span>
         ) : null}
+        {onTogglePttOnly ? (
+          <span className="pointer-events-auto mb-2.5">
+            <RoundButton onClick={onTogglePttOnly} label={pttOnly ? "Só quando eu apertar: ligado — o Henry só ouve com Enter apertado (clique para voltar a ouvir sempre)" : "Só quando eu apertar: o Henry para de ficar escutando e só ouve com Enter apertado"} small>
+              <HoldKeyIcon on={pttOnly} />
+            </RoundButton>
+          </span>
+        ) : null}
         {onToggleVoiceMute ? (
           <span className="pointer-events-auto mb-2.5">
-            <RoundButton onClick={onToggleVoiceMute} label={voiceMuted ? "Henry no mudo: responde só na tela (clique para ouvir a voz)" : "Deixar o Henry mudo (responde só na tela)"} small>
+            <RoundButton onClick={onToggleVoiceMute} label={voiceMuted ? "Mudo: ligado — o Henry responde só na tela (clique para ouvir a voz)" : "Mudo: deixar o Henry sem voz (responde só na tela)"} small>
               <SpeakerIcon off={voiceMuted} />
             </RoundButton>
           </span>
@@ -459,10 +470,12 @@ export default function HenryVoiceView({
         ) : null}
         {pttHolding ? (
           <p className="text-[12px] font-bold" style={{ color: ACCENT, textShadow: "0 1px 2px rgba(0,0,0,0.95)" }} role="status" aria-live="polite">
-            Ouvindo… solte para enviar
+            {pttCaption || "Ouvindo… solte para enviar"}
           </p>
         ) : voiceMuted && onToggleVoiceMute ? (
-          <p className="text-[11px] text-white/55">Mudo: respostas só na tela</p>
+          <p className="text-[11px] text-white/55">Mudo: respostas só na tela{pttOnly ? " · só ouve com Enter apertado" : ""}</p>
+        ) : pttOnly && onTogglePttOnly ? (
+          <p className="text-[11px] text-white/55">Só quando eu apertar: segure Enter para falar</p>
         ) : null}
         <div className={`${keypadFocus ? "hidden" : "flex"} items-center gap-2`}>
           {onToggleVision && !lockedMobile ? (
@@ -482,6 +495,11 @@ export default function HenryVoiceView({
           {onToggleVoiceMute ? (
             <RoundButton onClick={onToggleVoiceMute} label={voiceMuted ? "Mudo: o Henry responde só na tela (clique para ouvir a voz)" : "Mudo: deixar o Henry sem voz"} dark active={voiceMuted}>
               <SpeakerIcon off={voiceMuted} />
+            </RoundButton>
+          ) : null}
+          {onTogglePttOnly ? (
+            <RoundButton onClick={onTogglePttOnly} label={pttOnly ? "Só quando eu apertar: ligado (clique para voltar a ouvir sempre)" : "Só quando eu apertar: parar de ficar escutando (só ouve com Enter apertado)"} dark active={pttOnly}>
+              <HoldKeyIcon on={pttOnly} />
             </RoundButton>
           ) : null}
           {showPlay && !lockedMobile ? <PlayButton onClick={onMorningPlay} dark /> : null}
@@ -594,6 +612,17 @@ function MicIcon({ off }) {
 }
 
 // Alto-falante (mudo = voz do Henry desligada; ele responde só na tela).
+// Tecla Enter (↵) — "Só quando eu apertar"; ligado = tecla preenchida.
+function HoldKeyIcon({ on }) {
+  return (
+    <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <rect x="3" y="5" width="18" height="14" rx="3" fill={on ? "currentColor" : "none"} fillOpacity={on ? 0.2 : 0} />
+      <path d="M16 9v3a1 1 0 0 1-1 1H8" />
+      <path d="M10 11l-2 2 2 2" />
+    </svg>
+  );
+}
+
 function SpeakerIcon({ off }) {
   return (
     <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">

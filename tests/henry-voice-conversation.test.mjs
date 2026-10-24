@@ -375,7 +375,7 @@ test("janela de conversa: ~40 s depois de qualquer resposta; reconhecimento não
   assert.equal(isConversationExpired(Date.now() - 39000), false);
   assert.equal(isConversationExpired(Date.now() - 41000), true);
   const src = readFileSync(new URL("../components/henry/HenryVoiceAssistant.jsx", import.meta.url), "utf8");
-  assert.match(src, /\}, \[active, supported, muted, recordMode, listenMode\]\);/); // deps estáveis
+  assert.match(src, /\}, \[active, supported, muted, recordMode, listenMode, pttOnly\]\);/); // deps estáveis (pttOnly = "Só quando eu apertar", troca rara)
   assert.match(src, /handleFinalRef\.current\(text, \{ armed: named \}\)/);
   assert.match(src, /startConversation\(\); \/\/ depois de qualquer resposta/);
   const view = readFileSync(new URL("../components/henry/HenryVoiceView.jsx", import.meta.url), "utf8");
