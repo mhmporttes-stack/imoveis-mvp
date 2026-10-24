@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { ArrowLeft } from "lucide-react";
 import JourneyChoice from "@/components/simulation-form/JourneyChoice";
 import QuickAttendanceForm from "@/components/simulation-form/QuickAttendanceForm";
 import SimulationForm from "@/components/simulation-form/SimulationForm";
@@ -74,25 +73,9 @@ export default function LinkJourneyGate({ brokerRefOverride = "" }) {
 
   if (journey === "simulation") {
     const canGoBack = journeySource !== "direct_link";
-    return (
-      <div>
-        {/* Só o questionário na tela (sem título/subtítulo grandes): o cabeçalho continua para leitores de tela. */}
-        <h1 className="sr-only">Simulação de financiamento</h1>
-        {canGoBack ? (
-          <div className="mx-auto mb-4 w-full max-w-3xl">
-            <button
-              className="inline-flex items-center gap-1.5 text-sm font-bold text-muted transition hover:text-brand"
-              onClick={() => setJourney("")}
-              type="button"
-            >
-              <ArrowLeft className="h-4 w-4" aria-hidden="true" />
-              Voltar
-            </button>
-          </div>
-        ) : null}
-        <SimulationForm brokerRefOverride={brokerRefOverride} journeySelected="simulation" />
-      </div>
-    );
+    // Ficha escura em tela cheia (2026-10-24): o título da página e o "Voltar" para a escolha moram dentro dela
+    // (h1 + botão redondo de voltar na 1ª pergunta, só quando o cliente veio da tela de escolha).
+    return <SimulationForm brokerRefOverride={brokerRefOverride} journeySelected="simulation" onExit={canGoBack ? () => setJourney("") : null} />;
   }
 
   return <JourneyChoice onSelect={(value) => { setJourney(value); setJourneySource("chosen"); }} />;

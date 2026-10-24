@@ -1,13 +1,14 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { CalendarDays, ChevronLeft, ChevronRight } from "lucide-react";
+import { FichaError, FichaIcon } from "@/components/simulation-form/FichaFields";
+import styles from "@/components/simulation-form/SimulationForm.module.css";
 import { getMaximumBirthDateForMinimumAge } from "@/lib/simulation-registration-format";
 
 // Data de nascimento. O <input type="date"> nativo sempre abre no mês ATUAL (e não dá para mudar isso), então o
 // calendário é próprio: abre em JANEIRO/2000 quando o campo está vazio (ou no mês da data já escolhida). Nada é
 // preenchido sozinho — o valor continua sendo a string "AAAA-MM-DD" que o formulário já usava, só definida quando o
-// cliente clica num dia. Mesma regra de idade mínima (max) de antes.
+// cliente clica num dia. Mesma regra de idade mínima (max) de antes. Visual da ficha escura desde 2026-10-24.
 const INITIAL_VIEW = { year: 2000, month: 0 };
 const MIN_YEAR = 1920;
 const MONTHS = ["janeiro", "fevereiro", "março", "abril", "maio", "junho", "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"];
@@ -27,7 +28,7 @@ function formatBr(value) {
   return parsed ? `${String(parsed.day).padStart(2, "0")}/${String(parsed.month + 1).padStart(2, "0")}/${parsed.year}` : "";
 }
 
-export default function DateInputStep({ error, onChange, step, value }) {
+export default function DateInputStep({ error, errorId, hint, label, onChange, step, value }) {
   const inputId = `simulation-${step.id}`;
   const maximumBirthDate = getMaximumBirthDateForMinimumAge();
   const max = parseIso(maximumBirthDate);
@@ -71,50 +72,52 @@ export default function DateInputStep({ error, onChange, step, value }) {
   const daysInMonth = new Date(view.year, view.month + 1, 0).getDate();
   const cells = [...Array(firstWeekday).fill(null), ...Array.from({ length: daysInMonth }, (_, index) => index + 1)];
   const isAfterMax = (day) => Boolean(max) && toIso(view.year, view.month, day) > maximumBirthDate;
-  const selectClass = "h-9 rounded-full border border-line bg-white px-3 text-sm font-bold capitalize text-ink outline-none focus:border-brand focus:ring-2 focus:ring-brand/20";
-  const arrowClass = "grid h-9 w-9 shrink-0 place-items-center rounded-full border border-line bg-white text-ink transition hover:border-brand hover:text-brand disabled:opacity-30";
 
   return (
-    <div className="relative" ref={rootRef}>
-      <label className="sr-only" htmlFor={inputId}>{step.title}</label>
+    <div className={error ? styles.invalid : undefined} ref={rootRef}>
+      <label className={label ? styles.label : "sr-only"} htmlFor={inputId}>{label || step.title}</label>
       <button
+        aria-describedby={[hint ? `${inputId}-hint` : "", error ? errorId : ""].filter(Boolean).join(" ") || undefined}
         aria-expanded={open}
         aria-haspopup="dialog"
-        className="admin-input flex h-16 items-center justify-between rounded-2xl text-left text-lg shadow-[0_10px_28px_rgba(13,59,102,0.04)] focus:border-brand focus:ring-4 focus:ring-brand/10"
+        aria-invalid={error ? "true" : undefined}
+        className={`${styles.field} ${styles.fieldButton}`}
         id={inputId}
         onClick={toggle}
         type="button"
       >
-        <span className={value ? "" : "font-semibold text-muted"}>{formatBr(value) || "dd/mm/aaaa"}</span>
-        <CalendarDays aria-hidden="true" className="h-5 w-5 text-muted" />
+        <span className={value ? "" : styles.placeholder}>{formatBr(value) || "dd/mm/aaaa"}</span>
+        {FichaIcon.calendar}
       </button>
+      {hint && !open && !error ? <p className={styles.hint} id={`${inputId}-hint`}>{hint}</p> : null}
       {open ? (
-        <div aria-label="Escolha a data de nascimento" className="mx-auto mt-3 w-full max-w-sm rounded-2xl border border-line bg-slate-50 p-3" role="dialog">
-          <div className="flex items-center gap-2">
-            <button aria-label="Mês anterior" className={arrowClass} onClick={() => shiftMonth(-1)} type="button">
-              <ChevronLeft aria-hidden="true" className="h-4 w-4" />
+        <div aria-label="Escolha a data de nascimento" className={styles.cal} role="dialog">
+          <div className={styles.calHead}>
+            <button aria-label="Mês anterior" className={styles.calArrow} onClick={() => shiftMonth(-1)} type="button">
+              {FichaIcon.chevLeft}
             </button>
-            <select aria-label="Mês" className={`${selectClass} min-w-0 flex-1`} onChange={(event) => setView((current) => clampView({ ...current, month: Number(event.target.value) }, max))} value={view.month}>
+            <select aria-label="Mês" onChange={(event) => setView((current) => clampView({ ...current, month: Number(event.target.value) }, max))} value={view.month}>
               {MONTHS.map((name, index) => <option key={name} value={index}>{name}</option>)}
             </select>
-            <select aria-label="Ano" className={selectClass} onChange={(event) => setView((current) => clampView({ ...current, year: Number(event.target.value) }, max))} value={view.year}>
+            <select aria-label="Ano" onChange={(event) => setView((current) => clampView({ ...current, year: Number(event.target.value) }, max))} value={view.year}>
               {years.map((year) => <option key={year} value={year}>{year}</option>)}
             </select>
-            <button aria-label="Próximo mês" className={arrowClass} disabled={Boolean(max) && view.year * 12 + view.month >= max.year * 12 + max.month} onClick={() => shiftMonth(1)} type="button">
-              <ChevronRight aria-hidden="true" className="h-4 w-4" />
+            <button aria-label="Próximo mês" className={styles.calArrow} disabled={Boolean(max) && view.year * 12 + view.month >= max.year * 12 + max.month} onClick={() => shiftMonth(1)} type="button">
+              {FichaIcon.chevRight}
             </button>
           </div>
-          <div className="mt-2 grid grid-cols-7 text-center text-[11px] font-black uppercase text-muted">
-            {WEEKDAYS.map((label, index) => <span key={`${label}-${index}`}>{label}</span>)}
+          <div aria-hidden="true" className={styles.calWeek}>
+            {WEEKDAYS.map((weekday, index) => <span key={`${weekday}-${index}`}>{weekday}</span>)}
           </div>
-          <div className="grid grid-cols-7 gap-y-0.5">
+          <div className={styles.calDays}>
             {cells.map((day, index) => {
               if (!day) return <span key={`empty-${index}`} />;
-              const isSelected = selected && selected.year === view.year && selected.month === view.month && selected.day === day;
+              const isSelected = Boolean(selected && selected.year === view.year && selected.month === view.month && selected.day === day);
               const disabled = isAfterMax(day);
               return (
                 <button
-                  className={`mx-auto grid h-9 w-9 place-items-center rounded-full text-sm font-bold transition ${isSelected ? "bg-brand text-white" : "text-ink hover:bg-blue-100"} disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:bg-transparent`}
+                  aria-label={`${day} de ${MONTHS[view.month]} de ${view.year}`}
+                  aria-pressed={isSelected}
                   disabled={disabled}
                   key={day}
                   onClick={() => {
@@ -130,7 +133,7 @@ export default function DateInputStep({ error, onChange, step, value }) {
           </div>
         </div>
       ) : null}
-      {error ? <p className="mt-3 text-sm font-bold text-red-700">{error}</p> : null}
+      <FichaError id={errorId} message={error} />
     </div>
   );
 }

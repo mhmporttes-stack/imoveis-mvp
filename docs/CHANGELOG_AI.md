@@ -44,6 +44,15 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 
 
+### 2026-10-24 — Ficha pública /simulacao com o visual novo (protótipo v2 aprovado pelo dono)
+- **Data:** 2026-10-24
+- **Área:** Site público / Formulário de simulação (só apresentação)
+- **Alteração:** formulário em tela cheia azul-marinho com a cidade sob véu; 1ª tela com "Descubra quanto você pode financiar" + "Leva menos de 2 minutos." e o Matheus de braços cruzados com anéis girando (a pergunta fica só para leitor de tela); barras por parte (Sobre você/Sua renda/Sua situação) + "N de X"; Sim/Não em blocos ✓/✕; erros que ensinam (texto trocado na tela a partir da mensagem de `validateStepValue`, validação intacta); botão branco em pílula fixo embaixo + voltar redondo; privacidade em 1 linha com link; no computador painel à direita (foto, anéis, Simule → Aprovação → Chaves, CRECI). O "Voltar" para a tela de escolha (link de campanha) passou para o botão redondo da 1ª pergunta.
+- **Motivo:** pedido do dono (protótipo `ficha-cadastro-v2` aprovado em 2026-10-24).
+- **Arquivos afetados:** `components/simulation-form/SimulationForm.jsx`, `SimulationForm.module.css` (novo), `FichaFields.jsx` (novo), `CurrencyInputStep.jsx`, `DateInputStep.jsx`, `LinkJourneyGate.jsx`
+- **Risco/observação:** campos, ordem, opções, validações, envio, pixel e WA-10b/WA-10c sem mudança (mesmas funções de `lib/`); `ChoiceStep`/`TextInputStep`/`PhoneInputStep` claros continuam no Atendimento rápido e nas preferências. Tela "Recebemos" (reserva) e tela de escolha seguem no visual claro. Validado em `next dev` com prints 390/360/1440 (sem rolagem lateral em 360; POST interceptado, nada enviado), `node --test` da área e `pnpm build`. O "R$ 1.000,00" do erro de renda repete o mínimo de `validateStepValue` — se a regra mudar, ajustar `teachingError`.
+- **Autor:** designer-crm (Claude Code)
+
 ### 2026-10-24 — Marketplace: migration da resposta automática aplicada e 18 sugestões falsas removidas
 - **Data:** 2026-10-24
 - **Área:** Banco / Marketplace
