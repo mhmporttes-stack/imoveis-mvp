@@ -43,6 +43,15 @@ Copie o modelo abaixo (uma entrada por bloco):
 ```
 
 
+### 2026-10-24 — Henry: pedido de música sem frase de CRM/dados (confirmação e espera)
+- **Data:** 2026-10-24
+- **Área:** Henry
+- **Alteração:** `henryAckContext` devolve `music` para pedido de música (lido por `isMusicRequest` antes da regra de dados; "toca/playlist/música" saíram de `ACK_SLOW`) e `pickListenAck` dá só som/interjeição para `music`; sem texto (gravação antes da transcrição) a frase sorteada é só uma das neutras (`HENRY_ACK_ITEMS` `neutral: true`: c3/c4/c6), o sorteio 40/35/25 continua. `isMusicRequest` reconhece "quero ouvir/escutar X" (menos relatório/avisos/notícias/CRM), gênero da lista `MORNING_GENRES` depois de manda/toca/bota/quero/vamos de, "dá um play", "volta a tocar", cortesia antes do verbo, infinitivos colocar/botar/soltar e o nome transcrito "Henrique"/"Enri"; "quantos/quantas…" nunca é música.
+- **Motivo:** dono: "Toda vez que eu peço uma música, ele fala algo relacionado ao CRM… 'estou consultando os dados', 'estou analisando o CRM', 'estou dando uma olhadinha'. E não tem nada a ver." (ver `INCIDENTES.md`, 2026-10-24). Refina a regra de 2026-10-23 que listava "música" entre os pedidos que ganham frase.
+- **Arquivos afetados:** `lib/henry-voice-narration.mjs`, `tests/henry-music.test.mjs`, `tests/henry-listen-ack.test.mjs`, `docs/BUSINESS_RULES.md`, `.claude/rules/integracoes-externas.md`, `docs/INCIDENTES.md`
+- **Risco/observação:** a mesma função decide o tópico no servidor (`henryInitialProgress`) e na tela; pedido composto ("toca X e me fala do Gabriel") segue música primeiro, como antes. Testes `node --test tests/henry*.test.mjs` e `pnpm build` ok. Validar no ar com um pedido de música falado e outro por aperte-para-falar.
+- **Autor:** Claude Code
+
 
 ### 2026-10-24 — Henry: Enter segurado vale com a tela cheia aberta mesmo com botão do CRM focado
 - **Data:** 2026-10-24

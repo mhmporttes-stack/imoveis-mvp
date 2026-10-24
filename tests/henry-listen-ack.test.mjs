@@ -129,3 +129,24 @@ test("tela: confirma antes da transcrição, fila sem sobreposição, frases no 
   assert.match(ui, /!isAckPhrase\(phrase\)/); // confirmações fora das frases de espera
   assert.match(server, /\[\.\.\.HENRY_ACK_ITEMS, \.\.\.HENRY_WAIT_PHRASES/);
 });
+
+// Dono, 2026-10-24: "quando eu peço uma música ele fala 'estou dando uma olhadinha'". Música → só som ou interjeição;
+// sem texto (gravação, antes da transcrição) a frase sorteada é sempre neutra, nunca de verificação de dados.
+test("música nunca ganha frase de verificação; sem texto só frase neutra", () => {
+  for (const question of ["toca Legião Urbana", "coloca uma playlist de sertanejo", "quero ouvir um rock", "próxima música", "Henrique, toca Racionais"]) {
+    assert.equal(henryAckContext({ question }), "music", question);
+  }
+  assert.equal(henryAckContext({ question: "quantas músicas tem na playlist" }), "data");
+  for (let index = 0; index < 50; index += 1) {
+    const music = pickListenAck({ context: "music", phrases, random: () => index / 50 });
+    assert.ok(music.kind === "tone" || music.kind === "word", music.kind);
+    const unknown = pickListenAck({ context: "unknown", phrases, random: seq(0.9, index / 50) });
+    assert.equal(unknown.kind, "phrase");
+    assert.ok(HENRY_ACK_ITEMS.find((item) => item.id === unknown.id).neutral, unknown.text);
+    // Como chega do servidor/cache (sem o campo neutral): continua só neutra.
+    const cached = pickListenAck({ context: "unknown", phrases: phrases.map(({ neutral: _neutral, ...rest }) => rest), random: seq(0.9, index / 50) });
+    assert.ok(HENRY_ACK_ITEMS.find((item) => item.id === cached.id).neutral, cached.id);
+  }
+  const neutral = HENRY_ACK_ITEMS.filter((item) => item.neutral).map((item) => item.text);
+  assert.deepEqual(neutral, ["Já te falo.", "Deixa comigo.", "Um segundinho."]);
+});

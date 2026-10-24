@@ -40,6 +40,17 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-24 — Henry fala "tô consultando os dados", "analisando o CRM", "dando uma olhadinha" quando o dono pede música
+- **Data:** 2026-10-24
+- **Sintoma:** "Toda vez que eu peço uma música, ele fala algo relacionado ao CRM… 'estou consultando os dados', 'estou analisando o CRM', 'estou dando uma olhadinha'."
+- **Área:** Henry (confirmação de escuta e frases de espera)
+- **Impacto:** só o dono; pedidos de música por voz (falado, aperte-para-falar, app de desktop, iPhone).
+- **Causa raiz:** três pontos na mesma lib (`lib/henry-voice-narration.mjs`): (1) `henryAckContext` tratava "toca/tocar/playlist/música" como pedido de DADOS → sempre frase de verificação ("Peraí que eu confiro.", "Tô olhando aqui.", "Beleza, já tô vendo."); (2) na gravação (aperte-para-falar, desktop, iPhone) a confirmação sai antes da transcrição, sem texto → 25% de chance de uma dessas mesmas frases; (3) `isMusicRequest` não reconhecia "quero ouvir/escutar X", "manda um pagode", "vamos de sertanejo", "dá um play", "volta a tocar", cortesia antes do verbo ("por favor toca", "você pode tocar", "pode colocar") nem o nome transcrito como "Henrique"/"Enri" → tópico padrão "geral" → frases de espera "Só um instante, tô analisando seus dados." / "Bora ver o que o CRM diz." (e "quantas músicas…" virava música por engano).
+- **Correção:** música é lida pelo texto antes de escolher a confirmação (contexto `music` → só som ou interjeição); sem texto, a frase sorteada é só uma das neutras (`neutral: true`: "Já te falo.", "Deixa comigo.", "Um segundinho."); `isMusicRequest` ampliado (positivos e negativos), mesma função no servidor (`henryInitialProgress`) e na tela (`henryMusicIntent`) → tópico `music` e frases do Spotify desde o 1º evento.
+- **Arquivos/commit:** `lib/henry-voice-narration.mjs` — branch `fix/henry-musica-frase-espera`.
+- **Prevenção/teste:** `tests/henry-music.test.mjs`, `tests/henry-listen-ack.test.mjs`.
+- **Status:** Corrigido (não publicado — aguarda merge)
+
 ### 2026-10-24 — Henry "não consegue visualizar" se a cliente do aviso está no oficial ou no WhatsApp pessoal
 - **Data:** 2026-10-24
 - **Sintoma:** o Henry avisou "entrou uma cliente nova e está com você"; o dono perguntou se ela estava no número da API oficial ou no pessoal e ele respondeu que não conseguia visualizar.
