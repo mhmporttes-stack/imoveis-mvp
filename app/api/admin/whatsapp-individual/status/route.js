@@ -30,7 +30,7 @@ function slotView(slot, row) {
     pairingCode: row?.pairing_code || "",
     lastConnectedAt: row?.last_connected_at || null,
     lastError: row?.last_error || "",
-    // Conexão falsa (2026-10-13): conectado, mas sem receber. A tela pinta cinza e pede nova leitura do QR.
+    // Conexão falsa (2026-10-13; só com evidência de falha e depois do reinício sem QR desde 2026-10-23): a tela pinta cinza.
     silent: row?.status === "connected" && Boolean(row?.silent_since),
     silentReason: row?.status === "connected" ? row?.silent_reason || "" : ""
   };
