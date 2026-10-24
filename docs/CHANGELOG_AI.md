@@ -71,6 +71,15 @@ Copie o modelo abaixo (uma entrada por bloco):
 - **Risco/observação:** fora da espera do chamado, a pergunta pelo aviso só é atendida com o pedido dirigido ao Henry (conversa aberta ou nome) — fala de terceiros não dispara. Henry continua só leitura. Testes henry* (todos) e build.
 - **Autor:** Claude Code
 
+### 2026-10-24 — Henry: concordância de gênero e número ("duas transferências")
+- **Data:** 2026-10-24
+- **Área:** Henry (voz) / Alexa (frases reaproveitadas)
+- **Alteração:** regra única de concordância em `lib/pt-br-concordancia.mjs` (`isFeminineWord` = lista + terminações sempre femininas -ção/-dade/-gem/-ência/-ura/-ada/-ida…; `concordarNumeros`; `contagem`; `numeroPorExtenso`). `feminineNumbers` (`lib/henry-voice-providers.mjs`, aplicado por `pronounceForSpeech` em TODA fala do Henry) passa a ser ela: "2 transferências" → "duas", "dois tarefas" escrito pelo modelo → "duas", "2 mil reais" deixa de virar "duas mil" (só antes de feminino), "1 alerta" deixa de virar "uma alerta". Montadores: resumo do aviso (`contagem`; todas as clientes femininas pelo nome → "duas clientes novas"), aniversário (`birthdayQuestion` "da cliente Ana … pra ela"; `composeBirthdaySentence` da Alexa "uma/duas clientes"; aviso "duas aniversariantes"). Prompt fixo: regra de concordância (`lib/henry-voice-persona.mjs`). Só texto falado/mostrado.
+- **Motivo:** dono: "Ele falou 'entraram dois transferências'. Ele devia ter dito 'entraram duas'. [...] vários lugares ele está falando desse jeito."
+- **Arquivos afetados:** `lib/pt-br-concordancia.mjs` (novo), `lib/henry-voice-providers.mjs`, `lib/henry-voice-client-alerts-core.mjs`, `lib/henry-birthday-alerts-core.mjs`, `lib/henry-morning-core.mjs`, `lib/alexa-config-core.mjs`, `lib/henry-voice-persona.mjs`, `tests/pt-br-concordancia.test.mjs`
+- **Risco/observação:** fala da Alexa pelo Voice Monkey (fora do Henry) não passa por `concordarNumeros` — não alterada. Cliente de nome masculino/incerto segue no masculino genérico. Testes henry*/alexa* e build.
+- **Autor:** Claude Code
+
 ### 2026-10-24 — Henry: Enter segurado vale com a tela cheia aberta mesmo com botão do CRM focado
 - **Data:** 2026-10-24
 - **Área:** Henry
