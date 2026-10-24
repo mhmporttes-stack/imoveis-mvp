@@ -4,6 +4,7 @@ paths:
   - "lib/client-attendance-core.mjs"
   - "lib/transferred-awaiting-core.mjs"
   - "lib/client-all-tab*"
+  - "lib/cold-list*"
   - "lib/client-appointments*"
   - "lib/client-popup*"
   - "lib/client-arrival-events.js"
@@ -99,6 +100,8 @@ Cliente principal: `simulation_registrations` (persistência em `lib/simulation-
 **[REGRA OFICIAL DE NEGÓCIO — dono, 2026-10-23] Aba "Todos" de Clientes sem situação negativa (CLI-12a).** "A aba Todos não deve mais mostrar clientes em situação NEGATIVA. Esses clientes ficam só na aba ou categoria própria de cada um." Negativos = Arquivado + Não contactar (só na aba Arquivados); filtro no servidor (lista, paginação e contador), 4 perfis no seu escopo; a pesquisa por nome/telefone segue como antes. Fonte única `ALL_TAB_NEGATIVE_STATUSES`/`allTabExcludedStatuses` (`lib/client-status.js`) — não crie outra lista de "negativos da aba Todos". Restrição/Reprovado/Comprometimento de renda **não** entram (PENDENTE DE VALIDAÇÃO). Detalhe: `docs/BUSINESS_RULES.md` CLI-12a.
 
 **[REGRA OFICIAL DE NEGÓCIO — dono, 2026-10-23, amplia a CLI-12a acima] Mais negativos fora da aba "Todos".** Também saem: status Restrição, Reprovado e Comprometimento de renda (ficam na etapa Aprovação) e clientes com as etiquetas "SEM WHATSAPP", "OUTRA CIDADE" e "RESTRIÇÃO" (nome normalizado exato, `tags.normalized_name`; "RENDA INSUFICIENTE" e "IR ABAIXO DO SUFICIENTE" ficam; Tentando contato e Venda ficam). Na pesquisa por nome/telefone todos esses aparecem, como os arquivados. Patrocinado não muda. O grupo "all" do Henry/Alexa usa a mesma conta da tela. Fonte única: status em `ALL_TAB_NEGATIVE_STATUSES` (`lib/client-status.js`), etiquetas e aplicação na consulta em `lib/client-all-tab-core.mjs` (`ALL_TAB_NEGATIVE_TAG_KEYS`, `applyAllTabExclusions`) + `lib/client-all-tab.js`; não crie outra lista. Detalhe: `docs/BUSINESS_RULES.md` CLI-12a.
+
+**[REGRA OFICIAL DE NEGÓCIO — dono, 2026-10-24] Lista fria fora da visão padrão de Clientes (PRO-16).** Cliente em "Tentando contato" com tentativa de 3+ corretores diferentes sai da lista, abas, cards e contadores (todas as abas, 4 perfis no escopo de sempre); aparece no filtro de etiqueta "Lista fria" e na pesquisa por nome/telefone. Aplicação só no servidor (`applyScopedFilters`/contadores de `lib/simulation-list-query.js`, `applyColdListExclusion` de `lib/cold-list-core.mjs`, ids de `loadColdListHiddenIds` em `lib/cold-list.js`); a marca é a etiqueta do sistema "Lista fria" gravada pela rotina do cron. Não crie outra definição de "lista fria" nem filtro local na tela. Na 3ª passagem sem resposta o cliente é arquivado sozinho (PRO-17, `.claude/rules/roleta-prospeccao-campanhas.md`). Detalhe: `docs/BUSINESS_RULES.md` PRO-16/PRO-17.
 
 ## Macroetapas do funil (7, não 8 — comentário antigo no código já corrigido)
 

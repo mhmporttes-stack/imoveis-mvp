@@ -5,6 +5,7 @@ paths:
   - "lib/prospecting*.js"
   - "lib/prospecting-queue-order.mjs"
   - "lib/prospecting*.mjs"
+  - "lib/cold-list*"
   - "lib/campaign*.js"
   - "lib/campaigns.js"
   - "lib/whatsapp-sponsored-lead.js"
@@ -97,6 +98,9 @@ Dois fluxos distintos, não confundir:
 ## Fila de prospecção manual
 
 `lib/prospecting.js` + `components/ProspectingManager.jsx`: assumir atendimento, registrar tentativa, marcar indisponibilidade temporária, devolver à fila, "não contactar" (com trava anti-abuso — 5 ações do mesmo usuário em 10 minutos dispara flag, ver `lib/daily-goal-wallet.js` `checkDoNotContactAbuse`), importação em lote, atribuição administrativa. Compartilha `prospecting_contacts`/`prospecting_history` com a Meta Diária — qualquer mudança de status/trava precisa considerar os dois consumidores.
+
+**[REGRA OFICIAL DE NEGÓCIO — dono, 2026-10-24] Lista fria (PRO-16/PRO-17).** (1) Cliente em "Tentando contato" que já recebeu tentativa de **3 corretores diferentes** ganha a etiqueta do sistema "Lista fria" e sai da visão padrão de Clientes (filtro da etiqueta e pesquisa mostram; nada apagado). (2) **Passagem** = ciclo com pelo menos 1 tentativa real (`daily_goal_attempts` ou reivindicação manual que não é reserva) encerrado por devolução à fila sem resposta (`auto_returned`, `daily_goal_round_hibernated`, `returned`); devolução sem tentativa não conta (`countColdListPassages`). Na **3ª passagem** o cliente é arquivado sozinho (sistema, motivo "lista fria — 3 passagens sem resposta") e todos os contatos da pessoa ficam travados na fila (`COLD_LIST_LOCK_UNTIL`, histórico `cold_list_archived`) — nunca volta. Nunca arquiva quem respondeu (qualquer passagem), quem saiu de "Tentando contato", quem tem simulação, Particular ou quem está com um corretor agora. Rotina única `runColdListJob` (`lib/cold-list.js`, cron `scheduled-activities`, trava, até 10 min de atraso); regras puras `lib/cold-list-core.mjs`. Sem UPDATE em massa: vale daqui em diante pela rotina. Caminho novo que devolve contato à fila precisa gravar um dos três eventos de devolução (senão não conta passagem). Detalhe: `docs/BUSINESS_RULES.md` PRO-16/PRO-17.
+**[REGRA OFICIAL DE NEGÓCIO — dono, 2026-10-24] Retorno de 7 dias não devolve contato sem tentativa (MD-17).** Contato com rodada ativa da Meta Diária/Disparar sem nenhuma tentativa (`attempt_count = 0`) fica com o corretor: `autoReturnStaleProspectingContacts` filtra por `listContactIdsWithUntriedActiveRound` antes de devolver (o `last_attempt_at` pode ser do ciclo anterior). Detalhe: `.claude/rules/meta-diaria-ranking.md` MD-17.
 
 `getTimeGreeting()` (`lib/daily-report.js`) é a fonte única da saudação por horário (bom dia/boa tarde/boa noite) usada nas mensagens — não duplique essa lógica num novo arquivo (já existiu uma cópia divergente em `daily-goal.js`, corrigida).
 

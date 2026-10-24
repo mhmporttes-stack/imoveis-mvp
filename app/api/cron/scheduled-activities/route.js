@@ -145,6 +145,17 @@ export async function GET(request) {
       prospectingAutoReturn = { error: autoReturnError?.message || "Falha no retorno automático." };
     }
 
+    // Lista fria da Prospecção (dono, 2026-10-24, lib/cold-list-core.mjs): marca quem teve tentativa de 3 corretores e
+    // arquiva quem completou 3 passagens sem resposta. Com trava; roda no máximo a cada 10 min; nunca derruba o cron.
+    let coldList = null;
+    try {
+      const { runColdListJob } = await import("@/lib/cold-list");
+      coldList = await runColdListJob();
+    } catch (coldListError) {
+      console.error("Falha na rotina da Lista fria da Prospecção.", coldListError);
+      coldList = { error: coldListError?.message || "Falha na Lista fria." };
+    }
+
     // Fila de espera da roleta (regra do dono, 2026-09-30): distribui pro
     // primeiro corretor on-line quem ficou sem responsável porque, na hora
     // da criação, ninguém estava on-line. Roda ANTES da rede de segurança
@@ -244,6 +255,7 @@ export async function GET(request) {
       expectedReceipts,
       sponsoredLeads,
       prospectingAutoReturn,
+      coldList,
       pendingRouletteAssignment,
       cooledReactivation,
       marketplaceRedistribution,

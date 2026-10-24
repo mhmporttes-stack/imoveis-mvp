@@ -50,6 +50,16 @@ Copie o modelo abaixo (uma entrada por bloco):
 - **Arquivos/commit:** `whatsapp-individual-service/src/{message-extract,pipeline-guard,sessions}.js`, `lib/whatsapp-self-chat-core.mjs`, `lib/whatsapp-individual-inbound.js` — branch `fix-self-chat`.
 - **Prevenção/teste:** `tests/whatsapp-self-chat.test.mjs`. Diagnóstico: conversa cujo `contact_phone` = `whatsapp_individual_sessions.phone_number` da mesma sessão; `metadata->>remote_jid` igual ao LID com que outras sessões falam com esse número; cruzar `message_at` com `placeholder_req` em `whatsapp_session_telemetry`.
 - **Status:** Diagnosticado, correção pendente de publicação (Vercel + Railway); limpeza das conversas antigas aguarda o dono.
+### 2026-10-24 — "Contato some da Meta Diária antes de receber mensagem"
+- **Data:** 2026-10-24
+- **Sintoma:** contato recém-entregue na Meta Diária (2ª passagem pela fila) volta para a Prospecção sem nenhuma tentativa; 11 devoluções `auto_returned` de rodada com `attempt_count = 0` no histórico (2 na mesma hora da entrega).
+- **Área:** Meta Diária / Prospecção
+- **Impacto:** o corretor perde contato da carteira sem trabalhar; contraria a MD-17 ("se não foi tentado contato ele fica ali ainda").
+- **Causa raiz:** `claim_daily_goal_contacts` não zera `prospecting_contacts.last_attempt_at`; o retorno de 7 dias (`autoReturnStaleProspectingContacts`) lia a data do ciclo anterior e devolvia no próximo ciclo do cron.
+- **Correção:** o retorno de 7 dias ignora contato com rodada ativa sem tentativa (`listContactIdsWithUntriedActiveRound`).
+- **Arquivos/commit:** `lib/prospecting-auto-return.js`, `lib/daily-goal-round-release.mjs` — commit deste registro.
+- **Prevenção/teste:** `tests/cold-list.test.mjs`.
+- **Status:** Monitorando (aguarda publicação)
 
 ### 2026-10-24 — "Um corretor fica com 0 contatos novos na meta do dia e os outros com todos"
 - **Data:** 2026-10-24
