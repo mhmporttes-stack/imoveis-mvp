@@ -39,7 +39,7 @@ paths:
 
 ## Fonte única de status
 
-`lib/client-status.js` é a **única** fonte de verdade do enum `CLIENT_STATUS` e de qualquer agrupamento derivado dele (`ACTIVE_CLIENT_STATUS_VALUES`, `CLIENT_FUNNEL_STAGES`, `CLIENT_STATUS_META`, `CLIENT_FUNNEL_SALE_STATUS_VALUES`). **Nunca crie uma cópia local de um conjunto de status em outro arquivo** — já houve um bug real de produção assim: `lib/crm.js` mantinha sua própria cópia de "status ativos" para o contador de "aguardando ação" do dashboard, ficou desatualizada (faltavam `meeting_pending`/`meeting_done`) e subcontava clientes por meses até ser corrigida importando de `client-status.js`.
+`lib/client-status.js` é a **única** fonte de verdade do enum `CLIENT_STATUS` e de qualquer agrupamento derivado dele (`ACTIVE_CLIENT_STATUS_VALUES`, `CLIENT_FUNNEL_STAGES`, `CLIENT_STATUS_META`, `CLIENT_FUNNEL_SALE_STATUS_VALUES`, `NEGATIVE_CLIENT_STATUS_VALUES` — os 5 negativos, de onde derivam aba Todos, roleta, esfriados e automações desde 2026-10-24; trava `tests/negative-statuses-single-source.test.mjs`). **Nunca crie uma cópia local de um conjunto de status em outro arquivo** — já houve um bug real de produção assim: `lib/crm.js` mantinha sua própria cópia de "status ativos" para o contador de "aguardando ação" do dashboard, ficou desatualizada (faltavam `meeting_pending`/`meeting_done`) e subcontava clientes por meses até ser corrigida importando de `client-status.js`.
 
 Cliente principal: `simulation_registrations` (persistência em `lib/simulation-registrations.js`). Um cliente pode ter uma `simulation` associada (`lib/simulations.js`) — a lista principal (`components/clients/`, lógica em `useClientList.js`) agrupa os dois.
 

@@ -61,6 +61,13 @@ Copie o modelo abaixo (uma entrada por bloco):
 - **Arquivos afetados:** `components/panel-gates-by-app.mjs` (novo), `components/DeferredPanelGates.jsx`, `components/alerts/AlertCenterGate.jsx`, `app/admin/layout.jsx`, `app/chat-app/page.jsx`, `tests/panel-gates-by-app.test.mjs` (novo), rule `automacoes-notificacoes.md`, `docs/BUSINESS_RULES.md` AL-APP.
 - **Risco/observação:** "Entendi e abrir" leva a outra área → o app Chat volta ao Chat (ciência já registrada). Sem mudança de servidor.
 - **Autor:** Claude Code (crm-editor)
+### 2026-10-24 — Auditoria de regras (parte B): falha fechada no perfil, congelamento da Meta e negativos em fonte única
+- **Data:** 2026-10-24
+- **Área:** Permissões / Meta Diária / Status
+- **Alteração:** (1) `lib/admin-auth.js`: erro ao ler o perfil = 503 (antes: perfil de reserva ATIVO); `forbencke@gmail.com` saiu de `DEFAULT_ADMIN_EMAILS` e do fallback "benck" (`lib/admin-profiles.js`); 503 não renova o refresh token (`verifyAdminSessionTokens`) nem limpa a sessão (`/api/admin/session`). (2) Novos da cota do dia entram sempre no congelamento da carteira de hoje (`includeGeneratedRoundsInWalletFreeze`, `mergeFrozenRoundIds`). (3) `NEGATIVE_CLIENT_STATUS_VALUES` (`lib/client-status.js`) alimenta aba Todos, roleta (+ venda concluída/paga), esfriados e automações — conteúdo idêntico ao de antes (só a ordem interna das 3 cópias mudou; nenhum uso depende da ordem).
+- **Arquivos afetados:** `lib/admin-auth.js`, `lib/admin-profiles.js`, `app/api/admin/session/route.js`, `lib/daily-goal.js`, `lib/daily-goal-wallet.js`, `lib/daily-goal-wallet-core.mjs`, `lib/client-status.js`, `lib/client-distribution-core.mjs`, `lib/cooled-clients-core.mjs`, `lib/crm-automations.js`; testes `tests/server-cache.test.mjs`, `tests/daily-goal-wallet-freeze-order.test.mjs`, `tests/negative-statuses-single-source.test.mjs`.
+- **Risco/observação:** sem migration. Congelamentos de 21-23/10 não foram regravados (banco só leitura). Com o banco fora do ar, o painel recusa com 503 em vez de liberar; a tela de login mostra a mensagem genérica de erro. `lib/admin-users.js` ainda tem o nome de exibição "Benck" para o e-mail (só rótulo, não dá acesso).
+- **Autor:** Claude (crm-editor)
 
 ### 2026-10-23 — Avisos fixos esperam a tela cheia do Henry fechar
 - **Data:** 2026-10-23
