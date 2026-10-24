@@ -12,6 +12,8 @@ const DailyMessageGate = dynamic(() => import("@/components/DailyMessageGate"), 
 const BrokerCelebrationGate = dynamic(() => import("@/components/celebrations/BrokerCelebrationGate"), { ssr: false });
 const SupervisionMessageGate = dynamic(() => import("@/components/supervision/SupervisionMessageGate"), { ssr: false });
 const AlertCenterGate = dynamic(() => import("@/components/alerts/AlertCenterGate"), { ssr: false });
+// Janelinha de cliente novo (CLI-16, dono 2026-10-24): mesmo carregamento ocioso; ao montar pede a consulta na hora.
+const ClientPopupStack = dynamic(() => import("@/components/client-popups/ClientPopupStack"), { ssr: false });
 
 export const IDLE_TIMEOUT_MS = 1500;
 
@@ -29,7 +31,7 @@ function useIdleReady() {
 }
 
 // Cada prop é o objeto de props do gate (ou null quando o layout não monta aquele gate para esta conta).
-export default function DeferredPanelGates({ daily = null, celebration = null, supervision = null, alerts = null }) {
+export default function DeferredPanelGates({ daily = null, celebration = null, supervision = null, alerts = null, clientPopups = null }) {
   const ready = useIdleReady();
   if (!ready) return null;
   return (
@@ -38,6 +40,7 @@ export default function DeferredPanelGates({ daily = null, celebration = null, s
       {celebration ? <BrokerCelebrationGate {...celebration} /> : null}
       {supervision ? <SupervisionMessageGate {...supervision} /> : null}
       {alerts ? <AlertCenterGate {...alerts} /> : null}
+      {clientPopups ? <ClientPopupStack {...clientPopups} /> : null}
     </>
   );
 }

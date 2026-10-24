@@ -55,13 +55,15 @@ export default async function AdminLayout({ children }) {
       {auth.ok && !auth.accountSwitchMode && isOwnerAdminEmail(auth.user?.email) ? <FirstAccessGate /> : null}
       {/* Mensagem do Dia, Celebração, Supervisão e Central de Alertas: carregados quando a tela fica ociosa
           (components/DeferredPanelGates.jsx — velocidade, etapa 3). Mesmas condições de sempre: Supervisão e Central de
-          Alertas (Informativo/Importante) ficam fora de "Alterar conta". */}
+          Alertas (Informativo/Importante) ficam fora de "Alterar conta". Janelinha de cliente novo (CLI-16, dono
+          2026-10-24) também (o servidor repete a trava). */}
       {auth.ok ? (
         <DeferredPanelGates
           daily={{ userId: auth.profile?.id, userName: auth.profile?.name || "" }}
           celebration={{ userId: auth.profile?.id, userName: auth.profile?.name || "", userPhotoUrl: auth.profile?.photoUrl || "" }}
           supervision={auth.accountSwitchMode ? null : { userId: auth.profile?.id }}
           alerts={auth.accountSwitchMode ? null : { userId: auth.profile?.id }}
+          clientPopups={auth.accountSwitchMode ? null : { userId: auth.profile?.id }}
         />
       ) : null}
       </HideInFinanceiroApp>
