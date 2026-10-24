@@ -58,7 +58,8 @@ test("prompt: assistente pessoal, jeito de amigo e TODAS as travas (somente cons
   // Saudação/papo casual (dono, 2026-10-22: "ninguém fala assim"): 1 frase, espelha, sem menu, sem responder a si mesmo.
   assert.match(prompt, /Saudação e papo casual/);
   assert.match(prompt, /UMA frase curta/);
-  assert.match(prompt, /"Boa noite, Matheus! E aí, tudo certo\?"/);
+  assert.match(prompt, /"Boa noite, Matheus! E aí, como foi o dia\?"/); // exemplos variados (dono, 2026-10-23: vocabulário repetitivo)
+  assert.match(prompt, /Não use sempre "tudo certo por aí"/);
   assert.match(prompt, /Nunca responda a sua própria pergunta/);
   assert.match(prompt, /nunca ofereça ajuda nem menu/);
   // A parte fixa vai para o cache de prompt; a variável traz data/hora de Brasília, lembretes, memória e variação.
@@ -143,7 +144,7 @@ test("pesquisa na internet: ferramenta oficial, no máximo 3 buscas, Marília/SP
   assert.equal(henryWebSearchFromSetting(null), true);
   assert.equal(henryWebSearchFromSetting({ webSearch: false }), false);
   // A ferramenta só entra no pedido com a pesquisa ligada; cada busca vira uma linha henry_web_search.
-  assert.match(lib, /tools: webSearch \? \[\.\.\.TOOLS, henryWebSearchTool\(\)\] : TOOLS/);
+  assert.match(lib, /return webSearch \? \[\.\.\.base, henryWebSearchTool\(\)\] : base;/); // henryToolsFor (tela de bloqueio tira as do CRM)
   assert.match(lib, /feature: "henry_web_search"/);
   assert.equal(webSearchesFrom({ server_tool_use: { web_search_requests: 2 } }), 2);
   assert.equal(webSearchesFrom({}), 0);
@@ -162,7 +163,7 @@ test("fontes: só na tela (https), nunca link na voz", () => {
   assert.deepEqual(sources, [{ title: "G1 notícia", host: "g1.globo.com", url: "https://g1.globo.com/sp/x" }]);
   assert.equal(sourcesDetail(sources).sections[0].rows[0].href, "https://g1.globo.com/sp/x");
   assert.equal(stripUrls("veja www.exemplo.com.br e https://a.b/c agora."), "veja e agora.");
-  assert.match(lib, /safeHenryReply\(stripUrls\(replyText\) \|\| fallback\)/);
+  assert.match(lib, /safeHenryReply\(stripUrls\(replyText\) \|\| fallback[,)]/);
 });
 
 // --- Memória do dia (REGRA OFICIAL, dono 2026-10-22) -------------------------------------------------------------------
@@ -206,6 +207,6 @@ test("comandos de memória: lembrar, esquecer lembrete e esquecer a conversa de 
   // Só o dono (rota) e resolvido sem o modelo.
   assert.match(lib, /const command = await runMemoryCommand\(auth, text\);/);
   const route = readFileSync(new URL("../app/api/admin/henry/route.js", import.meta.url), "utf8");
-  assert.match(route, /dayTurns: enabled \? dayTurns : \[\]/);
+  assert.match(route, /dayTurns: enabled && !lock\.locked \? dayTurns : \[\]/); // bloqueado (HENRY-LOCK) = nada
   assert.ok(route.indexOf("requireHenryOwner(request)") < route.indexOf("readHenryDayTurns()"));
 });

@@ -1,8 +1,9 @@
 import Link from "next/link";
 import AdminSectionNav from "@/components/AdminSectionNav";
 import AdminFinancialDashboard from "@/components/AdminFinancialDashboard";
-import { requireFinancialAccessPage } from "@/lib/admin-auth";
-import { canManageFinancial, formatFinancialError, isExpectedReceiptOwner, listFinancialSales } from "@/lib/financial";
+import FinancialManagerCommissions from "@/components/FinancialManagerCommissions";
+import { requireAdminPage } from "@/lib/admin-auth";
+import { canManageFinancial, formatFinancialError, isExpectedReceiptOwner, listFinancialSales, listManagerCommissionSales } from "@/lib/financial";
 import { getHealthSettings, listExpenseOccurrences, listOperatingExpenses } from "@/lib/financial-health";
 import { DEFAULT_HEALTH_SETTINGS, buildExpensePanel } from "@/lib/financial-health-core.mjs";
 import { getTodayInSaoPaulo } from "@/lib/daily-report";
@@ -12,10 +13,27 @@ export const dynamic = "force-dynamic";
 
 export default async function AdminFinancialPage({ searchParams }) {
   const { aba } = (await searchParams) || {};
-  const auth = await requireFinancialAccessPage();
+  // Antes: requireFinancialAccessPage (gestor era redirecionado — FIN-3). Desde 2026-10-24 (FIN-9, dono) o gestor
+  // entra, mas SÓ na visão das próprias comissões de gestor (somente leitura); os demais perfis seguem exatamente como antes.
+  const auth = await requireAdminPage();
 
   if (!canManageFinancial()) {
     return <FinancialDisabled />;
+  }
+
+  if (isManagerProfile(auth.profile)) {
+    let managerSales = [];
+    try {
+      managerSales = await listManagerCommissionSales(auth);
+    } catch (error) {
+      return <FinancialError error={formatFinancialError(error)} />;
+    }
+    return (
+      <main className="bg-mist py-14">
+        <AdminSectionNav active="financial" />
+        <FinancialManagerCommissions sales={managerSales} />
+      </main>
+    );
   }
 
   let sales = [];

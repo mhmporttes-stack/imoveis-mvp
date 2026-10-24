@@ -26,7 +26,7 @@ test("fora da roleta nunca volta", () => {
 
 test("motor de automações usa a regra do prazo da simulação", () => {
   const lib = readFileSync(new URL("../lib/crm-automations.js", import.meta.url), "utf8");
-  assert.match(lib, /!canReturnToRoulette\(client, \{ hasSimulation: simulated\.has\(client\.id\), humanAttended: humanAttended\.has\(client\.id\) \}\)/);
+  assert.match(lib, /!canReturnToRoulette\(client, \{ hasSimulation: simulated\.has\(client\.id\), humanAttended: humanAttended\.has\(client\.id\), humanMessaged: humanMessaged\.has\(client\.id\) \}\)/);
   assert.match(lib, /primary_monthly_income/);
   assert.match(lib, /\.from\("simulations"\)\s*\.select\("\*"\)/);
 });

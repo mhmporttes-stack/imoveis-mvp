@@ -45,18 +45,30 @@ export async function postResult({ baseUrl, key, version }, listingId, body, fet
 export async function downloadPhotos(urls = [], fetchImpl = fetch) {
   const files = [];
   for (const [index, url] of urls.entries()) {
-    if (!/^https:\/\//i.test(String(url))) throw new Error(`Foto ${index + 1} não é https.`);
-    const response = await fetchImpl(url);
-    if (!response.ok) throw new Error(`Não foi possível baixar a foto ${index + 1} (${response.status}).`);
-    const blob = await response.blob();
-    const type = blob.type && blob.type.startsWith("image/") ? blob.type : "image/jpeg";
-    const bytes = new Uint8Array(await blob.arrayBuffer());
-    let binary = "";
-    for (let i = 0; i < bytes.length; i += 0x8000) binary += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
-    const extension = type.split("/")[1]?.replace("jpeg", "jpg") || "jpg";
-    files.push({ name: `foto-${index + 1}.${extension}`, type, base64: btoa(binary) });
+    const { type, base64 } = await downloadAsBase64(url, `a foto ${index + 1}`, fetchImpl);
+    const imageType = type.startsWith("image/") ? type : "image/jpeg";
+    const extension = imageType.split("/")[1]?.replace("jpeg", "jpg") || "jpg";
+    files.push({ name: `foto-${index + 1}.${extension}`, type: imageType, base64 });
   }
   return files;
+}
+
+// 1.9.5: arquivo (foto/PDF) de uma resposta do Chat do Marketplace. Só https; nome e tipo vêm do CRM.
+export async function downloadAttachment(attachment = {}, fetchImpl = fetch) {
+  const { type, base64 } = await downloadAsBase64(attachment.url, "o arquivo da resposta", fetchImpl);
+  const mime = String(attachment.mime || type || "application/octet-stream");
+  return { name: String(attachment.name || (mime.startsWith("image/") ? "foto.jpg" : "arquivo.pdf")).slice(0, 120), type: mime, base64 };
+}
+
+async function downloadAsBase64(url, label, fetchImpl) {
+  if (!/^https:\/\//i.test(String(url || ""))) throw new Error(`${label[0].toUpperCase()}${label.slice(1)} não é https.`);
+  const response = await fetchImpl(url);
+  if (!response.ok) throw new Error(`Não foi possível baixar ${label} (${response.status}).`);
+  const blob = await response.blob();
+  const bytes = new Uint8Array(await blob.arrayBuffer());
+  let binary = "";
+  for (let i = 0; i < bytes.length; i += 0x8000) binary += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+  return { type: blob.type || "", base64: btoa(binary) };
 }
 
 // --- Chat do Marketplace (MKT-2) ---------------------------------------------------------------------------------

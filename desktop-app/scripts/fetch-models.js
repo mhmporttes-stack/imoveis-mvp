@@ -12,6 +12,9 @@ const { execFileSync } = require("node:child_process");
 
 const MODELS = path.join(__dirname, "..", "models");
 const TMP = path.join(MODELS, ".download");
+// No Windows, sempre o tar.exe (bsdtar) do próprio Windows: no GitHub Actions o PATH pode trazer antes o GNU tar do Git,
+// que não abre .zip e lê "C:\\..." como servidor remoto.
+const TAR = process.platform === "win32" ? path.join(process.env.SystemRoot || "C:\\Windows", "System32", "tar.exe") : "tar";
 const HF = "https://huggingface.co/rhasspy/piper-voices/resolve/5041a7a49ae5b3a0f30e6837769eb03fdbb231bd/pt/pt_BR/faber/medium";
 
 const ITEMS = [
@@ -23,7 +26,7 @@ const ITEMS = [
     install: (file) => {
       // O Vosk do app lê .tar.gz com a pasta do modelo dentro.
       extractZip(file, TMP);
-      execFileSync("tar", ["-czf", path.join(MODELS, "vosk-model-small-pt-0.3.tar.gz"), "-C", TMP, "vosk-model-small-pt-0.3"], { stdio: "inherit" });
+      execFileSync(TAR, ["-czf", path.join(MODELS, "vosk-model-small-pt-0.3.tar.gz"), "-C", TMP, "vosk-model-small-pt-0.3"], { stdio: "inherit" });
     }
   },
   {
@@ -52,7 +55,7 @@ const ITEMS = [
 function extractZip(file, target) {
   fs.mkdirSync(target, { recursive: true });
   // Windows 10+: tar.exe (bsdtar) abre zip. Linux: unzip.
-  if (process.platform === "win32") execFileSync("tar", ["-xf", file, "-C", target], { stdio: "inherit" });
+  if (process.platform === "win32") execFileSync(TAR, ["-xf", file, "-C", target], { stdio: "inherit" });
   else execFileSync("unzip", ["-q", "-o", file, "-d", target], { stdio: "inherit" });
 }
 

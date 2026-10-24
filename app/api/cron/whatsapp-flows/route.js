@@ -68,7 +68,7 @@ export async function GET(request) {
   }
   // Serviço do WhatsApp parado (lease sem renovar há > 5 min) -> alerta à administração. Nunca lança (WA-22).
   const serviceStall = await checkWhatsappServiceStalled();
-  // Número "conectado" que não recebe (quedas 500/428 em loop ou silêncio em horário comercial): marca, avisa e pinta a tela. Nunca lança.
+  // Número "conectado" com evidência de falha (envios sem confirmação, fila travada): reinicia sem QR; persistiu -> marca e avisa. Nunca lança.
   const falseConnections = await checkFalseConnections();
   // Redistribuição do Chat do Marketplace sem rodar com sucesso há > 10 min -> alerta aos admins gerais (MKT-2e). Nunca lança.
   const marketplaceRedistribution = await checkMarketplaceRedistributionStalled();

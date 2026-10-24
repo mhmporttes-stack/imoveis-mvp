@@ -136,6 +136,8 @@
       // div[role=article] com o balão div[data-message-id] e um botão-irmão [role=button][tabindex=-1] cujo aria-label é
       // o texto. Nossa: tem div[role=status] (entregue/visto) ou h2 "Você enviou"; do cliente: link /marketplace/profile/.
       log: '[role="log"]',
+      // 1.9.5: campo de anexo da janela de conversa (arquivo de resposta do CRM).
+      fileInput: 'input[type="file"]',
       article: '[role="article"]',
       messageId: "[data-message-id]",
       messageTextButton: '[role="button"][tabindex="-1"][aria-label]',
@@ -160,7 +162,11 @@
         /^envie uma resposta r[aá]pida\b/i, /^toque em uma resposta para envi[aá]-la/i, /^send a quick reply\b/i, /^tap a reply to send\b/i
       ],
       // Painel de respostas rápidas (título; o bloco inteiro, com as sugestões, é ignorado).
-      quickReplyTitles: ["Envie uma resposta rápida", "Send a quick reply", "Toque em uma resposta para enviá-la ao comprador", "Tap a reply to send it to the buyer"]
+      quickReplyTitles: ["Envie uma resposta rápida", "Send a quick reply", "Toque em uma resposta para enviá-la ao comprador", "Tap a reply to send it to the buyer"],
+      // 1.9.7 (casos Debora/Andreza, 18 conversas de 22 a 24/10/2026): a sugestão de resposta ao VENDEDOR vem num bloco
+      // com data-message-id próprio, logo depois da pergunta do comprador — o filtro "só data-message-id" da 1.9.1 deixava
+      // passar. Comprador nunca escreve isso. A mesma lista existe no servidor (isQuickReplySuggestion, marketplace-chat-core).
+      quickReplySuggestions: [/^sim,? voce tem interesse\??$/, /^yes,? are you interested\??$/]
     }
   };
 
@@ -198,6 +204,23 @@
     })();
     if (MP.checkpointUrlParts.some((part) => path.startsWith(part))) return true;
     return MP.matchesAny(pageText, MP.checkpointTexts);
+  };
+
+  // 1.9.6 (dono, 2026-10-24): conversa que o Facebook não deixa mais responder (cliente bloqueou, conta indisponível,
+  // conversa encerrada). Só é consultado quando o campo de mensagem NÃO aparece — o texto das mensagens do cliente não
+  // vira "bloqueada" sozinho. Textos em pt-BR e inglês; A CONFIRMAR com print real da tela (ajuste só aqui).
+  MP.closedConversationTexts = [
+    /voce nao pode (responder|enviar mensagens?)/,
+    /nao e possivel (responder|enviar mensagens?)/,
+    /(esta pessoa|essa pessoa|esta conta|essa conta) nao esta disponivel/,
+    /conversa (foi )?(encerrada|bloqueada)/,
+    /you can'?t (reply|message|send messages)/,
+    /(this person|this account) (is|isn'?t) (unavailable|available)/,
+    /this conversation (has been|was) (closed|blocked)/
+  ];
+  MP.isConversationClosed = function isConversationClosed(text) {
+    const value = MP.normalize(text);
+    return Boolean(value) && MP.closedConversationTexts.some((pattern) => pattern.test(value));
   };
 
   // Sugestão de localização a escolher (2026-10-20: a extensão chegou a escolher "Rua Marília, Vera Cruz - SP").
@@ -301,6 +324,7 @@
     const seen = new Map();
     return rows
       .filter((row) => (row.body || row.attachments?.length) && !MP.matchesAny(row.body, MP.inbox.systemTexts, true) && !MP.isSystemMessage(row.body)
+        && !(row.direction === "inbound" && MP.isQuickReplySuggestion(row.body))
         && !MP.inbox.systemPrefixes.some((prefix) => MP.normalize(row.body).startsWith(MP.normalize(prefix))))
       .map((row) => {
         const key = `${row.direction}|${MP.normalize(row.body)}`;
@@ -575,8 +599,11 @@
 
   // Texto de uma mensagem: botão-irmão [role=button][tabindex=-1] cujo aria-label é o texto (de preferência o que tem
   // o mesmo texto dentro); sem ele, os div[dir=auto] do balão fora dos títulos.
-  MP.articleText = function articleText(article) {
-    const buttons = [...article.querySelectorAll(MP.inbox.messageTextButton)];
+  // 1.9.7: `exclude` = painéis de resposta rápida; texto dentro deles ou de um chip (botão focável, tabindex ≠ -1, dentro do
+  // balão) nunca é o texto da mensagem.
+  MP.articleText = function articleText(article, { exclude = [] } = {}) {
+    const outside = (node) => !exclude.some((panel) => panel !== article && panel.contains?.(node)) && !MP.insideChip(node, article);
+    const buttons = [...article.querySelectorAll(MP.inbox.messageTextButton)].filter(outside);
     const same = buttons.find((button) => {
       const label = MP.normalize(button.getAttribute("aria-label"));
       return label && label === MP.normalize(button.textContent);
@@ -584,12 +611,21 @@
     if (same) return String(same.getAttribute("aria-label")).trim();
     const bubble = article.matches?.(MP.inbox.messageId) ? article : article.querySelector(MP.inbox.messageId);
     const texts = [...(bubble || article).querySelectorAll(MP.inbox.messageText)]
-      .filter((node) => !node.closest?.('h2, [role="heading"], [role="status"]') && !node.querySelector?.(MP.inbox.messageText))
+      .filter((node) => outside(node) && !node.closest?.('h2, [role="heading"], [role="status"]') && !node.querySelector?.(MP.inbox.messageText))
       .map((node) => String(node.textContent || "").trim())
       .filter(Boolean);
     if (texts.length) return texts.join("\n");
     const label = buttons.map((button) => String(button.getAttribute("aria-label") || "").trim()).find((text) => text && !MP.matchesAny(text, MP.inbox.systemTexts, true));
     return label || "";
+  };
+
+  // Chip de resposta rápida: botão focável (tabindex ≠ -1) entre o nó e o balão. O botão-irmão do texto da mensagem
+  // (tabindex=-1) não é chip.
+  MP.insideChip = function insideChip(node, article) {
+    for (let current = node; current && current !== article; current = current.parentElement) {
+      if (current.getAttribute?.("role") === "button" && current.getAttribute?.("tabindex") !== "-1") return true;
+    }
+    return false;
   };
 
   // Mensagens do div[role=log]: cada div[role=article] (balão com data-message-id) e os separadores de hora (linhas
@@ -618,7 +654,10 @@
       const fbId = String(idNode?.getAttribute?.("data-message-id") || "").trim();
       // 1.9.1: só é mensagem o que tem data-message-id (aviso do sistema, chip e botão do painel não têm).
       if (!fbId) continue;
-      const body = MP.articleText(article);
+      // 1.9.7: balão que está DENTRO de um painel de resposta rápida não é mensagem; balão que CONTÉM o painel só vale pelo
+      // texto fora dele (a sugestão com data-message-id próprio fica sem texto e sai).
+      if (panels.some((panel) => panel !== article && panel.contains?.(article))) continue;
+      const body = MP.articleText(article, { exclude: panels });
       const attachments = attachmentsOf(article) || [];
       if (!body && !attachments.length) continue;
       if (nameKey && MP.normalize(body) === nameKey) continue;
@@ -642,6 +681,11 @@
       if (panel.querySelector?.('[role="button"]') && !panel.querySelector?.(MP.inbox.messageId)) panels.push(panel);
     }
     return panels;
+  };
+
+  MP.isQuickReplySuggestion = function isQuickReplySuggestion(text) {
+    const value = MP.normalize(text).replace(/[.!]+$/, "").trim();
+    return Boolean(value) && (MP.inbox.quickReplySuggestions || []).some((pattern) => pattern.test(value));
   };
 
   MP.isSystemMessage = function isSystemMessage(text) {

@@ -84,3 +84,11 @@ test("texto da voz local em pedaços de até 900 caracteres (o app aceita 1.000)
   const giant = "a".repeat(2500);
   assert.deepEqual(chunkForLocalVoice(giant).map((chunk) => chunk.length), [900, 900, 700]);
 });
+
+// App 1.3.1 (dono, 2026-10-23): tela cheia do Henry avisada ao app (caixa "Nova versão pronta" espera).
+test("desktopCanReportFullscreen: só com a ponte nova", async () => {
+  const { desktopCanReportFullscreen } = await import("../lib/henry-desktop-core.mjs");
+  assert.equal(desktopCanReportFullscreen(null), false);
+  assert.equal(desktopCanReportFullscreen({ onWake() {} }), false);
+  assert.equal(desktopCanReportFullscreen({ henryFullscreen() {} }), true);
+});

@@ -9,7 +9,7 @@ paths:
 
 # Banco de dados e Supabase
 
-Postgres 17 no Supabase, projeto `tshhasbbchjcvhoyizoo`, região `us-west-2`. ~160 migrations incrementais em `supabase/migrations/` (162 em 2026-10-01) (nenhum schema único "canônico" — o histórico de migrations É o schema).
+Postgres 17 no Supabase, projeto `tshhasbbchjcvhoyizoo`, região `us-west-2`. migrations incrementais em `supabase/migrations/` (292 em 2026-10-24 — conte com `ls`, o número cresce sempre) (nenhum schema único "canônico" — o histórico de migrations É o schema).
 
 ## Como as migrations funcionam aqui
 

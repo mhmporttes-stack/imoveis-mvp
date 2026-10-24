@@ -53,18 +53,22 @@ export default async function AdminLayout({ children }) {
       {/* Primeiro acesso do dia do DONO (INI-4, 2026-10-22): abre o Início e a Alexa fala o bom dia (servidor). Só a conta
           real do dono, fora de "Alterar conta"; a rota confere de novo. Outros perfis: nada muda. */}
       {auth.ok && !auth.accountSwitchMode && isOwnerAdminEmail(auth.user?.email) ? <FirstAccessGate /> : null}
+      </HideInFinanceiroApp>
       {/* Mensagem do Dia, Celebração, Supervisão e Central de Alertas: carregados quando a tela fica ociosa
           (components/DeferredPanelGates.jsx — velocidade, etapa 3). Mesmas condições de sempre: Supervisão e Central de
-          Alertas (Informativo/Importante) ficam fora de "Alterar conta". */}
+          Alertas (Informativo/Importante) ficam fora de "Alterar conta". Fora do HideInFinanceiroApp desde 2026-10-24
+          (dono): no app "Chat" o Importante e a janela do cliente esfriado também bloqueiam; o app "Financeiro" continua
+          sem avisos — quem decide é components/panel-gates-by-app.mjs. Janelinha de cliente novo (CLI-16) também fica fora de
+          "Alterar conta" (o servidor repete a trava). */}
       {auth.ok ? (
         <DeferredPanelGates
           daily={{ userId: auth.profile?.id, userName: auth.profile?.name || "" }}
           celebration={{ userId: auth.profile?.id, userName: auth.profile?.name || "", userPhotoUrl: auth.profile?.photoUrl || "" }}
           supervision={auth.accountSwitchMode ? null : { userId: auth.profile?.id }}
           alerts={auth.accountSwitchMode ? null : { userId: auth.profile?.id }}
+          clientPopups={auth.accountSwitchMode ? null : { userId: auth.profile?.id }}
         />
       ) : null}
-      </HideInFinanceiroApp>
       {/* O provider envolve o cabeçalho, o menu lateral e a barra inferior: o modo lista impressa (PRO-15) é relido no
           cliente e o Chat volta sozinho quando o WhatsApp reconecta, sem fechar o app (components/WhatsappAccessProvider.jsx). */}
       <WhatsappAccessProvider blocked={whatsappBlocked} basic={auth.ok && isBasicMode(auth.profile)} chatHidden={chatHidden} liveCheck={auth.ok && printedListModeAppliesTo({ role: auth.profile?.role || "", isGeneralAdmin: isGeneralAdminAuth(auth) })}>

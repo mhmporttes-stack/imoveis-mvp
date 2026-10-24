@@ -121,7 +121,7 @@ export default function ClientSheet({ client, list, open, onClose, canManage, ca
           {/* Situação */}
           <Section title="Situação">
             <div className="grid gap-3 sm:grid-cols-2">
-              <StatusSelect client={client} busy={busy} onChange={(status) => list.updateClientStatus(client, status)} />
+              <StatusSelect client={client} busy={busy} canMarkPaid={Boolean(list?.canMarkSalePaid)} onChange={(status) => list.updateClientStatus(client, status)} />
               {canManage ? (
                 <LabeledSelect
                   label="Responsável"
@@ -205,7 +205,9 @@ export default function ClientSheet({ client, list, open, onClose, canManage, ca
       {showDocuments && registration?.id ? (
         <ClientDocumentsModal
           client={{ id: registration.id, fullName: client.name || "Cliente" }}
-          canSendToCca={canManage}
+          // Envio à CCA pela ficha para todo perfil com acesso ao cliente (DOC-9 — dono, 2026-10-24); o servidor
+          // valida o escopo (requireClientAccess → assertCanAccessResponsibleUser). Correções/PDF avulso seguem canManage.
+          canSendToCca
           canManage={canManage}
           canEditRules={isOwner}
           onClose={() => setShowDocuments(false)}
@@ -254,10 +256,10 @@ function LabeledSelect({ label, value, disabled, onChange, children }) {
   );
 }
 
-function StatusSelect({ client, busy, onChange }) {
+function StatusSelect({ client, busy, canMarkPaid, onChange }) {
   return (
     <LabeledSelect label="Etapa" value={client.status} disabled={busy} onChange={onChange}>
-      <StatusOptions current={client.status} hasRealSimulation={client.summary ? Boolean(client.summary.completed) : true} />
+      <StatusOptions current={client.status} hasRealSimulation={client.summary ? Boolean(client.summary.completed) : true} canMarkPaid={canMarkPaid} />
     </LabeledSelect>
   );
 }
@@ -967,6 +969,7 @@ function ReceivedDateDialog({ target, onCancel, onConfirm }) {
             className={cx(inputClasses, "mt-4")}
             value={receivedDate}
             onChange={(event) => setReceivedDate(event.target.value)}
+            max={todayDateInputValue()}
             aria-label="Data do recebimento"
             required
           />

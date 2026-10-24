@@ -9,9 +9,9 @@ export const dynamic = "force-dynamic";
 export const maxDuration = 55;
 
 // Rede de segurança diária da Meta Diária: fecha em definitivo qualquer dia
-// anterior ainda aberto (de QUALQUER corretor) e devolve à Prospecção quem
-// não foi trabalhado — "meta diária é diária", nunca carrega progresso pro
-// dia seguinte. getBrokerDailyGoal já fecha o dia anterior do próprio
+// anterior ainda aberto (de QUALQUER corretor) — o progresso nunca passa pro
+// dia seguinte. Quem NÃO recebeu tentativa continua na carteira e na meta do
+// dia seguinte (regra do dono, 2026-10-24; nada é devolvido à Prospecção aqui). getBrokerDailyGoal já fecha o dia anterior do próprio
 // corretor toda vez que ele abre a tela; este cron cobre quem passa dias
 // sem abrir. Mesmo padrão de autenticação dos outros crons (app/api/cron/
 // daily-report, scheduled-activities) — nenhum mecanismo novo.

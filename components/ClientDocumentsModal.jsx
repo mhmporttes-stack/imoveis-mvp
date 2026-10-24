@@ -20,6 +20,7 @@ import {
 import { DOCUMENT_TYPE_OPTIONS, CHECKLIST_STATUS_OPTIONS } from "@/lib/document-type-options";
 import { DOCUMENT_STATUS_LABELS, PERSON_ROLE_LABELS } from "@/lib/document-status-labels";
 import { pendingClientMessage, visibleDocumentDivergences } from "@/lib/document-policy.mjs";
+import { isAnalysisSkippedBatch } from "@/lib/cca-submission-core.mjs";
 
 const CLIENT_DOCS_BUCKET = "client-documents";
 
@@ -41,12 +42,14 @@ const STATUS_STYLE = {
   em_analise: { icon: LoaderCircle, tone: "text-muted bg-mist", label: DOCUMENT_STATUS_LABELS.em_analise }
 };
 
-export default function ClientDocumentsModal({ client, conversationId = "", canSendToCca, canManage, canEditRules = false, reportsOnly = false, onNewAnalysis, onClose }) {
+// directSendBatchId: lote recém-importado do Chat pelo "Enviar direto para
+// análise (CCA)" (DOC-8) — abre o envio à CCA na hora, sem IA.
+export default function ClientDocumentsModal({ client, conversationId = "", canSendToCca, canManage, canEditRules = false, reportsOnly = false, directSendBatchId = "", onNewAnalysis, onClose }) {
   const [batches, setBatches] = useState(null);
   const [activeBatch, setActiveBatch] = useState(null);
   const [error, setError] = useState("");
   const [uploadState, setUploadState] = useState(null); // { label } while a batch is being processed
-  const [ccaFlow, setCcaFlow] = useState(null); // { batchId } opens the CCA submission drawer
+  const [ccaFlow, setCcaFlow] = useState(directSendBatchId && canSendToCca ? { batchId: directSendBatchId, withoutAnalysis: true } : null); // { batchId, withoutAnalysis? } opens the CCA submission drawer
   const [brokerAlertFlow, setBrokerAlertFlow] = useState(null); // null | "loading" | { message, whatsappUrl } | { empty: true }
   const [pdfFlow, setPdfFlow] = useState(null); // null | true (abre o PdfDownloadModal)
   const dropRef = useRef(null);
@@ -100,7 +103,7 @@ export default function ClientDocumentsModal({ client, conversationId = "", canS
       const response = await fetch(`/api/admin/client-documents/batches?clientId=${client.id}`);
       const data = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(data.error);
-      const available = reportsOnly ? (data.batches || []).filter((batch) => batch.status === "analyzed") : data.batches || [];
+      const available = reportsOnly ? (data.batches || []).filter((batch) => batch.status === "analyzed" || isAnalysisSkippedBatch(batch)) : data.batches || [];
       setBatches(available);
       if (available.length) openBatch(available[0].id);
     } catch (loadError) {
@@ -141,11 +144,14 @@ export default function ClientDocumentsModal({ client, conversationId = "", canS
   // lote + pegar as URLs assinadas, upload direto pro Storage (nunca passa
   // pela função serverless), e 1 requisição de confirmação que já dispara a
   // análise da IA — o corretor não clica em "analisar".
-  async function startUpload(fileList) {
+  // direct = "Enviar direto para análise (CCA)" (DOC-8): só guarda os
+  // arquivos (sem IA) e abre o envio à CCA com esse lote.
+  async function startUpload(fileList, { direct = false } = {}) {
     const files = Array.from(fileList || []).filter(Boolean);
     if (!files.length || reportsOnly) return;
     setError("");
-    cycleLabels();
+    if (direct) setUploadState({ label: "Salvando documentos..." });
+    else cycleLabels();
     try {
       const createResponse = await fetch("/api/admin/client-documents/batches", {
         method: "POST",
@@ -174,13 +180,14 @@ export default function ClientDocumentsModal({ client, conversationId = "", canS
       const confirmResponse = await fetch(`/api/admin/client-documents/batches/${createData.batchId}/confirm`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ files: uploaded })
+        body: JSON.stringify({ files: uploaded, skipAnalysis: direct })
       });
       const confirmData = await confirmResponse.json().catch(() => ({}));
       if (!confirmResponse.ok) throw new Error(confirmData.error);
 
       setActiveBatch(confirmData.batch);
       await loadBatches();
+      if (direct) setCcaFlow({ batchId: createData.batchId, withoutAnalysis: true });
     } catch (uploadErr) {
       setError(uploadErr.message || "Não foi possível enviar os documentos.");
     } finally {
@@ -332,6 +339,18 @@ export default function ClientDocumentsModal({ client, conversationId = "", canS
               />
             </label>
           )}
+          {!reportsOnly && !uploadState && canSendToCca ? (
+            <label className="-mt-3 mb-5 flex cursor-pointer items-center justify-center gap-2 text-sm font-bold text-brand hover:underline">
+              <Send className="h-4 w-4" /> Enviar direto para análise (CCA), sem a IA
+              <input
+                type="file"
+                multiple
+                accept="application/pdf,image/jpeg,image/png,image/webp,image/heic,image/heif"
+                className="hidden"
+                onChange={(event) => startUpload(event.target.files, { direct: true })}
+              />
+            </label>
+          ) : null}
 
           {batches === null ? (
             <p className="text-center text-sm font-bold text-muted">Carregando…</p>
@@ -357,11 +376,12 @@ export default function ClientDocumentsModal({ client, conversationId = "", canS
               canManage={canManage}
               canEditRules={canEditRules}
               onReanalyze={reportsOnly ? null : () => reanalyze(activeBatch.id)}
+              onAnalyzeNow={() => reanalyze(activeBatch.id)}
               onDeleteDocument={deleteDocument}
               onViewDocument={viewDocument}
               onCorrectItem={correctItem}
               conversationId={conversationId}
-              onSendToCca={() => setCcaFlow({ batchId: activeBatch.id })}
+              onSendToCca={() => setCcaFlow({ batchId: activeBatch.id, withoutAnalysis: isAnalysisSkippedBatch(activeBatch) })}
               onBrokerAlert={handleBrokerAlert}
               brokerAlertBusy={brokerAlertFlow === "loading"}
               onDownloadPdf={() => setPdfFlow(true)}
@@ -374,6 +394,7 @@ export default function ClientDocumentsModal({ client, conversationId = "", canS
         <CcaSubmissionFlow
           clientId={client.id}
           batchId={ccaFlow.batchId}
+          withoutAnalysis={ccaFlow.withoutAnalysis}
           onClose={() => setCcaFlow(null)}
         />
       ) : null}
@@ -567,7 +588,7 @@ function BrokerAlertModal({ alert, onClose }) {
 
 function BatchRow({ batch, isActive, onOpen, reportsOnly }) {
   const summary = batch.summary || {};
-  const statusLabel = { uploading: "Enviando", processing: "Processando", analyzed: "Analisado", failed: "Falhou" }[batch.status] || batch.status;
+  const statusLabel = isAnalysisSkippedBatch(batch) ? "Sem análise" : { uploading: "Enviando", processing: "Processando", analyzed: "Analisado", failed: "Falhou" }[batch.status] || batch.status;
   return (
     <button
       type="button"
@@ -588,12 +609,13 @@ function BatchRow({ batch, isActive, onOpen, reportsOnly }) {
   );
 }
 
-function BatchDetail({ batch, canSendToCca, canManage, canEditRules, conversationId, onReanalyze, onDeleteDocument, onViewDocument, onCorrectItem, onSendToCca, onBrokerAlert, brokerAlertBusy, onDownloadPdf }) {
+function BatchDetail({ batch, canSendToCca, canManage, canEditRules, conversationId, onReanalyze, onAnalyzeNow, onDeleteDocument, onViewDocument, onCorrectItem, onSendToCca, onBrokerAlert, brokerAlertBusy, onDownloadPdf }) {
   const [showDivergences, setShowDivergences] = useState(false);
   const [messageDraft, setMessageDraft] = useState("");
   const [sendingMessage, setSendingMessage] = useState(false);
   const [messageFeedback, setMessageFeedback] = useState("");
   const suggestedMessage = pendingClientMessage(batch.checklist);
+  const skipped = isAnalysisSkippedBatch(batch);
   useEffect(() => { setMessageDraft(suggestedMessage); setMessageFeedback(""); }, [batch.id, suggestedMessage]);
   async function sendPendingMessage() {
     setSendingMessage(true); setMessageFeedback("");
@@ -646,8 +668,29 @@ function BatchDetail({ batch, canSendToCca, canManage, canEditRules, conversatio
               <Send className="h-4 w-4" /> Enviar para análise
             </button>
           ) : null}
+          {skipped ? (
+            <button type="button" className="premium-button-secondary px-4 py-2 text-sm" onClick={onAnalyzeNow}>Analisar com IA</button>
+          ) : null}
+          {canSendToCca && skipped ? (
+            <button type="button" className="premium-button-primary px-4 py-2 text-sm" onClick={onSendToCca}>
+              <Send className="h-4 w-4" /> Enviar direto para análise (CCA)
+            </button>
+          ) : null}
         </div>
       </div>
+      {skipped ? (
+        <div className="mt-3 rounded-xl border border-line bg-mist/40 p-3">
+          <p className="text-sm font-black text-navy">Documentos salvos sem análise da IA.</p>
+          <ul className="mt-2 space-y-1">
+            {(batch.documents || []).map((document) => (
+              <li key={document.id} className="flex items-center justify-between gap-2 text-xs font-bold text-navy">
+                <span className="min-w-0 truncate">{document.filename}</span>
+                <button type="button" className="inline-flex items-center gap-1 text-brand hover:underline" onClick={() => onViewDocument(document.id)}><Eye className="h-3.5 w-3.5" /> Ver</button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
 
       {batch.divergences?.length ? (
         <div className="mt-3 rounded-lg border border-line">
@@ -769,7 +812,7 @@ function ChecklistItemCard({ item, documents, canManage, canEditRules, onView, o
   );
 }
 
-function CcaSubmissionFlow({ clientId, batchId, onClose }) {
+function CcaSubmissionFlow({ clientId, batchId, withoutAnalysis = false, onClose }) {
   const [format, setFormat] = useState("");
   const [confirmPending, setConfirmPending] = useState(false);
   const [ccaOptions, setCcaOptions] = useState(null);
@@ -877,6 +920,7 @@ function CcaSubmissionFlow({ clientId, batchId, onClose }) {
   return (
     <div className="fixed inset-0 z-[110] flex items-center justify-center bg-navy/70 p-4" onMouseDown={onClose}>
       <div className="w-full max-w-md rounded-panel bg-white p-6 shadow-2xl" onMouseDown={(event) => event.stopPropagation()}>
+        {withoutAnalysis && !done ? <p className="mb-3 rounded-xl bg-blue-50 px-3 py-2 text-xs font-bold text-brand">Envio direto, sem análise da IA.</p> : null}
         {done ? (
           <div className="text-center">
             <CheckCircle2 className="mx-auto h-10 w-10 text-emerald-600" />

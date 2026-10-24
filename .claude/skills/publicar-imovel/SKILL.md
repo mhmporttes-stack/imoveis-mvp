@@ -30,6 +30,7 @@ Inserir em `marketplace_listings`: `property_id`, `title`, `price` (número), `d
 URLs públicas JPEG (Supabase ou raw do GitHub) + legenda.
 
 **Tempo esgotado ou erro → confirmar antes de tentar de novo (regra do dono, 2026-10-23; já duplicou o COD4358):**
+⚠️ Verificado em 2026-10-24: o plano Basic do Windsor guarda os dados em cache (sem atualização por hora) — post recém-publicado **pode não aparecer por horas** no `get_data`. Se as conferências não acharem o post, **não reenviar**: pedir ao dono para olhar o perfil (ou conferir de novo horas depois). Reenviar só com o "não saiu" do dono.
 1. Tempo esgotado quase sempre PUBLICA. Antes de qualquer reenvio, conferir: Windsor `get_data` conector `instagram`, campos `media_id, media_caption, timestamp`, `date_preset: last_1dT`, **sem filtro** (filtro com acento não casa) e comparar localmente a 1ª linha da legenda.
 2. Achou → publicado; registrar o `media_id` e parar.
 3. Não achou → esperar ~2 min (Monitor/until, nunca sleep solto) e conferir de novo; até **3 conferências** (~6 min).

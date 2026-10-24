@@ -88,7 +88,7 @@ test("lista fechada: só a speakLocal entrou nas ações (onWake é evento, não
   assert.equal(validateAction("speakLocalShell", { text: "x" }).ok, false);
   const preload = require("node:fs").readFileSync(require("node:path").join(__dirname, "..", "src", "preload.js"), "utf8");
   const exposed = [...preload.matchAll(/^ {4}([A-Za-z]+):/gm)].map((match) => match[1]);
-  assert.deepEqual(exposed.sort(), ["isDesktopApp", "notify", "onActivate", "onWake", "openSpotify", "openUrl", "screenOff", "screenOn", "speakLocal", "version"].sort());
+  assert.deepEqual(exposed.sort(), ["isDesktopApp", "notify", "henryFullscreen", "onActivate", "onWake", "onWindowVisibility", "openSpotify", "openUrl", "screenOff", "screenOn", "speakLocal", "version"].sort());
 });
 
 test("speakLocal: só string, até 1.000 caracteres, uma linha só", () => {
@@ -141,4 +141,13 @@ test("microfone da escuta do nome: só a página local, só áudio", () => {
   assert.equal(shouldGrantWakePermission({ permission: "media", origin: "https://www.matheusmachadoimoveis.com.br", mediaTypes: ["audio"] }), false);
   // E o contrário: a origem local nunca ganha as permissões do CRM.
   assert.equal(shouldGrantPermission({ permission: "media", origin: "mm-wake://app/wake.html", mediaTypes: ["audio"] }), false);
+});
+
+// --- 1.3.1 (app lento, 2026-10-23): janela minimizada/na bandeja avisa a página -------------------------------------
+test("isWindowHidden: minimizada, escondida na bandeja ou sem janela = oculta", () => {
+  const { isWindowHidden } = require("../src/core");
+  assert.equal(isWindowHidden({ exists: true, visible: true, minimized: false }), false);
+  assert.equal(isWindowHidden({ exists: true, visible: true, minimized: true }), true);
+  assert.equal(isWindowHidden({ exists: true, visible: false, minimized: false }), true);
+  assert.equal(isWindowHidden({ exists: false }), true);
 });

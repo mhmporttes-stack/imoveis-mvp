@@ -7,6 +7,15 @@ import {
   RECORD_MAX_MS,
   RECORD_NO_SPEECH_MS,
   RECORD_SILENCE_MS,
+  RECORD_REPLY_SILENCE_MS,
+  RECORD_KEEP_LEVEL,
+  RECORD_VOICE_LEVEL,
+  endOfSpeechWaitMs,
+  interimFinalWaitMs,
+  joinCutTranscripts,
+  openPendingReply,
+  recordVoiceThreshold,
+  shouldContinueAfterCut,
   classifyOpenSceneUtterance,
   classifyTapUtterance,
   emptyInterimState,
@@ -29,7 +38,7 @@ import {
   splitForSpeech
 } from "../lib/henry-voice-conversation.mjs";
 import { HENRY_HISTORY_TURNS, sanitizeHistory } from "../lib/henry-voice-core.mjs";
-import { HENRY_ORB_STATES, mixHexColor, orbEase, orbStops } from "../components/henry/henry-orb-states.mjs";
+import { HENRY_ORB_MODES, HENRY_ORB_STATES, buildNeuralNet, henryOrbMode, mixHexColor, orbEase, orbStops, thinkingActivity } from "../components/henry/henry-orb-states.mjs";
 
 test("palavras de parada: só frase curta feita delas", () => {
   for (const phrase of ["para", "Para!", "espera", "pera", "peraí", "chega", "para, Henry", "ei, espera aí", "pode parar"]) {
@@ -122,16 +131,68 @@ test("anel: estados distintos, transição de ~300 ms e cor quente ao falar", ()
   assert.equal(orbStops(1)[0][1], "#ffffff");
 });
 
+test("anel: estados distinguíveis — parado, esperando, ouvindo, pensando (rede neural), falando", () => {
+  // Fonte única do estado visual (dono, 2026-10-23).
+  assert.equal(henryOrbMode({ phase: "speaking", recording: true }), "speaking");
+  assert.equal(henryOrbMode({ phase: "thinking", recording: true }), "listening"); // gravando o pedido = ouvindo
+  assert.equal(henryOrbMode({ phase: "thinking", micOn: true, conversationOpen: true }), "thinking");
+  assert.equal(henryOrbMode({ phase: "armed", micOn: true }), "listening");
+  assert.equal(henryOrbMode({ phase: "idle", micOn: true, hearing: true }), "listening");
+  assert.equal(henryOrbMode({ phase: "idle", micOn: true, conversationOpen: true }), "waiting");
+  assert.equal(henryOrbMode({ phase: "idle", micOn: true, awaitingReply: true }), "waiting");
+  assert.equal(henryOrbMode({ phase: "idle", micOn: false, conversationOpen: true }), "idle"); // mudo: não escuta
+  assert.equal(henryOrbMode({ phase: "idle", micOn: true }), "idle");
+  assert.equal(henryOrbMode(), "idle");
+  for (const mode of ["idle", "waiting", "listening", "thinking", "speaking"]) assert.ok(HENRY_ORB_MODES.includes(mode));
+  const { idle, waiting, thinking, speaking, listening } = HENRY_ORB_STATES;
+  // Só "pensando" tem rede no centro; ao falar ela some (interpolação de ~300 ms).
+  assert.equal(thinking.neural, 1);
+  for (const state of [idle, waiting, listening, speaking]) assert.equal(state.neural, 0);
+  // Esperando = brilho no contorno; parado = escurecido e sem contorno.
+  assert.equal(waiting.rim, 1);
+  assert.equal(idle.rim, 0);
+  assert.ok(idle.dim < waiting.dim && waiting.dim <= 1);
+  // Todos os estados têm as mesmas chaves (a interpolação não pode deixar parâmetro para trás).
+  const keys = Object.keys(idle).sort().join();
+  for (const state of Object.values(HENRY_ORB_STATES)) assert.equal(Object.keys(state).sort().join(), keys);
+});
+
+test("rede neural: papo calmo, busca intensa, progresso aumenta; rede determinística dentro dos anéis", () => {
+  assert.ok(thinkingActivity({ topic: "geral" }) < thinkingActivity({ topic: "music" }));
+  assert.ok(thinkingActivity({ topic: "music" }) < thinkingActivity({ topic: "relatorio" }));
+  assert.ok(thinkingActivity({ topic: "internet", progress: 3 }) > thinkingActivity({ topic: "internet" }));
+  assert.equal(thinkingActivity({ topic: "funil", progress: 50 }), 1);
+  const big = buildNeuralNet(24);
+  assert.equal(big.nodes.length, 24);
+  assert.deepEqual(buildNeuralNet(24), big);
+  for (const node of big.nodes) assert.ok(Math.hypot(node.x, node.y) <= 0.7 + 1e-9);
+  assert.ok(big.edges.length >= 24 && big.tendrils.length > 0);
+  for (const edge of big.edges) assert.ok(edge.a < edge.b && edge.b < 24);
+  const icon = buildNeuralNet(6); // ícone minimizado: poucos nós
+  assert.equal(icon.nodes.length, 6);
+  assert.ok(icon.edges.length > 0);
+  assert.equal(buildNeuralNet(500).nodes.length, 40); // teto de desempenho
+});
+
 test("anel e ícone: limites de desempenho e movimento reduzido", () => {
   const orb = readFileSync(new URL("../components/henry/HenryOrb.jsx", import.meta.url), "utf8");
   assert.match(orb, /Math\.min\(2, window\.devicePixelRatio/);
   assert.match(orb, /Math\.min\(60, fibers\)/);
   assert.match(orb, /prefers-reduced-motion: reduce/);
-  assert.match(orb, /document\.hidden/);
+  assert.match(orb, /isPageHidden\(\)/); // aba oculta OU app de desktop minimizado (components/page-visibility.js)
+  // Tela cheia (app lento, 2026-10-23): halo em camada de meia resolução, 30 fps, 15 fps ociosa após 60 s.
+  assert.match(orb, /const FULLSCREEN_FRAME_MS = 1000 \/ 30;/);
+  assert.match(orb, /const FULLSCREEN_ECO_FRAME_MS = 1000 \/ 15;/);
+  assert.match(orb, /const FULLSCREEN_ECO_AFTER_MS = 60000;/);
+  assert.match(orb, /const glowLayer = glow \? createGlowLayer\(/);
+  assert.match(orb, /buildNeuralNet\(nodes\)/);
+  assert.match(orb, /pulses\.length >= 36/); // teto de sinapses por quadro
   const view = readFileSync(new URL("../components/henry/HenryVoiceView.jsx", import.meta.url), "utf8");
   assert.match(view, /motion-reduce:transition-none/);
   assert.match(view, /pointer-events-none fixed/);
   for (const match of view.matchAll(/fibers=\{(\d+)\}/g)) assert.ok(Number(match[1]) <= 60);
+  for (const match of view.matchAll(/nodes=\{(\d+)\}/g)) assert.ok(Number(match[1]) <= 8); // ícone: poucos nós
+  assert.match(view, /Henry pensando…/); // leitor de tela
 });
 
 test("rota: fala em partes só com o mesmo texto já liberado pela barreira", () => {
@@ -252,13 +313,13 @@ test("tocar para falar: gravação no celular sem reconhecimento ou no app do iP
   assert.equal(pickRecorderMimeType(undefined), "");
 });
 
-test("tocar para falar: para sozinho com silêncio, descarta sem voz e corta em 20 s", () => {
+test("tocar para falar: para sozinho com silêncio, descarta sem voz e corta em 25 s", () => {
   const base = { startedAt: 0, hasMeter: true };
   assert.equal(recordingDecision({ ...base, heardVoice: true, lastVoiceAt: 2000, now: 2000 + RECORD_SILENCE_MS - 1 }), null);
   assert.equal(recordingDecision({ ...base, heardVoice: true, lastVoiceAt: 2000, now: 2000 + RECORD_SILENCE_MS }), "send");
   assert.equal(recordingDecision({ ...base, heardVoice: false, now: RECORD_NO_SPEECH_MS }), "discard");
   assert.equal(recordingDecision({ ...base, heardVoice: true, lastVoiceAt: RECORD_MAX_MS, now: RECORD_MAX_MS }), "send");
-  assert.equal(recordingDecision({ startedAt: 0, hasMeter: false, now: 15000 }), null); // sem medidor: só toque ou 20 s
+  assert.equal(recordingDecision({ startedAt: 0, hasMeter: false, now: 15000 }), null); // sem medidor: só toque ou 25 s
   assert.equal(recordingDecision({ startedAt: 0, hasMeter: false, now: RECORD_MAX_MS }), "send");
 });
 
@@ -428,4 +489,68 @@ test("barge-in: a voz sai direto do <audio> (cancelamento de eco do Chrome) e o 
   assert.doesNotMatch(vad, /https?:\/\//);
   const card = readFileSync(new URL("../components/henry/HenrySettingsCard.jsx", import.meta.url), "utf8");
   assert.match(card, /Para interromper, fale &quot;para&quot; ou &quot;Henry&quot;/);
+});
+
+// Bug do dono (2026-10-23, app de desktop 1.3.0): "uma simples pausa de 1 segundo e ele já começa a pensar".
+test("fim da fala: pausa de 1 s não corta; só ~2,0 s de silêncio contínuo (padrão), 25 s no máximo", () => {
+  assert.equal(RECORD_SILENCE_MS, 2000);
+  assert.equal(RECORD_MAX_MS, 25000);
+  const base = { startedAt: 0, firstVoiceAt: 500, heardVoice: true, hasMeter: true };
+  assert.equal(recordingDecision({ ...base, lastVoiceAt: 3000, now: 4000 }), null); // pausa de 1 s
+  assert.equal(recordingDecision({ ...base, lastVoiceAt: 3000, now: 4300 }), null); // 1,3 s (antes cortava em 1,2 s)
+  assert.equal(recordingDecision({ ...base, lastVoiceAt: 3000, now: 5000 }), "send");
+  assert.equal(recordingDecision({ ...base, lastVoiceAt: 3000, now: 4100, waitMs: 1200 }), null);
+  assert.equal(recordingDecision({ ...base, lastVoiceAt: 3000, now: 4200, waitMs: 1200 }), "send"); // "curto"
+  assert.equal(recordingDecision({ ...base, lastVoiceAt: 3000, now: 5900, waitMs: 3000 }), null); // "longo"
+  assert.equal(recordingDecision({ ...base, lastVoiceAt: 3000, now: 6000, waitMs: 3000 }), "send");
+  assert.equal(recordingDecision({ ...base, lastVoiceAt: 24000, now: 25000 }), "send"); // limite de 25 s
+  assert.equal(recordingDecision({ startedAt: 0, heardVoice: false, hasMeter: true, now: 6000 }), null); // ~6 s para começar
+  assert.equal(recordingDecision({ startedAt: 0, heardVoice: false, hasMeter: true, now: 6000, noSpeechMs: 3500 }), "discard"); // continuação
+});
+
+test("fim da fala: histerese — VAD ainda ouvindo voz não fecha; silêncio conta do fim reportado pelo VAD", () => {
+  const base = { startedAt: 0, firstVoiceAt: 500, lastVoiceAt: 3000, heardVoice: true, hasMeter: true, vadRunning: true };
+  assert.equal(recordingDecision({ ...base, vadSpeaking: true, now: 9000 }), null); // medidor calado, VAD diz "tem voz"
+  assert.equal(recordingDecision({ ...base, vadSpeaking: false, vadEndedAt: 4500, now: 6000 }), null); // VAD acabou há 1,5 s
+  assert.equal(recordingDecision({ ...base, vadSpeaking: false, vadEndedAt: 4500, now: 6500 }), "send");
+  // Sem VAD rodando, o fim reportado antes não conta.
+  assert.equal(recordingDecision({ ...base, vadRunning: false, vadSpeaking: true, vadEndedAt: 4500, now: 5000 }), "send");
+  // Medidor: depois de ouvir voz, um nível menor (respirar, "é…") mantém a fala viva.
+  assert.equal(recordVoiceThreshold(false), RECORD_VOICE_LEVEL);
+  assert.equal(recordVoiceThreshold(true), RECORD_KEEP_LEVEL);
+  assert.equal(RECORD_KEEP_LEVEL < RECORD_VOICE_LEVEL, true);
+});
+
+test("fim da fala: resposta curta fecha em 1,2 s só com pergunta pendente", () => {
+  assert.equal(RECORD_REPLY_SILENCE_MS, 1200);
+  assert.equal(endOfSpeechWaitMs({ waitMs: 2000, awaitingReply: false, voiceMs: 400 }), 2000);
+  assert.equal(endOfSpeechWaitMs({ waitMs: 2000, awaitingReply: true, voiceMs: 400 }), 1200); // "sim"
+  assert.equal(endOfSpeechWaitMs({ waitMs: 2000, awaitingReply: true, voiceMs: 4000 }), 2000); // frase longa: espera normal
+  assert.equal(endOfSpeechWaitMs({ waitMs: 3000, awaitingReply: true, voiceMs: 300 }), 1200);
+  assert.equal(endOfSpeechWaitMs({ waitMs: 999999 }), 5000); // valor adulterado: teto
+  const reply = { startedAt: 0, firstVoiceAt: 1000, lastVoiceAt: 1400, heardVoice: true, hasMeter: true, awaitingReply: true };
+  assert.equal(recordingDecision({ ...reply, now: 2600 }), "send");
+  assert.equal(recordingDecision({ ...reply, awaitingReply: false, now: 2600 }), null);
+  // Web Speech (iPhone): mesmo tempo para o parcial virar final.
+  assert.equal(interimFinalWaitMs({ waitMs: 2000 }), 2000);
+  assert.equal(interimFinalWaitMs({ waitMs: 2000, awaitingReply: true }), 1200);
+  assert.equal(forceInterimFinal(trackInterim(emptyInterimState(), { index: 0, text: "quantos leads", now: 0 }), 1500, 2000).text, "");
+});
+
+test("nunca 'Não entendi' depois de um corte: vazio/cortado continua ouvindo uma vez e junta o trecho", () => {
+  const cut = { autoCut: true };
+  assert.equal(shouldContinueAfterCut("", cut), true);
+  assert.equal(shouldContinueAfterCut("quantos", cut), true);
+  assert.equal(shouldContinueAfterCut("e os leads de", cut), true);
+  assert.equal(shouldContinueAfterCut("Henry", cut), true); // só o nome: o pedido vem a seguir
+  assert.equal(shouldContinueAfterCut("quantos leads chegaram hoje", cut), false);
+  assert.equal(shouldContinueAfterCut("bom dia", cut), false); // relatório
+  assert.equal(shouldContinueAfterCut("para", cut), false); // parada
+  assert.equal(shouldContinueAfterCut("sim", { ...cut, awaitingReply: true }), false); // resposta curta válida
+  assert.equal(shouldContinueAfterCut("", { autoCut: false }), false); // toque para enviar não é corte
+  assert.equal(shouldContinueAfterCut("", { autoCut: true, continued: true }), false); // no máximo uma vez
+  assert.equal(joinCutTranscripts("quantos leads", "chegaram hoje"), "quantos leads chegaram hoje");
+  assert.equal(joinCutTranscripts("", " oi "), "oi");
+  assert.equal(joinCutTranscripts("quantos", ""), "quantos");
+  assert.equal(typeof openPendingReply, "function");
 });

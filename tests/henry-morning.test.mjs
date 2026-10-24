@@ -125,11 +125,15 @@ test("bom dia: músicas configuráveis em Voz e personalidade (sanitizadas; vazi
 
 test("bom dia: fluxo ligado no servidor e na tela (só o dono, somente leitura, janela de conversa)", () => {
   const voice = readFileSync(new URL("../lib/henry-voice.js", import.meta.url), "utf8");
-  assert.match(voice, /await morningMusicAvailable\(\)/); // sem Spotify conectado pula a pergunta
+  assert.match(voice, /await morningMusicState\(\)/); // sem Spotify conectado pula a pergunta
   assert.match(voice, /morning: \{ step: "music" \}/);
   assert.match(voice, /morning: \{ step: "style" \}/);
   assert.match(voice, /step: "birthday"/);
-  assert.match(voice, /startHenryMorningMusic\(resolveMorningMusic\(answer, style\), MORNING_VOLUME\)/);
+  assert.match(voice, /target = suggested\.target;/); // sugestão aceita toca ela
+  assert.match(voice, /morningGenreTarget\(reply\.genre, \{ style, taste \}\)/); // estilo = o configurado / playlist dele / padrão (2026-10-24)
+  assert.match(voice, /morningArtistTarget\(reply\.query\)/); // cantor = busca o artista (2026-10-24)
+  assert.match(voice, /todaysMorningSuggestion\(/);
+  assert.match(voice, /startHenryMorningMusic\(target, MORNING_VOLUME, \{ acceptBest: answer !== "artist" \}\)/);
   const loader = readFileSync(new URL("../lib/henry-morning.js", import.meta.url), "utf8");
   assert.doesNotMatch(loader, /\.(insert|update|upsert|delete)\(/); // somente leitura
   assert.match(loader, /AUTOMATIC_SIMULATION_SOURCE/);
@@ -169,11 +173,14 @@ test("botão ▶ do bom dia: faz o MESMO pedido do 'bom dia, Henry' falado, sem 
   // Gesto do clique destrava o áudio (iPhone) antes de qualquer coisa.
   const start = assistant.slice(assistant.indexOf("const startMorningPlay"), assistant.indexOf("const finishOpening"));
   assert.match(start, /unlockAudio\(\);/);
-  assert.match(start, /if \(!mutedRef\.current\) playHenryOpeningSound/);
+  // Som da abertura respeita o mudo e é agendado no clique (aos 3,8 s no bom dia novo, v22).
+  assert.match(start, /silencedRef\.current\(\) \? null : playHenryOpeningSound\(audioCtxRef\.current, OPENING_SOUND_AT_S\)/);
   assert.doesNotMatch(start, /fetch\([^)]*mode: "report"/);
   const view = readFileSync(new URL("../components/henry/HenryVoiceView.jsx", import.meta.url), "utf8");
   assert.equal((view.match(/<PlayButton /g) || []).length, 3); // minimizado (computador e celular) e tela cheia
   const scene = readFileSync(new URL("../components/henry/HenryOpeningScene.jsx", import.meta.url), "utf8");
-  assert.match(scene, /\/assets\/matheus-machado-symbol\.png/);
+  // Bom dia novo (v22, dono 2026-10-23): sem logo nenhuma na cena (nunca a antiga); movimento reduzido e "pular" mantidos.
+  assert.doesNotMatch(scene, /matheus-machado-logo|premium|company-mark|apple-touch-icon/);
   assert.match(scene, /prefers-reduced-motion/);
+  assert.match(scene, /Toque ou Esc para pular/);
 });

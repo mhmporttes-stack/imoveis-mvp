@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { onChatCacheClear } from "@/components/chat-view-cache";
+import { isPageHidden, onPageVisibilityChange } from "@/components/page-visibility";
 
 // Resumo do CHAT (não lidas) + canal de tempo real, COMPARTILHADO entre todos
 // os componentes da página (menu, badge, tela do Chat): uma única busca/canal,
@@ -98,19 +99,19 @@ function startStore() {
   });
 
   const intervalId = setInterval(() => {
-    if (document.visibilityState === "visible") notify();
+    if (!isPageHidden()) notify();
   }, 30000);
-  // Ao VOLTAR para o app atualiza na hora; ao sair (aba/app em segundo plano) não há o que buscar.
-  const onVisibility = () => {
-    if (document.visibilityState === "visible") notify();
-  };
-  document.addEventListener("visibilitychange", onVisibility);
+  // Ao VOLTAR para o app atualiza na hora; ao sair (aba/app em segundo plano, ou o app de desktop minimizado) não há o
+  // que buscar.
+  const stopWatchingVisibility = onPageVisibilityChange(() => {
+    if (!isPageHidden()) notify();
+  });
 
   store.stop = () => {
     cancelled = true;
     clearTimeout(debounce);
     clearInterval(intervalId);
-    document.removeEventListener("visibilitychange", onVisibility);
+    stopWatchingVisibility();
     if (channel) realtimeClient?.removeChannel(channel);
     store.started = false;
     store.stop = null;

@@ -1,0 +1,113 @@
+# App de desktop do dono (desktop-app/, Electron) — build do instalador Windows e publicação para a atualização automática
+# (versão 1.3.0, dono 2026-10-23: "esta é a última instalação manual").
+#
+# Publica em GitHub Releases DESTE repositório (público), só com o GITHUB_TOKEN automático — nenhum secret a criar:
+#   - desktop-v<versão>: release fixa da versão (histórico + link de download do instalador);
+#   - desktop-latest: release "rolante" que o app lê (UPDATE_FEED_URL em desktop-app/src/core.js). O latest.yml sobe
+#     POR ÚLTIMO (o app nunca vê versão nova antes do .exe estar lá); os .blockmap antigos ficam (download diferencial).
+# Versão já publicada (desktop-v<versão> existe) = só compila e testa, não republica (mesma versão com outro arquivo
+# quebraria o SHA-512 de quem já baixou). Para publicar: suba "version" em desktop-app/package.json.
+name: App de desktop
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "desktop-app/**"
+      - ".github/workflows/desktop-app.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: desktop-app
+  cancel-in-progress: false
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    timeout-minutes: 60
+    defaults:
+      run:
+        shell: bash
+        working-directory: desktop-app
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: desktop-app/package-lock.json
+
+      - name: Dependências
+        run: npm ci
+
+      - name: Testes
+        run: npm test
+
+      - name: Versão e endereço de atualização
+        id: meta
+        run: |
+          version=$(node -p "require('./package.json').version")
+          feed=$(node -p "require('./src/core').UPDATE_FEED_URL")
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "feed=$feed" >> "$GITHUB_OUTPUT"
+          if gh release view "desktop-v$version" >/dev/null 2>&1; then
+            echo "publish=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::desktop-v$version já publicada: só compila (suba a versão para publicar)."
+          else
+            echo "publish=true" >> "$GITHUB_OUTPUT"
+          fi
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+      # Modelos de voz com SHA-256 fixo (scripts/fetch-models.js); usa o tar.exe do Windows.
+      - name: Modelos de voz
+        run: node scripts/fetch-models.js
+
+      # publish "generic" só para gerar latest.yml (versão + SHA-512); quem publica é o passo abaixo.
+      # Sem certificado: o app-update.yml sai sem publisherName e o atualizador não exige assinatura.
+      - name: Instalador (NSIS x64)
+        run: npx electron-builder --win nsis --x64 --publish never -c.publish.provider=generic "-c.publish.url=${{ steps.meta.outputs.feed }}"
+
+      - name: Conferir artefatos
+        run: |
+          version="${{ steps.meta.outputs.version }}"
+          exe="dist/CRM-Matheus-Machado-$version-x64.exe"
+          test -f "$exe"
+          test -f "$exe.blockmap"
+          test -f dist/latest.yml
+          grep -q "^version: $version$" dist/latest.yml
+          test -f dist/win-unpacked/resources/app-update.yml
+          if grep -q publisherName dist/win-unpacked/resources/app-update.yml; then echo "publisherName exigiria assinatura"; exit 1; fi
+          test -f dist/win-unpacked/resources/models/piper/piper.exe
+          test -f dist/win-unpacked/resources/models/vosk-model-small-pt-0.3.tar.gz
+          cat dist/latest.yml
+          ls -la dist
+
+      - name: Publicar (desktop-v<versão> e desktop-latest)
+        if: steps.meta.outputs.publish == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          version="${{ steps.meta.outputs.version }}"
+          exe="dist/CRM-Matheus-Machado-$version-x64.exe"
+          notes="App de desktop $version (Windows). Baixe o .exe e abra. Depois desta, o app se atualiza sozinho."
+          gh release create "desktop-v$version" "$exe" "$exe.blockmap" dist/latest.yml \
+            --title "App de desktop $version" --notes "$notes" --target "$GITHUB_SHA" --latest=false
+          if ! gh release view desktop-latest >/dev/null 2>&1; then
+            gh release create desktop-latest --title "App de desktop (atualização automática)" \
+              --notes "Usado pela atualização automática do app. Instalador da versão atual: release desktop-v<versão>." \
+              --target "$GITHUB_SHA" --latest=false
+          fi
+          gh release upload desktop-latest "$exe" "$exe.blockmap" --clobber
+          gh release upload desktop-latest dist/latest.yml --clobber
+          # Remove instaladores antigos da release rolante (os .blockmap ficam para o download diferencial).
+          gh release view desktop-latest --json assets --jq '.assets[].name' | while read -r name; do
+            case "$name" in
+              *.exe) if [ "$name" != "$(basename "$exe")" ]; then gh release delete-asset desktop-latest "$name" -y; fi ;;
+            esac
+          done
+          echo "::notice::Instalador: https://github.com/${GITHUB_REPOSITORY}/releases/download/desktop-v$version/$(basename "$exe")"

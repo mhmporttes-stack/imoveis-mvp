@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { createHash, timingSafeEqual } from "crypto";
-import { runCloseSnapshot, runRefresh, runStockSnapshot } from "@/lib/crm-metrics/jobs";
+import { runCloseSnapshot, runHeavyRefresh, runRefresh, runStockSnapshot } from "@/lib/crm-metrics/jobs";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -9,7 +9,7 @@ export const maxDuration = 55;
 
 // Jobs de métricas da Alexa V2 / CRM (cache recente + retrato diário).
 // Mesmo padrão de autenticação dos outros crons — nenhum mecanismo novo.
-//   ?mode=refresh (padrão) | stock | close
+//   ?mode=refresh (padrão, contas de hoje) | heavy (semana/mês/fechados) | stock | close
 export async function GET(request) {
   const secret = process.env.CRON_SECRET || "";
   const supabaseCronTokenHash = process.env.SUPABASE_CRON_TOKEN_HASH || "";
@@ -28,6 +28,7 @@ export async function GET(request) {
   const mode = new URL(request.url).searchParams.get("mode") || "refresh";
   try {
     if (mode === "stock") return NextResponse.json({ ok: true, mode, ...(await runStockSnapshot()) });
+    if (mode === "heavy") return NextResponse.json({ ok: true, mode, ...(await runHeavyRefresh()) });
     if (mode === "close") return NextResponse.json({ ok: true, mode, ...(await runCloseSnapshot()) });
     return NextResponse.json({ ok: true, mode: "refresh", ...(await runRefresh()) });
   } catch (error) {

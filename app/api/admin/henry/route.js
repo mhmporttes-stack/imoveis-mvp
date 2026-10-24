@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
-import { isOwnerAdminEmail, requireAdminApi } from "@/lib/admin-auth";
+import { requireHenryOwner } from "@/lib/henry-auth";
+import { engageHenryLock, henryLockTokenHash, resolveHenryLock } from "@/lib/henry-lock";
+import { isHenryLockCommand } from "@/lib/henry-lock-core.mjs";
 import { checkPublicRateLimit } from "@/lib/rate-limit";
 import {
   answerHenry,
@@ -21,15 +23,17 @@ import {
   transcribeHenryAudio,
   warmHenryReport
 } from "@/lib/henry-voice";
-import { HENRY_MAX_QUESTION_LENGTH, isHenryEligible, parseHenryImage, shouldUseHenryImage } from "@/lib/henry-voice-core.mjs";
-import { henryBrowserRate, henryStyleOptions, parseHenryStylePatch } from "@/lib/henry-voice-style.mjs";
+import { HENRY_FALLBACK_REPLY, HENRY_MAX_QUESTION_LENGTH, parseHenryImage, safeHenryReply, shouldUseHenryImage } from "@/lib/henry-voice-core.mjs";
+import { henryBrowserRate, henryEndWaitMs, henryListenAckOn, henryStyleOptions, parseHenryStylePatch } from "@/lib/henry-voice-style.mjs";
 import { splitForSpeech } from "@/lib/henry-voice-conversation.mjs";
+import { parseHenryPulsePatch } from "@/lib/henry-pulse-core.mjs";
 import { henryInitialProgress } from "@/lib/henry-voice-narration.mjs";
 import { isAllowedHenryNavigation, isHenryClientId } from "@/lib/henry-navigation-core.mjs";
 import { isSpotifyOpenUrl, isSpotifyUri } from "@/lib/henry-spotify-core.mjs";
 import { parseMorningState } from "@/lib/henry-morning-core.mjs";
 import { readSpotifyStatus } from "@/lib/henry-spotify";
 import { henryAlertPhraseAudio, pollHenryClientAlerts, speakHenryClientAlerts } from "@/lib/henry-voice-client-alerts";
+import { sendHenryBirthdayNotices } from "@/lib/henry-birthday-alerts";
 
 // Navegação devolvida ao navegador: só tela da lista fechada ou ficha de cliente (id no formato do banco).
 function navigationPayload(navigate) {
@@ -58,22 +62,15 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export const maxDuration = 60; // relatório de período longo (ex.: 90 dias) calculado na hora
 
-// Assistente de voz "Henry" (docs/BUSINESS_RULES.md HENRY-1). Só o DONO, na conta real, fora de "Alterar conta" — os
-// outros perfis recebem 403 (o componente nem é montado para eles; a barreira é esta rota). SOMENTE LEITURA.
-async function requireHenryOwner(request) {
-  const auth = await requireAdminApi(request);
-  if (!auth.ok) return auth;
-  if (!isHenryEligible({ ok: auth.ok, accountSwitchMode: auth.accountSwitchMode, isOwner: isOwnerAdminEmail(auth.user?.email) })) {
-    return { ok: false, status: 403, error: "O assistente Henry é só do dono, na conta dele (fora de \"Alterar conta\")." };
-  }
-  return auth;
-}
+// Assistente de voz "Henry" (docs/BUSINESS_RULES.md HENRY-1). Só o DONO, na conta real, fora de "Alterar conta"
+// (requireHenryOwner, lib/henry-auth.js). SOMENTE LEITURA. Tela de bloqueio (HENRY-LOCK): bloqueado, nada do CRM sai
+// daqui — resolveHenryLock → answerHenry({ locked }), avisos de cliente e a conversa de hoje.
 
 export async function GET(request) {
   const auth = await requireHenryOwner(request);
   if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status });
   try {
-    const [{ enabled, vision, webSearch, mobileWake, clientAlerts, teamArrivals, style }, dayTurns] = await Promise.all([readHenrySettings(), readHenryDayTurns().catch(() => [])]);
+    const [{ enabled, vision, webSearch, mobileWake, clientAlerts, teamArrivals, voiceNotices, birthdayAlerts, pulse, style }, dayTurns, lock] = await Promise.all([readHenrySettings(), readHenryDayTurns().catch(() => []), resolveHenryLock(auth, { tokenHash: henryLockTokenHash(request) })]);
     const provider = henryVoiceProvider();
     // Lista de vozes da ElevenLabs só para o cartão de configurações (?vozes=1); o ícone do canto não precisa dela.
     // Junto, o saldo de caracteres (GET /v1/user/subscription). 401/403 viram frase clara de permissão na tela.
@@ -107,13 +104,19 @@ export async function GET(request) {
       mobileWake,
       clientAlerts,
       teamArrivals,
-      dayTurns: enabled ? dayTurns : [], // memória do dia: a tela cheia mostra a conversa de hoje (só texto)
+      voiceNotices, // "Avisos só por voz (sem card na tela)" — nasce ligado
+      birthdayAlerts, // "Avisar aniversariantes" (dono, 2026-10-24) — nasce ligado
+      pulse, // "Pulso do CRM" (rascunho HENRY-1 "Pulso"): { enabled (nasce desligado), intensity, types, snippets }
+      dayTurns: enabled && !lock.locked ? dayTurns : [], // memória do dia: a tela cheia mostra a conversa de hoje (só texto); bloqueado = nada
+      lock, // tela de bloqueio (HENRY-LOCK): { configured, locked, fullscreen, idleMinutes, waitSeconds }
       serverVoice: isHenryVoiceConfigured(),
       provider,
       providerLabel: HENRY_PROVIDER_LABELS[provider],
       style,
       narrationKey: henryNarrationVoiceKey(style), // frases de espera: o navegador reaproveita as da sessão com a mesma chave
       browserRate: henryBrowserRate(style),
+      endWaitMs: henryEndWaitMs(style), // tempo de espera do fim da fala (gravação e parcial do navegador)
+      listenAck: henryListenAckOn(style), // "Confirmar que ouviu" (som/interjeição/frase curta depois do fim da fala)
       options: henryStyleOptions({ defaultVoice: henryDefaultVoice() }),
       elevenVoices,
       elevenVoicesError,
@@ -127,7 +130,7 @@ export async function GET(request) {
 }
 
 // Liga/desliga o Henry (nasce ligado) e a visão pela webcam (nasce desligada): { enabled?, vision? }.
-// Voz e personalidade: { style: { voice?, tone?, speed?, details?, address? } } validado por Zod (henry-voice-style.mjs).
+// Voz e personalidade: { style: { voice?, tone?, speed?, endWait?, details?, address? } } validado por Zod (henry-voice-style.mjs).
 export async function PUT(request) {
   const auth = await requireHenryOwner(request);
   if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status });
@@ -139,6 +142,13 @@ export async function PUT(request) {
   if (typeof body?.webSearch === "boolean") patch.webSearch = body.webSearch;
   if (typeof body?.clientAlerts === "boolean") patch.clientAlerts = body.clientAlerts;
   if (typeof body?.teamArrivals === "boolean") patch.teamArrivals = body.teamArrivals;
+  if (typeof body?.voiceNotices === "boolean") patch.voiceNotices = body.voiceNotices;
+  if (typeof body?.birthdayAlerts === "boolean") patch.birthdayAlerts = body.birthdayAlerts;
+  if (body?.pulse !== undefined) {
+    const parsed = parseHenryPulsePatch(body.pulse);
+    if (!parsed.ok) return NextResponse.json({ error: parsed.error }, { status: 400 });
+    patch.pulse = parsed.patch;
+  }
   if (body?.style !== undefined) {
     const parsed = parseHenryStylePatch(body.style);
     if (!parsed.ok) return NextResponse.json({ error: parsed.error }, { status: 400 });
@@ -147,7 +157,7 @@ export async function PUT(request) {
   if (!Object.keys(patch).length) return NextResponse.json({ error: "Informe enabled, vision, webSearch e/ou style." }, { status: 400 });
   try {
     const saved = await setHenrySettings(auth, patch);
-    return NextResponse.json({ ...saved, browserRate: henryBrowserRate(saved.style) });
+    return NextResponse.json({ ...saved, browserRate: henryBrowserRate(saved.style), endWaitMs: henryEndWaitMs(saved.style), listenAck: henryListenAckOn(saved.style) });
   } catch (error) {
     console.error("[henry] falha ao salvar a configuração:", error?.message || error);
     return NextResponse.json({ error: "Não foi possível salvar a configuração do Henry." }, { status: 500 });
@@ -175,23 +185,51 @@ function answerStream(auth, request, style) {
         }
       };
       const pending = [];
-      send(henryInitialProgress(request.mode));
+      const startedAt = Date.now();
+      // Voz antecipada (dono, 2026-10-23: "ele demora muito para responder"): a 1ª frase da resposta já vai para a voz
+      // enquanto o modelo termina o resto. Só é usada se for EXATAMENTE a 1ª parte da resposta final (que já passou pela
+      // barreira da fala); senão é descartada (custo de uma fala curta).
+      let early = null;
+      const onFirstSentence = (sentence) => {
+        const safe = safeHenryReply(sentence);
+        if (!safe || safe === HENRY_FALLBACK_REPLY) return;
+        const ttsStarted = Date.now();
+        early = { text: safe, audio: synthesizeHenrySpeech(auth, safe, style).then((audio) => ({ audio, ms: Date.now() - ttsStarted })) };
+      };
+      // Pedido de música (texto ou resposta da música do bom dia) já abre com o tópico "music" (dono, 2026-10-23).
+      send(henryInitialProgress(request.mode, { question: request.question, morningStep: request.morning?.step || "" }));
       try {
         const answer = await answerHenry(auth, {
           ...request,
           style,
+          onFirstSentence,
           onProgress: ({ say, ...event }) => {
             send(event);
             if (say) pending.push(synthesizeHenryShort(auth, say, style).then((audio) => audio && send({ narration: { text: say, audio } })).catch(() => {}));
           }
         });
         const navigate = navigationPayload(answer.navigate);
-        send({ reply: answer.reply, navigate, openUrl: openUrlPayload(answer.openUrl), detail: answer.detail || null, spotify: spotifyPayload(answer.spotify), morning: morningPayload(answer.morning), scene: answer.scene || null, ...(answer.memoryCleared ? { memoryCleared: true } : {}) });
+        send({ reply: answer.reply, navigate, openUrl: openUrlPayload(answer.openUrl), detail: answer.detail || null, spotify: spotifyPayload(answer.spotify), morning: morningPayload(answer.morning), scene: answer.scene || null, ...(answer.memoryCleared ? { memoryCleared: true } : {}), ...(answer.musicPlaying ? { musicPlaying: true } : {}), ...(answer.spotifyMoved ? { spotifyMoved: true } : {}), ...(request.lockFields || {}) });
+        const replyAt = Date.now();
         const parts = splitForSpeech(answer.reply);
-        const audios = parts.map((text, index) => synthesizeHenrySpeech(auth, text, style, { previousText: parts[index - 1] || "", nextText: parts[index + 1] || "" }));
+        const reuse = early && parts[0] === early.text;
+        const ttsStarted = Date.now();
+        const audios = parts.map((text, index) => (index === 0 && reuse ? early.audio.then((result) => result.audio) : synthesizeHenrySpeech(auth, text, style, { previousText: parts[index - 1] || "", nextText: parts[index + 1] || "" })));
+        let firstPartAt = 0;
         for (let index = 0; index < parts.length; index += 1) {
           send({ part: index, text: parts[index], audio: await audios[index] });
+          if (!index) firstPartAt = Date.now();
         }
+        // Tempos de cada etapa (ms, sem conteúdo): no log do servidor e para o console de diagnóstico da tela.
+        const timing = {
+          ...(answer.timing || {}),
+          ateResposta: replyAt - startedAt,
+          tts1: firstPartAt ? firstPartAt - (reuse ? replyAt : ttsStarted) : null,
+          ate1aParte: firstPartAt ? firstPartAt - startedAt : null,
+          vozAntecipada: Boolean(reuse)
+        };
+        console.info(`[henry] tempos: resposta=${timing.ateResposta}ms modelo=${timing.modelMs ?? "-"}ms 1o_token=${timing.firstTokenMs ?? "-"}ms ferramentas=${timing.toolsMs ?? 0}ms rodadas=${timing.rounds ?? "-"} 1a_parte=${timing.ate1aParte ?? "-"}ms antecipada=${reuse ? "sim" : "nao"} ferramentas_ligadas=${timing.tools === false ? "nao" : "sim"}.`);
+        send({ timing });
         send({ done: true });
       } catch (error) {
         console.warn(`[henry] pergunta falhou: ${error?.status ? error.message : error?.name === "TimeoutError" ? "timeout" : "erro"}.`);
@@ -252,15 +290,22 @@ export async function POST(request) {
   // Avisos de cliente novo/transferido (HENRY-1, dono 2026-10-23), só leitura:
   //   { action: "poll", since, seen, call, voice } → { cursor, hold?, quiet?, events, callAudio } (consulta leve a cada ~30 s);
   //   { action: "speak", clientIds, recent, away, voice } → { text, audio, recent } (depois do "pode falar");
-  //   { action: "phrase", text } → { audio } (só frases da lista fechada do aviso).
+  //   { action: "phrase", text } → { audio } (só frases da lista fechada do aviso e a repetição curta da pergunta aberta).
+  //   Aniversariante do dia (dono, 2026-10-24): poll { birthdaySeen } → eventos kind "birthday" + birthdayDay; speak
+  //   { birthdayIds } → a pergunta no fim do texto + ask { step: "birthday_alert" }.
   if (body?.mode === "client_alerts") {
     try {
-      const { enabled, clientAlerts, teamArrivals, style } = await readHenrySettings();
-      if (!enabled || (!clientAlerts && !teamArrivals)) return NextResponse.json({ disabled: true, events: [] });
-      const kinds = { clients: clientAlerts, arrivals: teamArrivals };
+      const { enabled, clientAlerts, teamArrivals, voiceNotices, birthdayAlerts, style } = await readHenrySettings();
+      if (!enabled || (!clientAlerts && !teamArrivals && !voiceNotices && !birthdayAlerts)) return NextResponse.json({ disabled: true, events: [] });
+      // Tela bloqueada (HENRY-LOCK): aviso com dado do CRM só depois da senha. A consulta segura o cursor (hold) e o aviso
+      // sai quando desbloquear; falar a informação devolve 423. "phrase" (frases fixas, sem dado) segue.
+      if (body?.action !== "phrase" && (await resolveHenryLock(auth, { tokenHash: henryLockTokenHash(request), clientLocked: body?.locked === true })).locked) {
+        return body?.action === "poll" ? NextResponse.json({ cursor: typeof body?.since === "string" ? body.since : "", hold: true, locked: true, events: [] }) : NextResponse.json({ error: "Tela bloqueada: digite a senha para ouvir o aviso.", locked: true }, { status: 423 });
+      }
+      const kinds = { clients: clientAlerts, arrivals: teamArrivals, birthdays: birthdayAlerts };
       const voice = body?.voice !== false;
       if (body?.action === "poll") {
-        const result = await pollHenryClientAlerts(auth, { since: typeof body?.since === "string" ? body.since : "", seen: body?.seen, deviceId, call: typeof body?.call === "string" ? body.call : "", style, voice, ...kinds });
+        const result = await pollHenryClientAlerts(auth, { since: typeof body?.since === "string" ? body.since : "", seen: body?.seen, birthdaySeen: Array.isArray(body?.birthdaySeen) ? body.birthdaySeen : [], deviceId, call: typeof body?.call === "string" ? body.call : "", style, voice, ...kinds });
         return NextResponse.json(result);
       }
       if (!(await checkPublicRateLimit(`henry:${auth.profile?.id}`, { windowSeconds: 60, maxAttempts: 20 }))) {
@@ -269,7 +314,9 @@ export async function POST(request) {
       if (body?.action === "speak") {
         const clientIds = (Array.isArray(body?.clientIds) ? body.clientIds : []).filter((id) => isHenryClientId(id)).slice(0, 20);
         const userIds = (Array.isArray(body?.userIds) ? body.userIds : []).filter((id) => isHenryClientId(id)).slice(0, 20); // id de usuário: mesmo formato uuid
-        return NextResponse.json(await speakHenryClientAlerts(auth, { clientIds, userIds, ...kinds, recent: body?.recent && typeof body.recent === "object" ? body.recent : null, away: body?.away === true, style, voice }));
+        const noticeIds = voiceNotices ? (Array.isArray(body?.noticeIds) ? body.noticeIds : []).filter((id) => isHenryClientId(id)).slice(0, 30) : []; // avisos da Central (uuid)
+        const birthdayIds = (Array.isArray(body?.birthdayIds) ? body.birthdayIds : []).filter((id) => isHenryClientId(id)).slice(0, 30);
+        return NextResponse.json(await speakHenryClientAlerts(auth, { clientIds, userIds, noticeIds, birthdayIds, ...kinds, recent: body?.recent && typeof body.recent === "object" ? body.recent : null, away: body?.away === true, style, voice }));
       }
       if (body?.action === "phrase") {
         return NextResponse.json({ audio: voice ? await henryAlertPhraseAudio(auth, typeof body?.text === "string" ? body.text : "", style) : null });
@@ -278,6 +325,27 @@ export async function POST(request) {
     } catch (error) {
       console.warn(`[henry] aviso de clientes falhou (${error?.name || "erro"}).`);
       return NextResponse.json({ error: "Não consegui ler os clientes novos agora." }, { status: 502 });
+    }
+  }
+  // Aviso de aniversariante ao corretor (dono, 2026-10-24; HENRY-1, única escrita do Henry): SÓ pelo botão de confirmação da
+  // tela, nunca pela voz sozinha. { clientIds } → { sent, already, text }. Interno (Central Informativo + push), nunca ao
+  // cliente; 1 por cliente por dia. Tela bloqueada → 423.
+  if (body?.mode === "birthday_notice") {
+    try {
+      const { enabled } = await readHenrySettings();
+      if (!enabled) return NextResponse.json({ error: "O Henry está desligado." }, { status: 409 });
+      if ((await resolveHenryLock(auth, { tokenHash: henryLockTokenHash(request), clientLocked: body?.locked === true })).locked) {
+        return NextResponse.json({ error: "Tela bloqueada: digite a senha para enviar o aviso.", locked: true }, { status: 423 });
+      }
+      if (!(await checkPublicRateLimit(`henry:${auth.profile?.id}`, { windowSeconds: 60, maxAttempts: 20 }))) {
+        return NextResponse.json({ error: "Muitos pedidos seguidos. Espere um minuto." }, { status: 429 });
+      }
+      const clientIds = (Array.isArray(body?.clientIds) ? body.clientIds : []).filter((id) => isHenryClientId(id)).slice(0, 30);
+      if (!clientIds.length) return NextResponse.json({ error: "Nenhum cliente para avisar." }, { status: 400 });
+      return NextResponse.json(await sendHenryBirthdayNotices(auth, clientIds));
+    } catch (error) {
+      console.warn(`[henry] aviso de aniversário falhou (${error?.code || error?.name || "erro"}).`);
+      return NextResponse.json({ error: "Não consegui enviar o aviso agora. Tente de novo." }, { status: 502 });
     }
   }
   if (body?.mode === "warm") {
@@ -290,13 +358,15 @@ export async function POST(request) {
       return NextResponse.json({ error: "Não foi possível pré-carregar o relatório." }, { status: 502 });
     }
   }
-  // Frases de espera na voz do Henry (narração): conjunto fixo sintetizado uma vez por voz+estilo e guardado em cache
+  // Frases de espera na voz do Henry (narração): conjunto fixo sintetizado uma vez por voz+estilo+frase e guardado em cache
   // (servidor 6 h; o navegador guarda na sessão pela voiceKey). Sem voz do servidor → lista vazia (fica em silêncio).
   if (body?.mode === "narration") {
     try {
       const { enabled, style } = await readHenrySettings();
       if (!enabled) return NextResponse.json({ voiceKey: "", phrases: [] });
-      return NextResponse.json(await getHenryNarration(auth, style));
+      // ids = só essas frases (pré-aquecimento em lotes / frase ainda não usada hoje); sem ids = o pacote (com teto de tempo).
+      const ids = Array.isArray(body?.ids) ? body.ids.filter((id) => typeof id === "string" && /^[a-z]\d{1,3}$/.test(id)) : null;
+      return NextResponse.json(await getHenryNarration(auth, style, { ids }));
     } catch (error) {
       console.warn(`[henry] frases de espera indisponíveis (${error?.name || "erro"}).`);
       return NextResponse.json({ error: "Frases de espera indisponíveis agora." }, { status: 502 });
@@ -314,8 +384,9 @@ export async function POST(request) {
       const [{ enabled }, allowedRate] = await Promise.all([readHenrySettings(), checkPublicRateLimit(`henry:${auth.profile?.id}`, { windowSeconds: 60, maxAttempts: 20 })]);
       if (!enabled) return NextResponse.json({ error: "O Henry está desligado. Ligue em Alexa e Henry." }, { status: 409 });
       if (!allowedRate) return NextResponse.json({ error: "Muitas perguntas seguidas. Espere um minuto." }, { status: 429 });
+      const sttStarted = Date.now();
       const text = await transcribeHenryAudio(auth, audio, { durationMs });
-      return NextResponse.json({ text });
+      return NextResponse.json({ text, ms: Date.now() - sttStarted }); // ms = tempo da ElevenLabs (diagnóstico de latência)
     } catch (error) {
       return NextResponse.json({ error: error?.status ? error.message : "Não consegui entender o áudio agora. Tente de novo." }, { status: error?.status || 502 });
     }
@@ -327,24 +398,40 @@ export async function POST(request) {
 
   try {
     // Aparelho, configuração e limite de taxa ao mesmo tempo (eram três idas ao banco em fila).
-    const [allowedDevice, { enabled, vision, webSearch, style }, allowedRate] = await Promise.all([
+    // Tela de bloqueio (HENRY-LOCK): o estado é lido aqui (bloqueio só manual desde 2026-10-24); bloqueado → o
+    // Henry conversa e toca música, mas sem nenhum dado do CRM (answerHenry({ locked })). Falhou a leitura → erro (nunca
+    // responde dado sem conferir).
+    const [allowedDevice, { enabled, vision, webSearch, style }, allowedRate, lockState] = await Promise.all([
       deviceId ? claimHenryDevice(auth, deviceId).catch(() => true) : true,
       readHenrySettings(),
-      checkPublicRateLimit(`henry:${auth.profile?.id}`, { windowSeconds: 60, maxAttempts: 20 })
+      checkPublicRateLimit(`henry:${auth.profile?.id}`, { windowSeconds: 60, maxAttempts: 20 }),
+      resolveHenryLock(auth, { tokenHash: henryLockTokenHash(request), clientLocked: body?.locked === true, touch: true })
     ]);
     // Outro aparelho está conversando com o Henry agora: este fica calado (o mesmo pedido ouvido pelos dois).
     if (!allowedDevice) return NextResponse.json({ skipped: "other_device" });
     if (!enabled) return NextResponse.json({ error: "O Henry está desligado. Ligue em Alexa e Henry." }, { status: 409 });
     if (!allowedRate) return NextResponse.json({ error: "Muitas perguntas seguidas. Espere um minuto." }, { status: 429 });
+    // "Henry, bloqueia": bloqueia no servidor antes de responder (a tela abre a tela cheia bloqueada com `lock`).
+    let locked = lockState.locked;
+    let lockNow = false;
+    if (lockState.configured && mode === "question" && isHenryLockCommand(question)) {
+      await engageHenryLock(auth);
+      locked = true;
+      lockNow = true;
+    }
+    const lockFields = lockState.configured ? { locked, ...(lockNow ? { lock: true } : {}) } : {};
     const image = shouldUseHenryImage({ vision, mode, question }) ? parseHenryImage(body?.image) : null;
     // Modo conversa: `stream` = linhas (NDJSON) abertas na hora: progresso/narração enquanto pensa, depois o texto e a voz
     // em partes (1ª frase primeiro). Mesmo texto, mesma barreira (safeHenryReply já aplicada).
     const morning = parseMorningState(body?.morning);
-    if (body?.stream === true && body?.voice !== false) return answerStream(auth, { mode, question, history: body?.history, image, morning, vision, webSearch }, style);
-    const answer = await answerHenry(auth, { mode, question, history: body?.history, image, style, morning, vision, webSearch });
+    // Volume que a tela guardou ao abaixar a música para ele falar: a troca de aparelho devolve no aparelho de origem.
+    const spotifyVolume = Number.isInteger(body?.spotifyVolume) && body.spotifyVolume >= 0 && body.spotifyVolume <= 100 ? body.spotifyVolume : null;
+    const lockCommand = lockNow ? "done" : mode === "question" && !lockState.configured && isHenryLockCommand(question) ? "no_pin" : "";
+    if (body?.stream === true && body?.voice !== false) return answerStream(auth, { mode, question, history: body?.history, image, morning, spotifyVolume, vision, webSearch, locked, lockCommand, lockFields }, style);
+    const answer = await answerHenry(auth, { mode, question, history: body?.history, image, style, morning, spotifyVolume, vision, webSearch, locked, lockCommand });
     const navigate = navigationPayload(answer.navigate);
     const audio = body?.voice === false ? null : await synthesizeHenrySpeech(auth, answer.reply, style);
-    return NextResponse.json({ reply: answer.reply, navigate, openUrl: openUrlPayload(answer.openUrl), detail: answer.detail || null, spotify: spotifyPayload(answer.spotify), morning: morningPayload(answer.morning), scene: answer.scene || null, memoryCleared: answer.memoryCleared === true, audio });
+    return NextResponse.json({ reply: answer.reply, navigate, openUrl: openUrlPayload(answer.openUrl), detail: answer.detail || null, spotify: spotifyPayload(answer.spotify), morning: morningPayload(answer.morning), scene: answer.scene || null, memoryCleared: answer.memoryCleared === true, ...(answer.musicPlaying ? { musicPlaying: true } : {}), ...(answer.spotifyMoved ? { spotifyMoved: true } : {}), ...lockFields, audio });
   } catch (error) {
     console.warn(`[henry] pergunta falhou: ${error?.status ? error.message : error?.name === "TimeoutError" ? "timeout" : "erro"}.`);
     return NextResponse.json({ error: error?.status ? error.message : "Não consegui responder agora. Tente de novo." }, { status: error?.status || 502 });

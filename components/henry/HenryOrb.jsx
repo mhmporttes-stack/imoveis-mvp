@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { HENRY_ORB_STATES, mixHexColor, orbEase, orbStops } from "./henry-orb-states.mjs";
+import { isPageHidden, onPageVisibilityChange } from "@/components/page-visibility";
+import { HENRY_ORB_HIT_MS, HENRY_ORB_STATES, HENRY_ORB_VIB as VIB, buildNeuralNet, mixHexColor, orbEase, orbHitArc, orbStops } from "./henry-orb-states.mjs";
 
 // Anel de filamentos do Henry (pedido do dono, 2026-10-22: "é nesse perfil que eu quero o ícone da IA… no meu estilo";
 // depois "quero mais movimentos quando ele escutar, falar ou pensar"). Canvas 2D + requestAnimationFrame, sem biblioteca:
@@ -12,10 +13,115 @@ import { HENRY_ORB_STATES, mixHexColor, orbEase, orbStops } from "./henry-orb-st
 //   parado   = respiração lenta e leve rotação;
 //   ouvindo  = ondas rápidas que percorrem o anel seguindo o volume, brilho ciano pulsando com cada sílaba;
 //   pensando = camadas girando em sentidos opostos, anel contraindo/expandindo, feixe dourado percorrendo o contorno;
-//   falando  = incha com a voz, fios abrem em leque e o anel vira quase esfera nos picos, cor quente (dourado e branco).
-// devicePixelRatio ≤ 2; pausa com a aba oculta ou sleep=true (fica o último quadro); prefers-reduced-motion = quase parado.
+//   falando  = incha com a voz, fios abrem em leque e se embaraçam só na faixa do anel (squash × 0,2), cor quente, e
+//              5 ondas vocais no meio seguem a voz real (estado `voice`, dono 2026-10-23).
+//   esperando = conversa aberta (ainda escuta sem o nome): brilho pulsando de leve no contorno;
+//   parado também fica escurecido (dim), para não confundir com "esperando".
+// Rede neural no centro (dono, 2026-10-23: "neurônios se conectando ali, entre os círculos, um ligando ao outro"): só
+// pensando/buscando. Nós de luz ligados por filamentos finos no mesmo estilo dos fios; pulsos (sinapses) correm de um nó a
+// outro e acendem o nó de chegada, às vezes disparando o seguinte; ligações aparecem e somem; tentáculos tocam os anéis de
+// dentro. Intensidade = signal.activity (papo calmo, dados/web/relatório intenso) + signal.burst (evento de progresso).
+// Ao começar a falar, neural → 0 em ~300 ms (os nós se abrem para os anéis e apagam). nodes = quantidade de nós (ícone: poucos).
+// devicePixelRatio ≤ 2; pausa com a aba oculta (ou a janela do app de desktop minimizada) ou sleep=true (fica o último
+// quadro); prefers-reduced-motion = quase parado (rede com nós e ligações estáticos, só um leve fade).
+// Tela cheia (glow; app lento, 2026-10-23 — docs/INCIDENTES.md): mesmo desenho, custo menor — o halo dos fios sai de uma
+// camada em meia resolução (createGlowLayer) e o ritmo é o de createFullscreenPacer (30 fps; 15 fps ociosa; menos fios e
+// pontos só se o quadro atrasar).
 
-export default function HenryOrb({ size = 320, fibers = 48, points = 120, alpha = 0.16, lineWidth = 0.8, glow = false, getSignal, sleep = false, className = "" }) {
+// Halo dos fios da tela cheia. Antes: cada fio desenhado 2× (o traço largo 5× mais grosso e quase transparente custava
+// ~12–15 ms por quadro sem GPU — o custo é do traço largo em si, não dos pixels). Agora: os fios finos vão para uma camada
+// fora da tela (fibers), que é somada ao anel; o halo é essa mesma camada reduzida (meia resolução por pixel de CSS) e
+// ampliada de volta — o desfoque da redução/ampliação faz a faixa larga e suave — somada com a MESMA energia de luz do
+// traço largo: 5× a largura × 0,18 do alfa base = 0,9 ÷ (1 + 0,6 × nível), porque o fio fino ganha +60% com o nível da voz
+// e o halo não (× 1,12: a borda suavizada do traço largo somava ~12% de luz — medido contra o desenho antigo em quadros
+// idênticos: luz total ±2%, diferença média ~5/255 por pixel aceso). Tudo aditivo ('lighter'): a ordem não muda a soma.
+const GLOW_ENERGY = 5 * 0.18 * 1.12;
+function createGlowLayer(width, height, dpr) {
+  if (typeof document === "undefined") return null;
+  const fibers = document.createElement("canvas");
+  fibers.width = width;
+  fibers.height = height;
+  const small = document.createElement("canvas");
+  const scale = 0.5 / Math.max(1, Math.round(dpr));
+  small.width = Math.max(1, Math.round(width * scale));
+  small.height = Math.max(1, Math.round(height * scale));
+  const fiberContext = fibers.getContext("2d");
+  const smallContext = small.getContext("2d");
+  if (!fiberContext || !smallContext) return null;
+  smallContext.imageSmoothingQuality = "medium"; // redução sem serrilhado (fio fino não some)
+  return {
+    // Limpa e devolve o contexto dos fios (mesmas coordenadas do canvas principal).
+    begin() {
+      fiberContext.globalCompositeOperation = "source-over";
+      fiberContext.globalAlpha = 1;
+      fiberContext.clearRect(0, 0, width, height);
+      fiberContext.globalCompositeOperation = "lighter";
+      return fiberContext;
+    },
+    // Soma fios + halo no canvas principal. level = nível da voz já suavizado (o mesmo do alfa dos fios).
+    composite(target, level) {
+      smallContext.globalCompositeOperation = "copy";
+      smallContext.drawImage(fibers, 0, 0, small.width, small.height);
+      target.globalCompositeOperation = "lighter";
+      target.globalAlpha = 1;
+      target.drawImage(fibers, 0, 0);
+      target.globalAlpha = Math.min(1, GLOW_ENERGY / (1 + level * 0.6));
+      target.drawImage(small, 0, 0, width, height);
+      target.globalAlpha = 1;
+    }
+  };
+}
+
+// Ritmo da tela cheia: no máximo 30 fps; parado, sem música e sem mouse/teclado por 60 s → 15 fps (mesmo desenho; qualquer
+// atividade volta na hora). Qualidade adaptativa como a do HenryMusicScene: só quando o quadro atrasa (> 1,5× o intervalo
+// em mais de 8 quadros) cai um nível — 1/4 dos fios e 15% dos pontos, depois metade dos fios e 30% dos pontos; o brilho
+// dos fios que ficam sobe na mesma proporção (o total de luz não muda).
+const FULLSCREEN_FRAME_MS = 1000 / 30;
+const FULLSCREEN_ECO_FRAME_MS = 1000 / 15;
+const FULLSCREEN_ECO_AFTER_MS = 60000;
+const FULLSCREEN_QUALITY = [
+  { dropEvery: 0, points: 1 },
+  { dropEvery: 4, points: 0.85 },
+  { dropEvery: 2, points: 0.7 }
+];
+function createFullscreenPacer() {
+  let lastDraw = -Infinity;
+  let busyAt = 0;
+  let slow = 0;
+  let level = 0;
+  let measureFrom = 0;
+  return {
+    quality: () => FULLSCREEN_QUALITY[level],
+    touch(now) {
+      busyAt = now;
+    },
+    // Retomou (abriu, voltou a aparecer): conta como atividade e não mede o primeiro segundo.
+    reset(now) {
+      lastDraw = -Infinity;
+      busyAt = now;
+      slow = 0;
+      measureFrom = now + 1000;
+    },
+    due(now, busy) {
+      if (busy) busyAt = now;
+      const frameMs = now - busyAt > FULLSCREEN_ECO_AFTER_MS ? FULLSCREEN_ECO_FRAME_MS : FULLSCREEN_FRAME_MS;
+      const since = now - lastDraw;
+      if (since < frameMs - 4) return false; // folga para o vsync (60/144 Hz)
+      if (Number.isFinite(lastDraw) && now >= measureFrom && level < FULLSCREEN_QUALITY.length - 1) {
+        slow = since > frameMs * 1.5 ? slow + 1 : Math.max(0, slow - 1);
+        if (slow > 8) {
+          level += 1;
+          slow = 0;
+          measureFrom = now + 1000;
+        }
+      }
+      lastDraw = now;
+      return true;
+    }
+  };
+}
+
+export default function HenryOrb({ size = 320, fibers = 48, points = 120, alpha = 0.16, lineWidth = 0.8, glow = false, nodes = 22, getSignal, sleep = false, className = "" }) {
   const canvasRef = useRef(null);
   const signalRef = useRef(getSignal);
   signalRef.current = getSignal;
@@ -42,21 +148,207 @@ export default function HenryOrb({ size = 320, fibers = 48, points = 120, alpha 
       turn: index * 0.61803 * Math.PI // orientação do meridiano
     }));
 
+    const glowLayer = glow ? createGlowLayer(canvas.width, canvas.height, dpr) : null;
+    const pacer = glow ? createFullscreenPacer() : null;
+
+    const net = buildNeuralNet(nodes);
+    const adjacency = net.nodes.map(() => []);
+    net.edges.forEach((edge, index) => {
+      adjacency[edge.a].push(index);
+      adjacency[edge.b].push(index);
+    });
+    const flashes = new Float32Array(net.nodes.length);
+    const edgeStrength = new Float32Array(net.edges.length);
+    const edgeCurve = net.edges.map(() => new Float32Array(6));
+    const tendrilStrength = new Float32Array(net.tendrils.length);
+    const tendrilCurve = net.tendrils.map(() => new Float32Array(6));
+    const pulses = [];
+    const sparks = [];
+    const unit = dpr * Math.max(0.55, Math.min(1.2, size / 420));
+    let netTime = 0;
+    let spawnDebt = 0;
+
     let frame = 0;
     let time = 0;
     let last = performance.now();
-    const state = { ...HENRY_ORB_STATES.idle, rotation: 0, counter: 0, beam: 0, level: 0 };
+    const state = { ...HENRY_ORB_STATES.idle, rotation: 0, counter: 0, beam: 0, level: 0, activity: 0 };
 
-    const draw = (now) => {
-      const delta = Math.min(0.05, (now - last) / 1000);
+    const bezier = (curve, t) => {
+      const u = 1 - t;
+      return [u * u * curve[0] + 2 * u * t * curve[2] + t * t * curve[4], u * u * curve[1] + 2 * u * t * curve[3] + t * t * curve[5]];
+    };
+    const strokeCurve = (curve) => {
+      context.beginPath();
+      context.moveTo(curve[0], curve[1]);
+      context.quadraticCurveTo(curve[2], curve[3], curve[4], curve[5]);
+      context.stroke();
+    };
+    const dot = (x, y, r) => {
+      context.beginPath();
+      context.arc(x, y, r, 0, Math.PI * 2);
+      context.fill();
+    };
+    const spawnPulse = (fromNode = -1) => {
+      if (pulses.length >= 36) return;
+      if (fromNode < 0 && net.tendrils.length && Math.random() < 0.18) {
+        const index = Math.floor(Math.random() * net.tendrils.length);
+        if (tendrilStrength[index] > 0.25) pulses.push({ tendril: true, index, forward: true, t: 0, speed: 0.9 + Math.random() * 0.7, gold: Math.random() < 0.25 });
+        return;
+      }
+      const options = fromNode >= 0 ? adjacency[fromNode] : null;
+      for (let attempt = 0; attempt < 4; attempt += 1) {
+        const index = options ? options[Math.floor(Math.random() * options.length)] : Math.floor(Math.random() * net.edges.length);
+        if (index == null || edgeStrength[index] < 0.25) continue;
+        const edge = net.edges[index];
+        const forward = fromNode >= 0 ? edge.a === fromNode : Math.random() < 0.5;
+        pulses.push({ tendril: false, index, forward, t: 0, speed: 1.1 + Math.random() * 1.1, gold: edge.gold || Math.random() < 0.15 });
+        return;
+      }
+    };
+
+    // Rede neural do centro (pensando/buscando). radius = raio atual do anel.
+    const drawNeural = (now, delta, radius) => {
+      const on = state.neural;
+      if (on < 0.02) {
+        pulses.length = 0;
+        sparks.length = 0;
+        return;
+      }
+      const activity = reduce ? 0.4 : state.activity;
+      if (!reduce) netTime += delta * (0.45 + activity * 1.1);
+      const spread = radius * (1 + (1 - on) * 0.35); // ao se desfazer, os nós se abrem em direção aos anéis
+      const fade = on * (reduce ? 0.75 + 0.25 * Math.sin(now / 1800) : 1);
+      const pos = net.nodes.map((node) => {
+        const wobble = reduce ? 0 : 0.035;
+        return [center + spread * (node.x + wobble * Math.sin(netTime * 0.8 + node.phase)), center + spread * (node.y + wobble * Math.cos(netTime * 0.65 + node.phase * 1.3))];
+      });
+      const strengthOf = (seed, rate) =>
+        reduce ? (Math.sin(seed * 3.7) > -0.3 ? 0.6 : 0) : Math.max(0, Math.min(1, 0.45 + 0.9 * Math.sin(netTime * rate + seed) + (activity - 0.5) * 0.9));
+      const curveInto = (curve, ax, ay, bx, by, bend) => {
+        const dx = bx - ax;
+        const dy = by - ay;
+        curve[0] = ax;
+        curve[1] = ay;
+        curve[2] = (ax + bx) / 2 - dy * bend;
+        curve[3] = (ay + by) / 2 + dx * bend;
+        curve[4] = bx;
+        curve[5] = by;
+      };
+
+      // Filamentos entre os nós: halo largo e quase transparente + traço fino (mesmo brilho aditivo dos fios do anel).
+      net.edges.forEach((edge, index) => {
+        const strength = strengthOf(edge.seed, edge.rate);
+        edgeStrength[index] = strength;
+        const curve = edgeCurve[index];
+        curveInto(curve, pos[edge.a][0], pos[edge.a][1], pos[edge.b][0], pos[edge.b][1], edge.bend * (reduce ? 0.08 : 0.11 * Math.sin(netTime * 0.5 + edge.seed)));
+        if (strength < 0.03) return;
+        context.strokeStyle = edge.gold ? "#F3DCA6" : mixHexColor("#4FC3E0", "#FFFFFF", strength * 0.55);
+        context.globalAlpha = fade * strength * 0.1;
+        context.lineWidth = unit * 3.2;
+        strokeCurve(curve);
+        context.globalAlpha = fade * strength * 0.78;
+        context.lineWidth = unit * 0.8;
+        strokeCurve(curve);
+      });
+
+      // Tentáculos: dos nós de fora até os anéis de dentro ("entre os círculos, um ligando ao outro").
+      net.tendrils.forEach((tendril, index) => {
+        const strength = strengthOf(tendril.seed, tendril.rate) * 0.85;
+        tendrilStrength[index] = strength;
+        const angle = tendril.angle + (reduce ? 0 : 0.12 * Math.sin(netTime * 0.4 + tendril.seed));
+        const [ax, ay] = pos[tendril.node];
+        const curve = tendrilCurve[index];
+        curveInto(curve, ax, ay, center + radius * 0.93 * Math.cos(angle), center + radius * 0.93 * Math.sin(angle), reduce ? 0.1 : 0.16 * Math.sin(netTime * 0.6 + tendril.seed));
+        if (strength < 0.03) return;
+        context.strokeStyle = "#7FD6EE";
+        context.globalAlpha = fade * strength * 0.08;
+        context.lineWidth = unit * 3;
+        strokeCurve(curve);
+        context.globalAlpha = fade * strength * 0.45;
+        context.lineWidth = unit * 0.6;
+        strokeCurve(curve);
+      });
+
+      // Sinapses: pulsos correm pelos filamentos; chegada acende o nó e às vezes dispara o próximo.
+      if (!reduce) {
+        const burst = Math.max(0, Math.min(1, state.burst || 0));
+        spawnDebt = Math.min(2, spawnDebt + delta * (0.6 + activity * 4.5 + burst * 6) * Math.max(0.35, net.nodes.length / 22) * on);
+        while (spawnDebt >= 1) {
+          spawnDebt -= 1;
+          spawnPulse();
+        }
+        for (let index = pulses.length - 1; index >= 0; index -= 1) {
+          const pulse = pulses[index];
+          pulse.t += delta * pulse.speed;
+          if (pulse.t < 1) continue;
+          pulses.splice(index, 1);
+          if (pulse.tendril) {
+            const curve = tendrilCurve[pulse.index];
+            sparks.push({ x: curve[4], y: curve[5], life: 1 });
+            continue;
+          }
+          const edge = net.edges[pulse.index];
+          const target = pulse.forward ? edge.b : edge.a;
+          flashes[target] = 1;
+          if (Math.random() < 0.25 + activity * 0.45) spawnPulse(target);
+        }
+        for (const pulse of pulses) {
+          const curve = pulse.tendril ? tendrilCurve[pulse.index] : edgeCurve[pulse.index];
+          const color = pulse.gold ? "#FFF1CF" : "#E9FBFF";
+          for (let tail = 4; tail >= 0; tail -= 1) {
+            const t = pulse.t - tail * 0.045;
+            if (t < 0) continue;
+            const [x, y] = bezier(curve, pulse.forward ? t : 1 - t);
+            context.fillStyle = tail === 0 ? color : pulse.gold ? "#F3DCA6" : "#4FC3E0";
+            context.globalAlpha = on * (tail === 0 ? 0.95 : 0.5 * (1 - tail / 5));
+            dot(x, y, unit * (tail === 0 ? 2 : 1.3));
+          }
+          const [hx, hy] = bezier(curve, pulse.forward ? pulse.t : 1 - pulse.t);
+          context.fillStyle = pulse.gold ? "#F3DCA6" : "#4FC3E0";
+          context.globalAlpha = on * 0.24;
+          dot(hx, hy, unit * 6);
+        }
+        for (let index = sparks.length - 1; index >= 0; index -= 1) {
+          const spark = sparks[index];
+          spark.life -= delta * 2.4;
+          if (spark.life <= 0) {
+            sparks.splice(index, 1);
+            continue;
+          }
+          context.fillStyle = "#BFF1FF";
+          context.globalAlpha = on * spark.life * 0.35;
+          dot(spark.x, spark.y, unit * (2 + (1 - spark.life) * 6));
+        }
+      }
+
+      // Nós: brilho suave + núcleo; o nó atingido por uma sinapse acende e apaga devagar.
+      net.nodes.forEach((node, index) => {
+        if (!reduce) flashes[index] *= Math.exp(-delta * 2.8);
+        const flash = flashes[index];
+        const glowLevel = reduce ? 0.55 : 0.35 + 0.65 * flash + 0.12 * Math.sin(netTime * 2.3 + node.phase);
+        const [x, y] = pos[index];
+        context.fillStyle = node.gold ? "#F3DCA6" : "#4FC3E0";
+        context.globalAlpha = fade * glowLevel * 0.26;
+        dot(x, y, unit * (4 + flash * 6));
+        context.fillStyle = node.gold ? "#FFF6DD" : "#E9FBFF";
+        context.globalAlpha = fade * Math.min(1, glowLevel + 0.2);
+        dot(x, y, unit * (1.4 + flash * 1.2));
+      });
+    };
+
+    const draw = (now, signal = signalRef.current?.() || { mode: "idle", level: 0 }) => {
+      const delta = Math.min(pacer ? 0.1 : 0.05, (now - last) / 1000); // 15 fps (tela cheia ociosa) anda no mesmo ritmo
       last = now;
-      const signal = signalRef.current?.() || { mode: "idle", level: 0 };
       const target = HENRY_ORB_STATES[signal.mode] || HENRY_ORB_STATES.idle;
       const raw = Math.max(0, Math.min(1, Number(signal.level) || 0));
+      state.burst = Math.max(0, Math.min(1, Number(signal.burst) || 0));
       // Nível com ataque rápido e soltura mais lenta (cada sílaba vira um pulso visível).
-      state.level += (raw - state.level) * (raw > state.level ? 0.55 : 0.12);
+      // Tela cheia (30/15 fps): mesmo ataque/soltura por SEGUNDO que a 60 fps (o fator vale por quadro de 1/60 s).
+      const levelRate = raw > state.level ? 0.55 : 0.12;
+      state.level += (raw - state.level) * (pacer ? 1 - Math.pow(1 - levelRate, delta * 60) : levelRate);
       const ease = orbEase(delta);
       for (const key of Object.keys(target)) state[key] += (target[key] - state[key]) * ease;
+      state.activity += (Math.max(0, Math.min(1, Number(signal.activity) || 0)) - state.activity) * ease * 0.5;
       const level = reduce ? 0 : state.level;
 
       time += reduce ? 0 : delta * (state.speed + level * state.levelSpeed);
@@ -67,11 +359,13 @@ export default function HenryOrb({ size = 320, fibers = 48, points = 120, alpha 
       }
       const breath = reduce ? 0.01 * Math.sin(now / 1600) : state.breath * Math.sin((now / 1000) * state.breathRate * Math.PI * 2);
       const swell = state.swell + level * state.levelSwell + breath;
-      const amp = reduce ? 0.18 : state.amp + level * state.levelAmp;
+      // Vibração geral reduzida (dono, 2026-10-23, protótipo v14: "ficou muito embaraçado"): ondulação dos fios × 0,4
+      // (VIB) em todos os estados, também com movimento reduzido; leque mais fechado (× 3, era × 6).
+      const amp = (reduce ? 0.18 : state.amp + level * state.levelAmp) * VIB;
       const sphere = reduce ? 0 : Math.min(1, state.sphere * (0.25 + level * 1.1));
       const fan = state.fan * (0.4 + level);
       // Nunca passa da borda do canvas: o pico máximo possível (inchaço × leque × ondulação) cabe em ~93% da metade.
-      const peak = (1 + swell) * (1 + 0.02 * (1 + fan * 6) + 0.25 * amp * 1.35);
+      const peak = (1 + swell) * (1 + 0.02 * (1 + fan * 3) + 0.25 * amp * 1.35);
       const radius = baseRadius * (1 + swell) * Math.min(1, (center * 0.93) / (baseRadius * peak));
 
       context.globalCompositeOperation = "source-over";
@@ -95,23 +389,38 @@ export default function HenryOrb({ size = 320, fibers = 48, points = 120, alpha 
       const gradient = context.createLinearGradient(0, center - radius * 1.2, 0, center + radius * 1.3);
       for (const [offset, color] of orbStops(state.warm)) gradient.addColorStop(offset, color);
       context.strokeStyle = gradient;
+      // Tela cheia: os fios vão para a camada do halo (createGlowLayer); sem ela, direto no canvas.
+      const fiberContext = glowLayer ? glowLayer.begin() : context;
+      if (fiberContext !== context) {
+        const fiberGradient = fiberContext.createLinearGradient(0, center - radius * 1.2, 0, center + radius * 1.3);
+        for (const [offset, color] of orbStops(state.warm)) fiberGradient.addColorStop(offset, color);
+        fiberContext.strokeStyle = fiberGradient;
+      }
+      const quality = pacer ? pacer.quality() : FULLSCREEN_QUALITY[0];
+      const kept = quality.dropEvery ? count - Math.floor(count / quality.dropEvery) : count;
+      const fiberAlpha = alpha * (count / Math.max(1, kept));
+      const fiberPoints = Math.max(24, Math.round(points * quality.points));
 
-      for (const seed of seeds) {
+      for (let index = 0; index < seeds.length; index += 1) {
+        if (quality.dropEvery && index % quality.dropEvery === quality.dropEvery - 1) continue;
+        const seed = seeds[index];
         const spin = state.rotation * seed.k + state.counter * seed.dir * seed.k;
-        const squash = 1 - sphere * (1 - Math.abs(Math.cos(seed.tilt)));
+        // Embaraçado só na faixa do anel (dono, 2026-10-23, protótipos v12/v14): achatamento máx. 20% para os fios não
+        // cruzarem o meio, onde ficam as ondas vocais.
+        const squash = 1 - sphere * 0.2 * (1 - Math.abs(Math.cos(seed.tilt)));
         const turn = seed.turn * sphere;
         const cosT = Math.cos(turn);
         const sinT = Math.sin(turn);
-        const spread = 1 + seed.offset * (1 + fan * 6);
+        const spread = 1 + seed.offset * (1 + fan * 3);
         const path = new Path2D();
-        for (let step = 0; step <= points; step += 1) {
-          const theta = (step / points) * Math.PI * 2;
+        for (let step = 0; step <= fiberPoints; step += 1) {
+          const theta = (step / fiberPoints) * Math.PI * 2;
           const noise =
             0.06 * Math.sin(3 * theta + time * 0.9 + seed.a) +
             0.045 * Math.sin(5 * theta - time * 1.3 * seed.k + seed.b) +
             0.03 * Math.sin(9 * theta + time * 2.1 + seed.c) +
             0.018 * Math.sin(15 * theta - time * 2.9 * seed.k + seed.a * 0.5) +
-            state.travel * (0.35 + level) * 0.07 * Math.sin(4 * theta - time * 5.5 + seed.dir * 0.4); // onda que percorre o anel
+            state.travel * (0.35 + level) * 0.07 * VIB * Math.sin(4 * theta - time * 5.5 + seed.dir * 0.4); // onda que percorre o anel
           const r = radius * (spread + noise * amp * seed.k);
           const ex = r * Math.cos(theta + spin);
           const ey = r * Math.sin(theta + spin) * squash;
@@ -121,15 +430,102 @@ export default function HenryOrb({ size = 320, fibers = 48, points = 120, alpha 
           else path.lineTo(x, y);
         }
         path.closePath();
-        if (glow) {
-          // Halo: o mesmo fio, largo e quase transparente (brilho aditivo sem shadowBlur, que pesa).
-          context.globalAlpha = alpha * 0.18;
+        if (glow && !glowLayer) {
+          // Halo sem a camada (canvas fora da tela indisponível): o mesmo fio, largo e quase transparente.
+          context.globalAlpha = fiberAlpha * 0.18 * state.dim;
           context.lineWidth = lineWidth * dpr * 5;
           context.stroke(path);
         }
-        context.globalAlpha = Math.min(1, alpha * (1 + level * 0.6));
-        context.lineWidth = lineWidth * dpr;
-        context.stroke(path);
+        fiberContext.globalAlpha = Math.min(1, fiberAlpha * (1 + level * 0.6) * state.dim);
+        fiberContext.lineWidth = lineWidth * dpr;
+        fiberContext.stroke(path);
+      }
+      if (glowLayer) glowLayer.composite(context, level);
+
+      // Ondas vocais no meio do anel (falando; dono, 2026-10-23, protótipo v12): 5 ondas finas horizontais que seguem a voz
+      // REAL (level do getSignal), afinando nas pontas. Movimento reduzido: paradas e baixas.
+      if (state.voice > 0.02 && !signal.noVoice) { // noVoice: mensagem do bom dia no meio do anel
+        const span = radius * 0.62;
+        const WAVES = 5;
+        const N = 64;
+        const waveTime = reduce ? 0 : time;
+        // Ícone pequeno (celular 52–88 px, ícone do canto): traço proporcional para as ondas não virarem um borrão.
+        const waveWidth = dpr * Math.max(0.45, Math.min(1, size / 320));
+        context.lineCap = "round";
+        for (let w = 0; w < WAVES; w += 1) {
+          const off = w - (WAVES - 1) / 2;
+          const path = new Path2D();
+          for (let i = 0; i <= N; i += 1) {
+            const u = (i / N) * 2 - 1;
+            const env = Math.pow(Math.cos((u * Math.PI) / 2), 2);
+            const a = radius * (0.04 + level * 0.32) * (1 - Math.abs(off) * 0.17) * env;
+            const y = center + a * (Math.sin(u * (7 + w * 1.3) + waveTime * (6 + w) + w * 1.7) * 0.7 + Math.sin(u * 13 - waveTime * 9 + w) * 0.3);
+            const x = center + u * span;
+            if (i) path.lineTo(x, y);
+            else path.moveTo(x, y);
+          }
+          context.strokeStyle = w === 2 ? "#FFF6DD" : w % 2 ? "#F3DCA6" : "#4FC3E0";
+          context.globalAlpha = state.voice * 0.18;
+          context.lineWidth = 5 * waveWidth;
+          context.stroke(path);
+          context.globalAlpha = state.voice * (w === 2 ? 0.95 : 0.6);
+          context.lineWidth = (w === 2 ? 1.6 : 1) * waveWidth;
+          context.stroke(path);
+        }
+        context.lineCap = "butt";
+      }
+
+      // Pulso de chegada (Pulso do CRM, protótipo v21 — dono, 2026-10-23): quando um card "entra" no Henry, UM arco no ponto
+      // de entrada fica mais forte nas cores do PRÓPRIO Henry (o mesmo gradiente dos fios, modo aditivo — sem a cor do card)
+      // e se alarga de 0,08π a 0,4π até sumir em 1,4 s, com o anel inchando no ponto de entrada (orbHitArc). Um fio a cada
+      // dois, halo (traço 5, a·g·0,25) + núcleo (traço 1,5, a·g), g = exp(−3u²). signal.hits = [{ ang, born }].
+      const hits = Array.isArray(signal.hits) ? signal.hits : [];
+      if (hits.length && !reduce) {
+        const glowArc = (middle, half, arcAlpha, color, bump = 0) => {
+          if (arcAlpha < 0.01) return;
+          const SEGMENTS = 18;
+          context.strokeStyle = color;
+          for (let index = 0; index < seeds.length; index += 2) {
+            const seed = seeds[index];
+            const spin = state.rotation * seed.k + state.counter * seed.dir * seed.k;
+            const spread = 1 + seed.offset * (1 + fan * 3);
+            let px = 0;
+            let py = 0;
+            for (let step = 0; step <= SEGMENTS; step += 1) {
+              const u = (step / SEGMENTS) * 2 - 1;
+              const phi = middle + u * half;
+              const theta = phi - spin;
+              const noise =
+                0.06 * Math.sin(3 * theta + time * 0.9 + seed.a) +
+                0.045 * Math.sin(5 * theta - time * 1.3 * seed.k + seed.b) +
+                0.03 * Math.sin(9 * theta + time * 2.1 + seed.c) +
+                0.018 * Math.sin(15 * theta - time * 2.9 * seed.k + seed.a * 0.5);
+              const g = Math.exp(-u * u * 3);
+              const r = radius * (spread + noise * amp * seed.k) * (1 + bump * g);
+              const x = center + r * Math.cos(phi);
+              const y = center + r * Math.sin(phi);
+              if (step) {
+                context.beginPath();
+                context.moveTo(px, py);
+                context.lineTo(x, y);
+                context.globalAlpha = arcAlpha * g * 0.25;
+                context.lineWidth = 5 * dpr;
+                context.stroke();
+                context.globalAlpha = Math.min(1, arcAlpha * g);
+                context.lineWidth = 1.5 * dpr;
+                context.stroke();
+              }
+              px = x;
+              py = y;
+            }
+          }
+        };
+        for (const hit of hits) {
+          const age = (now - hit.born) / HENRY_ORB_HIT_MS;
+          if (!(age >= 0 && age < 1)) continue;
+          const arc = orbHitArc(age);
+          glowArc(hit.ang, arc.half, arc.alpha, gradient, arc.bump); // cores do próprio Henry, modo aditivo
+        }
       }
 
       // Feixe dourado percorrendo o contorno (pensando): cabeça brilhante e cauda que some.
@@ -145,32 +541,61 @@ export default function HenryOrb({ size = 320, fibers = 48, points = 120, alpha 
           context.stroke();
         }
       }
+
+      // Conversa aberta esperando o dono: brilho pulsando de leve no contorno (diferente do parado, que só escurece).
+      if (state.rim > 0.02) {
+        const pulse = reduce ? 0.5 : 0.5 + 0.5 * Math.sin((now / 1000) * Math.PI * 2 * 0.45);
+        context.strokeStyle = "#4FC3E0";
+        context.beginPath();
+        context.arc(center, center, radius * 1.1, 0, Math.PI * 2);
+        context.globalAlpha = state.rim * 0.13 * (0.35 + pulse);
+        context.lineWidth = lineWidth * dpr * 7;
+        context.stroke();
+        context.globalAlpha = state.rim * 0.7 * (0.3 + 0.7 * pulse);
+        context.lineWidth = lineWidth * dpr * 1.1;
+        context.stroke();
+      }
+
+      drawNeural(now, reduce ? 0 : delta, radius);
       context.globalAlpha = 1;
     };
 
     const loop = (now) => {
-      draw(now);
       frame = window.requestAnimationFrame(loop);
+      if (!pacer) {
+        draw(now);
+        return;
+      }
+      const signal = signalRef.current?.() || { mode: "idle", level: 0 };
+      // Atividade (não cai para o ritmo ocioso): fala/escuta/pensa, música, cards do Pulso na tela, pulso de chegada e
+      // ondas vocais ainda apagando.
+      const hitActive = Array.isArray(signal.hits) && signal.hits.some((hit) => now - hit.born < HENRY_ORB_HIT_MS);
+      if (pacer.due(now, signal.mode !== "idle" || signal.music === true || signal.pulseBusy === true || hitActive || state.voice > 0.02)) draw(now, signal);
     };
     const start = () => {
-      if (frame || sleep || document.hidden) return;
+      if (frame || sleep || isPageHidden()) return;
       last = performance.now();
+      pacer?.reset(last);
       frame = window.requestAnimationFrame(loop);
     };
     const stop = () => {
       if (frame) window.cancelAnimationFrame(frame);
       frame = 0;
     };
-    const onVisibility = () => (document.hidden ? stop() : start());
+    const onVisibility = () => (isPageHidden() ? stop() : start());
+    const onInteraction = () => pacer?.touch(performance.now());
+    const INTERACTIONS = ["pointermove", "pointerdown", "keydown", "wheel"];
 
     draw(performance.now()); // sempre há um quadro desenhado (inclusive dormindo)
     start();
-    document.addEventListener("visibilitychange", onVisibility);
+    const stopWatching = onPageVisibilityChange(onVisibility);
+    if (pacer) for (const name of INTERACTIONS) window.addEventListener(name, onInteraction, { passive: true });
     return () => {
       stop();
-      document.removeEventListener("visibilitychange", onVisibility);
+      stopWatching();
+      if (pacer) for (const name of INTERACTIONS) window.removeEventListener(name, onInteraction);
     };
-  }, [size, fibers, points, alpha, lineWidth, glow, sleep]);
+  }, [size, fibers, points, alpha, lineWidth, glow, nodes, sleep]);
 
   return <canvas ref={canvasRef} aria-hidden="true" className={className} style={{ width: size, height: size, userSelect: "none", WebkitUserSelect: "none", WebkitTouchCallout: "none", pointerEvents: "none" }} />;
 }

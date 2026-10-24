@@ -3,7 +3,24 @@
 import { useEffect, useRef, useState } from "react";
 import Field, { inputClasses } from "@/components/ui/Field";
 import { henryReserveVoiceChain, pickBestBrowserVoice, pronounceForSpeech } from "@/lib/henry-voice-providers.mjs";
-import { DESKTOP_WAKE_EVENT, DESKTOP_WAKE_KEY, desktopCanSpeakLocal, desktopCanWake, readDesktopWakeSetting, readHenryDesktopBridge } from "@/lib/henry-desktop-core.mjs";
+import { HENRY_END_WAIT_EVENT } from "@/lib/henry-voice-conversation.mjs";
+import HenryLockSettings from "./HenryLockSettings";
+import { HENRY_PULSE_INTENSITIES, HENRY_PULSE_TYPES, HENRY_PULSE_TYPE_KEYS } from "@/lib/henry-pulse-core.mjs";
+import {
+  DESKTOP_WAKE_CUSTOM_MAX_CHARS,
+  DESKTOP_WAKE_EVENT,
+  DESKTOP_WAKE_KEY,
+  DESKTOP_WAKE_STATUS_EVENT,
+  DESKTOP_WAKE_WORD_KEY,
+  DESKTOP_WAKE_WORD_OPTIONS,
+  buildDesktopWakeWord,
+  desktopCanSpeakLocal,
+  desktopCanWake,
+  parseDesktopWakeWord,
+  readDesktopWakeSetting,
+  readDesktopWakeWord,
+  readHenryDesktopBridge
+} from "@/lib/henry-desktop-core.mjs";
 
 // Liga/desliga do assistente de voz "Henry" (docs/BUSINESS_RULES.md HENRY-1) e da visão pela webcam (HENRY-2, nasce
 // desligada). Só o dono consegue ler/gravar (a rota /api/admin/henry recusa os demais e "Alterar conta"); para outros
@@ -29,6 +46,9 @@ export default function HenrySettingsCard() {
             webSearch: data?.webSearch !== false,
             clientAlerts: data?.clientAlerts !== false,
             teamArrivals: data?.teamArrivals !== false,
+            voiceNotices: data?.voiceNotices !== false,
+            birthdayAlerts: data?.birthdayAlerts !== false,
+            pulse: data?.pulse || null,
             serverVoice: Boolean(data?.serverVoice),
             provider: data?.provider || "browser",
             providerLabel: data?.providerLabel || "voz do navegador",
@@ -60,7 +80,7 @@ export default function HenrySettingsCard() {
       });
       const data = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(data?.error || "Não foi possível salvar.");
-      setState((current) => ({ ...current, enabled: data.enabled, vision: data.vision, mobileWake: data.mobileWake === true, webSearch: data.webSearch !== false, clientAlerts: data.clientAlerts !== false, teamArrivals: data.teamArrivals !== false }));
+      setState((current) => ({ ...current, enabled: data.enabled, vision: data.vision, mobileWake: data.mobileWake === true, webSearch: data.webSearch !== false, clientAlerts: data.clientAlerts !== false, teamArrivals: data.teamArrivals !== false, voiceNotices: data.voiceNotices !== false, birthdayAlerts: data.birthdayAlerts !== false }));
       window.location.reload(); // o ícone do canto lê a configuração ao montar
     } catch (saveError) {
       setError(saveError?.message || "Não foi possível salvar.");
@@ -190,17 +210,55 @@ export default function HenrySettingsCard() {
                 {state.teamArrivals ? "Desligar" : "Ligar"}
               </button>
             </div>
+            <div className="mt-4 flex flex-wrap items-center justify-between gap-4 rounded-control border border-line p-4">
+              <div className="max-w-xl">
+                <p className="text-sm font-black text-navy">Avisos só por voz (sem card na tela)</p>
+                <p className="mt-1 text-sm text-muted">
+                  Os avisos informativos da Central de Alertas deixam de aparecer como card na sua tela: o Henry chama (“Ô, patrão?”) e conta quando você
+                  responder. “Henry, leia os avisos” fala tudo o que estiver acumulado. Vale só com o Henry ligado neste aparelho, fora do mudo e das 7h às
+                  22h — fora disso os cards voltam. As janelas que bloqueiam o CRM continuam na tela.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => save("voiceNotices")}
+                disabled={Boolean(saving) || !state.enabled}
+                className={`rounded-control px-5 py-2.5 text-sm font-bold disabled:opacity-60 ${state.voiceNotices ? "border border-line text-navy" : "bg-navy text-white"}`}
+              >
+                {state.voiceNotices ? "Desligar" : "Ligar"}
+              </button>
+            </div>
+            <div className="mt-4 flex flex-wrap items-center justify-between gap-4 rounded-control border border-line p-4">
+              <div className="max-w-xl">
+                <p className="text-sm font-black text-navy">Avisar aniversariantes</p>
+                <p className="mt-1 text-sm text-muted">
+                  Uma vez por dia o Henry chama e conta quem faz aniversário hoje e com qual corretor está. Se você disser “sim”, ele mostra na tela o aviso
+                  para o corretor — que só sai quando você tocar em “Enviar” (vai para a Central de Alertas e o celular dele, nunca para o cliente). Se o
+                  cliente for seu, ele prepara a mensagem para você copiar ou abrir no WhatsApp; o Henry não envia. Mesmas regras: 7h às 22h, fora do mudo.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => save("birthdayAlerts")}
+                disabled={Boolean(saving) || !state.enabled}
+                className={`rounded-control px-5 py-2.5 text-sm font-bold disabled:opacity-60 ${state.birthdayAlerts ? "border border-line text-navy" : "bg-navy text-white"}`}
+              >
+                {state.birthdayAlerts ? "Desligar" : "Ligar"}
+              </button>
+            </div>
+            {state.pulse ? <HenryPulseSection saved={state.pulse} disabled={!state.enabled} onSaved={(pulse) => setState((current) => ({ ...current, pulse }))} /> : null}
             </>
           }
         />
       ) : null}
       {state.spotify ? <HenrySpotifySection status={state.spotify} onChange={(spotify) => setState((current) => ({ ...current, spotify }))} /> : null}
+      {state.allowed ? <HenryLockSettings /> : null}
       {error ? <p className="mt-3 text-sm font-bold text-red-700">{error}</p> : null}
     </section>
   );
 }
 
-const STYLE_FIELDS = ["voice", "elevenVoice", "tone", "speed", "details", "address", "rockMusic", "sertanejoMusic"];
+const STYLE_FIELDS = ["voice", "elevenVoice", "tone", "speed", "endWait", "listenAck", "details", "address", "rockMusic", "sertanejoMusic"];
 const TEXT_FIELDS = ["details", "address", "rockMusic", "sertanejoMusic"];
 
 // Só o que mudou em relação ao salvo (a voz padrão do servidor pode não estar na lista e não é reenviada).
@@ -233,6 +291,32 @@ function HenryVoiceStyleSection({ saved, options, serverVoice, provider = "brows
     setDesktopWake(next);
     window.dispatchEvent(new Event(DESKTOP_WAKE_EVENT));
   };
+  // 1.3.0: palavra de chamada do app ("Henry", "Ei Henry", "Ok Henry" ou livre), deste PC. O app confere no vocabulário
+  // do modelo e responde qual está usando (evento DESKTOP_WAKE_STATUS_EVENT).
+  const [wakeWord, setWakeWord] = useState({ id: "henry", text: "" });
+  const [wakeWordSaved, setWakeWordSaved] = useState("henry");
+  const [wakeWordStatus, setWakeWordStatus] = useState(null);
+  const [wakeWordError, setWakeWordError] = useState("");
+  useEffect(() => {
+    const saved = readDesktopWakeWord(window.localStorage);
+    setWakeWordSaved(saved);
+    setWakeWord(parseDesktopWakeWord(saved));
+    const onStatus = (event) => setWakeWordStatus(event?.detail || null);
+    window.addEventListener(DESKTOP_WAKE_STATUS_EVENT, onStatus);
+    return () => window.removeEventListener(DESKTOP_WAKE_STATUS_EVENT, onStatus);
+  }, []);
+  const wakeWordValue = buildDesktopWakeWord(wakeWord.id, wakeWord.text);
+  const saveWakeWord = () => {
+    if (!wakeWordValue) {
+      setWakeWordError("Escreva a palavra (até 3 palavras, só letras).");
+      return;
+    }
+    setWakeWordError("");
+    setWakeWordStatus(null);
+    window.localStorage.setItem(DESKTOP_WAKE_WORD_KEY, wakeWordValue);
+    setWakeWordSaved(wakeWordValue);
+    window.dispatchEvent(new Event(DESKTOP_WAKE_EVENT));
+  };
   const audioRef = useRef(null);
   const patch = changedFields(form, saved);
   const dirty = Object.keys(patch).length > 0;
@@ -247,6 +331,8 @@ function HenryVoiceStyleSection({ saved, options, serverVoice, provider = "brows
       if (!response.ok) throw new Error(data?.error || "Não foi possível salvar.");
       onSaved(data.style);
       setForm({ ...data.style });
+      // O Henry desta página passa a usar o novo tempo de espera do fim da fala sem recarregar.
+      if (Number.isFinite(data?.endWaitMs)) window.dispatchEvent(new CustomEvent(HENRY_END_WAIT_EVENT, { detail: { ms: data.endWaitMs, listenAck: data.listenAck !== false } }));
       setMessage({ tone: "ok", text: "Salvo. Vale a partir da próxima fala do Henry (recarregue a página para a voz do navegador)." });
     } catch (saveError) {
       setMessage({ tone: "error", text: saveError?.message || "Não foi possível salvar." });
@@ -322,6 +408,53 @@ function HenryVoiceStyleSection({ saved, options, serverVoice, provider = "brows
           </button>
         </div>
       ) : null}
+      {desktopApp && desktopWake ? (
+        <div className="mt-3 max-w-2xl">
+          <p className="text-sm font-black text-navy">Palavra de chamada</p>
+          <p className="mt-1 text-sm text-muted">Vale só neste app. Se o app não conhecer alguma palavra, ele continua ouvindo “Henry” e avisa aqui.</p>
+          <div className="mt-2 flex flex-wrap items-center gap-2">
+            <select
+              value={wakeWord.id}
+              onChange={(event) => setWakeWord((current) => ({ ...current, id: event.target.value }))}
+              className="rounded-control border border-line bg-white px-3 py-2 text-sm text-navy"
+              aria-label="Palavra de chamada"
+            >
+              {DESKTOP_WAKE_WORD_OPTIONS.map((item) => (
+                <option key={item.id} value={item.id}>
+                  {item.label}
+                </option>
+              ))}
+            </select>
+            {wakeWord.id === "custom" ? (
+              <input
+                type="text"
+                value={wakeWord.text}
+                maxLength={DESKTOP_WAKE_CUSTOM_MAX_CHARS}
+                onChange={(event) => setWakeWord((current) => ({ ...current, text: event.target.value }))}
+                placeholder="Ex.: Jarvis"
+                className="rounded-control border border-line bg-white px-3 py-2 text-sm text-navy"
+                aria-label="Palavra livre"
+              />
+            ) : null}
+            <button
+              type="button"
+              onClick={saveWakeWord}
+              disabled={wakeWordValue === wakeWordSaved}
+              className="rounded-control bg-navy px-5 py-2.5 text-sm font-bold text-white disabled:opacity-60"
+            >
+              Usar esta
+            </button>
+          </div>
+          {wakeWordError ? <p className="mt-1 text-sm font-bold text-red-700">{wakeWordError}</p> : null}
+          {wakeWordStatus ? (
+            <p className={`mt-1 text-sm font-bold ${wakeWordStatus.ok ? "text-emerald-800" : "text-amber-800"}`} role="status">
+              {wakeWordStatus.ok
+                ? `O app está ouvindo “${wakeWordStatus.label}”.`
+                : `O app não conhece ${wakeWordStatus.missing?.length ? `“${wakeWordStatus.missing.join(" ")}”` : "essa palavra"}: continua ouvindo “Henry”.`}
+            </p>
+          ) : null}
+        </div>
+      ) : null}
       <p className={`mt-2 max-w-2xl rounded-control px-3 py-2 text-sm font-bold ${provider === "browser" ? "bg-amber-50 text-amber-800" : "bg-emerald-50 text-emerald-800"}`} role="status">
         Voz ativa: {providerLabel}.
         {provider === "browser" ? " Voz do navegador: configure ELEVENLABS_API_KEY na Vercel para a voz natural." : ""}
@@ -389,6 +522,28 @@ function HenryVoiceStyleSection({ saved, options, serverVoice, provider = "brows
             ))}
           </select>
         </Field>
+        {options.endWaits?.length ? (
+          <Field label="Tempo de espera do fim da fala" hint="Quanto silêncio o Henry espera antes de entender que você terminou de falar.">
+            <select className={inputClasses} value={form.endWait || "normal"} onChange={update("endWait")}>
+              {options.endWaits.map((wait) => (
+                <option key={wait.id} value={wait.id}>
+                  {wait.label}
+                </option>
+              ))}
+            </select>
+          </Field>
+        ) : null}
+        {options.listenAcks?.length ? (
+          <Field label="Confirmar que ouviu" hint="Logo que você termina de falar, ele faz um som curto, um “Uhum” ou um “Já te falo” enquanto busca a resposta.">
+            <select className={inputClasses} value={form.listenAck || "on"} onChange={update("listenAck")}>
+              {options.listenAcks.map((item) => (
+                <option key={item.id} value={item.id}>
+                  {item.label}
+                </option>
+              ))}
+            </select>
+          </Field>
+        ) : null}
         <Field label="Como tratar você (opcional)" hint={`Em branco = “${options.defaultAddress}”. Ex.: chefe, Sr. Matheus.`}>
           <input className={inputClasses} value={form.address || ""} onChange={update("address")} maxLength={options.addressMax} placeholder={options.defaultAddress} />
         </Field>
@@ -486,6 +641,85 @@ function HenrySpotifySection({ status, onChange }) {
           </a>
         )
       ) : null}
+    </div>
+  );
+}
+
+// "Pulso do CRM" (rascunho HENRY-1 "Pulso", [PENDENTE DE VALIDAÇÃO]): na tela cheia do Henry, cards com eventos reais do
+// CRM em volta do anel. Nasce DESLIGADO até o dono aprovar o visual. Grava em henry_voice_assistant.pulse
+// (PUT /api/admin/henry { pulse }, validado por parseHenryPulsePatch). O ícone do canto lê a configuração ao montar.
+function HenryPulseSection({ saved, disabled = false, onSaved }) {
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState("");
+  const save = async (patch) => {
+    setBusy(true);
+    setMessage("");
+    try {
+      const response = await fetch("/api/admin/henry", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ pulse: patch }) });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data?.error || "Não foi possível salvar.");
+      onSaved?.(data.pulse);
+      setMessage("Salvo. Recarregue a página para ver no Henry.");
+    } catch (saveError) {
+      setMessage(saveError?.message || "Não foi possível salvar.");
+    } finally {
+      setBusy(false);
+    }
+  };
+  const toggleType = (key) => {
+    const types = saved.types.includes(key) ? saved.types.filter((item) => item !== key) : [...saved.types, key];
+    save({ types: HENRY_PULSE_TYPE_KEYS.filter((item) => types.includes(item)) });
+  };
+  return (
+    <div className="mt-4 rounded-control border border-line p-4">
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <div className="max-w-xl">
+          <p className="text-sm font-black text-navy">Pulso do CRM</p>
+          <p className="mt-1 text-sm text-muted">
+            Na tela cheia do Henry, o que a equipe está fazendo aparece em volta dele: mensagens, clientes novos, simulações, envios à CCA, chegadas e
+            pontos. Só para você; só mostra primeiro nome e um trecho curto da mensagem (nunca telefone, CPF ou documento). Tocar no card abre a
+            conversa ou o cliente. Conversas particulares, grupos e internas ficam de fora.
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={() => save({ enabled: !saved.enabled })}
+          disabled={busy || disabled}
+          className={`rounded-control px-5 py-2.5 text-sm font-bold disabled:opacity-60 ${saved.enabled ? "border border-line text-navy" : "bg-navy text-white"}`}
+        >
+          {saved.enabled ? "Desligar" : "Ligar"}
+        </button>
+      </div>
+      {saved.enabled ? (
+        <div className="mt-4 grid gap-4 md:grid-cols-2">
+          <Field label="Intensidade">
+            <select className={inputClasses} value={saved.intensity} disabled={busy} onChange={(event) => save({ intensity: event.target.value })}>
+              {Object.entries(HENRY_PULSE_INTENSITIES).map(([key, item]) => (
+                <option key={key} value={key}>
+                  {item.label}
+                </option>
+              ))}
+            </select>
+          </Field>
+          <label className="flex items-center gap-2 self-end text-sm font-bold text-navy">
+            <input type="checkbox" checked={saved.snippets} disabled={busy} onChange={() => save({ snippets: !saved.snippets })} />
+            Mostrar trecho da mensagem
+          </label>
+          <fieldset className="md:col-span-2">
+            <legend className="text-sm font-bold text-navy">Tipos de evento</legend>
+            <div className="mt-2 grid grid-cols-2 gap-2 md:grid-cols-4">
+              {HENRY_PULSE_TYPE_KEYS.map((key) => (
+                <label key={key} className="flex items-center gap-2 text-sm text-navy">
+                  <input type="checkbox" checked={saved.types.includes(key)} disabled={busy} onChange={() => toggleType(key)} />
+                  <span aria-hidden="true" className="inline-block h-2.5 w-2.5 rounded-full" style={{ background: HENRY_PULSE_TYPES[key].color }} />
+                  {HENRY_PULSE_TYPES[key].label}
+                </label>
+              ))}
+            </div>
+          </fieldset>
+        </div>
+      ) : null}
+      {message ? <p className="mt-3 text-sm font-bold text-muted" role="status">{message}</p> : null}
     </div>
   );
 }

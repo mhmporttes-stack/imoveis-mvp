@@ -788,7 +788,7 @@ test("prepareDocumentsList: listText é a lista personalizada do cadastro em tex
 });
 
 test("jornada: os dois eventos novos têm rótulo e categoria na timeline", () => {
-  const journey = read("components/ClientJourneyActions.jsx");
+  const journey = read("components/ClientJourneyActions.jsx") + read("lib/journey-event-labels.mjs"); // rótulos: fonte única
   assert.match(journey, new RegExp(`${FORECAST_JOURNEY_EVENT}: "atividades"`));
   assert.match(journey, new RegExp(`${DOCUMENTS_LIST_SENT_EVENT}: "atividades"`));
   assert.match(journey, /case "document_forecast_set":/);

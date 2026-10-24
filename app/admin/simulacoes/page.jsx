@@ -14,6 +14,7 @@ import { canManageSimulations } from "@/lib/simulations";
 import { newRenderId } from "@/lib/render-id.mjs";
 import { chatViewerKey } from "@/lib/chat-viewer-key.mjs";
 import { brokerTransferTargets, canBrokerTransferOwnClients } from "@/lib/broker-client-transfer-core.mjs";
+import { canMarkSalePaid } from "@/lib/sale-paid-guard-core.mjs";
 
 export const dynamic = "force-dynamic";
 // Voltar para Clientes na hora (pedido do dono, 2026-10-12): o navegador reaproveita esta tela por até 5 min em vez de
@@ -118,6 +119,7 @@ export default async function AdminSimulationsPage({ searchParams }) {
           ownTransfer={canTransferOwnClients ? { selfId: auth.profile.id, targets: transferTargets } : null}
           canReturnAssignedProspecting={isOwnerAdminEmail(auth.user?.email) || isOwnerAdminEmail(auth.profile?.email)}
           isOwner={isOwnerAdminEmail(auth.user?.email) || isOwnerAdminEmail(auth.profile?.email)}
+          canMarkSalePaid={canMarkSalePaid(auth, isOwnerAdminEmail)}
           brokerSimulationLink={isBrokerProfile(auth.profile) ? buildBrokerSimulationLink(auth.profile) : ""}
           tags={tags}
           showCooledInbox={!auth.accountSwitchMode && (isOwnerAdminEmail(auth.user?.email) || isManager)}

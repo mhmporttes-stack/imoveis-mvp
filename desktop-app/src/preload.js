@@ -16,6 +16,11 @@ const appVersion = readArg("mm-app-version");
 
 if (allowedOrigins.includes(window.location.origin)) {
   let wakeListeners = 0;
+  // 1.3.1: último estado da janela (minimizada/na bandeja) que o app mandou — a página pode assinar depois de carregar.
+  let windowHidden = null;
+  ipcRenderer.on("mm:window-visibility", (_event, info) => {
+    windowHidden = info?.hidden === true;
+  });
   const run = (action, payload = {}) => ipcRenderer.invoke("mm:action", action, payload);
   contextBridge.exposeInMainWorld("mmDesktop", {
     isDesktopApp: true,
@@ -34,19 +39,47 @@ if (allowedOrigins.includes(window.location.origin)) {
       ipcRenderer.on("mm:activate-henry", listener);
       return () => ipcRenderer.removeListener("mm:activate-henry", listener);
     },
+    // 1.3.1 (app lento, 2026-10-23): a view do CRM roda sem "background throttling" (a voz do Henry precisa de timers em
+    // tempo real minimizada), então document.hidden nunca fica true no app. Este EVENTO (não é ação) avisa a página quando
+    // a janela é minimizada/vai para a bandeja e quando volta: callback({ hidden }). Chama na hora com o último estado.
+    onWindowVisibility: (callback) => {
+      if (typeof callback !== "function") return () => {};
+      const listener = (_event, info) => callback({ hidden: info?.hidden === true });
+      ipcRenderer.on("mm:window-visibility", listener);
+      if (windowHidden !== null) callback({ hidden: windowHidden });
+      return () => ipcRenderer.removeListener("mm:window-visibility", listener);
+    },
+    // 1.3.1 (dono, 2026-10-23): a página avisa quando a tela cheia do Henry abre/fecha (mesmo sinal dos avisos do CRM,
+    // lib/henry-fullscreen-signal.mjs). EVENTO (não é ação): só um booleano; o app guarda a caixa "Nova versão pronta"
+    // enquanto ela estiver aberta e mostra quando fechar.
+    henryFullscreen: (open) => ipcRenderer.send("mm:henry-fullscreen", open === true),
     // Fase 1.1: o app ouviu "Henry" (Vosk, offline). Assinar LIGA a escuta no app; cancelar a última assinatura DESLIGA
     // (o microfone do app fecha). O callback recebe só { phrase } — nunca áudio.
-    onWake: (callback) => {
+    // 1.2.1: options.wakeWord = palavra de chamada ("henry", "ei-henry", "ola-henry", "ok-henry" ou "custom:<palavra>";
+    // o app confere no vocabulário do modelo) e options.onStatus({ label, ok, missing }) = qual palavra o app está usando.
+    onWake: (callback, options) => {
       if (typeof callback !== "function") return () => {};
       const listener = (_event, info) => callback({ phrase: typeof info?.phrase === "string" ? info.phrase : "" });
+      const onStatus = typeof options?.onStatus === "function" ? options.onStatus : null;
+      const statusListener = onStatus
+        ? (_event, info) =>
+            onStatus({
+              label: typeof info?.label === "string" ? info.label : "",
+              ok: info?.ok === true,
+              missing: Array.isArray(info?.missing) ? info.missing.filter((item) => typeof item === "string").slice(0, 5) : []
+            })
+        : null;
+      const wakeWord = typeof options?.wakeWord === "string" ? options.wakeWord.slice(0, 80) : "henry";
       ipcRenderer.on("mm:wake", listener);
+      if (statusListener) ipcRenderer.on("mm:wake-word", statusListener);
       wakeListeners += 1;
-      if (wakeListeners === 1) ipcRenderer.send("mm:wake-listen", true);
+      if (wakeListeners === 1) ipcRenderer.send("mm:wake-listen", true, { wakeWord });
       let active = true;
       return () => {
         if (!active) return;
         active = false;
         ipcRenderer.removeListener("mm:wake", listener);
+        if (statusListener) ipcRenderer.removeListener("mm:wake-word", statusListener);
         wakeListeners -= 1;
         if (wakeListeners === 0) ipcRenderer.send("mm:wake-listen", false);
       };

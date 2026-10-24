@@ -1,11 +1,14 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import HenryOrb from "./HenryOrb";
 import HenryAnswerScenes from "./HenryAnswerScenes";
 import HenryOpeningScene from "./HenryOpeningScene";
 import { MORNING_PLAY_LABEL } from "@/lib/henry-morning-core.mjs";
 import { HenryBrokerCards, HenryDataScene, HenryDetailPanel, HenryIconSearchHint, HenrySceneStyles } from "./HenrySearchScene";
+import HenryMusicScene, { HenryNowPlaying } from "./HenryMusicScene";
+import HenryPulse from "./HenryPulse";
+import { HenryLockIcon } from "./HenryLockScreen";
 
 // Apresentação do Henry (sem estado de voz): ícone do canto e tela cheia. Visual pedido pelo dono em 2026-10-22 a partir de
 // uma referência em vídeo ("nesse perfil… no meu estilo"): fundo azul-marinho profundo, anel de filamentos no centro,
@@ -73,6 +76,12 @@ export default function HenryVoiceView({
   notice = "",
   micOff,
   onToggleMute,
+  // Aperte para falar (dono, 2026-10-24): handlers de toque longo do botão do microfone e o indicador "solte para enviar".
+  micHold = null,
+  pttHolding = false,
+  // Mudo (dono, 2026-10-24): voz do Henry desligada (ele responde só na tela). null = sem o botão.
+  voiceMuted = false,
+  onToggleVoiceMute = null,
   getSignal,
   sleeping = false,
   showKeyboard = false,
@@ -96,6 +105,10 @@ export default function HenryVoiceView({
   dataScene = searching, // tela cheia: cena de busca (HenrySearchScene) só depois que uma ferramenta foi chamada
   sceneTopic = "geral",
   brokers = [], // corretores do pedido: procurando (scanner) → achado (card com foto e números)
+  // Música (dono, 2026-10-23): estado da cena do Spotify (conexão → busca → resultado → play), vindo dos eventos reais, e
+  // o "Tocando agora" do player (canto da tela cheia, com as ondas sonoras).
+  music = null,
+  nowPlaying = null,
   pendingAlerts = 0, // avisos de cliente novo/transferido sem resposta (HENRY-1): indicador discreto; tocar = ouvir
   onPendingAlerts,
   // Botão ▶ "Começar o bom dia" (HENRY-1, dono 2026-10-23): ao lado do microfone só até 11h (quem decide é o
@@ -106,9 +119,72 @@ export default function HenryVoiceView({
   onOpeningDone,
   openingName = "Matheus",
   openingTelemetry = null,
+  // Tela de bloqueio (HENRY-LOCK): lockLayer = risquinhos/cadeados (bloqueado), vindo do HenryVoiceAssistant; locked = sem
+  // o "minimizar" e, no celular, conversa mais acima. Desbloqueado não há camada: o cadeado fica na barra (onLock).
+  lockLayer = null,
+  locked = false,
+  // Cadeado da barra (dono, 2026-10-24: "um cadeadinho ali nos ícones para eu escolher quando bloquear"): só aparece com a
+  // senha definida e a tela desbloqueada; é o único jeito de travar pela tela (abrir/inatividade não travam mais).
+  onLock = null,
+  // Celular bloqueado (dono, 2026-10-24): teclado numérico aberto → conversa e botões recolhem e o anel encolhe.
+  lockKeypadOpen = false,
+  // Cena do desbloqueio: a cada valor novo, uma varredura ciano/dourada corre pelo anel e ele dá um pulso leve.
+  unlockFx = 0,
+  // Modo ambiente (tela bloqueada): só a vitrine passa sorteio fixo e tempo acelerado.
+  ambientRandom = null,
+  ambientSpeed = 1,
+  // Pulso do CRM (rascunho HENRY-1 "Pulso"): config do HenryPulse (null = desligado), abrir o link do card e, só na
+  // vitrine, a fonte de eventos de exemplo.
+  pulse = null,
+  onPulseOpen = null,
+  alertList = [], // avisos lidos pelo Henry (canto esquerdo; no celular, no topo)
+  onDetailConfirm = null, // botão de confirmação do painel (aviso de aniversariante ao corretor, dono 2026-10-24)
+  pulsePoll = undefined,
   fixed = true
 }) {
   const orbSize = useFullscreenOrbSize(expanded, mobile);
+  // Pulso do CRM: a chegada de um evento vira "level" do anel REAL (o maior entre a voz e o pulso), sem anel paralelo.
+  const pulseLevelRef = useRef(0);
+  const pulseHitsRef = useRef([]); // trechos do anel que acendem onde o card entrou (HenryOrb, signal.hits)
+  const pulseBusyRef = useRef(false); // há card do Pulso na tela (o anel não cai para o ritmo ocioso)
+  // Bom dia novo (protótipo v22): no boom o anel acorda com um pulso de fala curto (~0,9 s) e, enquanto a mensagem
+  // "Bom dia" está no meio do anel (a cena de abertura aberta), as ondas vocais não são desenhadas (noVoice).
+  const wakeUntilRef = useRef(0);
+  const unlockPulseRef = useRef(0);
+  // Desbloqueou: os cards inventados do modo ambiente ainda voltam ao anel (~2 s) antes do Pulso desligar.
+  const [ambientTail, setAmbientTail] = useState(false);
+  const wasLockedRef = useRef(locked);
+  useEffect(() => {
+    const was = wasLockedRef.current;
+    wasLockedRef.current = locked;
+    if (!was || locked) return undefined;
+    setAmbientTail(true);
+    const timer = window.setTimeout(() => setAmbientTail(false), 2600);
+    return () => window.clearTimeout(timer);
+  }, [locked]);
+  const [unlockSweep, setUnlockSweep] = useState(0);
+  useEffect(() => {
+    if (!unlockFx) return undefined;
+    setUnlockSweep(unlockFx);
+    unlockPulseRef.current = performance.now() + UNLOCK_PULSE_MS; // pulso leve do anel (orbSignal)
+    const timer = window.setTimeout(() => setUnlockSweep(0), 900);
+    return () => window.clearTimeout(timer);
+  }, [unlockFx]);
+  const openingRef = useRef(opening);
+  openingRef.current = opening;
+  const orbSignal = useCallback(() => {
+    let signal = getSignal?.() || { mode: "idle", level: 0 };
+    if (performance.now() < wakeUntilRef.current) signal = { ...signal, mode: "speaking", level: Math.max(Number(signal.level) || 0, 0.6) };
+    // Desbloqueio: pulso LEVE que se desfaz em ~0,8 s, sem trocar o estado do anel.
+    const unlockLeft = unlockPulseRef.current - performance.now();
+    if (unlockLeft > 0) signal = { ...signal, level: Math.max(Number(signal.level) || 0, 0.32 * (unlockLeft / UNLOCK_PULSE_MS)) };
+    if (openingRef.current) signal = { ...signal, noVoice: true };
+    const extra = pulseLevelRef.current || 0;
+    const hits = pulseHitsRef.current;
+    const pulseBusy = pulseBusyRef.current; // cards do Pulso na tela: o anel não cai para o ritmo ocioso
+    if (extra <= 0.005 && !hits.length && !pulseBusy) return signal;
+    return { ...signal, level: Math.max(Number(signal.level) || 0, extra), hits, pulseBusy };
+  }, [getSignal]);
   const inputRef = useRef(null);
   const touchRef = useRef(null);
   useEffect(() => {
@@ -122,6 +198,9 @@ export default function HenryVoiceView({
   // resposta e enquanto pensa sem ferramenta (papo), as ondas da conversa.
   const lastTurn = turns[turns.length - 1];
   const answer = !searching && lastTurn?.role === "assistant" ? lastTurn : null;
+  // Pedido de música nunca mostra cena de números (dono, 2026-10-23: "os gráficos também não fazem sentido").
+  const musicScene = searching && sceneTopic === "music" ? music : answer?.scene?.kind === "musica" ? music || answer.scene.music || { stage: "playing" } : null;
+  const showDataScene = dataScene && sceneTopic !== "music";
 
   const showPlay = morningPlay && Boolean(onMorningPlay) && !opening;
   const pendingPill = pendingAlerts > 0 && onPendingAlerts ? (
@@ -154,15 +233,16 @@ export default function HenryVoiceView({
             style={{ background: BACKDROP, width: MOBILE_BIG, height: MOBILE_BIG, transform: `scale(${box / MOBILE_BIG})`, transformOrigin: "bottom left" }}
             aria-label={`Falar com o Henry. ${status}`}
           >
-            <HenryOrb size={MOBILE_BIG} fibers={18} points={48} alpha={0.45} lineWidth={0.8} getSignal={getSignal} sleep={sleeping && !engaged} />
+            <HenryOrb size={MOBILE_BIG} fibers={18} points={48} alpha={0.45} lineWidth={0.8} nodes={6} getSignal={getSignal} sleep={sleeping && !engaged} />
             {inConversation ? <ConversationDot /> : null}
           </button>
           <HenrySceneStyles />
           <HenryIconSearchHint searching={searching} broker={foundBroker} size={box} />
+          <ThinkingStatus searching={searching} />
         </div>
         {!tapToTalk ? (
           <span className="pointer-events-auto mb-1.5">
-            <RoundButton onClick={onToggleMute} label={micOff ? "Ligar o microfone do Henry" : "Deixar o Henry no mudo"} small>
+            <RoundButton onClick={onToggleMute} label={micOff ? "Ligar o microfone do Henry (segure para falar)" : "Desligar o microfone do Henry (segure para falar)"} small extra={micHold}>
               <MicIcon off={micOff} />
             </RoundButton>
           </span>
@@ -213,8 +293,15 @@ export default function HenryVoiceView({
             <PlayButton onClick={onMorningPlay} />
           </span>
         ) : null}
+        {onToggleVoiceMute ? (
+          <span className="pointer-events-auto mb-2.5">
+            <RoundButton onClick={onToggleVoiceMute} label={voiceMuted ? "Henry no mudo: responde só na tela (clique para ouvir a voz)" : "Deixar o Henry mudo (responde só na tela)"} small>
+              <SpeakerIcon off={voiceMuted} />
+            </RoundButton>
+          </span>
+        ) : null}
         <span className="pointer-events-auto mb-2.5">
-          <RoundButton onClick={onToggleMute} label={micOff ? "Ligar o microfone do Henry (Alt+B)" : "Deixar o Henry no mudo (Alt+B)"} small>
+          <RoundButton onClick={onToggleMute} label={micOff ? "Ligar o microfone do Henry (Alt+B; segure para falar)" : "Desligar o microfone do Henry (Alt+B; segure para falar)"} small extra={micHold}>
             <MicIcon off={micOff} />
           </RoundButton>
         </span>
@@ -228,18 +315,24 @@ export default function HenryVoiceView({
             aria-label={`Abrir o Henry. ${status}`}
             title={`Henry — ${heardHint || status}`}
           >
-            <HenryOrb size={ICON_BIG} fibers={24} points={60} alpha={0.42} lineWidth={0.8} getSignal={getSignal} sleep={sleeping && !engaged} />
+            <HenryOrb size={ICON_BIG} fibers={24} points={60} alpha={0.42} lineWidth={0.8} nodes={7} getSignal={getSignal} sleep={sleeping && !engaged} />
             {capturing ? <CaptureDot className="absolute right-3 top-3" /> : null}
             {inConversation ? <ConversationDot /> : null}
           </button>
           <HenrySceneStyles />
           <HenryIconSearchHint searching={searching} broker={foundBroker} size={box} />
+          <ThinkingStatus searching={searching} />
         </div>
       </div>
     );
   }
 
-  const recent = turns.slice(-VISIBLE_TURNS);
+  // Celular bloqueado: a fileira da senha fica SOZINHA embaixo, na mesma pilha do rodapé (nada se sobrepõe); acima dela só
+  // as 2 últimas falas e os botões essenciais (teclado e microfone). Câmera e ▶ somem enquanto bloqueado (o ▶ do bom dia
+  // e a câmera dependem do desbloqueio). Teclado numérico aberto: só ele e a fileira, com o anel menor.
+  const lockedMobile = Boolean(locked && mobile && lockLayer);
+  const keypadFocus = lockedMobile && lockKeypadOpen;
+  const recent = turns.slice(lockedMobile ? -2 : -VISIBLE_TURNS);
   return (
     <div
       className={`${fixed ? "fixed inset-0 z-[70]" : "relative h-[640px] w-full"} flex items-center justify-center overflow-hidden text-white`}
@@ -247,6 +340,7 @@ export default function HenryVoiceView({
       role="dialog"
       aria-modal="true"
       aria-label="Assistente Henry"
+      data-henry-assistant
       onPointerDown={(event) => {
         if (!(event.target instanceof HTMLInputElement)) preventTouchSelection(event);
       }}
@@ -268,9 +362,10 @@ export default function HenryVoiceView({
       }}
     >
       <HenrySceneStyles />
-      {opening ? <HenryOpeningScene name={openingName} mobile={mobile} telemetry={openingTelemetry} onDone={onOpeningDone} /> : null}
-      <HenryDataScene active={dataScene} topic={sceneTopic} mobile={mobile} orbSize={orbSize} hasBrokers={brokers.length > 0} />
-      {!dataScene ? (
+      <style>{UNLOCK_SWEEP_CSS}</style>
+      {opening ? <HenryOpeningScene name={openingName} mobile={mobile} orbSize={orbSize} onBoom={() => (wakeUntilRef.current = performance.now() + 900)} onDone={onOpeningDone} /> : null}
+      <HenryDataScene active={showDataScene} topic={sceneTopic} mobile={mobile} orbSize={orbSize} hasBrokers={brokers.length > 0} />
+      {!showDataScene && !musicScene ? (
         <HenryAnswerScenes
           kind={answer?.scene?.kind || "conversa"}
           scene={answer?.scene || null}
@@ -283,7 +378,8 @@ export default function HenryVoiceView({
           sceneKey={answer ? `a${turns.length}` : "idle"}
         />
       ) : null}
-      {!mobile ? <HenryDetailPanel detail={detail} /> : null}
+      {!mobile ? <HenryDetailPanel detail={detail} onConfirm={onDetailConfirm} /> : null}
+      <HenryNowPlaying nowPlaying={nowPlaying} ducking={speaking} mobile={mobile} />
       <div className="absolute left-5 top-[calc(1rem+env(safe-area-inset-top))] md:left-8 md:top-6">
         <p className="flex items-center gap-2 text-sm font-bold tracking-wide text-white/85">
           Henry
@@ -295,7 +391,8 @@ export default function HenryVoiceView({
         </p>
         <p className="mt-0.5 text-xs text-white/55" aria-live="polite">{status}</p>
       </div>
-      <button
+      {lockedMobile ? null : lockLayer}
+      {locked ? null : <button
         type="button"
         onClick={onMinimize}
         className="absolute right-4 top-[calc(0.75rem+env(safe-area-inset-top))] flex h-11 w-11 items-center justify-center rounded-full text-white/70 transition hover:bg-white/10 hover:text-white md:right-6 md:top-5 md:h-9 md:w-9"
@@ -305,33 +402,39 @@ export default function HenryVoiceView({
         <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
           <path d="M6 6l12 12M18 6L6 18" />
         </svg>
-      </button>
+      </button>}
 
-      <div className={`relative ${mobile ? "-translate-y-[14vh]" : ""}`}>
+      <HenryAlertList items={alertList} mobile={mobile} />
+      {/* Pulso do CRM: atrás do anel (cards e feixes em volta dele); apagado quando ele pensa ou fala. */}
+      {/* Modo ambiente (tela bloqueada): o Pulso também roda sem a configuração ligada, só com cards inventados no navegador. */}
+      <HenryPulse active={(Boolean(pulse) || locked || ambientTail) && !opening} ambient={locked} realEvents={Boolean(pulse)} ambientRandom={ambientRandom} ambientSpeed={ambientSpeed} idle={!engaged && !opening && !alertList.length && !musicScene && !brokers.length} config={pulse || undefined} orbSize={orbSize} mobile={mobile} dim={searching || speaking || busy} onOpen={onPulseOpen} levelRef={pulseLevelRef} hitsRef={pulseHitsRef} busyRef={pulseBusyRef} {...(pulsePoll ? { poll: pulsePoll } : {})} />
+      <div className={`relative transition-transform duration-300 ease-out motion-reduce:transition-none ${mobile ? (keypadFocus ? "-translate-y-[14vh] scale-[0.72]" : "-translate-y-[14vh]") : ""}`}>
         {onTalk ? (
           <button type="button" onPointerDown={preventTouchSelection} onClick={onTalk} className="block rounded-full" aria-label={recording ? "Enviar o que eu falei" : "Tocar para falar com o Henry"}>
-            <HenryOrb size={orbSize} fibers={mobile ? 40 : 52} points={mobile ? 110 : 140} alpha={0.3} lineWidth={0.85} glow getSignal={getSignal} />
+            <HenryOrb size={orbSize} fibers={mobile ? 40 : 52} points={mobile ? 110 : 140} alpha={0.3} lineWidth={0.85} glow nodes={mobile ? 16 : 24} getSignal={orbSignal} />
           </button>
         ) : (
-          <HenryOrb size={orbSize} fibers={mobile ? 40 : 52} points={mobile ? 110 : 140} alpha={0.3} lineWidth={0.85} glow getSignal={getSignal} />
+          <HenryOrb size={orbSize} fibers={mobile ? 40 : 52} points={mobile ? 110 : 140} alpha={0.3} lineWidth={0.85} glow nodes={mobile ? 16 : 24} getSignal={orbSignal} />
         )}
+        {unlockSweep ? <span key={unlockSweep} className="henry-unlock-sweep pointer-events-none absolute inset-0 rounded-full" aria-hidden="true" /> : null}
         <HenryBrokerCards brokers={brokers} orbSize={orbSize} mobile={mobile} />
+        <HenryMusicScene music={musicScene} orbSize={orbSize} mobile={mobile} />
       </div>
 
       <div className="absolute inset-x-4 bottom-[calc(1rem+env(safe-area-inset-bottom))] flex flex-col items-end gap-3 md:inset-x-auto md:bottom-6 md:right-8 md:w-[min(420px,40vw)]">
         {/* Texto sem card (dono, 2026-10-22): só as palavras sobre a cena, com sombra para ler (iPhone incluso). */}
         <div
-          className="flex max-h-[30vh] w-full flex-col items-end gap-1.5 overflow-y-auto text-right text-[14px] leading-snug md:max-h-none md:overflow-visible md:text-[13px]"
+          className={`${keypadFocus ? "hidden" : "flex"} ${lockedMobile ? "max-h-[18vh]" : "max-h-[30vh]"} w-full flex-col items-end gap-1.5 overflow-y-auto text-right text-[14px] leading-snug md:max-h-none md:overflow-visible md:text-[13px]`}
           style={{ textShadow: "0 1px 2px rgba(0,0,0,0.95), 0 0 10px rgba(7,17,31,0.95), 0 0 22px rgba(7,17,31,0.85)" }}
         >
-          {mobile ? <HenryDetailPanel detail={detail} mobile /> : null}
+          {mobile ? <HenryDetailPanel detail={detail} mobile onConfirm={onDetailConfirm} /> : null}
           {recent.length ? (
             recent.map((turn, index) => (
               <p key={`${turns.length - recent.length + index}`} className={turn.role === "user" ? "text-white/80" : ""} style={turn.role === "user" ? undefined : { color: ACCENT }}>
                 {turn.text}
               </p>
             ))
-          ) : (
+          ) : lockedMobile ? null : (
             <p className="text-white/55">
               {recordMode ? "Toque no Henry e fale: “quantos clientes aguardam resposta?”" : tapToTalk ? "Pode falar: “quantos clientes aguardam resposta?”" : "Diga “bom dia, Henry” ou “Henry, quantos clientes aguardam resposta?”"}
             </p>
@@ -354,8 +457,15 @@ export default function HenryVoiceView({
             </button>
           </form>
         ) : null}
-        <div className="flex items-center gap-2">
-          {onToggleVision ? (
+        {pttHolding ? (
+          <p className="text-[12px] font-bold" style={{ color: ACCENT, textShadow: "0 1px 2px rgba(0,0,0,0.95)" }} role="status" aria-live="polite">
+            Ouvindo… solte para enviar
+          </p>
+        ) : voiceMuted && onToggleVoiceMute ? (
+          <p className="text-[11px] text-white/55">Mudo: respostas só na tela</p>
+        ) : null}
+        <div className={`${keypadFocus ? "hidden" : "flex"} items-center gap-2`}>
+          {onToggleVision && !lockedMobile ? (
             <span className="relative">
               <RoundButton onClick={onToggleVision} label={vision ? "Visão ligada: a câmera só abre no “bom dia” e em “o que é isso?” (clique para desligar)" : "Ligar a visão pela câmera"} dark active={vision}>
                 <CameraIcon off={!vision} />
@@ -366,17 +476,69 @@ export default function HenryVoiceView({
           <RoundButton onClick={onToggleKeyboard} label={showKeyboard ? "Esconder o teclado" : "Digitar a pergunta"} dark active={showKeyboard}>
             <KeyboardIcon />
           </RoundButton>
-          <RoundButton onClick={onToggleMute} label={recordMode ? (recording ? "Enviar o que eu falei" : "Tocar para falar") : micOff ? "Ligar o microfone (Alt+B)" : "Mudo (Alt+B)"} dark active={!micOff}>
+          <RoundButton onClick={onToggleMute} label={recordMode ? (recording ? "Enviar o que eu falei" : "Tocar para falar (ou segure)") : micOff ? "Ligar o microfone (Alt+B)" : "Desligar o microfone (Alt+B; segure para falar)"} dark active={!micOff || pttHolding} extra={micHold}>
             <MicIcon off={micOff && !recordMode} />
           </RoundButton>
-          {showPlay ? <PlayButton onClick={onMorningPlay} dark /> : null}
+          {onToggleVoiceMute ? (
+            <RoundButton onClick={onToggleVoiceMute} label={voiceMuted ? "Mudo: o Henry responde só na tela (clique para ouvir a voz)" : "Mudo: deixar o Henry sem voz"} dark active={voiceMuted}>
+              <SpeakerIcon off={voiceMuted} />
+            </RoundButton>
+          ) : null}
+          {showPlay && !lockedMobile ? <PlayButton onClick={onMorningPlay} dark /> : null}
+          {onLock && !locked ? (
+            <RoundButton onClick={onLock} label="Bloquear a tela do Henry" dark>
+              <HenryLockIcon size={13} />
+            </RoundButton>
+          ) : null}
         </div>
+        {lockedMobile ? <div className="w-full pb-1 pt-4">{lockLayer}</div> : null}
       </div>
     </div>
   );
 }
 
-function RoundButton({ onClick, label, children, small = false, dark = false, active = false }) {
+// Avisos lidos pelo Henry (dono, 2026-10-23, protótipo v22): bem no canto esquerdo (no celular, no topo), sem fundo, só a
+// escrita — tipo pequeno e colorido, texto branco embaixo. Cada aviso entra quando ele começa a falá-lo; o anterior apaga
+// (0,45). Itens vêm do servidor (só o que ele fala).
+function HenryAlertList({ items = [], mobile = false }) {
+  if (!items.length) return null;
+  return (
+    <div
+      className={`pointer-events-none absolute flex flex-col text-left ${mobile ? "inset-x-4 top-[84px] gap-3" : "left-8 top-1/2 w-[min(360px,30vw)] -translate-y-1/2 gap-[18px]"}`}
+      style={{ textShadow: "0 1px 2px rgba(0,0,0,0.95), 0 0 10px rgba(7,17,31,0.95), 0 0 22px rgba(7,17,31,0.85)" }}
+      aria-live="polite"
+      data-henry-alert-list
+    >
+      <style>{ALERT_LIST_CSS}</style>
+      {items.map((item) => (
+        <div key={item.id} className={item.read ? "henry-avl-read" : "henry-avl-in"}>
+          <p className="m-0 text-[10.5px] font-extrabold uppercase tracking-[0.16em]" style={{ color: item.color || "#e8b85c" }}>
+            {item.kicker}
+          </p>
+          <p className={`m-0 mt-1 font-semibold leading-[1.4] text-white ${mobile ? "text-[14px]" : "text-[15px]"}`}>{item.text}</p>
+        </div>
+      ))}
+    </div>
+  );
+}
+const ALERT_LIST_CSS = `
+.henry-avl-in{opacity:0;transform:translateX(-14px);filter:blur(6px);animation:henry-avl-in 700ms cubic-bezier(0.2,0.8,0.2,1) forwards}
+.henry-avl-read{opacity:.45;transition:opacity 600ms ease}
+@keyframes henry-avl-in{to{opacity:1;transform:none;filter:blur(0)}}
+@media (prefers-reduced-motion: reduce){.henry-avl-in{animation:none;opacity:1;transform:none;filter:none}}
+`;
+
+// Varredura do desbloqueio (dono, 2026-10-24): um arco ciano → dourado corre uma volta pelo anel e some. Só o anel
+// (máscara em anel na altura dos fios do HenryOrb, ~0,3 do tamanho). prefers-reduced-motion: não aparece.
+const UNLOCK_PULSE_MS = 800;
+const UNLOCK_SWEEP_CSS = `
+@keyframes henryUnlockSweep { 0% { transform: rotate(-90deg); opacity: 0 } 12% { opacity: 1 } 80% { opacity: 1 } 100% { transform: rotate(270deg); opacity: 0 } }
+.henry-unlock-sweep { background: conic-gradient(from 0deg, transparent 0 62%, rgba(79,195,224,0.15) 72%, rgba(79,195,224,0.95) 88%, rgba(232,184,92,1) 97%, transparent 100%); -webkit-mask: radial-gradient(circle closest-side, transparent 0 54%, #000 57% 65%, transparent 68%); mask: radial-gradient(circle closest-side, transparent 0 54%, #000 57% 65%, transparent 68%); animation: henryUnlockSweep 760ms cubic-bezier(.4,0,.2,1) forwards; mix-blend-mode: screen }
+@media (prefers-reduced-motion: reduce) { .henry-unlock-sweep { display: none } }
+`;
+
+// extra = handlers a mais (toque longo do microfone: aperte para falar); o pointerdown dele roda depois do anti-seleção.
+function RoundButton({ onClick, label, children, small = false, dark = false, active = false, extra = null }) {
   const base = small ? "h-9 w-9" : "h-9 w-9";
   const tone = dark
     ? active
@@ -384,7 +546,18 @@ function RoundButton({ onClick, label, children, small = false, dark = false, ac
       : "border border-white/15 bg-white/5 text-white/60"
     : "border border-line bg-white text-navy shadow-float hover:text-brand";
   return (
-    <button type="button" onPointerDown={preventTouchSelection} onClick={onClick} className={`${base} flex items-center justify-center rounded-full transition ${tone}`} aria-label={label} title={label}>
+    <button
+      type="button"
+      {...(extra || {})}
+      onPointerDown={(event) => {
+        preventTouchSelection(event);
+        extra?.onPointerDown?.(event);
+      }}
+      onClick={onClick}
+      className={`${base} flex items-center justify-center rounded-full transition ${tone}`}
+      aria-label={label}
+      title={label}
+    >
       {children}
     </button>
   );
@@ -420,12 +593,31 @@ function MicIcon({ off }) {
   );
 }
 
+// Alto-falante (mudo = voz do Henry desligada; ele responde só na tela).
+function SpeakerIcon({ off }) {
+  return (
+    <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M4 9h4l5-4v14l-5-4H4z" />
+      {off ? <path d="M17 9l5 6M22 9l-5 6" /> : <path d="M16.5 8.5a5 5 0 0 1 0 7M19.5 5.5a9 9 0 0 1 0 13" />}
+    </svg>
+  );
+}
+
 // Indicador "câmera capturando agora" (pulso dourado da paleta do Henry; some quando a câmera desliga).
 function CaptureDot({ className = "" }) {
   return (
     <span className={`flex h-3 w-3 ${className}`} aria-label="Câmera capturando" role="status">
       <span className="absolute inline-flex h-3 w-3 animate-ping rounded-full opacity-75 motion-reduce:animate-none" style={{ background: "#F3DCA6" }} />
       <span className="relative inline-flex h-3 w-3 rounded-full" style={{ background: "#F3DCA6" }} />
+    </span>
+  );
+}
+
+// Leitor de tela: o anel mostra "pensando" pela rede neural; aqui o mesmo estado em texto (invisível na tela).
+function ThinkingStatus({ searching }) {
+  return (
+    <span className="sr-only" role="status" aria-live="polite">
+      {searching ? "Henry pensando…" : ""}
     </span>
   );
 }

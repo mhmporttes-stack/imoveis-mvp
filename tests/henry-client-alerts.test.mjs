@@ -19,7 +19,9 @@ import {
   henryClientAlertsFromSetting,
   isAlertDevice,
   isAlertHour,
+  isHenryAlertCall,
   isHenryAlertPhrase,
+  henryAlertFixedPhrases,
   mergeAlertPending,
   pickAlertPhrase,
   responsibleSteps,
@@ -51,6 +53,19 @@ test("bancos: pelo menos 5 modelos por tipo e vocativos em tom de pergunta", () 
   assert.ok(HENRY_ALERT_VOCATIVES.some((item) => /chefe/i.test(item)) && HENRY_ALERT_VOCATIVES.some((item) => /patr[aã]o/i.test(item)) && HENRY_ALERT_VOCATIVES.some((item) => /mestre/i.test(item)));
 });
 
+test("chamado (dono, 2026-10-23): nunca uma palavra só, sempre pergunta, e só o vocativo usa o perfil de voz do chamado", () => {
+  for (const vocative of HENRY_ALERT_VOCATIVES) {
+    assert.ok(vocative.replace(/[?…,.!]/g, " ").trim().split(/\s+/).length >= 2, vocative);
+    assert.match(vocative, /\?$/);
+    assert.ok(isHenryAlertCall(vocative));
+  }
+  assert.equal(new Set(HENRY_ALERT_VOCATIVES).size, HENRY_ALERT_VOCATIVES.length);
+  for (const old of ["Chefe?", "Patrão?", "Mestre?"]) assert.equal(isHenryAlertPhrase(old), false);
+  assert.equal(isHenryAlertCall(HENRY_ALERT_PHRASES.later[0]), false);
+  assert.equal(isHenryAlertCall(HENRY_ALERT_PHRASES.resume[0]), false);
+  assert.ok(henryAlertFixedPhrases().includes(HENRY_ALERT_VOCATIVES[0]));
+});
+
 test("vocativo e frases curtas nunca repetem seguido", () => {
   let recent = [];
   let previous = "";
@@ -60,7 +75,7 @@ test("vocativo e frases curtas nunca repetem seguido", () => {
     previous = picked.text;
     recent = picked.recent;
   }
-  assert.ok(isHenryAlertPhrase("Chefe?"));
+  assert.ok(isHenryAlertPhrase(HENRY_ALERT_VOCATIVES[0]));
   assert.ok(isHenryAlertPhrase(HENRY_ALERT_PHRASES.later[0]));
   assert.equal(isHenryAlertPhrase("Fala qualquer coisa"), false);
 });
@@ -242,8 +257,9 @@ test("chegada: só a 1ª pelo Wi-Fi de usuário ativo da equipe; manual, ausente
 test("chegada: liga/desliga nasce ligado; vocativo novo 'Meu patrão?' e resposta 'meu patrão' = pode falar", () => {
   assert.equal(henryTeamArrivalsFromSetting({}), true);
   assert.equal(henryTeamArrivalsFromSetting({ teamArrivals: false }), false);
-  assert.ok(HENRY_ALERT_VOCATIVES.includes("Meu patrão?"));
-  assert.ok(isHenryAlertPhrase("Meu patrão?"));
+  const meuPatrao = HENRY_ALERT_VOCATIVES.find((item) => /^Meu patrão\b/.test(item));
+  assert.ok(meuPatrao);
+  assert.ok(isHenryAlertPhrase(meuPatrao));
   assert.equal(classifyAlertAnswer("meu patrão?"), "yes");
   let recent = [];
   let last = "";

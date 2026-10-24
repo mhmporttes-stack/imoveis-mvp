@@ -1,0 +1,54 @@
+/* Janelinha de cliente novo (CLI-16): entrada curta, só transform/opacity, preenchimento `backwards` (nunca `both`,
+   decisão de 2026-10-12 do sistema visual). "Reduzir movimento" = só aparece, sem deslocamento. */
+.card {
+  animation-duration: 220ms;
+  animation-timing-function: cubic-bezier(0.2, 0, 0, 1);
+  animation-fill-mode: backwards;
+}
+
+.enterRight {
+  animation-name: clientPopupFromRight;
+}
+
+.enterTop {
+  animation-name: clientPopupFromTop;
+}
+
+@keyframes clientPopupFromRight {
+  from {
+    opacity: 0;
+    transform: translateX(24px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes clientPopupFromTop {
+  from {
+    opacity: 0;
+    transform: translateY(-12px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .enterRight,
+  .enterTop {
+    animation-name: clientPopupFade;
+    animation-duration: 120ms;
+  }
+}
+
+@keyframes clientPopupFade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}

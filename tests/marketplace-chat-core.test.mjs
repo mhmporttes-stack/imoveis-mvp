@@ -26,10 +26,10 @@ const now = new Date("2026-10-20T15:00:00Z");
 const ago = (min) => new Date(now.getTime() - min * 60000).toISOString();
 
 test("configuração: padrão 07–22h, ligado, 20 envios/h; valores inválidos voltam ao padrão", () => {
-  assert.deepEqual(normalizeChatSettings({}), { syncEnabled: true, startHour: 7, endHour: 22, maxSendsPerHour: 20, firstLoadRules: [{ date: "2026-10-21", userId: "295246ec-17f3-4ca2-9ce7-6369622438a2" }, { date: "2026-10-20", userId: "3fdc31e6-9c4c-4e8a-a50f-95567fc022ec" }], firstLoadIgnoreBefore: "2026-10-20" });
+  assert.deepEqual(normalizeChatSettings({}), { syncEnabled: true, startHour: 7, endHour: 22, maxSendsPerHour: 20, firstLoadRules: [{ date: "2026-10-21", userId: "295246ec-17f3-4ca2-9ce7-6369622438a2" }, { date: "2026-10-20", userId: "3fdc31e6-9c4c-4e8a-a50f-95567fc022ec" }], firstLoadIgnoreBefore: "2026-10-20", availabilityAutoReply: true });
   // Configuração antiga (um dia só) gravada no banco: passa a valer a regra nova da 1ª carga.
   assert.equal(normalizeChatSettings({ firstSyncAssigneeId: "3fdc31e6-9c4c-4e8a-a50f-95567fc022ec", firstSyncDate: "2026-10-20" }).firstLoadRules.length, 2);
-  assert.deepEqual(normalizeChatSettings({ syncEnabled: false, startHour: 23, endHour: 8, maxSendsPerHour: 999, firstLoadRules: [{ date: "x", userId: "295246ec-17f3-4ca2-9ce7-6369622438a2" }, { date: "2026-10-01", userId: "nao-uuid" }], firstLoadIgnoreBefore: "x" }), { syncEnabled: false, startHour: 8, endHour: 23, maxSendsPerHour: 20, firstLoadRules: [], firstLoadIgnoreBefore: "" });
+  assert.deepEqual(normalizeChatSettings({ syncEnabled: false, startHour: 23, endHour: 8, maxSendsPerHour: 999, firstLoadRules: [{ date: "x", userId: "295246ec-17f3-4ca2-9ce7-6369622438a2" }, { date: "2026-10-01", userId: "nao-uuid" }], firstLoadIgnoreBefore: "x" }), { syncEnabled: false, startHour: 8, endHour: 23, maxSendsPerHour: 20, firstLoadRules: [], firstLoadIgnoreBefore: "", availabilityAutoReply: true });
   // Um par por dia, mais recentes primeiro.
   assert.deepEqual(normalizeChatSettings({ firstLoadRules: [{ date: "2026-10-20", userId: "3fdc31e6-9c4c-4e8a-a50f-95567fc022ec" }, { date: "2026-10-21", userId: "295246ec-17f3-4ca2-9ce7-6369622438a2" }, { date: "2026-10-20", userId: "295246ec-17f3-4ca2-9ce7-6369622438a2" }] }).firstLoadRules.map((rule) => rule.date), ["2026-10-21", "2026-10-20"]);
 });
@@ -158,14 +158,24 @@ test("resposta do corretor: texto obrigatório, até 2000; sem prefixo automáti
   assert.deepEqual(toOutboxPayload({ id: "m1", body: "Olá!", attempts: 1 }, { thread_key: "123", thread_url: "u" }), { id: "m1", threadKey: "123", threadUrl: "u", body: "Olá!", attempt: 1 });
 });
 
-test("retorno do envio: enviada; falha antes do Enter volta à fila (até 3 tentativas, com intervalo); depois do Enter não", () => {
-  const sending = { status: "sending", attempts: 1, claimed_at: ago(1) };
+test("retorno do envio (dono, 2026-10-24): falha antes do Enter volta à fila sem limite de tentativas até 24 h; depois do Enter só a extensão que confere reenvia", () => {
+  const sending = { status: "sending", attempts: 1, claimed_at: ago(1), created_at: ago(5) };
   assert.equal(planOutboundResult(sending, { status: "sent" }, now).status, "sent");
   const retry = planOutboundResult(sending, { status: "failed", retry: true, error: "x" }, now);
-  assert.deepEqual([retry.status, retry.claimed_at], ["queued", now.toISOString()], "claimed_at = agora segura o intervalo");
+  assert.deepEqual([retry.status, retry.claimed_at], ["queued", now.toISOString()], "claimed_at = agora segura os 30 s");
   assert.equal(planOutboundResult({ ...sending, attempts: 2 }, { status: "failed", retry: true }, now).status, "queued");
-  assert.equal(planOutboundResult({ ...sending, attempts: 3 }, { status: "failed", retry: true }, now).status, "failed");
+  assert.equal(planOutboundResult({ ...sending, attempts: 40 }, { status: "failed", retry: true }, now).status, "queued", "sem o teto antigo de 3");
+  // Depois do Enter sem confirmação: extensão antiga = "Não enviada" (regra de antes); 1.9.6+ = volta e confere antes.
   assert.equal(planOutboundResult(sending, { status: "failed", retry: false }, now).status, "failed");
+  assert.equal(planOutboundResult(sending, { status: "failed", retry: false, unconfirmed: true }, now, { extensionVersion: "1.9.5" }).status, "failed");
+  assert.equal(planOutboundResult(sending, { status: "failed", retry: false, unconfirmed: true }, now, { extensionVersion: "1.9.6" }).status, "queued");
+  // Para de vez: conversa bloqueada pelo Facebook, teto de 24 h.
+  const closed = planOutboundResult(sending, { status: "failed", retry: false, closed: true, error: "bloqueada" }, now, { extensionVersion: "1.9.6" });
+  assert.equal(closed.status, "failed");
+  assert.match(closed.error, /^\[reenvio parado: conversa_bloqueada\]/);
+  const old = { ...sending, created_at: ago(24 * 60) };
+  assert.match(planOutboundResult(old, { status: "failed", retry: true }, now).error, /^\[reenvio parado: prazo_24h\]/);
+  assert.equal(planOutboundResult({ ...sending, created_at: ago(24 * 60 - 1) }, { status: "failed", retry: true }, now).status, "queued");
   assert.throws(() => planOutboundResult({ status: "sent" }, { status: "sent" }, now), /não está em envio/);
 });
 
@@ -364,7 +374,10 @@ test("avisos do Facebook e painel de respostas rápidas não são mensagem (sinc
   for (const body of ["Debora iniciou esta conversa.", "Você iniciou esta conversa.", "Debora marcou o item como vendido", "Debora está aguardando a sua resposta.", "Você pode enviar mensagens para este vendedor", "Debora started this conversation.", "Envie uma resposta rápida", "Toque em uma resposta para enviá-la ao comprador."]) {
     assert.equal(normalizeFacebookMessage({ body, direction: "inbound" }, { now }), null, body);
   }
-  for (const body of ["Sim, você tem interesse?", "Você pode me mandar o endereço?", "Você pode enviar fotos da cozinha?"]) {
+  // 2026-10-24 (caso Andreza): a sugestão "Sim, você tem interesse?" chegava com id do Facebook — inbound com esse texto
+  // exato sai também pelo texto (isQuickReplySuggestion). Pergunta real do cliente continua.
+  assert.equal(normalizeFacebookMessage({ body: "Sim, você tem interesse?", direction: "inbound" }, { now }), null);
+  for (const body of ["Você pode me mandar o endereço?", "Você pode enviar fotos da cozinha?"]) {
     assert.ok(normalizeFacebookMessage({ body, direction: "inbound" }, { now }), body);
   }
   const [item] = normalizeSyncPayload({ conversations: [{ threadKey: "n2", contactName: "Debora", messages: [
@@ -411,12 +424,12 @@ test("abrir conversa do Marketplace só marca lida pelo corretor atribuído (ou 
 
 // Envio pelo CRM (dono, 2026-10-22: os corretores dependem 100% dele). Caso Gabriel Ribeiro: "Falhou — A conversa não
 // abriu em 20 s depois do clique (aba em /marketplace/inbox/)".
-test("envio: corretor vê situação simples (tentando de novo n/3, Não enviada + Tentar de novo); erro técnico só admin", async () => {
+test("envio: corretor vê situação simples (Mensagem não entregue — reenviando, Não enviada + Tentar de novo); erro técnico só admin", async () => {
   const { outboundStatusView, isSafeToResend } = await import("../lib/marketplace-chat-core.mjs");
   const error = "A conversa não abriu em 20 s depois do clique (aba em /marketplace/inbox/).";
   const base = { direction: "outbound", sender_user_id: "u1", error };
-  assert.deepEqual(outboundStatusView({ ...base, status: "queued", attempts: 1 }), { statusLabel: "Não enviada — tentando de novo (1/3)", canRetry: false, error: null });
-  assert.deepEqual(outboundStatusView({ ...base, status: "failed", attempts: 3 }), { statusLabel: "Não enviada", canRetry: true, error: null });
+  assert.deepEqual(outboundStatusView({ ...base, status: "queued", attempts: 1 }), { statusLabel: "Mensagem não entregue — reenviando automaticamente", canRetry: false, error: null, undelivered: true });
+  assert.deepEqual(outboundStatusView({ ...base, status: "failed", attempts: 3 }), { statusLabel: "Não enviada", canRetry: true, error: null, undelivered: false });
   assert.equal(outboundStatusView({ ...base, status: "failed" }, { technical: true }).error, error);
   assert.equal(outboundStatusView({ direction: "outbound", sender_user_id: "u1", status: "sent" }).statusLabel, "Enviada");
   assert.equal(outboundStatusView({ direction: "inbound", status: "received" }).statusLabel, "");
@@ -438,7 +451,8 @@ test("eco confirma resposta que falhou ou está em nova tentativa (saiu → envi
   const lib = readFileSync(new URL("../lib/marketplace-chat.js", import.meta.url), "utf8");
   assert.match(lib, /status: "sent", sent_at: message\.at \|\| now\.toISOString\(\), error: null/);
   const claim = lib.slice(lib.indexOf("export async function claimNextMarketplaceOutbound"), lib.indexOf("export async function reportMarketplaceOutboundResult"));
-  assert.match(claim, /\.or\(`claimed_at\.is\.null,claimed_at\.lt\.\$\{retryBefore\}`\)/);
+  // Intervalo entre tentativas (e, desde 2026-10-23, ordem por conversa): pickOutboxCandidate com retryBefore.
+  assert.match(claim, /pickOutboxCandidate\(pending, \{ retryBefore, mediaAllowed, now \}\)/);
   const retry = lib.slice(lib.indexOf("export async function retryMarketplaceOutbound"), lib.indexOf("export async function reprocessMarketplaceOutboundFailures"));
   assert.match(retry, /loadScopedConversation\(conversationId, auth\)/);
   assert.ok(retry.indexOf("findStoredEcho(row)") < retry.indexOf('status: "queued", attempts: 0'), "confere o eco antes de reenfileirar");

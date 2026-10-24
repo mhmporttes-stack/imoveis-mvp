@@ -58,6 +58,7 @@ import NotificationHistoryButton from "@/components/alerts/NotificationHistoryBu
 import WhatsappIndividualStatus from "@/components/WhatsappIndividualStatus";
 import GoogleContactsStatus from "@/components/GoogleContactsStatus";
 import Cenas from "./Cenas";
+import PopupClienteDemo from "./PopupClienteDemo";
 import PainelInicio, { InicioFunil, InicioFunilCarregando, InicioKpisMes, InicioKpisMesCarregando } from "@/components/inicio/PainelInicio";
 import * as inicio from "../_fixtures/inicio";
 
@@ -125,7 +126,8 @@ const TELAS = {
     titulo: "Agenda",
     active: "calendar",
     rotas: telas.routes,
-    render: () => (<main className="min-h-screen bg-mist py-14"><ActivityCalendar /></main>)
+    // ?variante=Fernando abre o detalhe da atividade (AutoClick).
+    render: (perfil, variante) => (<main className="min-h-screen bg-mist py-14"><ActivityCalendar />{variante ? <AutoClick passos={variante} /> : null}</main>)
   },
   "simulador-caixa": {
     path: "/admin/simulador-caixa",
@@ -337,6 +339,19 @@ const TELAS = {
       <main className="min-h-screen bg-mist py-14">
         <DailyGoalDashboard initialGoal={metaDiaria.brokerGoal} />
         <SupervisionMessageGate userId="vitrine-corretor-ana" />
+      </main>
+    )
+  },
+  "popup-cliente": {
+    // Janelinha de cliente novo (CLI-16, dono 2026-10-24) sobre a lista de Clientes. ?variante=1 | 3 | 5 (3 + "+2").
+    path: "/admin/simulacoes",
+    titulo: "Janelinha de cliente novo (?variante=1|3|5)",
+    active: "simulations",
+    rotas: clientes.routes,
+    render: (perfil, variante) => (
+      <main className="bg-mist pb-14 pt-3 md:pt-14">
+        <ClientWorkspace {...clientes.propsFor(perfil)} />
+        <PopupClienteDemo variante={variante || "1"} />
       </main>
     )
   },

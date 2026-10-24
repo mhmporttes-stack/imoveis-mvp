@@ -31,6 +31,7 @@ const {
   classifyNavigation,
   formatLogLine,
   isAllowedOrigin,
+  isWindowHidden,
   parsePreferences,
   shouldGrantPermission,
   titlebarPointer,
@@ -41,6 +42,7 @@ const {
 const { setMonitorPower } = require("./screen");
 const { synthesize } = require("./piper");
 const { createWakeEngine, registerWakeScheme } = require("./wake-engine");
+const { createUpdater } = require("./updater");
 
 const APP_ID = "br.com.matheusmachadoimoveis.crm";
 const PARTITION = "persist:mm-crm";
@@ -67,6 +69,7 @@ let preferences = parsePreferences("");
 let tray = null;
 let quitting = false;
 let wakeEngine = null;
+let updater = null;
 
 // Modelos de voz (Vosk + Piper, fase 1.1): no pacote ficam em resources/models (fora do asar: o Piper é um .exe);
 // no desenvolvimento, em desktop-app/models (baixados por scripts/fetch-models.js).
@@ -132,6 +135,10 @@ function webPreferences() {
     nodeIntegration: false,
     sandbox: true,
     webSecurity: true,
+    // Fica false de propósito (revisto em 1.3.1, app lento): minimizado, o Henry ouve o nome (Vosk), grava o pedido e decide o
+    // fim da fala com timers de 100 ms; com throttling o Chromium os segura em 1 s (e em 1/min depois de 5 min oculto).
+    // Efeito colateral: document.hidden nunca fica true aqui — por isso o app avisa a página (onWindowVisibility) e o CRM
+    // pausa animações e consultas por components/page-visibility.js.
     backgroundThrottling: false,
     autoplayPolicy: "no-user-gesture-required",
     spellcheck: true,
@@ -306,6 +313,12 @@ function createWindow({ hidden = false } = {}) {
   attachWindowKeys(crmView.webContents);
   attachWindowKeys(barView.webContents);
 
+  // 1.3.1: minimizou/foi para a bandeja/voltou → a página pausa ou retoma animações e consultas (onWindowVisibility).
+  for (const name of ["minimize", "restore", "hide", "show"]) mainWindow.on(name, sendWindowVisibility);
+  crmView.webContents.on("did-finish-load", sendWindowVisibility);
+  // Página recarregou/caiu: a tela cheia do Henry fechou junto (a página nova avisa de novo se abrir) — nada fica preso.
+  crmView.webContents.on("did-navigate", () => updater?.setHold(false));
+  crmView.webContents.on("render-process-gone", () => updater?.setHold(false));
   for (const name of ["resize", "maximize", "unmaximize", "enter-full-screen", "leave-full-screen", "restore"]) {
     mainWindow.on(name, () => {
       layoutViews();
@@ -339,6 +352,12 @@ function createWindow({ hidden = false } = {}) {
     mainWindow.maximize();
     mainWindow.show();
   }
+}
+
+function sendWindowVisibility() {
+  const exists = Boolean(mainWindow && !mainWindow.isDestroyed());
+  const hidden = isWindowHidden({ exists, visible: exists && mainWindow.isVisible(), minimized: exists && mainWindow.isMinimized() });
+  crmContents()?.send("mm:window-visibility", { hidden });
 }
 
 function showWindow() {
@@ -377,7 +396,17 @@ function buildTrayMenu() {
         checked: preferences.titlebarAlwaysVisible,
         click: (item) => setTitlebarAlwaysVisible(item.checked)
       },
+      {
+        // 1.2.1: por 2 min o log guarda o TEXTO que o Vosk reconheceu (para ver como ele escreve o "Rênri"); nunca áudio.
+        label: "Diagnóstico do nome (2 min)",
+        type: "checkbox",
+        checked: Boolean(wakeEngine?.isDiagnostic()),
+        enabled: Boolean(wakeEngine?.isRunning()) || Boolean(wakeEngine?.isDiagnostic()),
+        click: (item) => wakeEngine?.setDiagnostic(item.checked)
+      },
       { label: "Ver registro de ações", click: () => shell.openPath(logPath()) },
+      // 1.3.0: "Procurar atualização" (ou "Nova versão X pronta — Reiniciar agora" quando já baixou).
+      ...(updater ? [updater.trayItem()] : []),
       { type: "separator" },
       { label: "Sair", click: () => { quitting = true; app.quit(); } }
     ])
@@ -430,6 +459,16 @@ function setupBridge() {
   });
 }
 
+// 1.3.1: tela cheia do Henry aberta/fechada (evento henryFullscreen da ponte) → o atualizador guarda/mostra a caixa
+// "Nova versão pronta". Só a página do CRM (frame principal da view do CRM); qualquer outra coisa é ignorada.
+function setupHenryFullscreenChannel() {
+  ipcMain.on("mm:henry-fullscreen", (event, open) => {
+    const frame = event.senderFrame;
+    if (!frame || frame.parent || !isAllowedOrigin(frame.url) || event.sender !== crmContents()) return;
+    updater?.setHold(open === true);
+  });
+}
+
 // Canal PRÓPRIO da barra (não é window.mmDesktop): só a página local da barra, frame principal, comando da lista fechada.
 function setupTitlebarChannel() {
   ipcMain.on("mm:titlebar", (event, command) => {
@@ -456,16 +495,36 @@ function setupTitlebarChannel() {
   });
 }
 
+// Aviso do próprio app (atualização): notificação do Windows; clicar abre a escolha (ou a janela).
+function notifyApp(title, body, onClick) {
+  try {
+    const notice = new Notification({ title, body, icon: ICON, silent: false });
+    notice.on("click", onClick || showWindow);
+    notice.show();
+  } catch {
+    // sem notificação: o item da bandeja continua mostrando
+  }
+}
+
 function start() {
   app.setAppUserModelId(APP_ID); // notificações do Windows com o nome do app
   Menu.setApplicationMenu(null);
   setupSession();
   setupBridge();
   setupTitlebarChannel();
+  setupHenryFullscreenChannel();
   loadPreferences();
   session.fromPartition(TITLEBAR_PARTITION).setPermissionRequestHandler((_contents, _permission, callback) => callback(false));
   session.fromPartition(TITLEBAR_PARTITION).setPermissionCheckHandler(() => false);
-  wakeEngine = createWakeEngine({ modelsDir: MODELS_DIR, log: logAction });
+  wakeEngine = createWakeEngine({ modelsDir: MODELS_DIR, log: logAction, onChange: () => buildTrayMenu() });
+  updater = createUpdater({
+    log: logAction,
+    notify: notifyApp,
+    onChange: () => buildTrayMenu(),
+    beforeInstall: () => {
+      quitting = true; // fechar a janela não pode virar "esconder na bandeja" durante a instalação
+    }
+  });
   app.on("web-contents-created", (_event, contents) => guardContents(contents));
   powerSaveBlocker.start("prevent-app-suspension"); // o app não é suspenso; o monitor ainda pode apagar
   createWindow({ hidden: process.argv.includes("--hidden") });
@@ -483,6 +542,7 @@ function start() {
   });
   if (!registered) logAction("atalho_henry", false, "Ctrl+Shift+H já usado por outro programa");
   logAction("app_aberto", true, app.getVersion());
+  updater.start();
 }
 
 app.on("window-all-closed", () => {

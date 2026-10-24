@@ -10,6 +10,10 @@ import scene from "@/components/scenes/scenes.module.css";
 import { INFORMATIVE_MAX_VISIBLE, INFORMATIVE_TIMING, alertLink, enqueueInformative } from "@/lib/crm-alerts-core.mjs";
 import CooledClientPhone from "@/components/cooled/CooledClientPhone";
 import { COOLED_ALERT_TYPE, COOLED_NO_RESPONSE_REASON, COOLED_REASON_MIN_LENGTH, isValidCooledText } from "@/lib/cooled-clients-core.mjs";
+import { HENRY_NOTICE_DONE_EVENT, HENRY_NOTICE_ITEMS_EVENT, HENRY_VOICE_NOTICES_EVENT } from "@/lib/henry-voice-client-alerts-core.mjs";
+import { heldWhileHenryOpen } from "@/lib/henry-fullscreen-signal.mjs";
+import { useHenryFullscreen } from "@/components/henry/useHenryFullscreen";
+import { isPageHidden, onPageVisibilityChange } from "@/components/page-visibility";
 
 // Central de Alertas — camada ÚNICA de alertas na tela (pedido do dono,
 // 2026-10-02; especificação do designer-crm, arquitetura em lib/crm-alerts.js).
@@ -22,6 +26,7 @@ import { COOLED_ALERT_TYPE, COOLED_NO_RESPONSE_REASON, COOLED_REASON_MIN_LENGTH,
 // ([data-alert-important] em SupervisionMessageGate). Nunca dois bloqueantes.
 
 const FALLBACK_MS = 60000;
+const HENRY_CLOSE_RECHECK_MS = 400;
 
 function hasCompetingBlockingLayer() {
   if (typeof document === "undefined") return false;
@@ -47,7 +52,9 @@ async function postJson(url, body) {
   return data;
 }
 
-export default function AlertCenterGate({ userId }) {
+// importantOnly (app "Chat" da tela inicial, dono 2026-10-24): só o Importante (e a janela do cliente esfriado, FUN-15);
+// o Informativo não aparece nem é marcado como visto aqui — continua para o Painel.
+export default function AlertCenterGate({ userId, importantOnly = false }) {
   const [topic, setTopic] = useState("");
   const [important, setImportant] = useState([]);
   const [queue, setQueue] = useState([]);
@@ -56,6 +63,18 @@ export default function AlertCenterGate({ userId }) {
   const shownImportant = useRef(new Set());
   const isMobile = useIsMobile();
   const router = useRouter();
+  // Avisos só por voz (HENRY-1, dono 2026-10-23): com o Henry do DONO ativo nesta página (ele avisa por
+  // HENRY_VOICE_NOTICES_EVENT; só o dono tem o Henry), o INFORMATIVO não vira card — vai para o Henry, que chama e conta.
+  // O IMPORTANTE (bloqueia o CRM) não muda. Henry desligado/fechado/mudo/fora do horário → os guardados voltam como card.
+  // "Visto" continua pelo mesmo caminho da tela (/api/admin/alerts/shown), feito pelo Henry depois de falar.
+  const voiceModeRef = useRef(typeof window !== "undefined" && window.__mmHenryVoiceNotices?.active === true);
+  const heldRef = useRef(new Map());
+
+  const showHeld = useCallback((ids = null) => {
+    const items = [...heldRef.current.values()].filter((item) => !ids || ids.includes(item.id));
+    items.forEach((item) => heldRef.current.delete(item.id));
+    if (items.length) setQueue((current) => enqueueInformative(current, items, seenInformative.current));
+  }, []);
 
   const load = useCallback(async () => {
     try {
@@ -64,11 +83,45 @@ export default function AlertCenterGate({ userId }) {
       const data = await response.json();
       setTopic(data.topic || "");
       setImportant(data.important || []);
-      setQueue((current) => enqueueInformative(current, data.informative || [], seenInformative.current));
+      if (importantOnly) return;
+      const informative = data.informative || [];
+      if (voiceModeRef.current) {
+        const fresh = informative.filter((item) => item?.id && !seenInformative.current.has(item.id) && !heldRef.current.has(item.id));
+        fresh.forEach((item) => heldRef.current.set(item.id, item));
+        const held = [...heldRef.current.values()];
+        if (held.length) window.dispatchEvent(new CustomEvent(HENRY_NOTICE_ITEMS_EVENT, { detail: { items: held.map((item) => ({ id: item.id, created_at: item.created_at })) } }));
+      } else setQueue((current) => enqueueInformative(current, informative, seenInformative.current));
     } catch {
       // Sem rede: tenta de novo no próximo ping/intervalo.
     }
-  }, []);
+  }, [importantOnly]);
+
+  useEffect(() => {
+    const onMode = (event) => {
+      const active = event?.detail?.active === true;
+      if (active === voiceModeRef.current) return;
+      voiceModeRef.current = active;
+      if (active) load();
+      else showHeld();
+    };
+    const onDone = (event) => {
+      const ids = Array.isArray(event?.detail?.ids) ? event.detail.ids : [];
+      if (event?.detail?.release) {
+        showHeld(ids);
+        return;
+      }
+      ids.forEach((id) => {
+        heldRef.current.delete(id);
+        seenInformative.current.add(id);
+      });
+    };
+    window.addEventListener(HENRY_VOICE_NOTICES_EVENT, onMode);
+    window.addEventListener(HENRY_NOTICE_DONE_EVENT, onDone);
+    return () => {
+      window.removeEventListener(HENRY_VOICE_NOTICES_EVENT, onMode);
+      window.removeEventListener(HENRY_NOTICE_DONE_EVENT, onDone);
+    };
+  }, [load, showHeld]);
 
   useEffect(() => { if (userId) load(); }, [userId, load]);
   useSupervisionRealtime(userId ? topic : "", load, { fallbackMs: FALLBACK_MS });
@@ -76,11 +129,36 @@ export default function AlertCenterGate({ userId }) {
   useEffect(() => {
     const check = () => setBlockedByOther(hasCompetingBlockingLayer());
     check();
-    const id = setInterval(check, 2500);
-    return () => clearInterval(id);
+    // Página oculta (aba ou app de desktop minimizado): não confere; ao voltar confere na hora (2026-10-23).
+    const id = setInterval(() => {
+      if (!isPageHidden()) check();
+    }, 2500);
+    const stopWatchingVisibility = onPageVisibilityChange(() => {
+      if (!isPageHidden()) check();
+    });
+    return () => {
+      clearInterval(id);
+      stopWatchingVisibility();
+    };
   }, []);
 
-  const currentImportant = !blockedByOther ? important[0] || null : null;
+  // Tela cheia do Henry aberta (dono, 2026-10-23): o Importante espera na fila (`important`) e aparece quando ela fecha;
+  // "apareceu" (/shown) só é registrado quando ele de fato aparece. Ao fechar, segura mais um instante e confere de novo:
+  // se o balão da Supervisão voltou junto, ele vai primeiro (os dois se esperam — voltar no mesmo quadro faria piscar).
+  const henryOpen = useHenryFullscreen();
+  const [henryHold, setHenryHold] = useState(false);
+  useEffect(() => {
+    if (henryOpen) {
+      setHenryHold(true);
+      return undefined;
+    }
+    const timer = window.setTimeout(() => {
+      setBlockedByOther(hasCompetingBlockingLayer());
+      setHenryHold(false);
+    }, HENRY_CLOSE_RECHECK_MS);
+    return () => window.clearTimeout(timer);
+  }, [henryOpen]);
+  const currentImportant = !blockedByOther ? heldWhileHenryOpen(important[0], henryOpen || henryHold) : null;
   const pausedInformative = Boolean(currentImportant);
   // Visual novo (2026-10-22): no celular, 1 aviso por vez logo acima da barra inferior (a fila continua igual).
   const maxVisible = isMobile ? 1 : INFORMATIVE_MAX_VISIBLE.desktop;
@@ -124,7 +202,7 @@ export default function AlertCenterGate({ userId }) {
   if (!userId) return null;
   return (
     <>
-      <InformativeStack items={visible} waiting={waiting} paused={pausedInformative} isMobile={isMobile} onDone={dismissInformative} />
+      {importantOnly ? null : <InformativeStack items={visible} waiting={waiting} paused={pausedInformative} isMobile={isMobile} onDone={dismissInformative} />}
       {currentImportant ? (
         <ImportantDialog key={currentImportant.id} alert={currentImportant} position={1} total={important.length} onAcknowledge={acknowledge} />
       ) : null}

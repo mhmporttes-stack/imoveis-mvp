@@ -32,6 +32,8 @@ function readCardDevice() {
 export function useClientList({
   adminProfiles = [],
   canManageResponsibleUsers = false,
+  // "Pago" só pelo dono, conta real (FIN-7, 2026-10-24): a tela só oferece a etapa a quem pode; o servidor barra.
+  canMarkSalePaid = false,
   // CLI-7a (dono, 2026-10-16): corretor transfere os próprios clientes — { selfId, targets: [{ id, name }] } ou null.
   ownTransfer = null,
   brokerSimulationLink = "",
@@ -945,7 +947,7 @@ export function useClientList({
   return {
     // estado
     filters, searchInput, page, pageSize, items, total, totalPages, counters, pendingClientsCount,
-    loading, loadError, localTags, busyClientId: busyClientId || (chatNavPending ? openingChatClientId : ""), reasonTarget, receivedDateTarget, docsListTarget, responsibleProfiles, responsibleProfileMap, transferTargets,
+    loading, loadError, localTags, busyClientId: busyClientId || (chatNavPending ? openingChatClientId : ""), reasonTarget, receivedDateTarget, docsListTarget, canMarkSalePaid, responsibleProfiles, responsibleProfileMap, transferTargets,
     // filtros e paginação
     setSearchInput, updateFilters, resetFilters, goToPage, changePageSize, fetchClients,
     // ações

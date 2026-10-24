@@ -40,6 +40,148 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-24 — Henry "não consegue visualizar" se a cliente do aviso está no oficial ou no WhatsApp pessoal
+- **Data:** 2026-10-24
+- **Sintoma:** o Henry avisou "entrou uma cliente nova e está com você"; o dono perguntou se ela estava no número da API oficial ou no pessoal e ele respondeu que não conseguia visualizar.
+- **Área:** Henry / WhatsApp (Chat)
+- **Impacto:** só o dono (Henry); qualquer pergunta de canal/número da conversa de um cliente.
+- **Causa raiz:** (1) nenhuma ferramenta do Henry devolvia o canal da conversa: `buscar_clientes` e a conversa do `conversas_aguardando` liam etapa, datas e resumo, nunca `session_key`/`session_slot` de `whatsapp_conversations`; (2) o aviso falado (`speakHenryClientAlerts`) não entrava na memória do dia, que é o histórico que vai ao modelo quando existe — "ela" não tinha a quem se referir.
+- **Correção:** `listClientChatChannels` (`lib/whatsapp-chat.js`, mesmo escopo/canal do Chat) → `describeChatChannels` (`lib/henry-reports-core.mjs`) no campo `whatsapp` de `buscar_clientes` e da conversa do cliente; o aviso grava na memória do dia a linha "[Aviso do Henry] Cliente do aviso: <nome completo> (novo, com você)" + o texto falado (`alertMemoryContext`, `rememberHenryAlert`); prompt explica o marcador e o campo.
+- **Arquivos/commit:** `lib/whatsapp-chat.js`, `lib/henry-reports*.{js,mjs}`, `lib/henry-voice-client-alerts*.{js,mjs}`, `lib/henry-voice.js`, `lib/henry-voice-persona.mjs` — branch `fix/henry-canal-whatsapp`.
+- **Prevenção/teste:** `tests/henry-client-channel.test.mjs`.
+- **Status:** Corrigido (não publicado — aguarda merge)
+
+### 2026-10-24 — "Sim, você tem interesse?" volta a aparecer como mensagem do cliente no Chat Marketplace
+- **Data:** 2026-10-24
+- **Sintoma:** conversa "Andreza" (origem Roleta) com "Sim, você tem interesse?" como mensagem da cliente às 00:52 — é a sugestão de resposta rápida do Facebook ao vendedor. "Voltou a informar errado" (mesmo sintoma do caso Debora, 22/10).
+- **Área:** Chat Marketplace / extensão
+- **Impacto:** 18 conversas de 22/10 06:31 a 24/10 03:52 com a mensagem falsa (2 delas como última mensagem na lista).
+- **Causa raiz:** não foi regressão de layout: a correção de 22/10 (1.9.1) partia de que a sugestão não tem `data-message-id`, mas o bloco da sugestão TEM id próprio do Facebook (todas as 18 gravadas como `fb:mid…`); o leitor tirava o texto do chip (botão com `aria-label` igual ao texto) e o servidor só descartava o que não tinha id. PC na 1.9.4 (já com a 1.9.1).
+- **Correção:** extensão 1.9.7 ignora painel/chips no texto do balão e descarta o texto exato da sugestão; servidor descarta inbound "Sim, você tem interesse?"/"Yes, are you interested?" (`isQuickReplySuggestion`) também na renormalização. Detalhe: `CHANGELOG_AI.md` (2026-10-24).
+- **Arquivos/commit:** `ferramentas/marketplace-publicador/selectors.js`, `lib/marketplace-chat-core.mjs` — branch `fix/marketplace-sugestoes-autoresposta`.
+- **Prevenção/teste:** `ferramentas/marketplace-publicador/tests/estrutura-real.test.js` (fixture com a sugestão com `data-message-id`, com e sem título), `tests/marketplace-auto-reply.test.mjs`, `tests/marketplace-chat-core.test.mjs`. Diagnóstico: `select body, count(distinct conversation_id) from marketplace_messages where direction='inbound' group by 1 having count(distinct conversation_id) >= 3`.
+- **Status:** Diagnosticado, correção pendente de publicação + instalar extensão 1.9.7; limpeza das 18 linhas aguarda o dono (renormalização `apply=1`).
+
+### 2026-10-24 — "Apareceu uma conversa com o meu próprio número nas Particulares, cheia de 'Mensagem enviada pelo celular'"
+- **Data:** 2026-10-24
+- **Sintoma:** Chat > Particular: conversa com o número do próprio corretor (responsável ele mesmo, "Janela fechada"), só com bolhas "Mensagem enviada pelo celular — o CRM não conseguiu ler o conteúdo."
+- **Área:** WhatsApp
+- **Impacto:** conversas-lixo com o próprio número em várias sessões (a maior com 563 linhas); essas linhas também contavam como "contato humano" do corretor consigo mesmo. Mensagens para contatos reais não foram desviadas.
+- **Causa raiz:** o celular manda à própria conta mensagens de protocolo (nó "peer", ex.: resposta ao pedido de reenvio do conteúdo) com remoteJid = o próprio LID; as que não decifram viravam `undecrypted_message`. Sem o telefone do LID no serviço, o CRM o achava em OUTRA sessão (que conversa com esse corretor) e criava a conversa com o próprio número.
+- **Correção:** serviço não entrega mensagem da própria conta nem de nó "peer" e não pede reenvio de nó "peer"; CRM nunca cria/junta conversa com o `phone_number` da própria sessão. Detalhe: `docs/WHATSAPP.md` §1-L, `CHANGELOG_AI.md` (2026-10-24).
+- **Arquivos/commit:** `whatsapp-individual-service/src/{message-extract,pipeline-guard,sessions}.js`, `lib/whatsapp-self-chat-core.mjs`, `lib/whatsapp-individual-inbound.js` — branch `fix-self-chat`.
+- **Prevenção/teste:** `tests/whatsapp-self-chat.test.mjs`. Diagnóstico: conversa cujo `contact_phone` = `whatsapp_individual_sessions.phone_number` da mesma sessão; `metadata->>remote_jid` igual ao LID com que outras sessões falam com esse número; cruzar `message_at` com `placeholder_req` em `whatsapp_session_telemetry`.
+- **Status:** Diagnosticado, correção pendente de publicação (Vercel + Railway); limpeza das conversas antigas aguarda o dono.
+### 2026-10-24 — "Contato some da Meta Diária antes de receber mensagem"
+- **Data:** 2026-10-24
+- **Sintoma:** contato recém-entregue na Meta Diária (2ª passagem pela fila) volta para a Prospecção sem nenhuma tentativa; 11 devoluções `auto_returned` de rodada com `attempt_count = 0` no histórico (2 na mesma hora da entrega).
+- **Área:** Meta Diária / Prospecção
+- **Impacto:** o corretor perde contato da carteira sem trabalhar; contraria a MD-17 ("se não foi tentado contato ele fica ali ainda").
+- **Causa raiz:** `claim_daily_goal_contacts` não zera `prospecting_contacts.last_attempt_at`; o retorno de 7 dias (`autoReturnStaleProspectingContacts`) lia a data do ciclo anterior e devolvia no próximo ciclo do cron.
+- **Correção:** o retorno de 7 dias ignora contato com rodada ativa sem tentativa (`listContactIdsWithUntriedActiveRound`).
+- **Arquivos/commit:** `lib/prospecting-auto-return.js`, `lib/daily-goal-round-release.mjs` — commit deste registro.
+- **Prevenção/teste:** `tests/cold-list.test.mjs`.
+- **Status:** Monitorando (aguarda publicação)
+
+### 2026-10-24 — "Um corretor fica com 0 contatos novos na meta do dia e os outros com todos"
+- **Data:** 2026-10-24
+- **Sintoma:** em `daily_goal_wallet_freeze` de 21-23/10 um corretor não tinha nenhum dos 10 novos do dia no congelamento; os demais tinham todos.
+- **Área:** Meta Diária
+- **Impacto:** meta de prospecção do dia diferente entre corretores sem motivo de negócio.
+- **Causa raiz:** o congelamento da carteira pega as rodadas ativas no instante; se rodava (cron/1º acesso) antes da geração da cota, os novos ficavam de fora — dependia de quem rodava primeiro.
+- **Correção:** `includeGeneratedRoundsInWalletFreeze` acrescenta ao congelamento de hoje os novos da cota gerados depois dele (dias passados não foram regravados).
+- **Arquivos/commit:** `lib/daily-goal-wallet.js`, `lib/daily-goal-wallet-core.mjs`, `lib/daily-goal.js` — commit deste registro.
+- **Prevenção/teste:** `tests/daily-goal-wallet-freeze-order.test.mjs`.
+- **Status:** Monitorando (aguarda publicação)
+
+### 2026-10-24 — "Erro ao ler o perfil liberava o painel (até para e-mail inativo)"
+- **Data:** 2026-10-24
+- **Sintoma:** achado de auditoria (sem relato de uso): falha ao ler `admin_users` fazia o login cair num perfil de reserva ATIVO; um e-mail inativo no banco estava fixo como autorizado.
+- **Área:** Permissões
+- **Impacto:** risco de acesso indevido durante instabilidade do banco.
+- **Causa raiz:** `buildAuthorizedAdminResult` engolia o erro e usava `buildLegacyAdminProfile`; `DEFAULT_ADMIN_EMAILS`/fallback "benck" com e-mail fixo (agravante do P-10).
+- **Correção:** erro de leitura = 503 (sem perfil de reserva, nunca guardado no cache); só o dono fica fixo.
+- **Arquivos/commit:** `lib/admin-auth.js`, `lib/admin-profiles.js`, `app/api/admin/session/route.js` — commit deste registro.
+- **Prevenção/teste:** `tests/server-cache.test.mjs` (3 testes novos).
+- **Status:** Monitorando (aguarda publicação)
+
+### 2026-10-23 — "Cliente transferido só aparece na notificação, não no card de aguardando atendimento"
+- **Data:** 2026-10-23
+- **Sintoma:** corretor que recebe cliente por transferência (principalmente "mais de 3 dias sem contato") só vê o aviso; o cliente não entra em "Novos atendimentos" e se perde.
+- **Área:** Clientes / Pendências
+- **Impacto:** todos os perfis; 26 transferidos sem atendimento em 23/10; fila de reativação com ~100 clientes/semana para uma corretora.
+- **Causa raiz:** `getUnattendedClientIds` só considerava status "Atendimento automático" sem atendimento humano em toda a vida do cliente — transferido vem em outro status ou já atendido pelo corretor anterior.
+- **Correção:** soma os transferidos não atendidos desde o recebimento (CLI-7b). Detalhe no CHANGELOG_AI.
+- **Arquivos/commit:** `lib/simulation-list-query.js`, `lib/transferred-awaiting-core.mjs` — commit deste registro.
+- **Prevenção/teste:** `tests/transferred-awaiting-card.test.mjs`.
+- **Status:** Monitorando (aguarda publicação com o ok do dono)
+
+### 2026-10-23 — "Toda hora aparece que o WhatsApp está conectado sem receber, com a opção de desconectar"
+- **Data:** 2026-10-23
+- **Sintoma:** corretores recebiam várias vezes por dia o aviso Importante "WhatsApp conectado, mas sem receber" (push + bloqueio da tela) mandando desconectar e ler o QR de novo; o número estava funcionando.
+- **Área:** WhatsApp individual (CRM, `lib/whatsapp-false-connection*`)
+- **Impacto:** 23/10 até 15h30: 12 avisos a 5 números (+20 à equipe) e 2 desconexões automáticas do Eduardo. Em 8 dos 12 as mensagens entravam e saíam (envios "entregues", recebidas logo depois, sem atraso); 4 da ketlin, sem tráfego algum desde 20/10 (reiniciar e reler o QR não mudou nada). O vigia do serviço não achou nenhuma fila travada no dia. Depois dos avisos: 4 "desconectar" manuais, 5 reconexões manuais e 2 desvinculações pelo celular — pareamento repetido é agravante de banimento (Caroline banida no mesmo dia).
+- **Causa raiz:** o alarme era por SILÊNCIO (X h úteis sem receber; desde 23/10, 30 min para número de alto volume) e por quedas repetidas — falta de mensagem não prova falha, e as quedas 500 de ~50 min acontecem em todos os números. O silêncio + 3 quedas em 6 h ainda disparava a desconexão automática (logout → QR). O aviso repetia a cada 2 h e mandava direto ao QR.
+- **Correção:** só com evidência (≥ 3 envios para ≥ 3 conversas sem nada voltar do WhatsApp em ≥ 20 min, ou fila travada 2× em 1 h pelo vigia do serviço); primeiro reinício sem QR no serviço; só se persistir marca e avisa (1 por episódio, máx. 1 a cada 12 h por número), texto sem mandar desconectar. Marcas antigas saem sozinhas. Detalhe: `CHANGELOG_AI.md` (2026-10-23, "só com evidência").
+- **Arquivos/commit:** `lib/whatsapp-false-connection-core.mjs`, `lib/whatsapp-false-connection.js`, `components/WhatsappIndividualStatus.jsx` — commit deste registro.
+- **Prevenção/teste:** `tests/whatsapp-false-connection.test.mjs` (silêncio nunca é evidência; ordem reinício → aviso; teto de 12 h; textos). Conferir: `crm_alert_deliveries` com `dedupe_key like 'wa_false_b:%'` por dia e telemetria `pipeline_restart` kind `crm`.
+- **Status:** Monitorando
+
+### 2026-10-23 — App desktop lento e travando (Henry em tela cheia / app minimizado)
+- **Data:** 2026-10-23
+- **Sintoma:** "o app desktop está lento e travando"; CPU alta mesmo com o app minimizado ou na bandeja.
+- **Área:** App de desktop / Henry / Frontend
+- **Impacto:** só o PC do dono (app de desktop); a tela cheia do Henry pesava um núcleo inteiro também no navegador.
+- **Causa raiz:** (1) a view do CRM roda com `backgroundThrottling: false` (necessário para a voz minimizada), o que mantém `document.hidden` sempre falso: nenhuma pausa do CRM (anel, cenas, pollings) disparava com o app minimizado; (2) na tela cheia, cada fio do anel era desenhado de novo 5× mais largo para o brilho — ~12–15 ms por quadro sem GPU — a 60 fps, sem nunca descansar ocioso.
+- **Correção:** app 1.3.1 avisa a página ao minimizar/esconder (`onWindowVisibility` → `components/page-visibility.js`); brilho por camada reduzida/ampliada, 30 fps, 15 fps ocioso, qualidade adaptativa no `HenryOrb`. Números e detalhes no `CHANGELOG_AI.md` (2026-10-23, "App de desktop 1.3.1").
+- **Arquivos/commit:** `desktop-app/src/main.js`, `desktop-app/src/preload.js`, `components/page-visibility.js`, `components/henry/HenryOrb.jsx` — commit da versão 1.3.1 do app.
+- **Prevenção/teste:** `tests/page-visibility.test.mjs`, `desktop-app/tests/core.test.js` (`isWindowHidden`, lista da ponte), `tests/henry-voice-conversation.test.mjs` (30/15 fps e camada do brilho). Risco residual: outros ~30 pontos com `document.hidden` direto não pausam no app minimizado.
+- **Status:** Monitorando (medir CPU no PC do dono com GPU)
+
+### 2026-10-23 — Henry repete muito a mesma frase de espera ("Tô passando os olhos nos números")
+- **Data:** 2026-10-23
+- **Sintoma:** "o Henry repete muito 'Tô passando os olhos nos números'" (frase `w18`), mesmo depois da confirmação de escuta.
+- **Área:** Henry / Frontend
+- **Impacto:** só o dono; sem perda de dado.
+- **Causa raiz:** (a) o pacote de frases era sintetizado inteiro numa só chamada (~80 frases, 2 por vez, função de 60 s): voltando pela metade (tempo, crédito ou limite da ElevenLabs), o navegador guardava a lista parcial no `sessionStorage` e nunca completava — poucas frases com áudio; (b) `pickWaitPhrase` só escolhia entre as com áudio e, esgotadas as do dia, voltava a sortear entre elas evitando só a anterior; `w18` cobre 5 assuntos (inclusive geral/relatório) e ficava em quase todo sorteio; (c) na gravação a confirmação toca ANTES da transcrição, e o "2,5 s depois da confirmação" contava do fim dela — a 1ª frase de espera entrava ~0,8 s depois de o pedido sair.
+- **Correção:** cache por frase + pacote com teto de tempo + pré-aquecimento em lotes só do que falta; sem repetir no dia (ainda não usada sem áudio → silêncio e síntese dela; esgotado → nunca uma das últimas 10); 1ª frase ~2,5 s depois da confirmação e do pedido; +8 frases de números.
+- **Arquivos/commit:** `lib/henry-voice-narration.mjs`, `lib/henry-voice.js`, `app/api/admin/henry/route.js`, `components/henry/HenryVoiceAssistant.jsx` — commit deste registro
+- **Prevenção/teste:** `tests/henry-wait-phrases.test.mjs` (sem repetir no dia, silêncio + síntese, últimas 10, lotes, atraso com confirmação), `tests/henry-lexicon.test.mjs` (frases de espera seguras).
+- **Status:** Monitorando (teste do dono)
+
+### 2026-10-23 — Henry corta a fala no meio e responde "Não entendi" (app de desktop 1.3.0)
+- **Data:** 2026-10-23
+- **Sintoma:** "eu estou falando e ele corta minha fala no meio e já sai respondendo que não entendeu. Uma simples pausa de 1 segundo e ele já começa a pensar."
+- **Área:** Henry / Frontend
+- **Impacto:** só o dono; app de desktop (gravação + Scribe), iPhone (gravação) e parcial do Web Speech. Sem perda de dado.
+- **Causa raiz:** a gravação fechava com 1,2 s abaixo de um único nível do medidor (0,1): respirar, "é…" ou trecho mais baixo contavam como silêncio; o pedaço cortado ia para o Scribe e voltava vazio/curto → "Não entendi" ou resposta a meia frase. O parcial do Web Speech também virava final com 1,2 s fixo.
+- **Correção:** fim da fala com silêncio contínuo configurável (padrão 2,0 s; 1,2 s só para resposta curta com pergunta pendente), histerese (VAD Silero no app; nível menor depois de ouvir voz), máximo 25 s, continuação única depois de corte com transcrição vazia/cortada, "Ouvindo… pode continuar" — HENRY-1 "Fim da fala".
+- **Arquivos/commit:** `lib/henry-voice-conversation.mjs`, `lib/henry-voice-style.mjs`, `components/henry/HenryVoiceAssistant.jsx`, `components/henry/henry-vad.js`, `components/henry/HenrySettingsCard.jsx`, `app/api/admin/henry/route.js` — commit deste registro
+- **Prevenção/teste:** `tests/henry-voice-conversation.test.mjs` (pausa de 1 s não corta, histerese do VAD, pergunta pendente, continuação uma vez), `tests/henry-voice-style.test.mjs` (curto/normal/longo).
+- **Status:** Monitorando (teste do dono no app de desktop e no iPhone)
+
+### 2026-10-23 — Henry: "Não entendi" quando o dono responde "pode" à pergunta da música (com o Spotify tocando)
+- **Data:** 2026-10-23
+- **Sintoma:** com o Spotify tocando, "Bom dia, Henry" → ele pergunta "Posso dar play numa playlist…?" → o dono responde "pode" → aparece "Não entendi. Toque no Henry e fale de novo."
+- **Área:** Henry / Frontend
+- **Impacto:** só o dono; bom dia, "Qual vibe?", aviso com vocativo e qualquer pergunta dele com música tocando. Sem perda de dado.
+- **Causa raiz:** (1) a guarda da música (commit e6b55ac) só aceitava frase sem o nome logo depois de um chamado explícito — a resposta curta a uma pergunta DELE era descartada na escuta contínua; (2) ao terminar de falar a pergunta ele devolvia o volume do Spotify na hora, então a resposta era gravada com a música alta e a transcrição voltava vazia → "Não entendi"; (3) o bom dia oferecia playlist mesmo com música já tocando.
+- **Correção:** pergunta aberta (`openPendingReply`/`isAwaitingReply`, janela de 12 s depois que ele termina) libera resposta curta sem o nome na guarda (`musicListenGate` `awaitingReply`); música segue baixa durante a espera (`holdSpotifyDuck`); vazio/descartado com pergunta aberta → repete curta uma vez (`repeatQuestionFor`), depois fica no aguardo; no app de desktop o microfone abre sozinho depois da pergunta; bom dia com música tocando pula a oferta ("Já tá rolando um som, então bora pro dia:").
+- **Arquivos/commit:** `lib/henry-voice-conversation.mjs`, `components/henry/HenryVoiceAssistant.jsx`, `lib/henry-voice.js`, `lib/henry-morning-core.mjs` — commit deste registro
+- **Prevenção/teste:** `tests/henry-music.test.mjs` ("pode" aceito com pergunta pendente, ignorado sem ela, letra longa sempre ignorada, repetição curta só uma vez, aviso não repete).
+- **Status:** Monitorando (teste do dono com o Spotify real)
+
+### 2026-10-23 — Henry responde à letra da música que está tocando / fala de "analisar o CRM" ao pedir playlist
+- **Data:** 2026-10-23
+- **Sintoma:** (1) com o Spotify tocando, o Henry acorda e responde trechos da música; (2) ao pedir uma playlist ele diz que está "analisando o CRM/os números" e mostra cartões de ranking/gráficos.
+- **Área:** Henry / Frontend
+- **Impacto:** só o dono; sem perda de dado.
+- **Causa raiz:** (1) o Spotify toca fora da página (app do PC/celular), então o cancelamento de eco do navegador não tem a referência desse som: a letra entrava como fala do dono na janela de conversa de 40 s (sem o nome), na tela cheia "já chamando", no barge-in por 3+ palavras ou com algo parecido com "Henry"/"para" no meio. (2) O pedido começava com o tópico `geral` (frases "conferir no CRM", "passando os olhos nos números") e, na resposta à música do bom dia (modo `report`), a tela ligava a cena de dados do relatório; a ferramenta `spotify` não tinha tópico próprio.
+- **Correção:** guarda da escuta com música tocando (`musicListenGate`, `detectMusicBargeIn`, `isMusicGuardActive`) + volume do Spotify baixo enquanto ele escuta/responde; tópico `music` desde o 1º evento, frases e cena próprias (HENRY-1 "Música").
+- **Arquivos/commit:** `lib/henry-voice-conversation.mjs`, `lib/henry-voice-narration.mjs`, `components/henry/HenryVoiceAssistant.jsx` — commit deste registro
+- **Prevenção/teste:** `tests/henry-music.test.mjs` (frase sem nome ignorada, nome no começo aceito, letra longa ignorada, barge-in só forte, narração sem "CRM", topic music cedo).
+- **Status:** Monitorando (teste do dono com o Spotify real; Vosk do app de desktop com outro agente)
+
 ### 2026-10-23 — Henry não para de falar quando o dono interrompe ("para", "Henry" ou falando por cima)
 - **Data:** 2026-10-23
 - **Sintoma:** com o Henry falando no computador, o dono diz "para" ou fala por cima e ele continua; às vezes o microfone "ouve" o próprio Henry.
@@ -766,3 +908,16 @@ Copie o modelo abaixo (uma entrada por bloco):
 - **Sintoma:** a extensão abria e lia as conversas do Marketplace, mas o popup mostrava "não chegou ao CRM (Não foi possível sincronizar.)"; `marketplace_conversations` com linhas e `marketplace_messages` vazia.
 - **Causa raiz:** o upsert de mensagens (`lib/marketplace-chat.js`, `onConflict: "conversation_id,external_id"`) falhava no Postgres com "there is no unique or exclusion constraint matching the ON CONFLICT specification" (PostgREST 400): o único índice único era parcial (`where external_id is not null`), e ON CONFLICT só casa com índice parcial quando recebe o mesmo predicado.
 - **Correção:** índice único completo `marketplace_messages_conversation_external_key` (migration `20261021223000_marketplace_messages_external_unique_full.sql`); NULLs seguem distintos. Achado pelos logs do Postgres (`query_logs`), não pela extensão.
+
+## 2026-10-23 — Henry "ouve e não responde" / "pergunta, eu respondo e ele cala" (app de desktop)
+
+- **Sintoma:** anel em "ouvindo", o dono para de falar e nada acontece; resposta ao "Ô, patrão?" ignorada (chama de novo). `ai_usage_log`: 73 `henry_voice_stt` × 34 `henry_voice_assistant` em 6 h.
+- **Causa raiz:** (1) a gravação abria logo depois da fala dele e o fim da voz dele no alto-falante contava como "o dono falando" → fechava em 1,2 s com transcrição vazia → microfone fechado durante a transcrição e continuação de só 3,5 s → a resposta real caía no vão; (2) com música tocando, VAD/medidor nunca viam silêncio → gravação até o limite de 25 s → a guarda da música descartava a transcrição como "letra".
+- **Correção:** `triggeredTranscriptIntent` (texto não vazio de gravação do Henry sempre vira pedido; só eco evidente sai), 350 ms de ruído de fundo + voz confirmada em 2 leituras, VAD ignorado com música, continuação de vazio com 7 s; motivos no console (`window.__henryDebug`).
+
+## 2026-10-23 — Henry pede música e responde só "tá tocando" (outra música; parte do pedido some)
+
+- **Sintoma:** "coloca o quinto vigia e depois me fala do Gabriel" → "Pronto, tá tocando! Vida Loka, Pt. 1" e nada do Gabriel.
+- **Causa raiz:** busca do Spotify com `limit=1` só em faixa (pega o 1º resultado sem conferir) e a fala fixa da música substituía a resposta inteira do modelo, mesmo em pedido composto.
+- **Correção:** `pickSpotifySearchResult` (4 tipos, 10 de cada, escolha por correspondência; nada parecido = "É essa?"), `confirmPlaying` (confere o que tocou, 1 nova tentativa), fala fixa só em pedido só de música.
+

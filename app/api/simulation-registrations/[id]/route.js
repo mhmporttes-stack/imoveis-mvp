@@ -21,7 +21,9 @@ export async function PATCH(request, { params }) {
   }
 
   try {
-    const body = await request.json();
+    // `statusSource` é só do servidor (origem do status no histórico; isenta a decisão do cliente frio da trava PRO-9 —
+    // dono, 2026-10-24): nunca aceito do corpo da requisição.
+    const { statusSource: _ignoredStatusSource, ...body } = (await request.json()) || {};
     // Telefone vindo da tela = digitado por pessoa: validado no servidor (número válido, nunca da equipe — MKT-2/WA-12).
     const registration = await updateSimulationRegistration((await params).id, {
       ...body,
@@ -30,7 +32,8 @@ export async function PATCH(request, { params }) {
     }, auth);
     return NextResponse.json(registration);
   } catch (error) {
-    return NextResponse.json({ error: formatSimulationRegistrationError(error) }, { status: 400 });
+    // "Pago" só pelo dono (FIN-7, 2026-10-24): recusa de permissão sai como 403.
+    return NextResponse.json({ error: formatSimulationRegistrationError(error) }, { status: error?.code === "SALE_PAID_OWNER_ONLY" ? 403 : 400 });
   }
 }
 

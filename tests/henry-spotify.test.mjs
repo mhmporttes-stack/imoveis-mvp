@@ -37,7 +37,7 @@ test("intenção: comando da ferramenta vira ação validada", () => {
 });
 
 test("autorização: escopos pedidos, state anti-CSRF e só a busca do Spotify Web no fallback", () => {
-  assert.deepEqual([...SPOTIFY_SCOPES], ["user-read-playback-state", "user-modify-playback-state", "user-read-currently-playing"]);
+  assert.deepEqual([...SPOTIFY_SCOPES], ["user-read-playback-state", "user-modify-playback-state", "user-read-currently-playing", "user-top-read", "user-read-recently-played", "playlist-read-private"]);
   const url = new URL(buildSpotifyAuthorizeUrl({ clientId: "abc", redirectUri: "https://www.matheusmachadoimoveis.com.br/api/admin/henry/spotify/callback", state: "s".repeat(48) }));
   assert.equal(url.origin + url.pathname, "https://accounts.spotify.com/authorize");
   assert.equal(url.searchParams.get("response_type"), "code");
@@ -151,8 +151,9 @@ test("Spotify no Henry: ferramenta, guard do dono, refresh token só no servidor
   assert.match(connect, /httpOnly: true/);
   const route = readFileSync(new URL("../app/api/admin/henry/route.js", import.meta.url), "utf8");
   assert.match(route, /isSpotifyOpenUrl\(url\) \? url : null/);
-  assert.equal(henryProgressFor("spotify", { acao: "pausar" }), null); // música não é busca no CRM
-  assert.equal(pickHenryAnswerScene({ tools: [{ name: "spotify", input: { acao: "tocar" } }] }), "conversa");
+  // Música não é busca no CRM: cena e frases próprias do Spotify (dono, 2026-10-23), nunca a cena de números.
+  assert.equal(henryProgressFor("spotify", { acao: "pausar" }).topic, "music");
+  assert.equal(pickHenryAnswerScene({ tools: [{ name: "spotify", input: { acao: "tocar" } }] }), "musica");
 });
 
 test("open_spotify: sem aparelho a busca devolve a URI; polling acha o aparelho, transfere e toca nele (fetch mockado)", async () => {
@@ -224,7 +225,7 @@ test("open_spotify: payload validado na rota, fala fixa, tela abre na mesma aba 
   const route = readFileSync(new URL("../app/api/admin/henry/route.js", import.meta.url), "utf8");
   assert.match(route, /isSpotifyUri\(spotify\.uri\)/);
   const voice = readFileSync(new URL("../lib/henry-voice.js", import.meta.url), "utf8");
-  assert.match(voice, /if \(context\.spotify\) replyText = "Abrindo o Spotify…";/);
+  assert.match(voice, /if \(context\.spotify && musicOnly\) replyText = "Abrindo o Spotify…";/); // pedido só de música (composto fica com o modelo)
   const play = readFileSync(new URL("../app/api/admin/henry/spotify/play/route.js", import.meta.url), "utf8");
   assert.match(play, /requireAdminApi\(request\)/);
   assert.match(play, /assertHenrySpotifyOwner\(auth\)/);

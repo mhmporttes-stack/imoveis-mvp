@@ -145,6 +145,17 @@ export async function GET(request) {
       prospectingAutoReturn = { error: autoReturnError?.message || "Falha no retorno automático." };
     }
 
+    // Lista fria da Prospecção (dono, 2026-10-24, lib/cold-list-core.mjs): marca quem teve tentativa de 3 corretores e
+    // arquiva quem completou 3 passagens sem resposta. Com trava; roda no máximo a cada 10 min; nunca derruba o cron.
+    let coldList = null;
+    try {
+      const { runColdListJob } = await import("@/lib/cold-list");
+      coldList = await runColdListJob();
+    } catch (coldListError) {
+      console.error("Falha na rotina da Lista fria da Prospecção.", coldListError);
+      coldList = { error: coldListError?.message || "Falha na Lista fria." };
+    }
+
     // Fila de espera da roleta (regra do dono, 2026-09-30): distribui pro
     // primeiro corretor on-line quem ficou sem responsável porque, na hora
     // da criação, ninguém estava on-line. Roda ANTES da rede de segurança
@@ -221,6 +232,17 @@ export async function GET(request) {
       cooledClients = { error: cooledError?.message || "Falha no fluxo." };
     }
 
+    // Bônus "Primeiro a chegar"/"Último a sair" da imobiliária (RAN-10, dono 2026-10-23): decide uma vez por dia e tipo,
+    // sem aviso/push. Nunca derruba o resto do cron.
+    let officePresenceBonus = null;
+    try {
+      const { runOfficePresenceBonus } = await import("@/lib/office-presence-bonus");
+      officePresenceBonus = await runOfficePresenceBonus();
+    } catch (bonusError) {
+      console.error("Falha no bônus de presença na imobiliária.", bonusError);
+      officePresenceBonus = { error: bonusError?.message || "Falha no bônus de presença." };
+    }
+
     const allResults = [...results, ...calendarResults];
     return NextResponse.json({
       ok: true,
@@ -233,12 +255,14 @@ export async function GET(request) {
       expectedReceipts,
       sponsoredLeads,
       prospectingAutoReturn,
+      coldList,
       pendingRouletteAssignment,
       cooledReactivation,
       marketplaceRedistribution,
       orphanReassignment,
       captacaoUploadCleanup,
-      cooledClients
+      cooledClients,
+      officePresenceBonus
     });
   } catch (error) {
     console.error("Falha ao verificar atividades agendadas.", error);

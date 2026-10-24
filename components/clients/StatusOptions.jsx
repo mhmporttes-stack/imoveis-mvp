@@ -18,7 +18,9 @@ export const SELECTABLE_STATUS_VALUES = [
 
 // "Simulação realizada" só existe com simulação de verdade (financiamento ou
 // subsídio): sem ela a opção aparece bloqueada (o servidor também recusa).
-export default function StatusOptions({ current = "", hasRealSimulation = true }) {
+// "Pago" só para a conta real do dono (FIN-7, 2026-10-24): para os demais a
+// opção não aparece (só como valor atual, desabilitada); o servidor também recusa.
+export default function StatusOptions({ current = "", hasRealSimulation = true, canMarkPaid = false }) {
   const simulationBlocked = isSimulationDoneOptionBlocked({ currentStatus: current, hasRealSimulation });
   return (
     <>
@@ -28,7 +30,10 @@ export default function StatusOptions({ current = "", hasRealSimulation = true }
         ? <option key={value} value={value} disabled>{CLIENT_STATUS_META[value].label} (gere a simulação primeiro)</option>
         : <option key={value} value={value}>{CLIENT_STATUS_META[value].label}</option>)}
       <optgroup label="Venda">
-        {CLIENT_FUNNEL_SALE_STATUS_VALUES.map((value) => <option key={value} value={value}>{CLIENT_STATUS_META[value].label}</option>)}
+        {CLIENT_FUNNEL_SALE_STATUS_VALUES.map((value) => {
+          if (value !== CLIENT_STATUS.SALE_PAID || canMarkPaid) return <option key={value} value={value}>{CLIENT_STATUS_META[value].label}</option>;
+          return current === value ? <option key={value} value={value} disabled>{CLIENT_STATUS_META[value].label}</option> : null;
+        })}
       </optgroup>
     </>
   );

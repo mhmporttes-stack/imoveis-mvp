@@ -5,7 +5,7 @@ O painel administrativo pode ser instalado no iPhone pelo Safari usando **Compar
 ## O Que Foi Configurado
 
 - Manifest da PWA com nome `Painel Matheus`.
-- `start_url` em `/admin`.
+- `start_url` em `/admin/abrir` (porta de entrada: dono → Início; demais → Clientes — `docs/BUSINESS_RULES.md` INI-6).
 - Abertura em modo `standalone`.
 - Ícones próprios em `public/icons`.
 - `apple-touch-icon`.

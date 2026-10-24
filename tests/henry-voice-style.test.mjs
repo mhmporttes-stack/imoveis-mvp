@@ -8,6 +8,7 @@ import {
   henryAddressName,
   henryBrowserRate,
   henrySampleText,
+  henryEndWaitMs,
   henryStyleOptions,
   mergeHenryStyle,
   parseHenryStylePatch,
@@ -29,7 +30,7 @@ test("vozes: as 13 da documentação oficial do gpt-4o-mini-tts, nenhuma inventa
 
 test("padrões: nada salvo = tom AMIGO (dono, 2026-10-22), voz do env, ritmo ágil, Matheus; tom salvo é respeitado", () => {
   const style = resolveHenryStyle(undefined, { defaultVoice: "ash" });
-  assert.deepEqual(style, { voice: "ash", elevenVoice: "", tone: "descontraido", speed: "normal", details: "", address: "", rockMusic: "", sertanejoMusic: "" }); // músicas do bom dia vazias = padrão (2026-10-23)
+  assert.deepEqual(style, { voice: "ash", elevenVoice: "", tone: "descontraido", speed: "normal", endWait: "normal", listenAck: "on", details: "", address: "", rockMusic: "", sertanejoMusic: "" }); // músicas do bom dia vazias = padrão (2026-10-23)
   assert.equal(resolveHenryStyle({}, {}).voice, "ash");
   assert.equal(resolveHenryStyle({}, { defaultVoice: "coral" }).voice, "coral");
   assert.match(buildHenryTtsInstructions(style), FRIEND);
@@ -127,4 +128,16 @@ test("como tratar o dono: saudação do relatório, amostra e elogio (regras do 
   assert.match(prompt, /Ele é o "chefe", mas NÃO diga o nome/);
   assert.match(prompt, /NUNCA comente corpo/);
   assert.match(buildComplimentPrompt([]), /Ele é o "Matheus", mas NÃO diga o nome/);
+});
+
+test("tempo de espera do fim da fala: curto/normal/longo = 1,2/2,0/3,0 s, padrão normal, guardado no style", () => {
+  assert.equal(henryEndWaitMs(undefined), 2000);
+  assert.equal(henryEndWaitMs({ endWait: "curto" }), 1200);
+  assert.equal(henryEndWaitMs({ endWait: "longo" }), 3000);
+  assert.equal(henryEndWaitMs({ endWait: "eterno" }), 2000); // adulterado → padrão
+  assert.deepEqual(parseHenryStylePatch({ endWait: "longo" }), { ok: true, patch: { endWait: "longo" } });
+  assert.equal(parseHenryStylePatch({ endWait: 3 }).ok, false);
+  assert.deepEqual(mergeHenryStyle({ tone: "executivo" }, { endWait: "curto" }), { tone: "executivo", endWait: "curto" });
+  assert.equal(mergeHenryStyle({ endWait: "longo" }, { tone: "executivo" }).endWait, "longo"); // não perde ao salvar outro campo
+  assert.deepEqual(henryStyleOptions().endWaits.map((wait) => wait.id), ["curto", "normal", "longo"]);
 });

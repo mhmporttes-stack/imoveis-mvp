@@ -573,13 +573,53 @@
       .map((node) => MP.normalize(node.innerText));
   }
 
+  // 1.9.6: sem campo de mensagem, a conversa pode ter sido bloqueada/encerrada pelo Facebook (o CRM para de reenviar).
+  function missingComposer(win, error) {
+    const text = String((win || document.body)?.innerText || "").slice(-4000);
+    if (MP.isConversationClosed(text)) return { ok: false, sentAttempted: false, closed: true, error: "O Facebook não deixa mais responder esta conversa (bloqueada ou encerrada)." };
+    return { ok: false, sentAttempted: false, error };
+  }
+
+  // 1.9.6 (dono, 2026-10-24: reenvio a cada 30 s até concluir): antes de digitar de novo uma resposta cuja tentativa
+  // anterior pode ter saído, confere a conversa. present = há mais mensagens nossas iguais do que o CRM já conhecia
+  // (knownSame). Sem conseguir ler a conversa → unknown (o background não digita; o CRM tenta conferir de novo).
+  async function verifySent(message) {
+    if (pageCheckpoint()) return { ok: false, checkpoint: true, error: "O Facebook mostrou verificação/limite." };
+    const win = await waitFor(() => chatWindow(), 15000);
+    const composer = await waitFor(() => [...(win || document).querySelectorAll(MP.inbox.composer)].find((element) => visible(element)), 15000);
+    if (!composer) {
+      const missing = missingComposer(win, "Campo de mensagem não encontrado.");
+      if (missing.closed) return missing;
+    }
+    const log = (win || document).querySelector(MP.inbox.log);
+    if (!log) return { ok: false, unknown: true, error: "Não consegui ler a conversa para conferir antes de reenviar." };
+    await sleep(1500);
+    const known = Math.max(0, Number(message.knownSame) || 0);
+    const file = message.file || null;
+    let count = 0;
+    if (file) {
+      const image = String(file.type || "").startsWith("image");
+      const nameKey = MP.normalize(String(file.name || "").replace(/\.[a-z0-9]{1,5}$/i, "")).slice(0, 30);
+      count = image ? ownImageCount(win) : ownMessagesWith(nameKey, win);
+    } else {
+      const target = MP.normalize(String(message.text || "").replace(/\s*\n+\s*/g, " ").trim()).slice(0, 40);
+      count = ownMessagesWith(target, win);
+    }
+    return { ok: true, present: count > known };
+  }
+
   // Envia UMA resposta. sentAttempted=true a partir do Enter (o background não tenta de novo depois disso).
-  async function sendText(text) {
+  // automatic (1.9.7, MKT-2l): resposta automática do CRM — se o campo já tem texto (alguém digitando no Facebook), não
+  // digita nada e devolve humanTyping (o CRM cancela a automática).
+  async function sendText(text, { automatic = false } = {}) {
     if (pageCheckpoint()) return { ok: false, checkpoint: true, sentAttempted: false, error: "O Facebook mostrou verificação/limite." };
     // Campo "Aa" da janela de chat aberta (ou da página da conversa).
     const win = await waitFor(() => chatWindow(), 15000);
     const composer = await waitFor(() => [...(win || document).querySelectorAll(MP.inbox.composer)].find((element) => visible(element)), 15000);
-    if (!composer) return { ok: false, sentAttempted: false, error: "Campo de mensagem não encontrado." };
+    if (!composer) return missingComposer(win, "Campo de mensagem não encontrado.");
+    if (automatic && String(composer.innerText || composer.textContent || "").trim()) {
+      return { ok: false, sentAttempted: false, humanTyping: true, error: "Alguém está digitando nesta conversa no Facebook — resposta automática cancelada." };
+    }
     composer.scrollIntoView({ block: "center" });
     await sleep(between(300, 600));
     const rect = composer.getBoundingClientRect();
@@ -606,6 +646,53 @@
     await closeChatWindow(win); // não acumula janelas abertas
     // Sem confirmação: unconfirmed — o CRM não reenvia sozinho; confirma pelo eco na próxima leitura da conversa.
     return confirmed ? { ok: true, sentAttempted: true } : { ok: false, sentAttempted: true, unconfirmed: true, error: "Não confirmei a mensagem na conversa (confira no Facebook)." };
+  }
+
+  // Quantas mensagens NOSSAS com foto há nas últimas 15 da conversa (confirmação do envio de arquivo, 1.9.5).
+  function ownImageCount(win = null) {
+    const log = (win || document).querySelector(MP.inbox.log);
+    if (!log) return 0;
+    const rows = MP.readLogRows(log, { directionOf: (article) => geometryDirection(article, log), attachmentsOf: bubbleAttachments });
+    return rows.slice(-15).filter((row) => row.direction === "outbound" && (row.attachments || []).length).length;
+  }
+
+  // 1.9.5: envia UM arquivo (foto/PDF) da resposta do CRM. Anexa pelo campo de arquivo da janela da conversa (mesmo jeito
+  // das fotos do anúncio) e envia com Enter confiável. Confirma pela bolha nova nossa (foto) ou pelo nome do arquivo (PDF).
+  // sentAttempted=true a partir do Enter (o CRM nunca reenvia sozinho depois disso; confirma pelo eco).
+  async function sendFile(file) {
+    if (pageCheckpoint()) return { ok: false, checkpoint: true, sentAttempted: false, error: "O Facebook mostrou verificação/limite." };
+    if (!file?.base64) return { ok: false, sentAttempted: false, error: "Arquivo da resposta não recebido." };
+    const win = await waitFor(() => chatWindow(), 15000);
+    const scope = win || document;
+    const input = await waitFor(() => [...scope.querySelectorAll(MP.inbox.fileInput)].find((element) => !element.disabled) || null, 15000);
+    if (!input) return missingComposer(win, "Campo de anexo da conversa não encontrado.");
+    const composer = [...scope.querySelectorAll(MP.inbox.composer)].find((element) => visible(element));
+    if (!composer) return missingComposer(win, "Campo de mensagem não encontrado.");
+    const image = String(file.type || "").startsWith("image/");
+    const nameKey = MP.normalize(String(file.name || "").replace(/\.[a-z0-9]{1,5}$/i, "")).slice(0, 30);
+    const imagesBefore = ownImageCount(win);
+    const namedBefore = image ? 0 : ownMessagesWith(nameKey, win);
+    const bytes = Uint8Array.from(atob(file.base64), (c) => c.charCodeAt(0));
+    const transfer = new DataTransfer();
+    transfer.items.add(new File([bytes], file.name, { type: file.type }));
+    input.files = transfer.files;
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+    input.dispatchEvent(new Event("change", { bubbles: true }));
+    await sleep(between(2500, 4000));
+    composer.scrollIntoView({ block: "center" });
+    const rect = composer.getBoundingClientRect();
+    if (!(await trusted("click", { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 }))) composer.focus();
+    await sleep(between(300, 700));
+    if (!(await trusted("key", { key: "Enter" }))) return { ok: false, sentAttempted: false, error: "Depurador desligado: não envio com eventos simulados." };
+    const sent = () => (image ? ownImageCount(win) > imagesBefore : ownMessagesWith(nameKey, win) > namedBefore) || null;
+    let confirmed = await waitFor(sent, 45000, 800);
+    if (!confirmed) {
+      await sleep(4000);
+      confirmed = Boolean(sent());
+    }
+    if (pageCheckpoint()) return { ok: false, checkpoint: true, sentAttempted: true, error: "O Facebook mostrou verificação/limite depois do envio." };
+    await closeChatWindow(win);
+    return confirmed ? { ok: true, sentAttempted: true } : { ok: false, sentAttempted: true, unconfirmed: true, error: "Não confirmei o arquivo na conversa (confira no Facebook)." };
   }
 
   // --- Diagnóstico de estrutura (1.8.5) ---------------------------------------------------------------------------
@@ -743,7 +830,11 @@
       case "mp-inbox-read":
         return readThread(message.threadKey, message.full === true, message.contactName || "", Number(message.maxMs) || 0);
       case "mp-inbox-send":
-        return sendText(message.text);
+        return sendText(message.text, { automatic: message.automatic === true });
+      case "mp-inbox-send-file":
+        return sendFile(message.file);
+      case "mp-inbox-verify":
+        return verifySent(message);
       default:
         return null;
     }

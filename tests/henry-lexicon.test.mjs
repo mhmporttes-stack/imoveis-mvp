@@ -18,10 +18,11 @@ import {
   vocabularyUsage
 } from "../lib/henry-voice-lexicon.mjs";
 import { appendDayTurns, dayLexiconState, recordDayLexicon } from "../lib/henry-memory-core.mjs";
-import { HENRY_STYLE_GUIDE, HENRY_VARIATION_HINTS, buildHenryDynamicPrompt, buildHenryStaticPrompt, buildHenrySystemBlocks, buildReportRewritePrompt, pickDayHint, reportNumbersMatch } from "../lib/henry-voice-persona.mjs";
+import { HENRY_CHAT_SCENES, HENRY_STYLE_GUIDE, HENRY_VARIATION_HINTS, henryNeedsTools, buildHenryDynamicPrompt, buildHenryStaticPrompt, buildHenrySystemBlocks, buildReportRewritePrompt, pickDayHint, reportNumbersMatch } from "../lib/henry-voice-persona.mjs";
 import { laughForSpeech, pronounceForSpeech } from "../lib/henry-voice-providers.mjs";
 import { detectBargeIn } from "../lib/henry-voice-conversation.mjs";
 import { isSafeToSpeak } from "../lib/alexa-v2/sanitize.mjs";
+import { HENRY_WAIT_PHRASES } from "../lib/henry-voice-narration.mjs";
 
 const lib = readFileSync(new URL("../lib/henry-voice.js", import.meta.url), "utf8");
 const ALL = Object.values(HENRY_LEXICON).flatMap((category) => category.items);
@@ -69,6 +70,61 @@ test("banco seguro para a voz e para a trava de números: sem número, sem palav
   }
   // As despedidas não contêm palavra de parada (a própria fala não interrompe o Henry).
   for (const text of HENRY_LEXICON.despedida.items) assert.equal(detectBargeIn(text, "").interrupt, false, text);
+});
+
+// Frases de espera (dono, 2026-10-23: "repete muito 'Tô passando os olhos nos números'"): mesmas travas do banco, únicas e
+// sem palavra de parada (a fala dele nunca interrompe a si mesma).
+test("frases de espera: seguras, sem número, sem 'Henry', sem palavra de parada, sem repetir texto; 8+ novas de números", () => {
+  assert.equal(new Set(HENRY_WAIT_PHRASES.map((phrase) => lexiconKey(phrase.text))).size, HENRY_WAIT_PHRASES.length);
+  for (const { text } of HENRY_WAIT_PHRASES) {
+    assert.ok(isSafeToSpeak(text), `barreira da fala: ${text}`);
+    assert.doesNotMatch(text, /\d/, text);
+    assert.ok(reportNumbersMatch("", text), `número por extenso: ${text}`);
+    assert.doesNotMatch(lexiconKey(text), /\bhenry\b|\brenri\b/, text);
+    for (const pattern of FORBIDDEN) assert.doesNotMatch(lexiconKey(text), pattern, text);
+    assert.equal(detectBargeIn(text, "").interrupt, false, text);
+  }
+  const numbers = ["w41", "w42", "w43", "w44", "w45", "w46", "w47", "w48"].map((id) => HENRY_WAIT_PHRASES.find((phrase) => phrase.id === id));
+  for (const phrase of numbers) {
+    assert.ok(phrase?.topics.includes("relatorio"), phrase?.id);
+    assert.ok(phrase.text.split(/\s+/).length <= 8, phrase.text); // curtas
+  }
+});
+
+// Situações de papo (dono, 2026-10-24, itens 1-4 de docs/scout/henry-conversa-2026-10-24.md): mesmas travas do banco.
+test("papo do dia a dia: 15+ situações, falas seguras, sem número, sem 'Henry', sem palavra de parada; no guia fixo", () => {
+  assert.ok(HENRY_CHAT_SCENES.length >= 15, `${HENRY_CHAT_SCENES.length}`);
+  assert.equal(new Set(HENRY_CHAT_SCENES.map((scene) => scene.id)).size, HENRY_CHAT_SCENES.length);
+  const replies = HENRY_CHAT_SCENES.flatMap((scene) => scene.replies);
+  assert.equal(new Set(replies.map(lexiconKey)).size, replies.length);
+  for (const text of replies) {
+    assert.ok(isSafeToSpeak(text), `barreira da fala: ${text}`);
+    assert.doesNotMatch(text, /\d/, text);
+    assert.ok(reportNumbersMatch("", text), `número por extenso: ${text}`);
+    assert.doesNotMatch(lexiconKey(text), /\bhenry\b|\brenri\b/, text);
+    for (const pattern of FORBIDDEN) assert.doesNotMatch(lexiconKey(text), pattern, text);
+    assert.equal(detectBargeIn(text, "").interrupt, false, text);
+    assert.ok(text.split(/\s+/).length <= 14, `longa demais para um fôlego: ${text}`);
+    assert.ok(HENRY_STYLE_GUIDE.includes(text), text);
+  }
+  // Frustração: calma, com conserto, sem ironia.
+  const frustration = HENRY_CHAT_SCENES.find((scene) => scene.id === "frustracao");
+  assert.ok(frustration.replies.some((text) => /tentar de novo/.test(text)));
+  assert.match(HENRY_STYLE_GUIDE, /Se ele se irritar ou xingar[\s\S]*sem ironia[\s\S]*Foi mal, deixa eu tentar de novo/);
+  assert.match(HENRY_STYLE_GUIDE, /Vez de falar\n- Uma pergunta por vez/);
+  assert.match(HENRY_STYLE_GUIDE, /sem perguntar de novo/);
+  assert.match(HENRY_STYLE_GUIDE, /"então", "aliás", "falando nisso"/);
+  assert.match(HENRY_STYLE_GUIDE, /fôlego/);
+  assert.match(HENRY_STYLE_GUIDE, /Dado longo .* vai para a tela/);
+});
+
+test("papo do dia a dia: sem ferramentas; frustração e pedido continuam com ferramentas", () => {
+  for (const text of ["Henry, tá aí?", "tá me ouvindo?", "que horas são?", "que dia é hoje?", "tô cansado hoje", "tô meio estressado", "que dia puxado", "você tá cansado?", "você é humano?", "você é um robô?", "quem te criou?", "quantos anos você tem?", "bom trabalho", "desculpa", "vou almoçar", "você dorme?", "você é meu amigo?"]) {
+    assert.equal(henryNeedsTools(text), false, text);
+  }
+  for (const text of ["você é burro", "errou de novo", "que horas é a reunião do Gabriel?", "tô cansado, me fala os leads de hoje", "quem atendeu a Ana?"]) {
+    assert.equal(henryNeedsTools(text), true, text);
+  }
 });
 
 // --- Contexto e sorteio -----------------------------------------------------------------------------------------------
@@ -191,7 +247,7 @@ test("prompt: guia de estilo longo no bloco com cache_control, travas mantidas, 
   assert.match(lib, /const plan = planVocabulary\("question", text, lexicon\)/);
   assert.match(lib, /repertoire: plan\.promptText, usedExpressions: plan\.usedExpressions/);
   assert.match(lib, /recordDayLexicon\(next, today, \{ \.\.\.vocabularyUsage\(reply, plan\), hint: plan\.hint \}\)/);
-  assert.match(lib, /const reply = safeHenryReply\(stripUrls\(replyText\) \|\| fallback\)/);
+  assert.match(lib, /const reply = safeHenryReply\(stripUrls\(replyText\) \|\| fallback[,)]/); // screenFallback (dono, 2026-10-23) não troca a barreira
 });
 
 // --- Risada na voz ---------------------------------------------------------------------------------------------------

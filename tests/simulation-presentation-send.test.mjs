@@ -44,7 +44,7 @@ test("rota: enviar passa pelo guard e escopo da simulacao, bloqueia arquivado/DN
 });
 
 test("jornada: evento presentation_sent tem rotulo e categoria", () => {
-  const src = read("components/ClientJourneyActions.jsx");
+  const src = read("components/ClientJourneyActions.jsx") + read("lib/journey-event-labels.mjs"); // rótulos: fonte única
   assert.match(src, new RegExp(`${PRESENTATION_SENT_EVENT}: "atividades"`));
   assert.match(src, /case "presentation_sent"/);
 });

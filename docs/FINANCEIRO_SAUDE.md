@@ -4,7 +4,7 @@
 
 ## Acesso
 
-Somente **administrador geral** (`isGeneralAdminAuth` na página; `requireGeneralAdminApi` em todas as rotas `app/api/financeiro/saude/**`). Gestor continua sem acesso ao Financeiro; corretor e associado seguem só com a visão própria (a aba Saúde não aparece para eles). Os dados são da empresa inteira (despesas, caixa), por isso não há escopo parcial.
+Somente **administrador geral** (`isGeneralAdminAuth` na página; `requireGeneralAdminApi` em todas as rotas `app/api/financeiro/saude/**`). Gestor continua sem acesso à Saúde (no Financeiro vê só as próprias comissões de gestor, FIN-9 de 2026-10-24); corretor e associado seguem só com a visão própria (a aba Saúde não aparece para eles). Os dados são da empresa inteira (despesas, caixa), por isso não há escopo parcial.
 
 ## Realizado × previsto × estimado (nunca misturar)
 
@@ -18,7 +18,7 @@ Pagamento `cancelled` e venda `cancelled` ficam fora de tudo. Recebido sem data 
 
 ## Integração com a previsão de recebimento (Agenda)
 
-A previsão do saldo da comissão (`expected_receipt_date`, `computeForecastAmount` de `lib/financial-expected-receipt-core.mjs`) entra como **PREVISTO**, na data prevista, com o mesmo saldo da Agenda (comissão BRUTA − recebido − parcelas já datadas; sem dupla contagem; venda recebida/cancelada não tem previsão). **Só o dono vê essa data** (regra do dono, 2026-10-02): o servidor já a esvazia para outros perfis, então para um admin geral que não seja o dono a Saúde simplesmente não inclui a previsão do saldo (só parcelas datadas). Previsão nunca vira recebido — só a confirmação humana cria o pagamento. Divergência conhecida herdada (não alterada): o saldo usa a comissão livre e o status usa a bruta.
+A previsão do saldo da comissão (`expected_receipt_date`, `computeForecastAmount` de `lib/financial-expected-receipt-core.mjs`) entra como **PREVISTO**, na data prevista, com o mesmo saldo da Agenda (comissão BRUTA − recebido − parcelas já datadas; sem dupla contagem; venda recebida/cancelada não tem previsão). **Só o dono vê essa data** (regra do dono, 2026-10-02): o servidor já a esvazia para outros perfis, então para um admin geral que não seja o dono a Saúde simplesmente não inclui a previsão do saldo (só parcelas datadas). Previsão nunca vira recebido — só a confirmação humana cria o pagamento. Saldo e status usam a mesma base: comissão **BRUTA** (base única de recebimento desde 2026-10-02, `lib/financial-receipt-basis.mjs`; a antiga divergência "saldo pela livre × status pela bruta" foi corrigida).
 
 ## Modelo de dados novo (aditivo)
 
@@ -64,10 +64,11 @@ A linha guarda **uma vez** a âncora (`expense_date` = 1ª ocorrência), a perio
 | Classe | O que é | De onde vem |
 |---|---|---|
 | **Comissão recebida (receita)** | comissão bruta efetivamente recebida | `financial_payments` recebidos |
-| **Repasses** | comissão do **corretor**, do **gestor** e de outros participantes da venda (despesas da venda de categoria Repasse, Corretor parceiro, Captador, Indicador, Bonificação) | cálculo existente da venda (`calculateCommissionDistribution` + despesas da venda). **Não são despesas operacionais** |
+| **Ganho como corretor (vendas do dono)** | **[REGRA OFICIAL — dono, 2026-10-24]** comissão do corretor quando o corretor da venda é o **próprio dono** (`brokerIsOwner` = `isOwnerAdminEmail(broker_email)`): é ganho dele, **não repasse** (`ownerBrokerGain`) | cálculo existente da venda (`totals.brokerCommission`) |
+| **Repasses** | comissão do **corretor da equipe** (nunca a do dono), do **gestor** e de outros participantes da venda (despesas da venda de categoria Repasse, Corretor parceiro, Captador, Indicador, Bonificação) | cálculo existente da venda (`calculateCommissionDistribution` + despesas da venda). **Não são despesas operacionais** |
 | **Nota fiscal** | despesa **variável** da venda: comissão bruta × `invoice_percentage` **da venda** | `calculateSaleBase` (uma só vez, antes da divisão) |
 | **Despesas operacionais** | (a) da empresa **pagas** (`financial_operating_expenses`, fixas/recorrentes e variáveis/pontuais) + (b) despesas da venda que não são repasse (Documentação, Cartório, ITBI, Engenharia, Marketing, Tráfego pago, Taxa, Outros) | confirmação manual / venda |
-| **Resultado líquido** | o que sobra para a imobiliária | ver fórmula |
+| **Resultado líquido** | o que sobra para o dono: ganho da imobiliária + ganho como corretor nas vendas dele − despesas operacionais | ver fórmula |
 
 **Sem dupla dedução:** a venda já calcula `bruta = nota + despesas da venda + gestor + corretor + imobiliária`. A Saúde só **reclassifica** esses mesmos componentes (`splitSaleShares`): cada real da comissão aparece em uma única classe. Venda com comissão menor que as deduções (livre = 0): fatias reduzidas proporcionalmente para fechar em (bruta − imobiliária). Venda sem detalhamento: o que não é da imobiliária vira repasse.
 
@@ -75,11 +76,15 @@ Cada recebimento é apropriado proporcionalmente: `razão = recebido ÷ comissã
 
 ```
 RESULTADO LÍQUIDO REALIZADO = COMISSÃO RECEBIDA − REPASSES − NOTA FISCAL − DESPESAS OPERACIONAIS PAGAS
-                            = parte da imobiliária recebida − despesas operacionais da empresa pagas
+                            = parte da imobiliária recebida + ganho como corretor (vendas do dono) − despesas operacionais da empresa pagas
 MARGEM                      = RESULTADO LÍQUIDO ÷ COMISSÃO RECEBIDA          (— se receita = 0)
 vs anterior                 = (atual − anterior) ÷ anterior, só com base > 0; mês cheio × mês anterior; outro intervalo × intervalo de mesmo tamanho imediatamente anterior
 ```
-Exemplo (nota 12%): comissão bruta 10.000 → nota 1.200 → livre 8.800 → corretor 4.400 / imobiliária 4.400 (sem gestor) → resultado antes das despesas operacionais = 4.400.
+Exemplo (nota 12%): comissão bruta 10.000 → nota 1.200 → livre 8.800 → corretor 4.400 / imobiliária 4.400 (sem gestor) → resultado antes das despesas operacionais = 4.400 (corretor da equipe) ou **8.800** se o corretor da venda for o dono (4.400 ganho da imobiliária + 4.400 ganho como corretor; repasses 0). Parceiro externo lançado como despesa "Corretor parceiro" continua repasse também nas vendas do dono (testes em `tests/financial-health.test.mjs`).
+
+**[PENDENTE DE VALIDAÇÃO]** Parceiro externo cadastrado como o próprio "corretor da venda" (em vez de despesa da venda) não é distinguível: se o e-mail não for o do dono, conta como repasse (como antes).
+
+A tela (Indicadores do período) mostra "Ganho da imobiliária" (`netRevenue`) e "Ganho como corretor" (`ownerBrokerGain`) separados; `summary.ownerGain` = soma dos dois.
 
 ## Nota fiscal por venda
 
@@ -110,15 +115,15 @@ Sem saldo inicial → "caixa não configurado" e nada derivado é exibido (nem r
 ## Ponto de equilíbrio
 
 ```
-MARGEM DE CONTRIBUIÇÃO = Σ net ÷ Σ recebido bruto   (últimos 6 meses + período, só recebidos)
+MARGEM DE CONTRIBUIÇÃO = Σ (net + ganho como corretor do dono) ÷ Σ recebido bruto   (últimos 6 meses + período, só recebidos; desde 2026-10-24)
 PONTO DE EQUILÍBRIO    = despesas operacionais do período (realizadas + previstas) ÷ margem de contribuição     (receita BRUTA necessária)
 FALTA                  = máx(0, ponto de equilíbrio − receita bruta recebida)
 ```
-Sem histórico de recebimentos (margem indefinida), mostra a versão líquida: despesas operacionais × parte da imobiliária já recebida.
+Sem histórico de recebimentos (margem indefinida), mostra a versão líquida: despesas operacionais × (parte da imobiliária + ganho como corretor do dono) já recebida.
 
 ## Resultado por corretor
 
-Métrica: **"Resultado da imobiliária por corretor"** = Σ `net` dos recebimentos do período por corretor da venda (`broker_id`/e-mail/nome). É a parte que efetivamente pertence à empresa — **não** é VGV nem comissão bruta. Despesas operacionais não são atribuídas a corretor (não há critério defensável), então não é um "lucro por corretor" completo; o nome na tela reflete isso. Tooltip: bruto recebido, repasses/custos, nº de vendas.
+Métrica: **"Resultado da imobiliária por corretor"** = Σ `net` dos recebimentos do período por corretor da venda (`broker_id`/e-mail/nome). É a parte que efetivamente pertence à empresa — **não** é VGV nem comissão bruta. Despesas operacionais não são atribuídas a corretor (não há critério defensável), então não é um "lucro por corretor" completo; o nome na tela reflete isso. Tooltip: bruto recebido, repasses/custos, nº de vendas. Nas vendas do dono o ganho como corretor vai em `ownerBrokerGain` da linha (não em repasses nem em `agencyResult`).
 
 ## Apontamentos (Fato → Apontamento → Recomendação)
 

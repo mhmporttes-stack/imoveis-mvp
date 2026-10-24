@@ -83,7 +83,7 @@ export default function TeamPanel({ readOnly, isAdmin, tracks, onError, onNote }
                     <td>
                       {m.enrollments.length === 0 ? <span className={s.muted}>Não iniciou</span> : m.enrollments.map((e) => (
                         <div key={e.enrollmentId}>
-                          <strong>{e.trackTitle}</strong> · <span className={`${s.badge} ${e.overdue ? s.draft : e.status === "completed" ? s.pub : ""}`}>{e.overdue ? "Atrasada" : STATUS[e.status]}</span>{e.required ? " · obrigatória" : ""} · {e.percent}% ({e.lessonsDone}/{e.lessonsTotal}) · prazo {fmt(e.dueAt)} · última atividade {fmt(e.lastActivityAt)}
+                          <strong>{e.trackTitle}</strong> · <span className={`${s.badge} ${e.overdue ? s.draft : e.status === "completed" ? s.pub : ""}`}>{e.overdue ? "Atrasada" : STATUS[e.status]}</span>{e.required ? " · obrigatória" : ""} · {e.percent}% ({e.lessonsDone}/{e.lessonsTotal}) · {e.dueSuspended ? "prazo começa quando a formação for publicada completa" : <>prazo {fmt(e.dueAt)}</>} · última atividade {fmt(e.lastActivityAt)}
                         </div>
                       ))}
                     </td>
