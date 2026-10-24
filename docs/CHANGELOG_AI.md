@@ -500,6 +500,16 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-23 — Cliente transferido entra em "Novos atendimentos" de quem recebeu (CLI-7b)
+- **Data:** 2026-10-23
+- **Área:** Clientes / Pendências (balão, Início, filtro "Novos atendimentos", Alexa "sem atendimento humano")
+- **Alteração:** `getUnattendedClientIds` (`lib/simulation-list-query.js`) passa a somar aos clientes novos (Atendimento automático nunca atendido, inalterado) os TRANSFERIDOS ainda não atendidos pelo responsável atual: `previous_responsible_user_id` ≠ atual + `responsible_changed_at`, fora da fila de espera/Particular/negativos/Pago/Aguardando simulação (`isTransferredCandidate`, `lib/transferred-awaiting-core.mjs`, novo); atendido = resposta humana no Chat ou "Assumir atendimento" depois do recebimento (`listClientIdsWithHumanAttendance` sem `ever`, mesma régua da REDISTRIBUIÇÃO). Escopo pelos 4 perfis (`applyResponsibleUserScope`).
+- **Motivo:** REGRA OFICIAL do dono (2026-10-23). Causa: o card só olhava status "Atendimento automático" e qualquer atendimento já feito na vida do cliente (`ever: true`); o transferido chega em outro status (Em atendimento, Tentando contato…) e/ou já atendido pelo corretor anterior, então só aparecia no aviso. Na fila de reativação (FUN-15l) a Jennyfer recebeu 155 entregas (103 clientes) em 7 dias; sem mensagem em 5 min eles voltavam à fila sem nunca aparecer no card.
+- **Números (leitura no banco, 23/10):** 26 transferidos sem atendimento hoje — Matheus 8 (6 de setembro/início de outubro), Gabriel 4, Eduardo 3, Bencke 3, Bruna 2, Caroline 2, Jennyfer 2, Izabela 1, ketlin 1. Nenhum deles já estava no card.
+- **Arquivos afetados:** `lib/simulation-list-query.js`, `lib/transferred-awaiting-core.mjs` (novo), `tests/transferred-awaiting-card.test.mjs` (novo), `.claude/rules/crm-clientes-funil.md`, `docs/BUSINESS_RULES.md` (CLI-7b).
+- **Risco/observação:** o card não é fonte de Meta Diária, ranking nem pontuação (consumidores: `lib/crm-pending-counts.js`, filtro da lista, Alexa `atendimento`/`resumo`). Aviso de transferência, roleta, fila de reativação e automações intocados. Não entram (não gravam `previous_responsible_user_id`): atribuição em massa da Prospecção e reatribuição ao excluir usuário — A CONFIRMAR com o dono. Transferidos antigos sem resposta pelo Chat (atendidos por fora) aparecem até alguém responder/assumir no Chat. Mudar status não tira do card (mesmo critério do cliente novo, pedido do dono).
+- **Autor:** Claude Code (crm-editor)
+
 ### 2026-10-23 — WhatsApp "conectado, mas sem receber": alarme só com evidência de falha (fim do alarme por silêncio)
 - **Data:** 2026-10-23
 - **Área:** WhatsApp individual / Central de alertas (CRM; serviço do Railway não mexido)

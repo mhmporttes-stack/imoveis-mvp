@@ -2,6 +2,7 @@
 paths:
   - "lib/client-*.js"
   - "lib/client-attendance-core.mjs"
+  - "lib/transferred-awaiting-core.mjs"
   - "lib/client-all-tab*"
   - "lib/client-appointments*"
   - "components/presentation/AppointmentSheet.jsx"
@@ -65,6 +66,8 @@ Cliente principal: `simulation_registrations` (persistência em `lib/simulation-
 **[REGRA OFICIAL DE NEGÓCIO — dono, 2026-10-16] Sem resumo por IA na transferência (FUN-15i).** "Pode tirar o resumo, acho que essa ideia de transferir o histórico da conversa já ajuda bastante." O rascunho (FUN-15b/c) continua, pelo modelo do dono (`genericHandoffMessage`), sem IA e sem ler conversa. Não reintroduza resumo nem mande a conversa à IA sem nova decisão do dono. `handoff` antigo fica no banco; só a mensagem é exibida. Detalhe: `docs/BUSINESS_RULES.md` FUN-15i.
 
 **[REGRA OFICIAL DE NEGÓCIO — dono, 2026-10-16] Corretor transfere o próprio cliente (CLI-7a).** "o corretor, ele deve ter o poder de transferir o cliente dele para outro corretor, tá, caso queira. Para mim, para outro corretor, para a Carol." Só perfil efetivo corretor (associado NÃO), só cliente do qual ele é o responsável, só para usuário ativo admin/gestor/corretor (nunca associado nem "sem responsável"); quem recebe não aceita (cai direto) e é avisado (`clients_transferred`); motivo opcional. Barreira no servidor: `updateSimulationRegistration` + `lib/broker-client-transfer-core.mjs` — mesmo caminho da transferência manual (CLI-7); não crie outro. Admin/gestor seguem a CLI-7. Detalhe: `docs/BUSINESS_RULES.md` CLI-7a.
+
+**[REGRA OFICIAL DE NEGÓCIO — dono, 2026-10-23] Transferido aparece em "Novos atendimentos" até ser atendido (CLI-7b).** Cliente recebido por transferência (qualquer motivo: manual, do próprio corretor, roleta/fila de espera, fila de reativação do "mais de 3 dias sem contato") entra no card "Novos atendimentos" do NOVO responsável, como cliente novo da roleta, até ser atendido; removido ou transferido de novo → sai de quem perdeu e entra para quem recebeu. Atendido = o mesmo critério do cliente novo (resposta humana no Chat ou "Assumir atendimento"), contado só desde o recebimento. 4 perfis no escopo de sempre. Fora: fila de espera, Particular, negativos da aba Todos, Pago e "Aguardando simulação" (item próprio). Servidor: `getUnattendedClientIds` (`lib/simulation-list-query.js`) + `isTransferredCandidate` (`lib/transferred-awaiting-core.mjs`); não crie outra definição de "transferido aguardando". Aviso de transferência, roleta, Meta Diária e pontuação não mudam. Detalhe: `docs/BUSINESS_RULES.md` CLI-7b.
 
 **[REGRA OFICIAL DE NEGÓCIO — dono, 2026-10-16] "Cliente não respondeu mais" vai direto para a roleta (FUN-15j).** "Quando essa opção for selecionada como motivo, o cliente vai para a roleta direto, sem passar por aprovação da Carol ou minha." e "os que estiverem escrito algo que dê a entender que o cliente não respondeu mais pode tratar como se estivessem com o botão selecionado". Opção pronta antes do texto livre; motivo digitado só conta pelo classificador conservador `isNoResponseReasonText` (`lib/cooled-clients-core.mjs`, sem IA; na dúvida fica com a decisora — não afrouxe sem o dono). Transferência automática = mesmo núcleo do "Transferir" (`moveClientToRoulette`); nunca crie outro caminho de roleta. Casos já na caixinha: a rotina do fluxo aplica. Detalhes: `docs/BUSINESS_RULES.md` FUN-15j.
 
