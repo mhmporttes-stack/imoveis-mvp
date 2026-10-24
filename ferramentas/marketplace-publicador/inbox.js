@@ -573,13 +573,48 @@
       .map((node) => MP.normalize(node.innerText));
   }
 
+  // 1.9.6: sem campo de mensagem, a conversa pode ter sido bloqueada/encerrada pelo Facebook (o CRM para de reenviar).
+  function missingComposer(win, error) {
+    const text = String((win || document.body)?.innerText || "").slice(-4000);
+    if (MP.isConversationClosed(text)) return { ok: false, sentAttempted: false, closed: true, error: "O Facebook não deixa mais responder esta conversa (bloqueada ou encerrada)." };
+    return { ok: false, sentAttempted: false, error };
+  }
+
+  // 1.9.6 (dono, 2026-10-24: reenvio a cada 30 s até concluir): antes de digitar de novo uma resposta cuja tentativa
+  // anterior pode ter saído, confere a conversa. present = há mais mensagens nossas iguais do que o CRM já conhecia
+  // (knownSame). Sem conseguir ler a conversa → unknown (o background não digita; o CRM tenta conferir de novo).
+  async function verifySent(message) {
+    if (pageCheckpoint()) return { ok: false, checkpoint: true, error: "O Facebook mostrou verificação/limite." };
+    const win = await waitFor(() => chatWindow(), 15000);
+    const composer = await waitFor(() => [...(win || document).querySelectorAll(MP.inbox.composer)].find((element) => visible(element)), 15000);
+    if (!composer) {
+      const missing = missingComposer(win, "Campo de mensagem não encontrado.");
+      if (missing.closed) return missing;
+    }
+    const log = (win || document).querySelector(MP.inbox.log);
+    if (!log) return { ok: false, unknown: true, error: "Não consegui ler a conversa para conferir antes de reenviar." };
+    await sleep(1500);
+    const known = Math.max(0, Number(message.knownSame) || 0);
+    const file = message.file || null;
+    let count = 0;
+    if (file) {
+      const image = String(file.type || "").startsWith("image");
+      const nameKey = MP.normalize(String(file.name || "").replace(/\.[a-z0-9]{1,5}$/i, "")).slice(0, 30);
+      count = image ? ownImageCount(win) : ownMessagesWith(nameKey, win);
+    } else {
+      const target = MP.normalize(String(message.text || "").replace(/\s*\n+\s*/g, " ").trim()).slice(0, 40);
+      count = ownMessagesWith(target, win);
+    }
+    return { ok: true, present: count > known };
+  }
+
   // Envia UMA resposta. sentAttempted=true a partir do Enter (o background não tenta de novo depois disso).
   async function sendText(text) {
     if (pageCheckpoint()) return { ok: false, checkpoint: true, sentAttempted: false, error: "O Facebook mostrou verificação/limite." };
     // Campo "Aa" da janela de chat aberta (ou da página da conversa).
     const win = await waitFor(() => chatWindow(), 15000);
     const composer = await waitFor(() => [...(win || document).querySelectorAll(MP.inbox.composer)].find((element) => visible(element)), 15000);
-    if (!composer) return { ok: false, sentAttempted: false, error: "Campo de mensagem não encontrado." };
+    if (!composer) return missingComposer(win, "Campo de mensagem não encontrado.");
     composer.scrollIntoView({ block: "center" });
     await sleep(between(300, 600));
     const rect = composer.getBoundingClientRect();
@@ -625,9 +660,9 @@
     const win = await waitFor(() => chatWindow(), 15000);
     const scope = win || document;
     const input = await waitFor(() => [...scope.querySelectorAll(MP.inbox.fileInput)].find((element) => !element.disabled) || null, 15000);
-    if (!input) return { ok: false, sentAttempted: false, error: "Campo de anexo da conversa não encontrado." };
+    if (!input) return missingComposer(win, "Campo de anexo da conversa não encontrado.");
     const composer = [...scope.querySelectorAll(MP.inbox.composer)].find((element) => visible(element));
-    if (!composer) return { ok: false, sentAttempted: false, error: "Campo de mensagem não encontrado." };
+    if (!composer) return missingComposer(win, "Campo de mensagem não encontrado.");
     const image = String(file.type || "").startsWith("image/");
     const nameKey = MP.normalize(String(file.name || "").replace(/\.[a-z0-9]{1,5}$/i, "")).slice(0, 30);
     const imagesBefore = ownImageCount(win);
@@ -793,6 +828,8 @@
         return sendText(message.text);
       case "mp-inbox-send-file":
         return sendFile(message.file);
+      case "mp-inbox-verify":
+        return verifySent(message);
       default:
         return null;
     }

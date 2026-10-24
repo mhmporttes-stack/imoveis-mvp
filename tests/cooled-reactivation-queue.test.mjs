@@ -89,11 +89,12 @@ test("quem perdeu o cliente nesta fila (3 min sem mensagem) PODE recebê-lo de n
   assert.doesNotMatch(read("lib/cooled-clients-reactivation-core.mjs"), /excluded_ids|losers/);
 });
 
-test("prazo: sem mensagem em 5 min volta para a fila; com mensagem fica", () => {
-  const base = { offeredTo: "gab", offeredAt: iso(T0), clientResponsibleId: "gab" };
+test("prazo: sem mensagem em 5 min a volta acaba e o cliente vai ao dono (uma volta só, dono 2026-10-24); com mensagem fica", () => {
+  const base = { offeredTo: "gab", offeredAt: iso(T0), clientResponsibleId: "gab", rounds: 1 };
   assert.equal(offeredCaseOutcome({ ...base, now: T0 + 2 * 60 * 1000 }), "wait");
   assert.equal(offeredCaseOutcome({ ...base, now: T0 + 4 * 60 * 1000 + 59 * 1000 }), "wait");
-  assert.equal(offeredCaseOutcome({ ...base, now: T0 + 5 * 60 * 1000 }), "requeue");
+  assert.equal(offeredCaseOutcome({ ...base, now: T0 + 5 * 60 * 1000 }), "return_to_owner");
+  assert.equal(offeredCaseOutcome({ ...base, rounds: 3, now: T0 + 5 * 60 * 1000 }), "return_to_owner");
   assert.equal(offeredCaseOutcome({ ...base, now: T0 + 4 * 60 * 1000, contacted: true }), "kept");
   assert.equal(offeredCaseOutcome({ ...base, now: T0 + 60 * 1000, contacted: true }), "kept");
   // Transferido à mão ou status fora da roleta: sai da fila, nunca é tomado de volta.

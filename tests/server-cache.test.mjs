@@ -115,6 +115,7 @@ const profiles = {
 const usersByToken = new Map();
 const calls = { getUser: 0, profile: 0, byId: 0, twoFactor: 0 };
 let twoFactorState = { enabled: false, sessionProofValid: false, deviceProofValid: false };
+let profileReadError = null;
 
 function makeToken(user) {
   const exp = Math.floor(Date.now() / 1000) + 3600;
@@ -139,6 +140,7 @@ globalThis.__stubs = {
   "admin-profiles": {
     getAdminProfileForAuthUser: async (user) => {
       calls.profile += 1;
+      if (profileReadError) throw profileReadError;
       return profiles[user.id] ? structuredClone(profiles[user.id]) : null;
     },
     getAdminProfileByIdCached: async (id) => {
@@ -184,6 +186,7 @@ function reset() {
   serverCache.clear();
   for (const key of Object.keys(calls)) calls[key] = 0;
   twoFactorState = { enabled: false, sessionProofValid: false, deviceProofValid: false };
+  profileReadError = null;
   profiles[BROKER.id].status = "active";
   profiles[BROKER.id].role = "broker";
 }
@@ -347,4 +350,42 @@ test("nada de tabela gravada só por fora (tags/properties) — toda escrita do 
   assert.deepEqual(writers("tags"), ["lib/client-tags.js"]);
   assert.deepEqual(writers("properties").sort(), ["lib/captacoes.js", "lib/properties.js"]);
   assert.deepEqual(writers("admin_users").sort(), ["lib/admin-profiles.js", "lib/lead-distribution.js", "lib/whatsapp-access.js"]);
+});
+
+// Falha fechada (2026-10-24, agravante do P-10): erro ao ler o perfil recusa com 503, nunca cai no perfil de reserva ATIVO.
+test("erro ao ler o perfil: 503 para qualquer e-mail (inclusive o dono), sem perfil de reserva e sem guardar no cache", async () => {
+  reset();
+  profileReadError = new Error("banco fora do ar");
+  for (const user of [OWNER, BROKER, { id: "u-ex", email: "forbencke@gmail.com" }]) {
+    const token = makeToken(user);
+    const result = await auth.requireAdminApi(request(token));
+    assert.equal(result.ok, false);
+    assert.equal(result.status, 503);
+    assert.equal(result.profile, undefined);
+  }
+  profileReadError = null;
+  const token = makeToken(OWNER);
+  profileReadError = new Error("blip");
+  assert.equal((await auth.requireAdminApi(request(token))).status, 503);
+  profileReadError = null;
+  const ok = await auth.requireAdminApi(request(token));
+  assert.equal(ok.ok, true, "o 503 não ficou guardado: banco de volta = acesso de volta na hora");
+  assert.equal(ok.profile.role, "admin");
+});
+
+test("dono sem linha em admin_users (banco respondeu): continua entrando como admin; e-mail antigo fixo não autoriza mais", async () => {
+  reset();
+  // (o perfil de reserva em si usa constantes de admin-profiles, que aqui são stubs: confere-se a autorização do e-mail)
+  assert.equal(auth.isAuthorizedAdminEmail("mhmporttes@icloud.com"), true);
+  assert.equal(auth.isAuthorizedAdminEmail("MHMPORTTES@gmail.com"), true);
+  const ex = await auth.requireAdminApi(request(makeToken({ id: "u-ex2", email: "forbencke@gmail.com" })));
+  assert.equal(ex.ok, false);
+  assert.equal(ex.status, 403);
+  assert.equal(auth.isAuthorizedAdminEmail("forbencke@gmail.com"), false);
+});
+
+test("fonte: nenhum e-mail além do dono fixo nas listas de acesso", () => {
+  for (const file of ["lib/admin-auth.js", "lib/admin-profiles.js"]) {
+    assert.doesNotMatch(read(file), /forbencke@gmail\.com/, file);
+  }
 });

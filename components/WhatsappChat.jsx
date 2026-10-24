@@ -63,7 +63,7 @@ import StatusReasonDialog from "@/components/clients/StatusReasonDialog";
 import { EmojiPicker, MessageActionsMenu, useMessageActionTrigger } from "@/components/WhatsappMessageActions";
 import { useWhatsappChatSummary } from "@/components/useWhatsappChatSummary";
 import { forgetChatDetail, readChatView, saveChatDetail, saveChatView } from "@/components/chat-view-cache";
-import { CLIENT_STATUS_OPTIONS } from "@/lib/client-status";
+import { CLIENT_STATUS, CLIENT_STATUS_OPTIONS } from "@/lib/client-status";
 import { chatDocumentProgress } from "@/lib/chat-document-progress.mjs";
 import { parseWhatsappText, stripWhatsappFormatting } from "@/lib/whatsapp-format.mjs";
 import { OFFICIAL_WHATSAPP_DIGITS } from "@/lib/official-whatsapp.mjs";
@@ -227,7 +227,7 @@ function formatPhone(phone) {
 
 // Modo aplicativo (pedido do dono, 2026-10-09): components/useChatAppMode.js (compartilhado com o Chat do Marketplace).
 
-export default function WhatsappChat({ canManage = false, canEditRules = false, currentUserId = "", currentUserName = "", initialClientId = "", initialText = "", initialSlot = "", canSeeArchived = false, appMode = false, viewerKey = "" }) {
+export default function WhatsappChat({ canManage = false, canEditRules = false, currentUserId = "", currentUserName = "", initialClientId = "", initialText = "", initialSlot = "", canSeeArchived = false, appMode = false, viewerKey = "", canMarkSalePaid = false }) {
   // Volta ao Chat sem "Carregando…" (2026-10-12, components/chat-view-cache.js): começa com o que esta mesma conta já
   // tinha na tela e atualiza em seguida, em segundo plano. Sem cache (1ª vez, outra conta, >30 min) = como sempre.
   const [cached] = useState(() => readChatView(viewerKey));
@@ -653,7 +653,7 @@ export default function WhatsappChat({ canManage = false, canEditRules = false, 
             </aside>
           ) : selectedId && detail ? (
             <aside className="hidden min-h-0 overflow-y-auto border-l border-line xl:block">
-              <ContactPanel brokers={brokers} canManage={canManage} detail={detail} onChanged={() => { loadList({ silent: true }); loadDetail(selectedId, { silent: true }); }} />
+              <ContactPanel brokers={brokers} canManage={canManage} canMarkSalePaid={canMarkSalePaid} detail={detail} onChanged={() => { loadList({ silent: true }); loadDetail(selectedId, { silent: true }); }} />
             </aside>
           ) : null}
         </div>
@@ -677,7 +677,7 @@ export default function WhatsappChat({ canManage = false, canEditRules = false, 
                 <X className="h-5 w-5" />
               </button>
             </div>
-            <ContactPanel brokers={brokers} canManage={canManage} detail={detail} onChanged={() => { loadList({ silent: true }); loadDetail(selectedId, { silent: true }); }} />
+            <ContactPanel brokers={brokers} canManage={canManage} canMarkSalePaid={canMarkSalePaid} detail={detail} onChanged={() => { loadList({ silent: true }); loadDetail(selectedId, { silent: true }); }} />
           </div>
         </div>
       ) : null}
@@ -3249,7 +3249,7 @@ function ContactNameEditor({ conversation, onChanged }) {
   );
 }
 
-function ContactPanel({ brokers = [], canManage = false, detail, onChanged }) {
+function ContactPanel({ brokers = [], canManage = false, canMarkSalePaid = false, detail, onChanged }) {
   const { conversation } = detail;
   const [assigning, setAssigning] = useState(false);
   const [changingStatus, setChangingStatus] = useState(false);
@@ -3386,7 +3386,9 @@ function ContactPanel({ brokers = [], canManage = false, detail, onChanged }) {
             onChange={(event) => changeStatus(event.target.value)}
             value={client.status || ""}
           >
-            {STATUS_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+            {/* "Pago" só para a conta real do dono (FIN-7, 2026-10-24); o servidor também recusa. */}
+            {STATUS_OPTIONS.filter((option) => option.value !== CLIENT_STATUS.SALE_PAID || canMarkSalePaid || client.status === CLIENT_STATUS.SALE_PAID)
+              .map((option) => <option key={option.value} value={option.value} disabled={option.value === CLIENT_STATUS.SALE_PAID && !canMarkSalePaid}>{option.label}</option>)}
           </select>
         </label>
       ) : null}

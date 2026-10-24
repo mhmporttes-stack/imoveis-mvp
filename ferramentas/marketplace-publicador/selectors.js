@@ -202,6 +202,23 @@
     return MP.matchesAny(pageText, MP.checkpointTexts);
   };
 
+  // 1.9.6 (dono, 2026-10-24): conversa que o Facebook não deixa mais responder (cliente bloqueou, conta indisponível,
+  // conversa encerrada). Só é consultado quando o campo de mensagem NÃO aparece — o texto das mensagens do cliente não
+  // vira "bloqueada" sozinho. Textos em pt-BR e inglês; A CONFIRMAR com print real da tela (ajuste só aqui).
+  MP.closedConversationTexts = [
+    /voce nao pode (responder|enviar mensagens?)/,
+    /nao e possivel (responder|enviar mensagens?)/,
+    /(esta pessoa|essa pessoa|esta conta|essa conta) nao esta disponivel/,
+    /conversa (foi )?(encerrada|bloqueada)/,
+    /you can'?t (reply|message|send messages)/,
+    /(this person|this account) (is|isn'?t) (unavailable|available)/,
+    /this conversation (has been|was) (closed|blocked)/
+  ];
+  MP.isConversationClosed = function isConversationClosed(text) {
+    const value = MP.normalize(text);
+    return Boolean(value) && MP.closedConversationTexts.some((pattern) => pattern.test(value));
+  };
+
   // Sugestão de localização a escolher (2026-10-20: a extensão chegou a escolher "Rua Marília, Vera Cruz - SP").
   // SÓ a CIDADE: texto principal (1ª linha) exatamente "Marília" / "Marília, SP" / "Marília, São Paulo" (sem rua,
   // avenida, bairro…) e o estado (SP/São Paulo) no principal ou no secundário. Preferência pela que diz "Cidade".

@@ -2,7 +2,7 @@
 // Regras de agenda/limite em lib/agenda.js (testadas). Seletores do Facebook em selectors.js.
 import { CHECK_EVERY_MINUTES, REASON_LABELS, STALE_RUN_MS, buildResultBody, decideTick, finishJob, initialState, localWaitUntil, recomputeFromHistory, recordCheck, setManualPause, startJob } from "./lib/agenda.js";
 import { DEFAULT_CRM_URL, downloadAttachment, downloadPhotos, fetchNextListing, fetchNextOutbound, postChatSync, postDiagnostic, postOutboundResult, postResult } from "./lib/crm-api.js";
-import { CHAT_EVERY_MINUTES, MAX_SENDS_PER_ROUND, ROUND_BUDGET_MS, chatLockAlive, clearThreadFailure, diagnosticDue, splitIgnored, decideChatTick, describeChatLock, outboundResultBody, recordThreadFailure, rememberPreviews, threadRetryBlocked, threadsToRead } from "./lib/chat-agenda.js";
+import { CHAT_EVERY_MINUTES, MAX_SENDS_PER_ROUND, ROUND_BUDGET_MS, chatLockAlive, clearThreadFailure, diagnosticDue, splitIgnored, decideChatTick, describeChatLock, outboundResultBody, SEND_RETRY_WAIT_MS, verifyOutcome, recordThreadFailure, rememberPreviews, threadRetryBlocked, threadsToRead } from "./lib/chat-agenda.js";
 import { CHECKPOINT_PAUSE_MS } from "./lib/agenda.js";
 import { KEEP_AWAKE_ALARM, KEEP_AWAKE_EVERY_MINUTES, PULSE_PAGE, PULSE_TAB_CLOSE_MS, decidePulse, shouldHoldPower } from "./lib/keep-awake.js";
 import { WORK_WINDOW_SIZE, describeWorkView, findWorkWindow } from "./lib/work-window.js";
@@ -776,8 +776,9 @@ async function pauseForCheckpoint(where) {
 
 // Envio pelo CRM (1.9.2 — os corretores não têm acesso ao Facebook; dependem 100% deste envio). Abre a conversa pelo
 // endereço direto quando o CRM já o tem (lido na conversa); senão, pela lista com o clique confiável e espera de até
-// 45 s. A aba fica visível só durante o envio. Falha antes de digitar → retry (o CRM tenta até 3 vezes); depois do
-// Enter sem confirmação → unconfirmed (o CRM nunca reenvia sozinho; confirma pelo eco).
+// 45 s. A aba fica visível só durante o envio. Falha antes de digitar → retry (o CRM tenta de novo a cada 30 s, até 24 h);
+// depois do Enter sem confirmação → unconfirmed: na próxima tentativa (1.9.6) o CRM manda `verify` e a extensão CONFERE a
+// conversa antes de digitar — nunca reenvia no escuro. Conversa que o Facebook não deixa responder → closed (para).
 const SEND_OPEN_WAIT_MS = 45 * 1000;
 
 async function sendOutbound(tabId, config, message) {
@@ -800,9 +801,15 @@ async function sendOutbound(tabId, config, message) {
         .catch((error) => ({ ok: false, error: error.message }));
       if (!opened?.ok) throw Object.assign(new Error(opened?.error || "Não abriu a conversa."), { beforeSend: true });
     }
-    outcome = file
+    // 1.9.6 (dono, 2026-10-24): reenvio de resposta cuja tentativa anterior pode ter saído → confere a conversa ANTES de
+    // digitar. Já está lá = enviada (nada é digitado); não deu para conferir = não digita (o CRM tenta de novo em 30 s).
+    const check = message.verify
+      ? await pageCall(tabId, { type: "mp-inbox-verify", text: message.body, knownSame: message.knownSame, file: message.attachment ? { type: message.attachment.mime || message.attachment.type, name: message.attachment.name } : null }, 60000)
+        .catch((error) => ({ ok: false, unknown: true, error: error.message }))
+      : null;
+    outcome = verifyOutcome(check) || (file
       ? await pageCall(tabId, { type: "mp-inbox-send-file", file }, 150000)
-      : await pageCall(tabId, { type: "mp-inbox-send", text: message.body }, 120000);
+      : await pageCall(tabId, { type: "mp-inbox-send", text: message.body }, 120000));
   } catch (error) {
     // Falhou antes de digitar (conversa não aberta, aba fechada): pode tentar de novo; senão, sem saber se saiu, não reenvia.
     outcome = { ok: false, sentAttempted: !error?.beforeSend, error: error.message };
@@ -1060,7 +1067,14 @@ async function chatTick() {
         await pauseForCheckpoint("envio de mensagem");
         return { reason: (result = "chat_erro") };
       }
-      if (!outcome.ok) break; // não insiste na mesma rodada
+      // 1.9.6 (dono, 2026-10-24): "se a mensagem não foi enviada, você espera 30 segundos e tenta enviar de novo". Espera
+      // 30 s e pede a próxima ao CRM (que só devolve a mesma 30 s depois da falha); continua dentro do orçamento da rodada
+      // e do máximo de envios por rodada — o resto fica para a próxima rodada (2 min). Conversa bloqueada: o CRM parou.
+      if (!outcome.ok) {
+        if (round.elapsed() + SEND_RETRY_WAIT_MS > ROUND_BUDGET_MS) break;
+        await round.step("aguardando 30 s para reenviar", () => sleep(SEND_RETRY_WAIT_MS), SEND_RETRY_WAIT_MS + 15000, summary);
+        continue;
+      }
       await sleep(4000 + Math.floor(Math.random() * 6000));
     }
     if (result !== "chat_parcial") result = threadsToRead(keep, previews).length ? "chat_parcial" : "chat_sincronizado";

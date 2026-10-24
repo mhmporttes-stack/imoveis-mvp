@@ -40,6 +40,28 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-24 — "Um corretor fica com 0 contatos novos na meta do dia e os outros com todos"
+- **Data:** 2026-10-24
+- **Sintoma:** em `daily_goal_wallet_freeze` de 21-23/10 um corretor não tinha nenhum dos 10 novos do dia no congelamento; os demais tinham todos.
+- **Área:** Meta Diária
+- **Impacto:** meta de prospecção do dia diferente entre corretores sem motivo de negócio.
+- **Causa raiz:** o congelamento da carteira pega as rodadas ativas no instante; se rodava (cron/1º acesso) antes da geração da cota, os novos ficavam de fora — dependia de quem rodava primeiro.
+- **Correção:** `includeGeneratedRoundsInWalletFreeze` acrescenta ao congelamento de hoje os novos da cota gerados depois dele (dias passados não foram regravados).
+- **Arquivos/commit:** `lib/daily-goal-wallet.js`, `lib/daily-goal-wallet-core.mjs`, `lib/daily-goal.js` — commit deste registro.
+- **Prevenção/teste:** `tests/daily-goal-wallet-freeze-order.test.mjs`.
+- **Status:** Monitorando (aguarda publicação)
+
+### 2026-10-24 — "Erro ao ler o perfil liberava o painel (até para e-mail inativo)"
+- **Data:** 2026-10-24
+- **Sintoma:** achado de auditoria (sem relato de uso): falha ao ler `admin_users` fazia o login cair num perfil de reserva ATIVO; um e-mail inativo no banco estava fixo como autorizado.
+- **Área:** Permissões
+- **Impacto:** risco de acesso indevido durante instabilidade do banco.
+- **Causa raiz:** `buildAuthorizedAdminResult` engolia o erro e usava `buildLegacyAdminProfile`; `DEFAULT_ADMIN_EMAILS`/fallback "benck" com e-mail fixo (agravante do P-10).
+- **Correção:** erro de leitura = 503 (sem perfil de reserva, nunca guardado no cache); só o dono fica fixo.
+- **Arquivos/commit:** `lib/admin-auth.js`, `lib/admin-profiles.js`, `app/api/admin/session/route.js` — commit deste registro.
+- **Prevenção/teste:** `tests/server-cache.test.mjs` (3 testes novos).
+- **Status:** Monitorando (aguarda publicação)
+
 ### 2026-10-23 — "Cliente transferido só aparece na notificação, não no card de aguardando atendimento"
 - **Data:** 2026-10-23
 - **Sintoma:** corretor que recebe cliente por transferência (principalmente "mais de 3 dias sem contato") só vê o aviso; o cliente não entra em "Novos atendimentos" e se perde.

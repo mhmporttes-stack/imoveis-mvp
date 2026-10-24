@@ -76,6 +76,10 @@ function authErrorResponse(result, request) {
   if (result.code === TWO_FACTOR_REQUIRED_CODE) {
     return NextResponse.json({ error: result.error, code: result.code }, { status: result.status });
   }
+  // Falha temporária ao verificar o acesso (503): recusa sem derrubar a sessão — a próxima tentativa confere de novo.
+  if (result.status === 503) {
+    return NextResponse.json({ error: result.error }, { status: 503 });
+  }
   const response = NextResponse.json({ error: result.error }, { status: result.status });
   clearAdminSessionCookies(response, request);
   return response;

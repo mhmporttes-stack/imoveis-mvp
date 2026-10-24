@@ -12,7 +12,7 @@ export default function CooledFlowToggle({ enabled }) {
 
   async function toggle() {
     const next = !enabled;
-    if (next && !window.confirm("Ligar o fluxo? A partir da próxima rodada (até 10 min), cada corretor com cliente esfriado recebe a janela obrigatória.")) return;
+    if (next && !window.confirm("Ligar o fluxo? A partir da próxima rodada (até 10 min), cada corretor com cliente frio recebe a janela obrigatória.")) return;
     setBusy(true);
     setError("");
     try {

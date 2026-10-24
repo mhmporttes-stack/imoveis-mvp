@@ -11,13 +11,15 @@ Login via Supabase Auth. Cookies do painel (`lib/admin-auth.js`): `mm_admin_acce
 | `requireFinancialManagerApi` | admin ou gestor, para editar empreendimentos, imóveis, depoimentos e uploads de documentos (NÃO é o Financeiro: este usa `requireGeneralAdminApi`/`requireFinancialAccessApi`) |
 | `requireFinancialAccessApi` | Acesso financeiro (inclui visão adaptada de associado) |
 | `requirePerformanceApi` | Acesso a telas de desempenho/ranking |
-| `requirePrimaryAdminApi` | **Apelido de `requireGeneralAdminApi`** (admin geral efetivo) — apesar do nome, **não** restringe ao dono (`lib/admin-auth.js`). Checagem só-do-dono é `assertOwnerAdmin` (`lib/admin-access.js`) |
+| `requirePrimaryAdminApi` | **Sem uso em nenhuma rota — não use em rota nova** (use `requireGeneralAdminApi`). **Apelido de `requireGeneralAdminApi`** (admin geral efetivo) — apesar do nome, **não** restringe ao dono (`lib/admin-auth.js`). Checagem só-do-dono é `assertOwnerAdmin` (`lib/admin-access.js`) |
 | `requireRealGeneralAdminApi` | Admin geral **real** (não considera "Alterar conta" — usado em `/api/admin/view-as`) |
 | `requireGeneralAdminApi` | Admin geral (efetivo, considera view-as) |
+| `requireRealTwoFactorApi` | Conta **real** (nunca "Alterar conta") do **dono ou de um gestor** — configuração da verificação em duas etapas (`/api/admin/two-factor`) |
+| `requireOwnerPendingSecondFactorApi` | Conta **real** do **dono ou de um gestor** com senha conferida e 2º fator pendente — só `/api/admin/two-factor/verify` |
 
-Equivalentes para páginas (Server Components): `requireAdminPage`, `requirePrimaryAdminPage` (também apelido do admin geral), `requirePerformancePage`, `requireGeneralAdminPage`, `requireFinancialAccessPage`, `requireBrokerManagementPage`.
+Equivalentes para páginas (Server Components): `requireAdminPage`, `requirePrimaryAdminPage` (também apelido do admin geral; sem uso — não use em página nova), `requirePerformancePage`, `requireGeneralAdminPage`, `requireFinancialAccessPage`, `requireBrokerManagementPage`.
 
-**Toda rota em `app/api/admin/**` e toda página em `app/admin/**` precisa chamar um desses ANTES de tocar em dado** — não depois, nunca condicionalmente pulado. Já foi auditado (2026-09); hoje são ~85 rotas em `app/api/admin/**` e ~194 rotas no total em `app/api/**` — inventário por guard em `docs/PERMISSIONS.md` §6; exceções conhecidas (`/api/client-tags`: `GET`/`POST` só exigem login por decisão do dono, `DELETE` é admin/gestor desde 2026-10-04 — P-07) em `docs/SYSTEM_ARCHITECTURE.md` §13. Existem duas implementações de `isOwnerAdminEmail` (`lib/admin-auth.js` lê env, `lib/admin-profiles.js` não — P-10). Ao adicionar uma rota nova, mantenha esse padrão.
+**Toda rota em `app/api/admin/**` e toda página em `app/admin/**` precisa chamar um desses ANTES de tocar em dado** — não depois, nunca condicionalmente pulado. Quantidade de rotas muda toda semana — não confie em número fixo: ver o inventário por guard em `docs/PERMISSIONS.md` §6 (ou contar `find app/api -name route.js`); exceções conhecidas (`/api/client-tags`: `GET`/`POST` só exigem login por decisão do dono, `DELETE` é admin/gestor desde 2026-10-04 — P-07) em `docs/SYSTEM_ARCHITECTURE.md` §13. Existem duas implementações de `isOwnerAdminEmail` (`lib/admin-auth.js` lê env, `lib/admin-profiles.js` não — P-10). Ao adicionar uma rota nova, mantenha esse padrão.
 
 ## Perfis (`admin_users.role`)
 
@@ -25,7 +27,7 @@ Equivalentes para páginas (Server Components): `requireAdminPage`, `requirePrim
 - **manager** (gestor) — vê e opera sobre sua equipe: ele mesmo + subordinados diretos + associados vinculados aos corretores subordinados. Essa lista é montada por `attachDataAccessScope`/`listVisibleTeamProfiles` (`lib/admin-profiles.js`) e chega como `managedUserIds`.
 - **broker** (corretor) — clientes/financeiro próprios (`responsible_user_id` == ele).
 - **associate** (associado) — clientes/financeiro do corretor ao qual está vinculado (`linked_broker_id`), com visão financeira **projetada** (ver `.claude/rules/financeiro.md`), não a real.
-- **Academia:** conteúdo criado/editado por **admin e manager**; corretor e associado só estudam (regra oficial de 2026-10-04, ainda não implementada) — `.claude/rules/academia.md` (ACA-1).
+- **Academia:** conteúdo criado/editado por **admin e manager**; corretor e associado só estudam (regra oficial de 2026-10-04, implementada na Academia F2–F7) — `.claude/rules/academia.md` (ACA-1).
 
 **[REGRA OFICIAL DE NEGÓCIO — dono, 2026-10-08] Verificação em duas etapas (TOTP) na conta do dono e dos gestores (estendida em 2026-10-09 — `isTwoFactorEligibleResult`), opt-in individual.** Exigida no servidor por `applyTwoFactorGuard` (`lib/admin-auth.js`, sobre a conta real, antes do view-as) em `requireAdminApi`/`requireRealGeneralAdminApi`/`getAdminFromCookies` — rota/guard novo que valide sessão sem passar por essas três funções precisa repetir a checagem. Nunca afetar outros perfis. Detalhes: `docs/PERMISSIONS.md` §1, `docs/BUSINESS_RULES.md` AUT-2FA.
 

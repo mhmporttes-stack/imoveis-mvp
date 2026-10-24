@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Lock, MessageSquareText, Paperclip, Phone, Send, Settings2 } from "lucide-react";
+import { AlertTriangle, ArrowLeft, Lock, MessageSquareText, Paperclip, Phone, Send, Settings2 } from "lucide-react";
 import Button from "@/components/ui/Button";
 import Badge from "@/components/ui/Badge";
 import Card from "@/components/ui/Card";
@@ -603,6 +603,13 @@ export default function MarketplaceChat({ canEditSettings = false, canAssign = f
                 {conversation.client ? <ClientWhatsappBar key={conversation.client.id} client={conversation.client} onSaved={() => loadThread(selectedId)} onError={setError} /> : null}
               </div>
             </div>
+            {/* Mensagem não entregue (dono, 2026-10-24): aviso fixo no chat enquanto o CRM reenvia sozinho a cada 30 s (sem push). */}
+            {(thread.messages || []).some((message) => message.undelivered) ? (
+              <p role="status" data-undelivered-notice className="flex shrink-0 items-center gap-2 border-b border-line bg-warning-soft px-3 py-2 text-sm font-semibold text-warning">
+                <AlertTriangle className="h-4 w-4 shrink-0" aria-hidden="true" />
+                Mensagem não entregue — reenviando automaticamente
+              </p>
+            ) : null}
             <div ref={messagesRef} key={selectedId} data-chat-wallpaper className="min-h-0 flex-1 space-y-2 overflow-y-auto overscroll-contain bg-mist p-3">
               {(thread.messages || []).map((message) => message.internal ? (
                 // Nota interna (MKT-2i): o mesmo visual da do Chat do WhatsApp — centralizada, azul tracejada e com cadeado.

@@ -7,10 +7,12 @@ export const dynamic = "force-dynamic";
 
 // POST { clientId, batchId?, ccaId, propertyType?, propertyValue?,
 // propertyName?, cpf?, pis?, action: "preview" | "submit" }
-// "Enviar para análise" (item 8 do pedido original) — só Caroline/Admin (a
-// checagem assertGeneralAdminOrManager acontece dentro de
-// prepareCcaSubmission/submitToCca, nunca aqui, pra nunca ter dois lugares
-// com a mesma regra).
+// "Enviar para análise" (item 8 do pedido original) — qualquer perfil logado,
+// SÓ sobre cliente do próprio escopo (DOC-9 — dono, 2026-10-24: o corretor
+// envia pelo Chat e pela ficha). O escopo é checado dentro de
+// prepareCcaSubmission/submitToCca (requireClientAccess →
+// assertCanAccessResponsibleUser), nunca aqui, pra não ter dois lugares com a
+// mesma regra.
 export async function POST(request) {
   const auth = await requireAdminApi(request);
   if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status });
