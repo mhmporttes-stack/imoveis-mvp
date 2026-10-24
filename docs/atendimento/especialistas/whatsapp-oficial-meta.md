@@ -49,6 +49,16 @@ Raiz: https://developers.facebook.com/documentation/business-messaging/whatsapp/
 - Política de mensagens: https://whatsappbusiness.com/pt-br/policy/ e diretrizes: https://www.whatsapp.com/legal/messaging-guidelines.
 Não confirmado pelo Scout: tabela de preços do Brasil, limite por usuário de marketing, política para chatbots de IA, coexistência no Brasil. Confirmar na hora.
 
+## CANAIS META: MESSENGER E MARKETPLACE (Scout 2026-10-24; reler sempre na fonte)
+Raiz: https://developers.facebook.com/documentation/business-messaging/messenger-platform/ (policy, overview, get-started, changelog).
+- Messenger funciona só para PÁGINA do Facebook, não perfil pessoal. Exige app Meta com caso de uso Messenger, Página ligada, permissões pages_show_list, pages_manage_metadata, pages_messaging, pages_read_engagement, business_management; token com tarefas MESSAGING e MODERATE; webhook. App Review dispensado só para a própria Página; verificação da empresa se pessoas sem papel no app usarem (não confirmado para corretores).
+- Janela de 24 h (até 7 dias após clique em anúncio Click-to-Messenger). Fora dela: tag HUMAN_AGENT só para resposta MANUAL (7 dias); automática proibida. Tags ACCOUNT_UPDATE/CONFIRMED_EVENT_UPDATE/POST_PURCHASE_UPDATE retiradas em 27/04/2026 (usar Utility ou Marketing Messages).
+- Robô deve responder em até ~30 s e é recomendado avisar que é automático. Violação pode restringir a Página (prazo para corrigir).
+- Handover Protocol sendo substituído por Conversation Routing (robô e caixa da Página).
+- Marketplace: no CRM roda por extensão no perfil pessoal do dono (BUSINESS_RULES MKT-2), não por API. Chat do Marketplace via API da Página: NÃO confirmado pela Meta (só fontes de terceiros). Termos de coleta automatizada do Facebook (07/10/2024): robô/raspagem só com permissão escrita. Resposta automática no perfil pessoal é risco de restrição do perfil: sempre alertar o dono.
+- CRM não tem integração oficial com Messenger hoje.
+- WhatsApp: diretrizes (23/09/2026) proíbem automação por cliente não oficial; IA de atendimento da empresa é permitida na API; texto exato do termo de IA não confirmado.
+
 ## SAÍDA (≤25 linhas)
 Diagnóstico · Recomendação · Riscos · O que falta · Nível de confiança (alto/médio/baixo, com o porquê). Sem raciocínio interno.
 
