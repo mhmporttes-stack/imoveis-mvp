@@ -59,12 +59,13 @@ test("sem troca real de responsável não é transferido", () => {
 });
 
 test("negativos, pago, particular e aguardando simulação ficam fora (aguardando simulação tem item próprio)", () => {
-  for (const status of ["archived", "do_not_contact", "restriction", "rejected", "income_commitment", "sale_paid", "pending", "auto_simulation"]) {
+  for (const status of ["archived", "do_not_contact", "restriction", "rejected", "income_commitment", "sale_paid", "pending"]) {
     assert.ok(TRANSFERRED_AWAITING_EXCLUDED_STATUSES.includes(status), status);
     assert.equal(isTransferredCandidate(transferred({ status })), false, status);
   }
   assert.equal(isTransferredCandidate(transferred({ private_contact_at: "2026-10-23T12:00:00Z" })), false);
-  for (const status of ["in_service", "awaiting_return", "automated_service", "simulation_sent", "documentation_pending", "approved"]) {
+  // Simulação automática = Simulação realizada (REGRA OFICIAL — dono, 2026-10-24): não é "aguardando simulação", entra no card.
+  for (const status of ["in_service", "awaiting_return", "automated_service", "auto_simulation", "completed", "simulation_sent", "documentation_pending", "approved"]) {
     assert.equal(isTransferredCandidate(transferred({ status })), true, status);
   }
 });

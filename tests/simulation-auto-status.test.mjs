@@ -4,7 +4,6 @@ import test from "node:test";
 import {
   ACTIVE_CLIENT_STATUS_VALUES,
   AWAITING_SIMULATION_STATUS_VALUES,
-  CLIENT_FUNNEL_STAGES,
   CLIENT_STATUS,
   CLIENT_STATUS_FILTER_GROUPS,
   clientStatusLabel,
@@ -17,16 +16,17 @@ import { SIMULATION_FIRST_STATUSES } from "../lib/simulation-first-core.mjs";
 import { CHAT_CLIENT_EVENT, nextClientStatusOnChatEvent } from "../lib/whatsapp-client-status-core.mjs";
 import { readFileSync } from "node:fs";
 
-// SIM-AUTO (dono, 2026-10-19): "Simulação automática" = antes da simulação real em todas as regras.
-test("status novo existe, logo após Aguardando simulação, sem pontuação e fora das etapas do funil", () => {
+// SIM-AUTO (dono, 2026-10-19) + [REGRA OFICIAL — dono, 2026-10-24] "Simulação automática deve ter a mesma função de
+// simulação realizada, mas o nome tem que ser diferente": etapa Simulação do funil, fora de "aguardando simulação", sem pontos.
+test("status existe com nome próprio, sem pontuação, na etapa Simulação do funil e fora de 'aguardando simulação'", () => {
   assert.equal(normalizeClientStatus("auto_simulation"), CLIENT_STATUS.AUTO_SIMULATION);
   assert.equal(clientStatusLabel("auto_simulation"), "Simulação automática");
   // lib/scoring-rules.js é server-only: confere que o status não tem chave de pontuação no mapa.
   assert.ok(!/AUTO_SIMULATION|auto_simulation/.test(readFileSync(new URL("../lib/scoring-rules.js", import.meta.url), "utf8")));
-  assert.equal(getClientFunnelStage("auto_simulation"), "");
-  assert.ok(!CLIENT_FUNNEL_STAGES.some((stage) => stage.statuses.includes("auto_simulation")));
+  assert.equal(getClientFunnelStage("auto_simulation"), "simulation");
+  assert.equal(getClientFunnelStage("auto_simulation"), getClientFunnelStage("completed"));
   assert.ok(ACTIVE_CLIENT_STATUS_VALUES.has("auto_simulation"));
-  assert.deepEqual(AWAITING_SIMULATION_STATUS_VALUES, ["pending", "auto_simulation"]);
+  assert.deepEqual(AWAITING_SIMULATION_STATUS_VALUES, ["pending"]);
   assert.ok(CLIENT_STATUS_FILTER_GROUPS.find((group) => group.key === "simulation").statuses.includes("auto_simulation"));
 });
 
@@ -41,8 +41,19 @@ test("roleta: simulação automática segura o cliente como 'Simulação realiza
   assert.deepEqual(rouletteRuleConditions(rule, { ...client, status: "completed" }), rule);
 });
 
-test("mensagem humana no Chat: Simulação automática → Tentando contato (igual a Aguardando simulação)", () => {
-  assert.equal(nextClientStatusOnChatEvent("auto_simulation", CHAT_CLIENT_EVENT.HUMAN_MESSAGE_SENT), CLIENT_STATUS.AWAITING_RETURN);
+test("mensagem humana no Chat: Simulação automática fica como está (igual a Simulação realizada)", () => {
+  assert.equal(nextClientStatusOnChatEvent("auto_simulation", CHAT_CLIENT_EVENT.HUMAN_MESSAGE_SENT), null);
+  assert.equal(nextClientStatusOnChatEvent("completed", CHAT_CLIENT_EVENT.HUMAN_MESSAGE_SENT), null);
+  assert.equal(nextClientStatusOnChatEvent("auto_simulation", CHAT_CLIENT_EVENT.CLIENT_REPLIED), null);
+  assert.equal(nextClientStatusOnChatEvent("pending", CHAT_CLIENT_EVENT.HUMAN_MESSAGE_SENT), CLIENT_STATUS.AWAITING_RETURN);
+});
+
+test("transferido em Simulação automática entra em 'Novos atendimentos' (CLI-7b), como Simulação realizada", async () => {
+  const { isTransferredCandidate } = await import("../lib/transferred-awaiting-core.mjs");
+  const base = { id: "c1", responsible_user_id: "b2", previous_responsible_user_id: "b1", responsible_changed_at: "2026-10-24T12:00:00Z" };
+  assert.equal(isTransferredCandidate({ ...base, status: "auto_simulation" }), true);
+  assert.equal(isTransferredCandidate({ ...base, status: "completed" }), true);
+  assert.equal(isTransferredCandidate({ ...base, status: "pending" }), false);
 });
 
 test("simulação automática não conta como simulação real (trava, pontuação, card, prazo da roleta)", () => {

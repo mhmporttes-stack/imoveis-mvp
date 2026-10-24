@@ -9,7 +9,7 @@ Funil do painel (MET-4): [`funil-painel.sql`](funil-painel.sql).
 ```sql
 stage_of(status, rk) as (values
   ('in_service',1),
-  ('completed',2),('simulation_sent',2),
+  ('auto_simulation',2),('completed',2),('simulation_sent',2),  -- auto_simulation desde 2026-10-24 (MET-2)
   ('documentation_pending',3),('documents_pending',3),
   ('approval_pending',4),('income_commitment',4),('cancellation_letter',4),('research_mo',4),('restriction',4),('shielding',4),('rejected',4),
   ('approved',5),
