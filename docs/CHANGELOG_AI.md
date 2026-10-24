@@ -44,6 +44,15 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 
 
+### 2026-10-24 — Henry: papo do dia a dia, "Vez de falar" e frustração do dono
+- **Data:** 2026-10-24
+- **Área:** Henry (assistente de voz)
+- **Alteração:** 16 situações de papo escritas por nós na voz do Henry (`HENRY_CHAT_SCENES`: "tá aí?", hora, dia, "tô cansado/estressado/feliz", "você tá cansado?", "é humano?", "quem te criou?", idade, "bom trabalho", desculpa, "vou almoçar", "você dorme?", "é meu amigo?", frustração) no guia fixo; bloco "Vez de falar" (uma pergunta por vez, confirmar fazendo, conectores, um fôlego, dado longo na tela); regra de irritação/xingamento (calmo, curto, sem ironia, "Foi mal, deixa eu tentar de novo"); regex novos em `SMALL_TALK` (papo sem ferramentas; frustração fica COM ferramentas para refazer o pedido).
+- **Motivo:** "sim" do dono aos itens 1–4 de `docs/scout/henry-conversa-2026-10-24.md`.
+- **Arquivos afetados:** `lib/henry-voice-persona.mjs`, `tests/henry-lexicon.test.mjs`, `docs/BUSINESS_RULES.md` (HENRY-1/HENRY-3)
+- **Risco/observação:** prompt fixo +~2.000 caracteres (~500 tokens, em cache). Saudação pura (`isHenryGreeting`) e "bom dia/olá, Henry" → relatório não mudaram. Falas travadas pelo teste (sem número, palavra sensível, "Henry", política, religião, palavrão, zombaria, palavra de parada). Somente leitura mantido. **[PENDENTE DE VALIDAÇÃO]** tom das falas não ouvido na ElevenLabs (sem chave aqui).
+- **Autor:** crm-editor (Claude Code)
+
 ### 2026-10-24 — Ficha pública /simulacao com o visual novo (protótipo v2 aprovado pelo dono)
 - **Data:** 2026-10-24
 - **Área:** Site público / Formulário de simulação (só apresentação)
