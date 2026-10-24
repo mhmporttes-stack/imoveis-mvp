@@ -21,7 +21,7 @@ Fonte única: `CLIENT_FUNNEL_STAGES` em `lib/client-status.js`.
 | rk | Etapa | Status que contam |
 |---|---|---|
 | 1 | Atendimento | `in_service` |
-| 2 | Simulação | `completed`, `simulation_sent` |
+| 2 | Simulação | `auto_simulation` (desde 2026-10-24), `completed`, `simulation_sent` |
 | 3 | Aguardando documentação | `documentation_pending`, `documents_pending` |
 | 4 | Aguardando aprovação | `approval_pending`, `income_commitment`, `cancellation_letter`, `research_mo`, `restriction`, `shielding`, `rejected` |
 | 5 | Cliente aprovado | `approved` |
@@ -29,6 +29,7 @@ Fonte única: `CLIENT_FUNNEL_STAGES` em `lib/client-status.js`.
 | 7 | Venda | `sale_completed`, `sale_forms`, `sale_reservation`, `sale_compliance`, `sale_contract`, `sale_caixa_signature`, `sale_itbi`, `sale_registry`, `sale_payment`, `sale_paid` |
 
 - Reprovado/Restrição/Blindagem **permanecem** na etapa 4 (FUN-2). Não são "saída do funil".
+- **Mudança de definição — corte 2026-10-24 (REGRA OFICIAL do dono, SIM-AUTO/ROL-2i):** "Simulação automática" (`auto_simulation`, existe desde 2026-10-19) passou a valer como "Simulação realizada" na etapa 2. Como o funil lê o histórico sem limite de data (MET-3), **recalcular hoje um período anterior inclui** os clientes que passaram por `auto_simulation` entre 2026-10-19 e 2026-10-24 (antes ficavam em rk 0 se não tivessem outro status de etapa) — números de Atendimento/Simulação desses dias publicados antes do corte podem ser menores que o recálculo. Para reproduzir a definição antiga, tire `('auto_simulation',2)` do `stage_of`. Pontuação não muda (a automática não pontua; `STATUS_TO_SCORING_KEY`).
 - **Fora do funil** (rk = 0): `automated_service`, `pending` (Aguardando simulação), `awaiting_return` (Tentando contato), `archived`, `do_not_contact`. "Prospecção" é a **base** do funil, não uma etapa.
 - Venda ao entrar sem nunca ter tido Reunião grava marco "Reunião realizada" `sistema/automatico_por_venda` 1 s antes (FUN-5): clientes em Venda quase sempre têm também Reunião no histórico.
 

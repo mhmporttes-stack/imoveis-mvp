@@ -44,6 +44,15 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 
 
+### 2026-10-24 — Simulação automática = Simulação realizada também no funil, em "aguardando simulação" e no Chat (ROL-2i item 6)
+- **Data:** 2026-10-24
+- **Área:** Funil / Clientes / Chat / Alexa-Henry / Métricas
+- **Alteração:** `auto_simulation` entrou na etapa "Simulação" de `CLIENT_FUNNEL_STAGES` (funil do Desempenho, coorte do período, Alexa, CCA, campanhas, Chat) e no SQL canônico (`docs/analytics/funil-painel.sql`, `consultas-base.md`); `AWAITING_SIMULATION_STATUS_VALUES` = só `pending` (contador/lista "Aguardando simulação" das pendências — agora bate com o link `?status=pending` —, Alexa, chegada, resumo; transferido em Simulação automática entra em "Novos atendimentos", CLI-7b); mensagem humana no Chat não leva mais `auto_simulation` a "Tentando contato" (igual a `completed`). Nome na tela continua "Simulação automática"; sem pontuação.
+- **Motivo:** REGRA OFICIAL do dono (2026-10-24): "Simulação automática deve ter a mesma função de simulação realizada, mas o nome tem que ser diferente." Completa o commit eafe55a6 (prazo/redistribuição).
+- **Arquivos afetados:** `lib/client-status.js`, `lib/whatsapp-client-status-core.mjs`, `docs/analytics/funil-painel.sql`, `docs/analytics/consultas-base.md`, `docs/METRICAS_FUNIL.md` (MET-2, corte 2026-10-24), `docs/BUSINESS_RULES.md` (ROL-2i, SIM-AUTO), rule `crm-clientes-funil.md`, `tests/simulation-auto-status.test.mjs`. Sem migration.
+- **Risco/observação:** mudança de DEFINIÇÃO do funil: recalcular hoje períodos anteriores inclui quem passou por `auto_simulation` desde 2026-10-19 (Atendimento/Simulação podem subir vs. números já publicados) — anotado em MET-2. Não mexidos (fora do pedido, a decidir): reenvio do formulário volta `auto_simulation` a "Aguardando simulação" (`FORM_RESETS_STATUS_FROM`), órfão em `auto_simulation` vai à fila de espera (`WAITING_FOR_BROKER_STATUSES`) e o "lead aguardando contato" do `pick_round_robin_broker` (SQL). Investigação no mesmo dia (banco só leitura): os 27 clientes com `daily_goal_converted` em `prospecting_history` que estão em "Tentando contato" NÃO são falha da PRO-8 — todos chegaram a "Em atendimento" (a conversão foi registrada pela reconciliação da Meta Diária, `reconcileDailyGoalRounds`, sem `reason`) e depois uma pessoa os devolveu À MÃO a "Tentando contato" (`client_status_history.source = 'manual'`, 25/09–13/10). Nenhum cliente em "Tentando contato" tem resposta da prospecção depois da última tentativa e da última mudança de status. Nada corrigido no banco. Achado lateral: parte desses clientes não tem a linha `→ in_service` no histórico (P-02).
+- **Autor:** Claude Code (crm-editor)
+
 ### 2026-10-24 — Marketplace: mensagem não entregue é reenviada a cada 30 s até sair (MKT-2e, extensão 1.9.6)
 - **Data:** 2026-10-24
 - **Área:** Marketplace / Chat / Roleta / Extensão
