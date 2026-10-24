@@ -76,6 +76,12 @@ export default function HenryVoiceView({
   notice = "",
   micOff,
   onToggleMute,
+  // Aperte para falar (dono, 2026-10-24): handlers de toque longo do botão do microfone e o indicador "solte para enviar".
+  micHold = null,
+  pttHolding = false,
+  // Mudo (dono, 2026-10-24): voz do Henry desligada (ele responde só na tela). null = sem o botão.
+  voiceMuted = false,
+  onToggleVoiceMute = null,
   getSignal,
   sleeping = false,
   showKeyboard = false,
@@ -236,7 +242,7 @@ export default function HenryVoiceView({
         </div>
         {!tapToTalk ? (
           <span className="pointer-events-auto mb-1.5">
-            <RoundButton onClick={onToggleMute} label={micOff ? "Ligar o microfone do Henry" : "Deixar o Henry no mudo"} small>
+            <RoundButton onClick={onToggleMute} label={micOff ? "Ligar o microfone do Henry (segure para falar)" : "Desligar o microfone do Henry (segure para falar)"} small extra={micHold}>
               <MicIcon off={micOff} />
             </RoundButton>
           </span>
@@ -287,8 +293,15 @@ export default function HenryVoiceView({
             <PlayButton onClick={onMorningPlay} />
           </span>
         ) : null}
+        {onToggleVoiceMute ? (
+          <span className="pointer-events-auto mb-2.5">
+            <RoundButton onClick={onToggleVoiceMute} label={voiceMuted ? "Henry no mudo: responde só na tela (clique para ouvir a voz)" : "Deixar o Henry mudo (responde só na tela)"} small>
+              <SpeakerIcon off={voiceMuted} />
+            </RoundButton>
+          </span>
+        ) : null}
         <span className="pointer-events-auto mb-2.5">
-          <RoundButton onClick={onToggleMute} label={micOff ? "Ligar o microfone do Henry (Alt+B)" : "Deixar o Henry no mudo (Alt+B)"} small>
+          <RoundButton onClick={onToggleMute} label={micOff ? "Ligar o microfone do Henry (Alt+B; segure para falar)" : "Desligar o microfone do Henry (Alt+B; segure para falar)"} small extra={micHold}>
             <MicIcon off={micOff} />
           </RoundButton>
         </span>
@@ -327,6 +340,7 @@ export default function HenryVoiceView({
       role="dialog"
       aria-modal="true"
       aria-label="Assistente Henry"
+      data-henry-assistant
       onPointerDown={(event) => {
         if (!(event.target instanceof HTMLInputElement)) preventTouchSelection(event);
       }}
@@ -443,6 +457,13 @@ export default function HenryVoiceView({
             </button>
           </form>
         ) : null}
+        {pttHolding ? (
+          <p className="text-[12px] font-bold" style={{ color: ACCENT, textShadow: "0 1px 2px rgba(0,0,0,0.95)" }} role="status" aria-live="polite">
+            Ouvindo… solte para enviar
+          </p>
+        ) : voiceMuted && onToggleVoiceMute ? (
+          <p className="text-[11px] text-white/55">Mudo: respostas só na tela</p>
+        ) : null}
         <div className={`${keypadFocus ? "hidden" : "flex"} items-center gap-2`}>
           {onToggleVision && !lockedMobile ? (
             <span className="relative">
@@ -455,9 +476,14 @@ export default function HenryVoiceView({
           <RoundButton onClick={onToggleKeyboard} label={showKeyboard ? "Esconder o teclado" : "Digitar a pergunta"} dark active={showKeyboard}>
             <KeyboardIcon />
           </RoundButton>
-          <RoundButton onClick={onToggleMute} label={recordMode ? (recording ? "Enviar o que eu falei" : "Tocar para falar") : micOff ? "Ligar o microfone (Alt+B)" : "Mudo (Alt+B)"} dark active={!micOff}>
+          <RoundButton onClick={onToggleMute} label={recordMode ? (recording ? "Enviar o que eu falei" : "Tocar para falar (ou segure)") : micOff ? "Ligar o microfone (Alt+B)" : "Desligar o microfone (Alt+B; segure para falar)"} dark active={!micOff || pttHolding} extra={micHold}>
             <MicIcon off={micOff && !recordMode} />
           </RoundButton>
+          {onToggleVoiceMute ? (
+            <RoundButton onClick={onToggleVoiceMute} label={voiceMuted ? "Mudo: o Henry responde só na tela (clique para ouvir a voz)" : "Mudo: deixar o Henry sem voz"} dark active={voiceMuted}>
+              <SpeakerIcon off={voiceMuted} />
+            </RoundButton>
+          ) : null}
           {showPlay && !lockedMobile ? <PlayButton onClick={onMorningPlay} dark /> : null}
           {onLock && !locked ? (
             <RoundButton onClick={onLock} label="Bloquear a tela do Henry" dark>
@@ -511,7 +537,8 @@ const UNLOCK_SWEEP_CSS = `
 @media (prefers-reduced-motion: reduce) { .henry-unlock-sweep { display: none } }
 `;
 
-function RoundButton({ onClick, label, children, small = false, dark = false, active = false }) {
+// extra = handlers a mais (toque longo do microfone: aperte para falar); o pointerdown dele roda depois do anti-seleção.
+function RoundButton({ onClick, label, children, small = false, dark = false, active = false, extra = null }) {
   const base = small ? "h-9 w-9" : "h-9 w-9";
   const tone = dark
     ? active
@@ -519,7 +546,18 @@ function RoundButton({ onClick, label, children, small = false, dark = false, ac
       : "border border-white/15 bg-white/5 text-white/60"
     : "border border-line bg-white text-navy shadow-float hover:text-brand";
   return (
-    <button type="button" onPointerDown={preventTouchSelection} onClick={onClick} className={`${base} flex items-center justify-center rounded-full transition ${tone}`} aria-label={label} title={label}>
+    <button
+      type="button"
+      {...(extra || {})}
+      onPointerDown={(event) => {
+        preventTouchSelection(event);
+        extra?.onPointerDown?.(event);
+      }}
+      onClick={onClick}
+      className={`${base} flex items-center justify-center rounded-full transition ${tone}`}
+      aria-label={label}
+      title={label}
+    >
       {children}
     </button>
   );
@@ -551,6 +589,16 @@ function MicIcon({ off }) {
       <rect x="9" y="3" width="6" height="11" rx="3" />
       <path d="M5 11a7 7 0 0 0 14 0M12 18v3" />
       {off ? <path d="M4 4l16 16" /> : null}
+    </svg>
+  );
+}
+
+// Alto-falante (mudo = voz do Henry desligada; ele responde só na tela).
+function SpeakerIcon({ off }) {
+  return (
+    <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M4 9h4l5-4v14l-5-4H4z" />
+      {off ? <path d="M17 9l5 6M22 9l-5 6" /> : <path d="M16.5 8.5a5 5 0 0 1 0 7M19.5 5.5a9 9 0 0 1 0 13" />}
     </svg>
   );
 }

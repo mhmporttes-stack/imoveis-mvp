@@ -163,7 +163,7 @@ test("Spotify: capa na busca, tocando agora com BPM opcional e volume baixo enqu
   await readSpotifyNowPlaying({ fetchImpl, tokens, tempoCache: cache });
   assert.equal(calls.filter((call) => call.includes("audio-features")).length, 1); // falhou uma vez → não pede de novo
   const ducked = await duckSpotifyVolume({ fetchImpl, tokens });
-  assert.deepEqual(ducked, { ducked: true, previous: 70 });
+  assert.deepEqual(ducked, { ducked: true, previous: 70, level: 15 });
   assert.ok(calls.some((call) => call.includes("/v1/me/player/volume?volume_percent=15")));
 });
 

@@ -645,6 +645,14 @@ Copie o modelo abaixo (uma entrada por bloco):
 - **Validação:** `node --test tests/henry*.test.mjs` verde; `pnpm build`. Nada tocou de verdade. **A CONFIRMAR** com o dono na voz: nomes de cantor transcritos errado caem no "É essa?".
 - **Risco/observação:** sem migration, rota ou permissão nova; o registro `henry_morning_music` ganhou o campo `confirm` (só URI/nome/data).
 
+### 2026-10-24 — Henry: aperte para falar (Enter / Ctrl+Shift+H / toque longo), botão Mudo e música baixa enquanto ele fala — branch `feat/henry-aperte-para-falar`, NÃO publicado
+- **Data:** 2026-10-24
+- **Área:** Henry (HENRY-1 "Aperte para falar e Mudo")
+- **Alteração:** [REGRA OFICIAL DE NEGÓCIO — dono, 2026-10-24] (1) segurar Enter (fora de campo de texto/controle do CRM), Ctrl+Shift+H ou o microfone (toque longo) ouve na hora e soltar envia, pelo caminho de sempre (gravação+Scribe ou reconhecimento do Chrome); < 300 ms = clique normal; corta a fala dele. (2) Botão Mudo (alto-falante) na barra da tela cheia e no ícone minimizado do computador: sem voz, responde só na tela; avisos falados esperam; lembrado no aparelho. O botão do microfone (Alt+B) não mudou — só o texto ("Microfone desligado"). (3) Música do Spotify cai direto para 25% do volume atual quando ele fala e sobe em 5 passos (~2,5 s) depois de ~1 s sem fala; ajuste manual no meio não é sobrescrito; a volta ao fim da fala, antes instantânea, agora é gradual (inclusive depois do abaixar da escuta).
+- **Arquivos:** `lib/henry-voice-conversation.mjs` (`pushToTalk*`, `henryVoicePlayable`, `henrySpeechSilenced`, `recordingDecision` com `hold`), `lib/henry-spotify-core.mjs` (`speechDuckLevel`, `speechDuckAction`, `spotifyRampPlan`, `volumeStillHenrys`; `duckSpotifyVolume` com `ratio` e `level` na resposta; `setSpotifyVolume` com `expect`), `lib/henry-spotify.js`, `app/api/admin/henry/spotify/player/route.js` (mesmo guard; `duck` aceita `speech: true`, `restore` aceita `expect`), `components/henry/HenryVoiceAssistant.jsx`, `components/henry/HenryVoiceView.jsx`; testes `tests/henry-push-to-talk.test.mjs` (novo) e ajuste de expressões em `henry-music`, `henry-morning`, `henry-navigation`. Docs: `BUSINESS_RULES.md` HENRY-1, `.claude/rules/integracoes-externas.md`.
+- **Validação:** `node --test tests/henry*.test.mjs` verdes; `pnpm build`. Nada enviado nem gravado em produção.
+- **Risco/observação:** app de desktop sem mudança (sem versão nova). **A CONFIRMAR** no PC do dono: se a página recebe o soltar das teclas do atalho global Ctrl+Shift+H no app (senão o atalho segue como chamado com fim da fala automático; Enter funciona). Sem migration, sem permissão nova.
+
 ### 2026-10-24 — Formulário abre o WhatsApp direto do "Enviar informações" e valores com ",00" fixo — branch `fix/ficha-whatsapp-sem-tela`, NÃO publicado
 - **Data:** 2026-10-24
 - **Área:** Formulário público de simulação (WA-10b refinada, WA-10c nova)
