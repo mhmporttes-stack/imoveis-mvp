@@ -2,10 +2,11 @@
 
 import { useEffect, useState } from "react";
 import Field, { inputClasses } from "@/components/ui/Field";
-import { HENRY_LOCK_EVENT, HENRY_LOCK_IDLE_OPTIONS, isValidHenryPin } from "@/lib/henry-lock-core.mjs";
+import { HENRY_LOCK_EVENT, isValidHenryPin } from "@/lib/henry-lock-core.mjs";
 
-// "Tela de bloqueio" no cartão do Henry (REGRA OFICIAL — dono, 2026-10-23; docs/BUSINESS_RULES.md HENRY-LOCK). O dono
-// define/troca a senha de 6 dígitos (trocar exige a atual) e os minutos sem interação até bloquear. A senha só vai ao
+// "Tela de bloqueio" no cartão do Henry (REGRA OFICIAL — dono, 2026-10-24, bloqueio só manual; docs/BUSINESS_RULES.md
+// HENRY-LOCK). O dono define/troca a senha de 6 dígitos (trocar exige a atual). Não há mais "minutos sem interação": a tela
+// só trava pelo cadeado da barra da tela cheia (ou "Henry, bloqueia"). A senha só vai ao
 // servidor (POST /api/admin/henry/lock, guardada como hash); a tela nunca a guarda nem mostra.
 const onlyDigits = (value) => String(value || "").replace(/\D/g, "").slice(0, 6);
 
@@ -47,26 +48,10 @@ export default function HenryLockSettings() {
       const next = { ...state, configured: true };
       setState(next);
       setForm({ current: "", pin: "", confirm: "" });
-      setMessage({ tone: "ok", text: state.configured ? "Senha trocada." : "Senha definida. A tela cheia do Henry agora abre bloqueada." });
-      window.dispatchEvent(new CustomEvent(HENRY_LOCK_EVENT, { detail: { configured: true, idleMinutes: next.idleMinutes } }));
+      setMessage({ tone: "ok", text: state.configured ? "Senha trocada." : "Senha definida. Para travar, toque no cadeado da barra da tela cheia do Henry." });
+      window.dispatchEvent(new CustomEvent(HENRY_LOCK_EVENT, { detail: { configured: true } }));
     } catch (error) {
       setForm((current) => ({ ...current, current: "" }));
-      setMessage({ tone: "error", text: error?.message || "Não foi possível salvar." });
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const saveIdle = async (event) => {
-    const minutes = Number(event.target.value);
-    setBusy(true);
-    setMessage({ tone: "", text: "" });
-    try {
-      const data = await post({ action: "idle", minutes });
-      setState((current) => ({ ...current, idleMinutes: data.idleMinutes }));
-      setMessage({ tone: "ok", text: `Bloqueia depois de ${data.idleMinutes} min sem interação.` });
-      window.dispatchEvent(new CustomEvent(HENRY_LOCK_EVENT, { detail: { configured: true, idleMinutes: data.idleMinutes } }));
-    } catch (error) {
       setMessage({ tone: "error", text: error?.message || "Não foi possível salvar." });
     } finally {
       setBusy(false);
@@ -93,7 +78,7 @@ export default function HenryLockSettings() {
     <div className="mt-4 rounded-control border border-line p-4">
       <p className="text-sm font-black text-navy">Tela de bloqueio</p>
       <p className="mt-1 max-w-2xl text-sm text-muted">
-        A tela cheia do Henry abre bloqueada e volta a bloquear depois de um tempo sem uso (ou quando você diz “Henry, bloqueia”). Bloqueado, ele conversa e toca
+        A tela cheia do Henry só bloqueia quando você toca no cadeado da barra de ícones (ou diz “Henry, bloqueia”). Bloqueado, ele conversa e toca
         música, mas não fala nada do CRM até você digitar a senha de 6 dígitos na própria tela. Depois de 5 erros seguidos, espera 1 min; depois 5 min;
         depois 15 min — e você recebe um aviso. O Henry pequeno (no canto) continua como antes.
       </p>
@@ -107,19 +92,6 @@ export default function HenryLockSettings() {
           </button>
         </div>
       </form>
-      {state.configured ? (
-        <div className="mt-4 max-w-xs">
-          <Field label="Bloquear depois de (sem interação)">
-            <select className={inputClasses} value={state.idleMinutes} disabled={busy} onChange={saveIdle}>
-              {HENRY_LOCK_IDLE_OPTIONS.map((minutes) => (
-                <option key={minutes} value={minutes}>
-                  {minutes} min
-                </option>
-              ))}
-            </select>
-          </Field>
-        </div>
-      ) : null}
       {message.text ? (
         <p className={`mt-3 text-sm font-bold ${message.tone === "error" ? "text-red-700" : "text-muted"}`} role="status">
           {message.text}

@@ -371,7 +371,7 @@ export async function POST(request) {
 
   try {
     // Aparelho, configuração e limite de taxa ao mesmo tempo (eram três idas ao banco em fila).
-    // Tela de bloqueio (HENRY-LOCK): o estado é lido aqui (pergunta = interação, renova a inatividade); bloqueado → o
+    // Tela de bloqueio (HENRY-LOCK): o estado é lido aqui (bloqueio só manual desde 2026-10-24); bloqueado → o
     // Henry conversa e toca música, mas sem nenhum dado do CRM (answerHenry({ locked })). Falhou a leitura → erro (nunca
     // responde dado sem conferir).
     const [allowedDevice, { enabled, vision, webSearch, style }, allowedRate, lockState] = await Promise.all([

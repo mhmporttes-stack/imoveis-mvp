@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import HenryVoiceView from "@/components/henry/HenryVoiceView";
-import HenryLockScreen, { HenryUnlockedBadge } from "@/components/henry/HenryLockScreen";
+import HenryLockScreen from "@/components/henry/HenryLockScreen";
 import { seededRandom } from "@/lib/henry-pulse-ambient-core.mjs";
 
 // Vitrine DEV da tela de bloqueio do Henry (HENRY-LOCK). Só no `next dev`. A "senha" aqui é FICTÍCIA (123456, só nesta
@@ -56,10 +56,9 @@ export default function HenryLockDemo({ variant = "1" }) {
       unlockFx={unlockFx}
       ambientRandom={ambientRandom}
       ambientSpeed={variant === "ambiente" ? 20 : 1}
+      onLock={() => setUnlocked(false)}
       lockLayer={
-        unlocked ? (
-          <HenryUnlockedBadge onLock={() => setUnlocked(false)} />
-        ) : (
+        unlocked ? null : (
           <HenryLockScreen
             key={variant}
             mobile={mobile}

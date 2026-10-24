@@ -8,6 +8,7 @@ import { MORNING_PLAY_LABEL } from "@/lib/henry-morning-core.mjs";
 import { HenryBrokerCards, HenryDataScene, HenryDetailPanel, HenryIconSearchHint, HenrySceneStyles } from "./HenrySearchScene";
 import HenryMusicScene, { HenryNowPlaying } from "./HenryMusicScene";
 import HenryPulse from "./HenryPulse";
+import { HenryLockIcon } from "./HenryLockScreen";
 
 // Apresentação do Henry (sem estado de voz): ícone do canto e tela cheia. Visual pedido pelo dono em 2026-10-22 a partir de
 // uma referência em vídeo ("nesse perfil… no meu estilo"): fundo azul-marinho profundo, anel de filamentos no centro,
@@ -112,10 +113,13 @@ export default function HenryVoiceView({
   onOpeningDone,
   openingName = "Matheus",
   openingTelemetry = null,
-  // Tela de bloqueio (HENRY-LOCK, dono 2026-10-23): lockLayer = risquinhos/cadeados (bloqueado) ou o cadeado aberto do
-  // canto (desbloqueado), vindos do HenryVoiceAssistant; locked = sem o "minimizar" e, no celular, conversa mais acima.
+  // Tela de bloqueio (HENRY-LOCK): lockLayer = risquinhos/cadeados (bloqueado), vindo do HenryVoiceAssistant; locked = sem
+  // o "minimizar" e, no celular, conversa mais acima. Desbloqueado não há camada: o cadeado fica na barra (onLock).
   lockLayer = null,
   locked = false,
+  // Cadeado da barra (dono, 2026-10-24: "um cadeadinho ali nos ícones para eu escolher quando bloquear"): só aparece com a
+  // senha definida e a tela desbloqueada; é o único jeito de travar pela tela (abrir/inatividade não travam mais).
+  onLock = null,
   // Celular bloqueado (dono, 2026-10-24): teclado numérico aberto → conversa e botões recolhem e o anel encolhe.
   lockKeypadOpen = false,
   // Cena do desbloqueio: a cada valor novo, uma varredura ciano/dourada corre pelo anel e ele dá um pulso leve.
@@ -454,6 +458,11 @@ export default function HenryVoiceView({
             <MicIcon off={micOff && !recordMode} />
           </RoundButton>
           {showPlay && !lockedMobile ? <PlayButton onClick={onMorningPlay} dark /> : null}
+          {onLock && !locked ? (
+            <RoundButton onClick={onLock} label="Bloquear a tela do Henry" dark>
+              <HenryLockIcon size={13} />
+            </RoundButton>
+          ) : null}
         </div>
         {lockedMobile ? <div className="w-full pb-1 pt-4">{lockLayer}</div> : null}
       </div>

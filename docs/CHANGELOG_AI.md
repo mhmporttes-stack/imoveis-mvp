@@ -593,6 +593,12 @@ Copie o modelo abaixo (uma entrada por bloco):
 - **Validação:** `node --test tests/henry*.test.mjs tests/whatsapp-chat*.test.mjs` verde; `pnpm build`. `HENRY_TOOL_ACCESS` sem ferramenta nova (continua só leitura). **A CONFIRMAR** em produção com o próximo aviso real.
 - **Risco/observação:** nenhuma migration, rota ou permissão nova.
 
+### 2026-10-24 — Henry: bloqueio só manual pelo cadeado da barra (HENRY-LOCK)
+- **Pedido do dono:** "um cadeadinho ali nos ícones para eu escolher quando bloquear. Toda vez que eu entro nele, ele já entra bloqueado." Substitui a regra de 2026-10-23 (travar ao abrir + inatividade).
+- **O que mudou:** `evaluateHenryLock` (`lib/henry-lock-core.mjs`) passa a travar só com `locked_at` (cadeado/"Henry, bloqueia"); saiu a trava por outro aparelho e por inatividade; `resolveHenryLock`/`leaveHenryFullscreen` (`lib/henry-lock.js`) não gravam trava sozinhos. Tela: `HenryVoiceAssistant.jsx` não trava ao abrir e perdeu o temporizador de inatividade; cadeado na barra de ícones da tela cheia (`HenryVoiceView` `onLock`, computador e celular), o do canto do topo (`HenryUnlockedBadge`) saiu; cartão `HenryLockSettings.jsx` sem o seletor de minutos. Vitrine `HenryLockDemo` ajustada.
+- **Sem mudança:** banco (sem migration; colunas antigas ficam sem efeito), PIN, esperas, aviso de senha errada, cena de desbloqueio, modo ambiente, barreira do servidor com a tela travada, recarregar travado continua travado.
+- **Docs:** `docs/BUSINESS_RULES.md` HENRY-LOCK (regra oficial 2026-10-24). Testes `tests/henry-lock.test.mjs` atualizados.
+
 ### 2026-10-24 — Simulação automática: por qual número sai o link (cliente que não escreveu / link do corretor) — branch `link-simulacao`, NÃO publicado
 - **Data:** 2026-10-24
 - **Área:** WhatsApp / envio automático da simulação (SIM-AUTO-ENVIO, ROL-2i)
