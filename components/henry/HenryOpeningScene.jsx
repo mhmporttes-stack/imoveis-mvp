@@ -9,7 +9,7 @@ import styles from "./HenryOpeningScene.module.css";
 // abertura futurística anterior). Por cima da tela cheia do Henry, no mesmo centro e raio do anel:
 //   0–1,3 s um feixe embaraçado (30 fios + cabeça de luz) sai do meio da lateral esquerda e sobe em curva até o meio do
 //   topo · 1,3–3,4 s 3 voltas em torno do centro, acelerando · 3,4–4,4 s giro muito rápido fechando no raio do anel, com o
-//   centro brilhando · 4,4 s BOOM (clarão, onda de choque, faíscas): o anel de verdade acorda com um pulso de fala curto
+//   centro brilhando · 4,4 s BOOM (clarão e faíscas, sem anéis): o anel de verdade acorda com um pulso de fala curto
 //   (onBoom) e aparece "BOM DIA, MATHEUS" + data no meio dele (tamanho pelo raio), saindo em ~3,4 s · 8,6 s onDone.
 // Antes do boom o fundo cobre o anel (ele ainda "não acordou"); depois o fundo some e o anel real aparece. O som de
 // abertura (playHenryOpeningSound) é agendado por quem abre a cena para tocar aos 3,8 s. Toque/clique/Esc pula.
@@ -245,7 +245,7 @@ function useWakeCanvas(canvasRef, { enabled, geometryRef, onBoom }) {
         for (let i = 0; i < 90; i += 1) {
           const a = Math.random() * Math.PI * 2;
           const v = 300 + Math.random() * 900;
-          parts.push({ x: cx + Math.cos(a) * R, y: cy + Math.sin(a) * R, vx: Math.cos(a) * v, vy: Math.sin(a) * v, life: 0.6 + Math.random() * 0.6, age: 0, gold: Math.random() < 0.4 });
+          parts.push({ x: cx + Math.cos(a) * R, y: cy + Math.sin(a) * R, vx: Math.cos(a) * v, vy: Math.sin(a) * v, life: 0.6 + Math.random() * 0.6, age: 0 });
         }
         boomRef.current?.();
       }
@@ -257,27 +257,12 @@ function useWakeCanvas(canvasRef, { enabled, geometryRef, onBoom }) {
           const f = 1 - bt / 0.6;
           const flash = ctx.createRadialGradient(cx, cy, 0, cx, cy, Math.max(W, H) * 0.6);
           flash.addColorStop(0, `rgba(255,255,255,${0.85 * f})`);
-          flash.addColorStop(0.25, `rgba(243,220,166,${0.35 * f})`);
+          flash.addColorStop(0.25, `rgba(191,241,255,${0.35 * f})`);
           flash.addColorStop(1, "rgba(79,195,224,0)");
           ctx.fillStyle = flash;
           ctx.fillRect(0, 0, W, H);
         }
-        if (bt < 1.1) {
-          const k = bt / 1.1;
-          const r = R + (Math.hypot(W, H) * 0.6 - R) * (1 - Math.pow(1 - k, 3));
-          ctx.strokeStyle = "#F3DCA6";
-          ctx.globalAlpha = (1 - k) * 0.9;
-          ctx.lineWidth = 2 + 6 * (1 - k);
-          ctx.beginPath();
-          ctx.arc(cx, cy, r, 0, Math.PI * 2);
-          ctx.stroke();
-          ctx.strokeStyle = "#4FC3E0";
-          ctx.globalAlpha = (1 - k) * 0.5;
-          ctx.lineWidth = 1.2;
-          ctx.beginPath();
-          ctx.arc(cx, cy, r * 0.82, 0, Math.PI * 2);
-          ctx.stroke();
-        }
+        // Sem anéis no boom (dono, 24/10: "o anel dourado não me agradou"); só clarão e faíscas até a nova ideia.
         for (let i = parts.length - 1; i >= 0; i -= 1) {
           const p = parts[i];
           p.age += dt;
@@ -291,7 +276,7 @@ function useWakeCanvas(canvasRef, { enabled, geometryRef, onBoom }) {
           p.y += p.vy * dt;
           p.vx *= 0.96;
           p.vy *= 0.96;
-          ctx.strokeStyle = p.gold ? "#F3DCA6" : "#BFF1FF";
+          ctx.strokeStyle = "#BFF1FF";
           ctx.globalAlpha = 1 - p.age / p.life;
           ctx.lineWidth = 1.3;
           ctx.beginPath();

@@ -44,6 +44,15 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 
 
+### 2026-10-24 — Henry: boom do bom dia sem plasma e sem anéis
+- **Data:** 2026-10-24
+- **Área:** Henry
+- **Alteração:** revertido o boom de plasma (fe56bd3); tirados também os dois anéis (dourado e ciano) e o dourado do clarão/faíscas. Fica só clarão branco-ciano + faíscas até o dono escolher a nova ideia.
+- **Motivo:** dono: "o plasma ficou horrível. Remova essa parte… o anel dourado não me agradou muito."
+- **Arquivos afetados:** `components/henry/HenryOpeningScene.jsx`
+- **Risco/observação:** só visual da cena de abertura; testes do Henry e build.
+- **Autor:** Claude Code
+
 ### 2026-10-24 — Henry: saudação pura recebe só o cumprimento (bug "boa noite" → "analisando seus dados")
 - **Data:** 2026-10-24
 - **Área:** Henry (voz)
