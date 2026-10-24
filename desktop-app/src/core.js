@@ -113,7 +113,12 @@ function validateAction(action, payload) {
 const WAKE_TARGETS = Object.freeze(["henry", "henri", "henrik", "rei ri"]);
 // Palavras parecidas que "seguram" a fala comum (sem elas "entrei", "Enrique", "o Henrique" e "renda" viravam "Henry").
 const WAKE_ABSORBERS = Object.freeze(["entrei", "enrique", "henrique", "renda", "energia", "entregou", "enviar", "entendi", "rio"]);
-const WAKE_GRAMMAR = Object.freeze([...WAKE_TARGETS, ...WAKE_ABSORBERS, "[unk]"]);
+// 1.3.2 (dono, 2026-10-24: "Ei, Henry", "Fala, Henry", "Oi Henry", "Olá Henry" também chamam): os prefixos entram na
+// gramática como palavras soltas — o Vosk os reconhece como eles mesmos em vez de empurrá-los para o nome ou para um
+// absorvedor — e o nome continua acordando sozinho (o prefixo nunca é exigido nem vai para o pedido; quem tira o prefixo
+// da transcrição é o CRM, detectWakeWord). Só os que existem no modelo entram (buildWakeConfig confere).
+const WAKE_CALL_PREFIXES = Object.freeze(["ei", "hei", "oi", "olá", "ola", "fala"]);
+const WAKE_GRAMMAR = Object.freeze([...WAKE_TARGETS, ...WAKE_CALL_PREFIXES, ...WAKE_ABSORBERS, "[unk]"]);
 const WAKE_WORDS_NOT_IN_MODEL = Object.freeze(["renri", "enri", "enry", "henrri", "rienri", "henrry", "henrie", "hendri", "henrei", "renne", "rennie"]);
 // Existem no modelo, mas ficam de fora de propósito (no CRM só valem depois de saudação; aqui acordariam à toa).
 const WAKE_WORDS_EXCLUDED = Object.freeze(["henrique", "rene", "rendi"]);
@@ -185,7 +190,7 @@ function buildWakeConfig(value, hasWord) {
       error: choice.error
     };
   };
-  const henry = (missing = [], fallback = false) => finish("henry", "Henry", nameList, [], missing, fallback);
+  const henry = (missing = [], fallback = false) => finish("henry", "Henry", nameList, WAKE_CALL_PREFIXES.filter((word) => known(word)), missing, fallback);
   if (choice.id === "custom") {
     const tokens = choice.text.split(" ");
     const missing = tokens.filter((word) => !WAKE_NAME_ALIASES.includes(word) && !known(word));
@@ -547,6 +552,7 @@ module.exports = {
   isWindowHidden,
   WAKE_TARGETS,
   WAKE_GRAMMAR,
+  WAKE_CALL_PREFIXES,
   WAKE_WORDS_NOT_IN_MODEL,
   WAKE_WORDS_EXCLUDED,
   WAKE_MIN_CONFIDENCE,

@@ -116,6 +116,13 @@ export default function HenryVoiceView({
   // canto (desbloqueado), vindos do HenryVoiceAssistant; locked = sem o "minimizar" e, no celular, conversa mais acima.
   lockLayer = null,
   locked = false,
+  // Celular bloqueado (dono, 2026-10-24): teclado numérico aberto → conversa e botões recolhem e o anel encolhe.
+  lockKeypadOpen = false,
+  // Cena do desbloqueio: a cada valor novo, uma varredura ciano/dourada corre pelo anel e ele dá um pulso leve.
+  unlockFx = 0,
+  // Modo ambiente (tela bloqueada): só a vitrine passa sorteio fixo e tempo acelerado.
+  ambientRandom = null,
+  ambientSpeed = 1,
   // Pulso do CRM (rascunho HENRY-1 "Pulso"): config do HenryPulse (null = desligado), abrir o link do card e, só na
   // vitrine, a fonte de eventos de exemplo.
   pulse = null,
@@ -132,11 +139,34 @@ export default function HenryVoiceView({
   // Bom dia novo (protótipo v22): no boom o anel acorda com um pulso de fala curto (~0,9 s) e, enquanto a mensagem
   // "Bom dia" está no meio do anel (a cena de abertura aberta), as ondas vocais não são desenhadas (noVoice).
   const wakeUntilRef = useRef(0);
+  const unlockPulseRef = useRef(0);
+  // Desbloqueou: os cards inventados do modo ambiente ainda voltam ao anel (~2 s) antes do Pulso desligar.
+  const [ambientTail, setAmbientTail] = useState(false);
+  const wasLockedRef = useRef(locked);
+  useEffect(() => {
+    const was = wasLockedRef.current;
+    wasLockedRef.current = locked;
+    if (!was || locked) return undefined;
+    setAmbientTail(true);
+    const timer = window.setTimeout(() => setAmbientTail(false), 2600);
+    return () => window.clearTimeout(timer);
+  }, [locked]);
+  const [unlockSweep, setUnlockSweep] = useState(0);
+  useEffect(() => {
+    if (!unlockFx) return undefined;
+    setUnlockSweep(unlockFx);
+    unlockPulseRef.current = performance.now() + UNLOCK_PULSE_MS; // pulso leve do anel (orbSignal)
+    const timer = window.setTimeout(() => setUnlockSweep(0), 900);
+    return () => window.clearTimeout(timer);
+  }, [unlockFx]);
   const openingRef = useRef(opening);
   openingRef.current = opening;
   const orbSignal = useCallback(() => {
     let signal = getSignal?.() || { mode: "idle", level: 0 };
     if (performance.now() < wakeUntilRef.current) signal = { ...signal, mode: "speaking", level: Math.max(Number(signal.level) || 0, 0.6) };
+    // Desbloqueio: pulso LEVE que se desfaz em ~0,8 s, sem trocar o estado do anel.
+    const unlockLeft = unlockPulseRef.current - performance.now();
+    if (unlockLeft > 0) signal = { ...signal, level: Math.max(Number(signal.level) || 0, 0.32 * (unlockLeft / UNLOCK_PULSE_MS)) };
     if (openingRef.current) signal = { ...signal, noVoice: true };
     const extra = pulseLevelRef.current || 0;
     const hits = pulseHitsRef.current;
@@ -279,7 +309,12 @@ export default function HenryVoiceView({
     );
   }
 
-  const recent = turns.slice(-VISIBLE_TURNS);
+  // Celular bloqueado: a fileira da senha fica SOZINHA embaixo, na mesma pilha do rodapé (nada se sobrepõe); acima dela só
+  // as 2 últimas falas e os botões essenciais (teclado e microfone). Câmera e ▶ somem enquanto bloqueado (o ▶ do bom dia
+  // e a câmera dependem do desbloqueio). Teclado numérico aberto: só ele e a fileira, com o anel menor.
+  const lockedMobile = Boolean(locked && mobile && lockLayer);
+  const keypadFocus = lockedMobile && lockKeypadOpen;
+  const recent = turns.slice(lockedMobile ? -2 : -VISIBLE_TURNS);
   return (
     <div
       className={`${fixed ? "fixed inset-0 z-[70]" : "relative h-[640px] w-full"} flex items-center justify-center overflow-hidden text-white`}
@@ -308,6 +343,7 @@ export default function HenryVoiceView({
       }}
     >
       <HenrySceneStyles />
+      <style>{UNLOCK_SWEEP_CSS}</style>
       {opening ? <HenryOpeningScene name={openingName} mobile={mobile} orbSize={orbSize} onBoom={() => (wakeUntilRef.current = performance.now() + 900)} onDone={onOpeningDone} /> : null}
       <HenryDataScene active={showDataScene} topic={sceneTopic} mobile={mobile} orbSize={orbSize} hasBrokers={brokers.length > 0} />
       {!showDataScene && !musicScene ? (
@@ -336,7 +372,7 @@ export default function HenryVoiceView({
         </p>
         <p className="mt-0.5 text-xs text-white/55" aria-live="polite">{status}</p>
       </div>
-      {lockLayer}
+      {lockedMobile ? null : lockLayer}
       {locked ? null : <button
         type="button"
         onClick={onMinimize}
@@ -351,8 +387,9 @@ export default function HenryVoiceView({
 
       <HenryAlertList items={alertList} mobile={mobile} />
       {/* Pulso do CRM: atrás do anel (cards e feixes em volta dele); apagado quando ele pensa ou fala. */}
-      <HenryPulse active={Boolean(pulse) && !opening} idle={!engaged && !opening && !alertList.length && !musicScene && !brokers.length} config={pulse || undefined} orbSize={orbSize} mobile={mobile} dim={searching || speaking || busy} onOpen={onPulseOpen} levelRef={pulseLevelRef} hitsRef={pulseHitsRef} busyRef={pulseBusyRef} {...(pulsePoll ? { poll: pulsePoll } : {})} />
-      <div className={`relative ${mobile ? "-translate-y-[14vh]" : ""}`}>
+      {/* Modo ambiente (tela bloqueada): o Pulso também roda sem a configuração ligada, só com cards inventados no navegador. */}
+      <HenryPulse active={(Boolean(pulse) || locked || ambientTail) && !opening} ambient={locked} realEvents={Boolean(pulse)} ambientRandom={ambientRandom} ambientSpeed={ambientSpeed} idle={!engaged && !opening && !alertList.length && !musicScene && !brokers.length} config={pulse || undefined} orbSize={orbSize} mobile={mobile} dim={searching || speaking || busy} onOpen={onPulseOpen} levelRef={pulseLevelRef} hitsRef={pulseHitsRef} busyRef={pulseBusyRef} {...(pulsePoll ? { poll: pulsePoll } : {})} />
+      <div className={`relative transition-transform duration-300 ease-out motion-reduce:transition-none ${mobile ? (keypadFocus ? "-translate-y-[14vh] scale-[0.72]" : "-translate-y-[14vh]") : ""}`}>
         {onTalk ? (
           <button type="button" onPointerDown={preventTouchSelection} onClick={onTalk} className="block rounded-full" aria-label={recording ? "Enviar o que eu falei" : "Tocar para falar com o Henry"}>
             <HenryOrb size={orbSize} fibers={mobile ? 40 : 52} points={mobile ? 110 : 140} alpha={0.3} lineWidth={0.85} glow nodes={mobile ? 16 : 24} getSignal={orbSignal} />
@@ -360,14 +397,15 @@ export default function HenryVoiceView({
         ) : (
           <HenryOrb size={orbSize} fibers={mobile ? 40 : 52} points={mobile ? 110 : 140} alpha={0.3} lineWidth={0.85} glow nodes={mobile ? 16 : 24} getSignal={orbSignal} />
         )}
+        {unlockSweep ? <span key={unlockSweep} className="henry-unlock-sweep pointer-events-none absolute inset-0 rounded-full" aria-hidden="true" /> : null}
         <HenryBrokerCards brokers={brokers} orbSize={orbSize} mobile={mobile} />
         <HenryMusicScene music={musicScene} orbSize={orbSize} mobile={mobile} />
       </div>
 
-      <div className={`absolute inset-x-4 ${locked && mobile ? "bottom-[calc(5.5rem+env(safe-area-inset-bottom))]" : "bottom-[calc(1rem+env(safe-area-inset-bottom))]"} flex flex-col items-end gap-3 md:inset-x-auto md:bottom-6 md:right-8 md:w-[min(420px,40vw)]`}>
+      <div className="absolute inset-x-4 bottom-[calc(1rem+env(safe-area-inset-bottom))] flex flex-col items-end gap-3 md:inset-x-auto md:bottom-6 md:right-8 md:w-[min(420px,40vw)]">
         {/* Texto sem card (dono, 2026-10-22): só as palavras sobre a cena, com sombra para ler (iPhone incluso). */}
         <div
-          className="flex max-h-[30vh] w-full flex-col items-end gap-1.5 overflow-y-auto text-right text-[14px] leading-snug md:max-h-none md:overflow-visible md:text-[13px]"
+          className={`${keypadFocus ? "hidden" : "flex"} ${lockedMobile ? "max-h-[18vh]" : "max-h-[30vh]"} w-full flex-col items-end gap-1.5 overflow-y-auto text-right text-[14px] leading-snug md:max-h-none md:overflow-visible md:text-[13px]`}
           style={{ textShadow: "0 1px 2px rgba(0,0,0,0.95), 0 0 10px rgba(7,17,31,0.95), 0 0 22px rgba(7,17,31,0.85)" }}
         >
           {mobile ? <HenryDetailPanel detail={detail} mobile /> : null}
@@ -377,7 +415,7 @@ export default function HenryVoiceView({
                 {turn.text}
               </p>
             ))
-          ) : (
+          ) : lockedMobile ? null : (
             <p className="text-white/55">
               {recordMode ? "Toque no Henry e fale: “quantos clientes aguardam resposta?”" : tapToTalk ? "Pode falar: “quantos clientes aguardam resposta?”" : "Diga “bom dia, Henry” ou “Henry, quantos clientes aguardam resposta?”"}
             </p>
@@ -400,8 +438,8 @@ export default function HenryVoiceView({
             </button>
           </form>
         ) : null}
-        <div className="flex items-center gap-2">
-          {onToggleVision ? (
+        <div className={`${keypadFocus ? "hidden" : "flex"} items-center gap-2`}>
+          {onToggleVision && !lockedMobile ? (
             <span className="relative">
               <RoundButton onClick={onToggleVision} label={vision ? "Visão ligada: a câmera só abre no “bom dia” e em “o que é isso?” (clique para desligar)" : "Ligar a visão pela câmera"} dark active={vision}>
                 <CameraIcon off={!vision} />
@@ -415,8 +453,9 @@ export default function HenryVoiceView({
           <RoundButton onClick={onToggleMute} label={recordMode ? (recording ? "Enviar o que eu falei" : "Tocar para falar") : micOff ? "Ligar o microfone (Alt+B)" : "Mudo (Alt+B)"} dark active={!micOff}>
             <MicIcon off={micOff && !recordMode} />
           </RoundButton>
-          {showPlay ? <PlayButton onClick={onMorningPlay} dark /> : null}
+          {showPlay && !lockedMobile ? <PlayButton onClick={onMorningPlay} dark /> : null}
         </div>
+        {lockedMobile ? <div className="w-full pb-1 pt-4">{lockLayer}</div> : null}
       </div>
     </div>
   );
@@ -451,6 +490,15 @@ const ALERT_LIST_CSS = `
 .henry-avl-read{opacity:.45;transition:opacity 600ms ease}
 @keyframes henry-avl-in{to{opacity:1;transform:none;filter:blur(0)}}
 @media (prefers-reduced-motion: reduce){.henry-avl-in{animation:none;opacity:1;transform:none;filter:none}}
+`;
+
+// Varredura do desbloqueio (dono, 2026-10-24): um arco ciano → dourado corre uma volta pelo anel e some. Só o anel
+// (máscara em anel na altura dos fios do HenryOrb, ~0,3 do tamanho). prefers-reduced-motion: não aparece.
+const UNLOCK_PULSE_MS = 800;
+const UNLOCK_SWEEP_CSS = `
+@keyframes henryUnlockSweep { 0% { transform: rotate(-90deg); opacity: 0 } 12% { opacity: 1 } 80% { opacity: 1 } 100% { transform: rotate(270deg); opacity: 0 } }
+.henry-unlock-sweep { background: conic-gradient(from 0deg, transparent 0 62%, rgba(79,195,224,0.15) 72%, rgba(79,195,224,0.95) 88%, rgba(232,184,92,1) 97%, transparent 100%); -webkit-mask: radial-gradient(circle closest-side, transparent 0 54%, #000 57% 65%, transparent 68%); mask: radial-gradient(circle closest-side, transparent 0 54%, #000 57% 65%, transparent 68%); animation: henryUnlockSweep 760ms cubic-bezier(.4,0,.2,1) forwards; mix-blend-mode: screen }
+@media (prefers-reduced-motion: reduce) { .henry-unlock-sweep { display: none } }
 `;
 
 function RoundButton({ onClick, label, children, small = false, dark = false, active = false }) {

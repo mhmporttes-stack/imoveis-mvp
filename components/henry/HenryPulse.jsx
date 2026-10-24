@@ -19,6 +19,7 @@ import {
   pulseBlobShape,
   pulseBlobStartAngle
 } from "@/lib/henry-pulse-core.mjs";
+import { AMBIENT_TIMING, ambientPulseEvent, ambientShouldWait, createAmbientState, nextAmbientDelay, nextAmbientItem } from "@/lib/henry-pulse-ambient-core.mjs";
 import { isPageHidden, onPageVisibilityChange } from "@/components/page-visibility";
 import { HENRY_ORB_HIT_MS } from "./henry-orb-states.mjs";
 import { drawStrandBeam } from "./henry-strand-beam.mjs";
@@ -59,12 +60,15 @@ const PULSE_ICONS = {
   whatsapp: `<svg viewBox="0 0 32 32" width="34" height="34" aria-hidden="true"><circle cx="16" cy="16" r="16" fill="#25D366"/><path fill="#fff" d="M16 7.2a8.8 8.8 0 0 0-7.6 13.2L7.2 24.8l4.5-1.2A8.8 8.8 0 1 0 16 7.2Zm0 16a7.2 7.2 0 0 1-3.7-1l-.3-.2-2.6.7.7-2.6-.2-.3A7.2 7.2 0 1 1 16 23.2Zm4-5.4c-.2-.1-1.3-.6-1.5-.7s-.3-.1-.5.1l-.7.9c-.1.1-.3.2-.5.1a5.9 5.9 0 0 1-2.9-2.6c-.2-.4.2-.4.6-1.2.1-.1 0-.3 0-.4l-.7-1.6c-.2-.4-.4-.4-.5-.4h-.4a.8.8 0 0 0-.6.3 2.5 2.5 0 0 0-.8 1.9 4.4 4.4 0 0 0 .9 2.3 10 10 0 0 0 3.8 3.4c1.4.6 2 .7 2.7.6a2.3 2.3 0 0 0 1.5-1.1 1.9 1.9 0 0 0 .1-1.1c0-.1-.2-.2-.5-.3Z"/></svg>`,
   messenger: `<svg viewBox="0 0 32 32" width="34" height="34" aria-hidden="true"><defs><linearGradient id="hp-gm" x1="0" y1="1" x2="1" y2="0"><stop offset="0" stop-color="#0099FF"/><stop offset=".6" stop-color="#A033FF"/><stop offset="1" stop-color="#FF5280"/></linearGradient></defs><circle cx="16" cy="16" r="16" fill="url(#hp-gm)"/><path fill="#fff" d="M16 7c-5 0-9 3.7-9 8.7 0 2.6 1.1 4.9 2.9 6.5v3.1l2.8-1.5c1 .3 2.1.4 3.3.4 5 0 9-3.7 9-8.5S21 7 16 7Zm.9 11.4-2.3-2.4-4.4 2.4 4.9-5.2 2.3 2.4 4.4-2.4-4.9 5.2Z"/></svg>`,
   instagram: `<svg viewBox="0 0 32 32" width="34" height="34" aria-hidden="true"><defs><radialGradient id="hp-gi" cx=".3" cy="1" r="1.2"><stop offset="0" stop-color="#FFD776"/><stop offset=".35" stop-color="#F3584C"/><stop offset=".7" stop-color="#C13584"/><stop offset="1" stop-color="#5B51D8"/></radialGradient></defs><rect width="32" height="32" rx="9" fill="url(#hp-gi)"/><rect x="8" y="8" width="16" height="16" rx="5" fill="none" stroke="#fff" stroke-width="2"/><circle cx="16" cy="16" r="3.8" fill="none" stroke="#fff" stroke-width="2"/><circle cx="21.2" cy="10.8" r="1.2" fill="#fff"/></svg>`,
+  // Modo ambiente (tela bloqueada): no lugar da foto do corretor, um cadeado fino nas cores do Henry.
+  cadeado: `<svg viewBox="0 0 32 32" width="34" height="34" aria-hidden="true"><circle cx="16" cy="16" r="15.25" fill="#07111F" stroke="#4FC3E0" stroke-opacity=".55" stroke-width="1.2"/><rect x="10.5" y="14.5" width="11" height="8.5" rx="1.8" fill="none" stroke="#4FC3E0" stroke-width="1.4"/><path d="M13 14.5v-2.4a3 3 0 0 1 6 0v2.4" fill="none" stroke="#4FC3E0" stroke-width="1.4" stroke-linecap="round"/><path d="M16 17.6v2" stroke="#e9c27a" stroke-width="1.4" stroke-linecap="round"/></svg>`,
   simulacao: `<svg viewBox="0 0 32 32" width="34" height="34" aria-hidden="true"><circle cx="16" cy="16" r="16" fill="#0b3d91"/><path fill="none" stroke="#5cd6ff" stroke-width="1.8" stroke-linejoin="round" d="M9 15.5 16 9.5l7 6V23H9Z"/><path fill="#5cd6ff" d="M12.5 17.5h2v2h-2zM17.5 17.5h2v2h-2z"/></svg>`
 };
 
 // Avatar (pulseAvatar): ícone do canal, foto real do corretor com anel na cor dele, ou inicial no círculo dessa cor.
 function buildAvatar(event) {
-  const avatar = pulseAvatar(event);
+  // Inventado (modo ambiente): ícone do canal quando há; senão o cadeado — nunca foto nem inicial de ninguém.
+  const avatar = event.ambient ? { kind: "icon", icon: PULSE_ICONS[event.type] ? event.type : "cadeado" } : pulseAvatar(event);
   if (avatar.kind === "icon") {
     const el = document.createElement("span");
     el.className = "hp-av hp-icon";
@@ -94,7 +98,10 @@ function initialAvatar(avatar) {
 const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
 const beamColor = (cfg, event) => (cfg.beam === "gold" ? "#e9c27a" : cfg.beam === "cyan" ? "#5cd6ff" : HENRY_PULSE_TYPES[event.type]?.color || "#5cd6ff");
 
-export default function HenryPulse({ active = false, config = HENRY_PULSE_DEFAULTS, orbSize = 520, mobile = false, dim = false, poll = fetchPulse, onOpen = null, pollMs = POLL_MS, levelRef = null, hitsRef = null, busyRef = null, idle = true }) {
+// ambient = modo ambiente da tela de bloqueio (lib/henry-pulse-ambient-core.mjs): cards inventados, só no navegador.
+// realEvents = consulta os eventos reais (Pulso ligado); falso = só o ambiente, sem nenhuma consulta ao servidor.
+// ambientRandom/ambientSpeed: só a vitrine (sorteio fixo e tempo acelerado).
+export default function HenryPulse({ active = false, config = HENRY_PULSE_DEFAULTS, orbSize = 520, mobile = false, dim = false, poll = fetchPulse, onOpen = null, pollMs = POLL_MS, levelRef = null, hitsRef = null, busyRef = null, idle = true, ambient = false, realEvents = true, ambientRandom = null, ambientSpeed = 1 }) {
   const rootRef = useRef(null);
   const canvasRef = useRef(null);
   const cfgRef = useRef(config);
@@ -106,6 +113,12 @@ export default function HenryPulse({ active = false, config = HENRY_PULSE_DEFAUL
   dimRef.current = dim;
   const idleRef = useRef(idle);
   idleRef.current = idle;
+  const ambientRef = useRef(ambient);
+  ambientRef.current = ambient;
+  const realRef = useRef(realEvents);
+  realRef.current = realEvents;
+  const ambientCfgRef = useRef({ random: ambientRandom, speed: ambientSpeed });
+  ambientCfgRef.current = { random: ambientRandom, speed: ambientSpeed };
   geoRef.current = { orbSize, mobile };
   openRef.current = onOpen;
   pollRef.current = poll;
@@ -149,7 +162,7 @@ export default function HenryPulse({ active = false, config = HENRY_PULSE_DEFAUL
 
     function spawn(event) {
       const cfg = cfgRef.current;
-      if (!cfg.types.includes(event.type)) return;
+      if (!event.ambient && !cfg.types.includes(event.type)) return;
       if (live.length >= cfg.maxCards) {
         const oldest = live.reduce((a, b) => (a.born < b.born ? a : b));
         oldest.born -= cfg.life * 1000; // o mais antigo termina na hora (vira rastro)
@@ -158,20 +171,21 @@ export default function HenryPulse({ active = false, config = HENRY_PULSE_DEFAUL
       const cardW = Math.min(HENRY_PULSE_CARD_W, W - 24);
       // Computador: a conversa fica no canto inferior direito — os cards param ~240 px acima do rodapé para não cobri-la.
       const wide = W >= HENRY_PULSE_WIDE || finePointer;
-      const { x, y } = pickPulseSpot({ W, H, cx, cy, R, live, cardW, wide, bottomSafe: wide ? 240 : 120 });
+      const { x, y } = pickPulseSpot({ W, H, cx, cy, R, live, cardW, wide, bottomSafe: wide ? 240 : 120, side: event.side || "" });
       const type = HENRY_PULSE_TYPES[event.type] || HENRY_PULSE_TYPES.whatsapp;
-      const text = pulseCardText(event);
+      const text = event.ambientText || pulseCardText(event);
       const el = document.createElement("button");
       el.type = "button";
       el.className = "hp-card";
-      el.setAttribute("aria-label", `${type.label}: ${text.who}. ${text.what}`);
+      el.setAttribute("aria-label", event.ambient ? `${text.who}. ${text.what}` : `${type.label}: ${text.who}. ${text.what}`);
+      if (event.ambient) el.tabIndex = -1; // inventado: nada para abrir
       const avatar = buildAvatar(event);
       const box = document.createElement("span");
       box.className = "hp-tx";
       const tag = document.createElement("span");
       tag.className = "hp-tag";
       tag.style.color = type.color;
-      tag.textContent = text.tag;
+      tag.textContent = text.tag || type.tag;
       const who = document.createElement("span");
       who.className = "hp-who";
       who.textContent = text.who;
@@ -306,8 +320,9 @@ export default function HenryPulse({ active = false, config = HENRY_PULSE_DEFAUL
           live.splice(i, 1);
           continue;
         }
-        // Henry saiu do parado (protótipo v23): o card pula direto para a fase de voltar ao Henry e some.
-        if (!idleRef.current && k < HENRY_PULSE_PHASES.pull) {
+        // Henry saiu do parado (protótipo v23) — ou desbloqueou, para os inventados do modo ambiente: o card pula direto
+        // para a fase de voltar ao Henry e some.
+        if ((!idleRef.current || (card.event.ambient && !ambientRef.current)) && k < HENRY_PULSE_PHASES.pull) {
           card.born = t - HENRY_PULSE_PHASES.pull * life;
           i += 1; // reprocessa este card já na fase nova
           continue;
@@ -342,11 +357,47 @@ export default function HenryPulse({ active = false, config = HENRY_PULSE_DEFAUL
       if (!raf && alive && !isPageHidden()) raf = requestAnimationFrame(frame);
     }
 
+    // Modo ambiente (tela bloqueada, Henry parado): sorteio próprio; card real na fila ou na tela tem prioridade.
+    let ambientAt = 0;
+    let ambientSeq = 0;
+    let ambientState = null;
+    const ambientRandomFn = () => (ambientCfgRef.current.random || Math.random)();
+    const ambientMs = (ms) => ms / Math.max(0.01, ambientCfgRef.current.speed || 1);
+    function ambientTick(now) {
+      if (!ambientRef.current) {
+        ambientAt = 0;
+        ambientState = null;
+        return;
+      }
+      if (!ambientState) ambientState = createAmbientState(ambientRandomFn);
+      if (!ambientAt) ambientAt = now + ambientMs(8000 + ambientRandomFn() * 12000); // 1º logo depois de bloquear
+      if (now < ambientAt) return;
+      if (ambientShouldWait({ realQueued: queue.length, realLive: live.filter((card) => !card.event.ambient).length })) {
+        ambientAt = now + ambientMs(AMBIENT_TIMING.realWaitMs);
+        return;
+      }
+      const item = nextAmbientItem(ambientState, ambientRandomFn);
+      if (item.kind === "card") spawn(ambientPulseEvent(item, (ambientSeq += 1)));
+      else {
+        // "Cena" leve sem dado nenhum: só o pulso no anel, em 2 a 3 trechos (nas cores do próprio Henry).
+        ringPulse = Math.min(1, ringPulse + 0.8);
+        if (hitsRef) {
+          const born = performance.now();
+          const hits = (hitsRef.current || []).filter((hit) => born - hit.born < HENRY_ORB_HIT_MS);
+          for (let i = 0; i < 2 + Math.floor(ambientRandomFn() * 2); i += 1) hits.push({ ang: ambientRandomFn() * Math.PI * 2, born });
+          hitsRef.current = hits;
+        }
+        kick();
+      }
+      ambientAt = now + ambientMs(nextAmbientDelay(ambientState, ambientRandomFn));
+    }
+
     // Agendador: no máximo `rate` por minuto, um de cada vez, na ordem em que chegaram.
     const scheduler = window.setInterval(() => {
-      if (isPageHidden() || !queue.length || !idleRef.current) return; // card novo só com o Henry parado (v23)
+      if (isPageHidden() || !idleRef.current) return; // card novo só com o Henry parado (v23)
       const now = performance.now();
-      if (now < nextAt) return;
+      ambientTick(now);
+      if (!queue.length || now < nextAt) return;
       spawn(queue.shift());
       nextAt = now + (60000 / Math.max(1, cfgRef.current.rate)) * (0.5 + Math.random());
     }, 200);
@@ -354,7 +405,7 @@ export default function HenryPulse({ active = false, config = HENRY_PULSE_DEFAUL
     async function load() {
       window.clearTimeout(pollTimer);
       if (!alive) return;
-      if (!isPageHidden()) {
+      if (!isPageHidden() && realRef.current) {
         try {
           const data = await pollRef.current(since);
           if (!alive) return;

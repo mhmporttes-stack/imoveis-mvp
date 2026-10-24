@@ -500,6 +500,15 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-24 — Henry: bloqueio v2 (celular, cena do desbloqueio, modo ambiente) e chamada mais fácil (app 1.3.2) — branch `fix/henry-bloqueio-v2`, NÃO publicado
+- **Data:** 2026-10-24
+- **Área:** Henry (tela de bloqueio, Pulso, palavra de chamada) / App de desktop
+- **Alteração:** (1) Celular bloqueado: a fileira da senha entra na pilha do rodapé (sozinha embaixo, com safe-area), acima só as 2 últimas falas e teclado/microfone; câmera e ▶ somem enquanto bloqueado; teclado numérico aberto recolhe conversa/botões e encolhe o anel. Escolha: recolher em vez de empilhar tudo — em 375×667 não cabem conversa + 4 botões + senha sem sobrepor, e câmera/▶ não servem com a tela bloqueada. Computador igual. (2) Cena do desbloqueio (~1,7 s): caracteres aleatórios SEM dígito travando em "✓" da esquerda para a direita com os cadeados abrindo, depois varredura ciano→dourada no anel + pulso leve; a tela só sai do bloqueio no fim da cena (o servidor já liberou); reduced-motion = 300 ms. (3) Modo ambiente: com a tela cheia bloqueada e o Henry parado, cards inventados genéricos (só no navegador, `lib/henry-pulse-ambient-core.mjs`), real com prioridade, param ao desbloquear; o Pulso roda bloqueado mesmo desligado, sem consultar o servidor. (4) Chamada: "Ei/Fala/Oi/Olá, Henry" em todos os caminhos sem o prefixo no pedido; "Hen-ri"/"Hen ri"; "Henrique" só no começo seguido de pedido; "ei/hey/fala + Henry" sozinhos = "pode falar" (antes viravam relatório); app de desktop 1.3.2 com os prefixos na gramática do Vosk.
+- **Motivo:** pedidos do dono depois do teste no iPhone (PWA) e de deixar o Henry bloqueado de madrugada.
+- **Arquivos afetados:** `components/henry/HenryLockScreen.jsx`, `HenryVoiceView.jsx`, `HenryVoiceAssistant.jsx`, `HenryPulse.jsx`, `lib/henry-lock-core.mjs`, `lib/henry-pulse-ambient-core.mjs` (novo), `lib/henry-pulse-core.mjs` (`pickPulseSpot` com `side`), `lib/henry-voice-core.mjs` (`detectWakeWord`, `joinSplitHenry`, `WAKE_STRONG_PATTERN`), `lib/henry-voice-conversation.mjs` (variações no `isShortReply`/`isMusicPauseCommand`), `desktop-app/src/core.js`, `desktop-app/package*.json` (1.3.2), `desktop-app/README.md`, vitrine (`?bloqueio=…|aviso|ambiente`), testes `tests/henry-wake-calls.test.mjs`, `tests/henry-pulse-ambient.test.mjs`; docs `BUSINESS_RULES.md` (HENRY-LOCK v2, HENRY-1 chamada/1.3.2).
+- **Risco/observação:** (1) O workflow `.github/workflows/desktop-app.yml` publica a release sozinho quando `desktop-app/**` chega na `main` com versão nova — juntar este branch na main PUBLICA a 1.3.2. Para segurar, junte sem `desktop-app/` ou só com o ok do dono. (2) Gramática do Vosk com os prefixos não foi medida com a voz do dono (modelo não baixado aqui); se piorar, o "Diagnóstico do nome" mostra. (3) "Oi/Olá, Henry" sozinhos continuam abrindo o relatório do dia (HENRY-1); mudar isso é decisão do dono.
+- **Autor:** Claude Code (crm-editor)
+
 ### 2026-10-23 — Tela de bloqueio do Henry (HENRY-LOCK) — branch `feat/henry-bloqueio`, NÃO publicado
 - **Data:** 2026-10-23
 - **Área:** Henry / Permissões / Banco / Notificações
