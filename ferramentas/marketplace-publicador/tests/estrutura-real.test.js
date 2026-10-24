@@ -365,6 +365,43 @@ test("1.9.1: aviso do sistema e painel \"Envie uma resposta rápida\" não viram
   for (const text of ["Sim, você tem interesse?", "Você pode me mandar o endereço?", "Ainda está disponível?"]) assert.equal(MP.isSystemMessage(text), false, text);
 });
 
+// 1.9.7 — casos Debora/Andreza (18 conversas, 22 a 24/10/2026): a sugestão de resposta rápida ao vendedor chegou ao CRM
+// com id do Facebook ("fb:mid…") — o bloco do painel tem data-message-id próprio, logo depois da pergunta do comprador.
+test("1.9.7: sugestão de resposta rápida com data-message-id não vira mensagem do cliente; a pergunta real fica", async () => {
+  const chip = (text) => h("div", { role: "button", tabindex: "-1", "aria-label": text }, h("span", {}, text));
+  // Bloco da sugestão com id próprio + título do painel + chips (botão com aria-label = texto, como o da mensagem).
+  const suggestionWithTitle = h("div", { "data-virtualized": "false" }, h("div", { role: "article" },
+    h("div", { "data-message-id": "mid.$s1", tabindex: "0" },
+      h("div", {}, h("span", {}, "Envie uma resposta rápida"), chip("Sim, você tem interesse?"), chip("Qual condomínio?")))));
+  // Mesmo bloco sem título (o Facebook muda o texto): chips focáveis (tabindex=0) dentro do balão.
+  const suggestionNoTitle = h("div", { "data-virtualized": "false" }, h("div", { role: "article" },
+    h("div", { "data-message-id": "mid.$s2", tabindex: "0" },
+      h("div", { role: "button", tabindex: "0" }, h("div", { dir: "auto" }, "Sim, você tem interesse?")))));
+  const win = chatWindow("Andreza", "2 quartos 1 banheiro Apartamento", [
+    separator("00:52"),
+    inbound("mid.$a1", "Andreza", "Este item ainda está disponível?"),
+    suggestionWithTitle,
+    suggestionNoTitle
+  ]);
+  const send = await loadInbox(fakeDocument(h("body", {}, h("div", { role: "main" }), win)));
+  const result = await send({ type: "mp-inbox-read", threadKey: "n7", contactName: "Andreza" });
+  assert.equal(result.ok, true, result.error);
+  assert.deepEqual(result.messages.map((m) => [m.externalId, m.direction, m.body]), [["fb:mid.$a1", "inbound", "Este item ainda está disponível?"]]);
+  // Filtro por texto (última barreira, também no servidor): só a frase do vendedor, nunca uma pergunta real do cliente.
+  assert.equal(MP.isQuickReplySuggestion("Sim, você tem interesse?"), true);
+  assert.equal(MP.isQuickReplySuggestion("Yes, are you interested?"), true);
+  for (const text of ["Este item ainda está disponível?", "Sim, tenho interesse", "Qual condomínio?"]) assert.equal(MP.isQuickReplySuggestion(text), false, text);
+});
+
+test("1.9.7: resposta automática não é digitada com texto no campo do Facebook (humanTyping vai ao CRM)", () => {
+  const inbox = readFileSync(new URL("../inbox.js", import.meta.url), "utf8");
+  assert.match(inbox, /async function sendText\(text, \{ automatic = false \} = \{\}\)/);
+  assert.match(inbox, /if \(automatic && String\(composer\.innerText \|\| composer\.textContent \|\| ""\)\.trim\(\)\) \{\s*return \{ ok: false, sentAttempted: false, humanTyping: true/);
+  assert.match(inbox, /sendText\(message\.text, \{ automatic: message\.automatic === true \}\)/);
+  const bg = readFileSync(new URL("../background.js", import.meta.url), "utf8");
+  assert.match(bg, /type: "mp-inbox-send", text: message\.body, automatic: message\.automatic === true/);
+});
+
 // 1.9.2 — envio pelo CRM (dono, 2026-10-22: corretores dependem 100% dele).
 test("1.9.2: leitura guarda o endereço direto da conversa; envio abre por ele, espera 45 s, recria a aba e não reenvia sem confirmação", async () => {
   const win = chatWindow("Ana Teste", "Casa 2 quartos", [inbound("mid.$aaa", "Ana Teste", "Olá")]);

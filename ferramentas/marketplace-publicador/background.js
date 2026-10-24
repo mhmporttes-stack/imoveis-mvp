@@ -809,7 +809,7 @@ async function sendOutbound(tabId, config, message) {
       : null;
     outcome = verifyOutcome(check) || (file
       ? await pageCall(tabId, { type: "mp-inbox-send-file", file }, 150000)
-      : await pageCall(tabId, { type: "mp-inbox-send", text: message.body }, 120000));
+      : await pageCall(tabId, { type: "mp-inbox-send", text: message.body, automatic: message.automatic === true }, 120000));
   } catch (error) {
     // Falhou antes de digitar (conversa não aberta, aba fechada): pode tentar de novo; senão, sem saber se saiu, não reenvia.
     outcome = { ok: false, sentAttempted: !error?.beforeSend, error: error.message };

@@ -26,10 +26,10 @@ const now = new Date("2026-10-20T15:00:00Z");
 const ago = (min) => new Date(now.getTime() - min * 60000).toISOString();
 
 test("configuração: padrão 07–22h, ligado, 20 envios/h; valores inválidos voltam ao padrão", () => {
-  assert.deepEqual(normalizeChatSettings({}), { syncEnabled: true, startHour: 7, endHour: 22, maxSendsPerHour: 20, firstLoadRules: [{ date: "2026-10-21", userId: "295246ec-17f3-4ca2-9ce7-6369622438a2" }, { date: "2026-10-20", userId: "3fdc31e6-9c4c-4e8a-a50f-95567fc022ec" }], firstLoadIgnoreBefore: "2026-10-20" });
+  assert.deepEqual(normalizeChatSettings({}), { syncEnabled: true, startHour: 7, endHour: 22, maxSendsPerHour: 20, firstLoadRules: [{ date: "2026-10-21", userId: "295246ec-17f3-4ca2-9ce7-6369622438a2" }, { date: "2026-10-20", userId: "3fdc31e6-9c4c-4e8a-a50f-95567fc022ec" }], firstLoadIgnoreBefore: "2026-10-20", availabilityAutoReply: true });
   // Configuração antiga (um dia só) gravada no banco: passa a valer a regra nova da 1ª carga.
   assert.equal(normalizeChatSettings({ firstSyncAssigneeId: "3fdc31e6-9c4c-4e8a-a50f-95567fc022ec", firstSyncDate: "2026-10-20" }).firstLoadRules.length, 2);
-  assert.deepEqual(normalizeChatSettings({ syncEnabled: false, startHour: 23, endHour: 8, maxSendsPerHour: 999, firstLoadRules: [{ date: "x", userId: "295246ec-17f3-4ca2-9ce7-6369622438a2" }, { date: "2026-10-01", userId: "nao-uuid" }], firstLoadIgnoreBefore: "x" }), { syncEnabled: false, startHour: 8, endHour: 23, maxSendsPerHour: 20, firstLoadRules: [], firstLoadIgnoreBefore: "" });
+  assert.deepEqual(normalizeChatSettings({ syncEnabled: false, startHour: 23, endHour: 8, maxSendsPerHour: 999, firstLoadRules: [{ date: "x", userId: "295246ec-17f3-4ca2-9ce7-6369622438a2" }, { date: "2026-10-01", userId: "nao-uuid" }], firstLoadIgnoreBefore: "x" }), { syncEnabled: false, startHour: 8, endHour: 23, maxSendsPerHour: 20, firstLoadRules: [], firstLoadIgnoreBefore: "", availabilityAutoReply: true });
   // Um par por dia, mais recentes primeiro.
   assert.deepEqual(normalizeChatSettings({ firstLoadRules: [{ date: "2026-10-20", userId: "3fdc31e6-9c4c-4e8a-a50f-95567fc022ec" }, { date: "2026-10-21", userId: "295246ec-17f3-4ca2-9ce7-6369622438a2" }, { date: "2026-10-20", userId: "295246ec-17f3-4ca2-9ce7-6369622438a2" }] }).firstLoadRules.map((rule) => rule.date), ["2026-10-21", "2026-10-20"]);
 });
@@ -374,7 +374,10 @@ test("avisos do Facebook e painel de respostas rápidas não são mensagem (sinc
   for (const body of ["Debora iniciou esta conversa.", "Você iniciou esta conversa.", "Debora marcou o item como vendido", "Debora está aguardando a sua resposta.", "Você pode enviar mensagens para este vendedor", "Debora started this conversation.", "Envie uma resposta rápida", "Toque em uma resposta para enviá-la ao comprador."]) {
     assert.equal(normalizeFacebookMessage({ body, direction: "inbound" }, { now }), null, body);
   }
-  for (const body of ["Sim, você tem interesse?", "Você pode me mandar o endereço?", "Você pode enviar fotos da cozinha?"]) {
+  // 2026-10-24 (caso Andreza): a sugestão "Sim, você tem interesse?" chegava com id do Facebook — inbound com esse texto
+  // exato sai também pelo texto (isQuickReplySuggestion). Pergunta real do cliente continua.
+  assert.equal(normalizeFacebookMessage({ body: "Sim, você tem interesse?", direction: "inbound" }, { now }), null);
+  for (const body of ["Você pode me mandar o endereço?", "Você pode enviar fotos da cozinha?"]) {
     assert.ok(normalizeFacebookMessage({ body, direction: "inbound" }, { now }), body);
   }
   const [item] = normalizeSyncPayload({ conversations: [{ threadKey: "n2", contactName: "Debora", messages: [
@@ -449,7 +452,7 @@ test("eco confirma resposta que falhou ou está em nova tentativa (saiu → envi
   assert.match(lib, /status: "sent", sent_at: message\.at \|\| now\.toISOString\(\), error: null/);
   const claim = lib.slice(lib.indexOf("export async function claimNextMarketplaceOutbound"), lib.indexOf("export async function reportMarketplaceOutboundResult"));
   // Intervalo entre tentativas (e, desde 2026-10-23, ordem por conversa): pickOutboxCandidate com retryBefore.
-  assert.match(claim, /pickOutboxCandidate\(pending, \{ retryBefore, mediaAllowed \}\)/);
+  assert.match(claim, /pickOutboxCandidate\(pending, \{ retryBefore, mediaAllowed, now \}\)/);
   const retry = lib.slice(lib.indexOf("export async function retryMarketplaceOutbound"), lib.indexOf("export async function reprocessMarketplaceOutboundFailures"));
   assert.match(retry, /loadScopedConversation\(conversationId, auth\)/);
   assert.ok(retry.indexOf("findStoredEcho(row)") < retry.indexOf('status: "queued", attempts: 0'), "confere o eco antes de reenfileirar");
