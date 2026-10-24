@@ -691,6 +691,14 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-24 — Henry: resumo de desempenho só com o que foi bom — branch `feat/henry-resumo-positivo`, NÃO publicado
+- **Data:** 2026-10-24
+- **Área:** Henry (HENRY-1 "Resumo positivo", bom dia, relatorio_periodo, consultar_corretor, consultar_crm, relatorio_do_dia)
+- **Alteração:** [REGRA OFICIAL DE NEGÓCIO — dono, 2026-10-24] a fala do bom dia e dos resumos de desempenho traz só o positivo (zero, aguardando, atrasados, frios e quedas saem; a tela segue completa); dia fraco → frase curta de ânimo sem número, sem repetir no dia; pergunta direta de uma métrica → número, inclusive zero ("Bruno não teve nenhuma simulação hoje."). Novo núcleo puro `lib/henry-reports-positive-core.mjs`; montadores com `positive`; bom dia fala `composePositiveDailyFacts` (leads de hoje, clientes novos desde ontem, simulações automáticas/envios, equipe on-line, quem bateu a Meta) e a tela mostra o relatório completo; frase do catálogo da Alexa filtrada só no Henry; regra no prompt fixo; "desempenho da equipe hoje/ontem" → `relatorio_periodo`.
+- **Arquivos:** `lib/henry-reports-positive-core.mjs` (novo), `lib/henry-reports-core.mjs`, `lib/henry-voice.js`, `lib/henry-voice-persona.mjs`, `tests/henry-positive-summary.test.mjs` (novo), `tests/henry-reports.test.mjs`, `tests/henry-persona.test.mjs`; docs `BUSINESS_RULES.md` HENRY-1, rule `integracoes-externas.md`.
+- **Validação:** `node --test tests/henry*.test.mjs tests/alexa*.test.mjs` verde; suíte completa sem falha nova (as que falham já falhavam na `main`); `pnpm build`.
+- **Risco/observação:** sem migration, rota ou permissão nova; Alexa inalterada. `reportNumbersMatch` passou a aceitar 1/2 quando o texto dos dados diz "um/uma/dois/duas" (concordância da `contagem`). **A CONFIRMAR:** Meta Diária baixa ainda é falada no resumo.
+
 ### 2026-10-24 — Henry: bom dia aceita estilo ou cantor na resposta da música — branch `feat/henry-musica-estilo`, NÃO publicado
 - **Data:** 2026-10-24
 - **Área:** Henry (HENRY-1 "Música", bom dia)
