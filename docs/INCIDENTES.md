@@ -40,6 +40,17 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-24 — Henry: "tenho um aviso, posso falar?" → "sim, qual é esse aviso?" → "não tenho nenhum aviso"
+- **Data:** 2026-10-24
+- **Sintoma:** o Henry chamou para um aviso; o dono respondeu "sim, pode me falar, qual é esse aviso?" e ele disse que não tinha aviso e foi "procurar no CRM".
+- **Área:** Henry (avisos por voz)
+- **Impacto:** dono; aviso de cliente/chegada/Central/aniversário não entregue quando a resposta era longa ou vinha depois do chamado.
+- **Causa raiz:** `classifyAlertAnswer` só aceitava frases curtas (≤ 4 palavras) ou de uma lista fechada; "sim pode me falar qual esse aviso" (7 palavras) virava "other" e ia ao modelo como pergunta nova — e o modelo não recebia nada sobre o aviso guardado (só o navegador sabia). Depois do chamado (aviso no indicador) "qual é o aviso?" também ia ao modelo.
+- **Correção:** decisão única `decideAlertReply` (aceite de qualquer tamanho feito só de palavras de permissão, pergunta pelo aviso, indicador, "Esse aviso já foi resolvido." quando nada sobrou), usada por `handleFinal` e `ask` (todos os caminhos); o pedido ao modelo leva `alertState` → `buildHenryAlertNote`.
+- **Arquivos/commit:** `lib/henry-voice-client-alerts-core.mjs`, `components/henry/HenryVoiceAssistant.jsx`, `lib/henry-voice.js`, `lib/henry-voice-persona.mjs`, `app/api/admin/henry/route.js` — branch `fix/henry-aviso-resposta`
+- **Prevenção/teste:** `tests/henry-alert-reply.test.mjs`.
+- **Status:** Resolvido (aguardando publicação)
+
 ### 2026-10-24 — Henry "não consegue visualizar" se a cliente do aviso está no oficial ou no WhatsApp pessoal
 - **Data:** 2026-10-24
 - **Sintoma:** o Henry avisou "entrou uma cliente nova e está com você"; o dono perguntou se ela estava no número da API oficial ou no pessoal e ele respondeu que não conseguia visualizar.

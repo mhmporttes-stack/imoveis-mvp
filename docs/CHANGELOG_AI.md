@@ -44,6 +44,15 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 
 
+### 2026-10-24 — Henry: resposta longa ao aviso ("sim, pode me falar, qual é esse aviso?") entrega o aviso
+- **Data:** 2026-10-24
+- **Área:** Henry (avisos por voz)
+- **Alteração:** decisão única `decideAlertReply` (+ `isExplicitAlertYes`, `isAlertFollowUp`) em `lib/henry-voice-client-alerts-core.mjs`, usada por `handleFinal` e `ask` (fala contínua, aperte-para-falar, gravação, digitado, desktop): aceite de qualquer tamanho só com palavras de permissão, pergunta pelo aviso e aviso no indicador entregam o guardado; nada a entregar → banco novo `HENRY_ALERT_PHRASES.resolved` ("Esse aviso já foi resolvido."). Pedido ao modelo leva `alertState` (pending/resolved, só o estado) → `buildHenryAlertNote` no prompt variável (`alertNote`, desligado com a tela bloqueada). Último chamado em `calledAt` no armazenamento do navegador.
+- **Motivo:** bug relatado pelo dono (ver `docs/INCIDENTES.md` 2026-10-24): a frase longa virava "other" e ia ao modelo, que não sabia do aviso.
+- **Arquivos afetados:** `lib/henry-voice-client-alerts-core.mjs`, `components/henry/HenryVoiceAssistant.jsx`, `lib/henry-voice.js`, `lib/henry-voice-persona.mjs`, `app/api/admin/henry/route.js`, `tests/henry-alert-reply.test.mjs`, `docs/BUSINESS_RULES.md` (HENRY-1)
+- **Risco/observação:** fora da espera do chamado, a pergunta pelo aviso só é atendida com o pedido dirigido ao Henry (conversa aberta ou nome) — fala de terceiros não dispara. Henry continua só leitura. Testes henry* (todos) e build.
+- **Autor:** Claude Code
+
 ### 2026-10-24 — Henry: Enter segurado vale com a tela cheia aberta mesmo com botão do CRM focado
 - **Data:** 2026-10-24
 - **Área:** Henry

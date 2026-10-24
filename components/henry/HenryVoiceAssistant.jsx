@@ -83,7 +83,8 @@ import {
   ALERT_POLL_MS,
   ALERT_RETRY_MS,
   addAlertSeen,
-  classifyAlertAnswer,
+  decideAlertReply,
+  henryAlertNoteState,
   isAlertHour,
   mergeAlertPending,
   pickAlertPhrase,
@@ -1587,6 +1588,9 @@ export default function HenryVoiceAssistant() {
     const controller = new AbortController();
     abortRef.current = controller;
     const history = conversationHistory(turnsRef.current, conversationRef.current.historyStart);
+    // Aviso guardado/resolvido vai ao modelo (buildHenryAlertNote): nunca "não tenho aviso" com um pendente.
+    const alertStore = readAlertStore();
+    const alertNoteState = henryAlertNoteState({ hasPending: pruneAlertPending(alertStore.pending || []).length > 0, calledAt: Number(alertStore.calledAt || 0) });
     const nextTurns = [...turnsRef.current, { role: "user", text: shown || question }];
     turnsRef.current = nextTurns;
     setTurns(nextTurns);
@@ -1683,7 +1687,7 @@ export default function HenryVoiceAssistant() {
       const response = await fetch("/api/admin/henry", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ mode, question, history, ...(image ? { image } : {}), ...(morning ? { morning } : {}), ...(spotifyVolume !== null ? { spotifyVolume } : {}), ...(lockRef.current.locked ? { locked: true } : {}), stream: true, deviceId: deviceIdRef.current }),
+        body: JSON.stringify({ mode, question, history, ...(alertNoteState ? { alertState: alertNoteState } : {}), ...(image ? { image } : {}), ...(morning ? { morning } : {}), ...(spotifyVolume !== null ? { spotifyVolume } : {}), ...(lockRef.current.locked ? { locked: true } : {}), stream: true, deviceId: deviceIdRef.current }),
         signal: controller.signal
       });
       image = null;
@@ -2160,7 +2164,8 @@ export default function HenryVoiceAssistant() {
   const handleFinal = useCallback((raw, { armed = false } = {}) => {
     const text = String(raw || "").trim();
     if (!text) return false;
-    if (alertAnswerRef.current(text)) return true; // resposta ao "Chefe?" do aviso de cliente
+    // Resposta ao "Chefe?" do aviso (ou "qual é esse aviso?" em conversa); sem conversa aberta, só na espera do chamado.
+    if (alertAnswerRef.current(text, { direct: conversationRef.current.active && !isConversationExpired(conversationRef.current.lastAt) })) return true;
     const conversation = conversationRef.current;
     const spoken = [lastReplyRef.current];
     const ask = (detectedMode, detectedQuestion) => {
@@ -2384,6 +2389,7 @@ export default function HenryVoiceAssistant() {
     }
     window.clearTimeout(alertRef.current.timer);
     alertRef.current = { ...alertRef.current, stage: "calling", calls: alertRef.current.stage === "calling" || alertRef.current.stage === "waiting" ? alertRef.current.calls + 1 : 1, offer: kind !== "vocative" };
+    writeAlertStore({ calledAt: Date.now() }); // "qual é esse aviso?" depois do chamado (decideAlertReply / nota ao modelo)
     startConversation(); // a resposta vale sem dizer "Henry" (janela de conversa)
     pendingReplyRef.current = openPendingReply("alert");
     if (musicPlaying()) duckSpotifyVolume(); // música baixa no chamado e na espera da resposta
@@ -2396,13 +2402,28 @@ export default function HenryVoiceAssistant() {
   const callForAlert = useCallback((options = {}, { allowAwaiting = false } = {}) => saySpontaneous("aviso", () => callForAlertNow(options), { allowAwaiting }), [callForAlertNow, saySpontaneous]);
 
   // "Pode falar" (ou toque no indicador): a informação, com os dados relidos agora; um resumo quando são vários.
-  const tellAlerts = useCallback(async ({ command = false } = {}) => {
+  // answered = o dono respondeu ao chamado ("pode falar", "qual é esse aviso?"): se não sobrou nada a entregar (lido em
+  // outro aparelho, cliente já atendido), diz "Esse aviso já foi resolvido." — nunca silêncio nem o modelo procurando.
+  const sayAlertResolved = useCallback(async () => {
+    const store = readAlertStore();
+    const picked = pickAlertPhrase("resolved", Array.isArray(store.phrases_resolved) ? store.phrases_resolved : []);
+    writeAlertStore({ phrases_resolved: picked.recent, calledAt: 0 });
+    const token = requestIdRef.current;
+    const audio = await alertPhraseAudio(picked.text);
+    if (requestIdRef.current !== token || recordRef.current) return;
+    sayAlertLine(picked.text, audio);
+  }, [alertPhraseAudio, sayAlertLine]);
+  const tellAlerts = useCallback(async ({ command = false, answered = false } = {}) => {
     window.clearTimeout(alertRef.current.timer);
     const store = readAlertStore();
     const pending = pruneAlertPending(store.pending || []);
     if (!pending.length) {
       alertRef.current = { ...alertRef.current, stage: "idle", calls: 0 };
       syncPending([]);
+      if (answered && !command) {
+        sayAlertResolved();
+        return;
+      }
       // "Leia os avisos" sem nada guardado: diz que não tem (frase fixa, na voz dele).
       if (command) {
         const picked = pickAlertPhrase("none", Array.isArray(store.phrases_none) ? store.phrases_none : []);
@@ -2459,8 +2480,9 @@ export default function HenryVoiceAssistant() {
         pendingReplyRef.current = openPendingReply("birthday_alert");
       }
       sayAlertLine(data.text, data.audio, data.items);
-    } else listenAgain();
-  }, [alertPhraseAudio, listenAgain, sayAlertLine, startConversation, syncPending, updatePhase]);
+    } else if (answered) sayAlertResolved(); // o que estava guardado já não vale (atendido, lido na tela...)
+    else listenAgain();
+  }, [alertPhraseAudio, listenAgain, sayAlertLine, sayAlertResolved, startConversation, syncPending, updatePhase]);
   // Botão de confirmação da tela (dono, 2026-10-24, HENRY-1 "Aniversariante"): ÚNICO caminho do aviso ao corretor. A voz
   // só prepara; o envio sai daqui, um clique por vez, e o resultado fica no próprio botão (o painel não some).
   const confirmDetail = useCallback(async (confirm) => {
@@ -2495,32 +2517,42 @@ export default function HenryVoiceAssistant() {
   }, [callForAlert, endConversation]);
 
   // Resposta do dono enquanto espera (devolve true quando a frase foi consumida pelo aviso).
-  alertAnswerRef.current = (raw) => {
+  // Mesma decisão em todos os caminhos (fala contínua → handleFinal; aperte-para-falar, gravação, digitado, app de
+  // desktop → ask): decideAlertReply (dono, 2026-10-24: "sim, pode me falar, qual é esse aviso?" ia ao modelo).
+  // direct = o pedido já é para o Henry (ask, ou fala contínua em conversa): fora da espera do chamado, só assim a
+  // pergunta pelo aviso é atendida aqui (conversa de terceiros no escritório não dispara o aviso).
+  alertAnswerRef.current = (raw, { direct = true } = {}) => {
     const current = alertRef.current;
-    if (current.stage !== "waiting" && current.stage !== "calling") return false;
     const text = String(raw || "").trim();
     if (!text || isEchoOf(text, [lastReplyRef.current])) return false;
-    const answer = classifyAlertAnswer(text);
+    const waiting = current.stage === "waiting" || current.stage === "calling";
+    if (!waiting && !direct) return false;
+    const store = readAlertStore();
+    const otherQuestion = !waiting && (Boolean(morningRef.current) || (isAwaitingReply(pendingReplyRef.current) && pendingReplyRef.current.kind !== "alert"));
+    const answer = decideAlertReply(text, { stage: current.stage, hasPending: pruneAlertPending(store.pending || []).length > 0, calledAt: Number(store.calledAt || 0), otherQuestion });
+    if (answer === "pass") {
+      // Outra coisa (ex.: uma pergunta): segue como pergunta e, no fim da resposta, oferece o aviso.
+      if (waiting) alertRef.current = { ...current, stage: "idle", calls: 0 };
+      return false;
+    }
     if (answer === "noise") {
       henryDebug("descarte", { reason: "ruido_no_aviso" });
       return true;
     }
     window.clearTimeout(current.timer);
     pendingReplyRef.current = { active: false };
-    if (answer === "yes") {
+    if (answer === "tell" || answer === "resolved") {
       stopSpeaking();
-      tellAlerts();
+      tellAlerts({ answered: true });
       return true;
     }
-    if (answer === "no") {
+    if (answer === "later") {
       stopSpeaking();
       alertRef.current = { ...current, stage: "idle", calls: 0 };
       writeAlertStore({ retryAt: Date.now() + ALERT_RETRY_MS, retries: 0 });
       callLaterRef.current();
       return true;
     }
-    // Outra coisa (ex.: uma pergunta): segue como pergunta e, no fim da resposta, oferece o aviso.
-    alertRef.current = { ...current, stage: "idle", calls: 0 };
     return false;
   };
   // Resposta à pergunta aberta não veio (gravação vazia, só silêncio ou descartada pela guarda da música): em vez de

@@ -427,8 +427,10 @@ export async function POST(request) {
     // Volume que a tela guardou ao abaixar a música para ele falar: a troca de aparelho devolve no aparelho de origem.
     const spotifyVolume = Number.isInteger(body?.spotifyVolume) && body.spotifyVolume >= 0 && body.spotifyVolume <= 100 ? body.spotifyVolume : null;
     const lockCommand = lockNow ? "done" : mode === "question" && !lockState.configured && isHenryLockCommand(question) ? "no_pin" : "";
-    if (body?.stream === true && body?.voice !== false) return answerStream(auth, { mode, question, history: body?.history, image, morning, spotifyVolume, vision, webSearch, locked, lockCommand, lockFields }, style);
-    const answer = await answerHenry(auth, { mode, question, history: body?.history, image, style, morning, spotifyVolume, vision, webSearch, locked, lockCommand });
+    // Aviso guardado/resolvido no navegador (só o estado, nunca dado): vai ao prompt por buildHenryAlertNote.
+    const alertState = body?.alertState === "pending" || body?.alertState === "resolved" ? body.alertState : "";
+    if (body?.stream === true && body?.voice !== false) return answerStream(auth, { mode, question, history: body?.history, image, morning, spotifyVolume, vision, webSearch, alertState, locked, lockCommand, lockFields }, style);
+    const answer = await answerHenry(auth, { mode, question, history: body?.history, image, style, morning, spotifyVolume, vision, webSearch, alertState, locked, lockCommand });
     const navigate = navigationPayload(answer.navigate);
     const audio = body?.voice === false ? null : await synthesizeHenrySpeech(auth, answer.reply, style);
     return NextResponse.json({ reply: answer.reply, navigate, openUrl: openUrlPayload(answer.openUrl), detail: answer.detail || null, spotify: spotifyPayload(answer.spotify), morning: morningPayload(answer.morning), scene: answer.scene || null, memoryCleared: answer.memoryCleared === true, ...(answer.musicPlaying ? { musicPlaying: true } : {}), ...(answer.spotifyMoved ? { spotifyMoved: true } : {}), ...lockFields, audio });
