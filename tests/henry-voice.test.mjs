@@ -70,12 +70,18 @@ test("acesso: só o dono, conta real; liga por padrão", () => {
 });
 
 test("rota: guard antes de tudo e checagem de dono", () => {
-  const source = readFileSync(new URL("../app/api/admin/henry/route.js", import.meta.url), "utf8");
-  assert.match(source, /requireAdminApi\(request\)/);
-  assert.match(source, /isHenryEligible\(/);
-  for (const method of ["GET", "PUT", "POST"]) {
-    const body = source.slice(source.indexOf(`export async function ${method}`));
-    assert.match(body.split("\n").slice(0, 3).join("\n"), /requireHenryOwner\(request\)/, method);
+  // O guard mora em lib/henry-auth.js desde a tela de bloqueio (HENRY-LOCK, 2026-10-23): uma só checagem para as rotas do Henry.
+  const guard = readFileSync(new URL("../lib/henry-auth.js", import.meta.url), "utf8");
+  assert.match(guard, /requireAdminApi\(request\)/);
+  assert.match(guard, /isHenryEligible\(/);
+  for (const path of ["../app/api/admin/henry/route.js", "../app/api/admin/henry/lock/route.js"]) {
+    const source = readFileSync(new URL(path, import.meta.url), "utf8");
+    assert.match(source, /from "@\/lib\/henry-auth"/, path);
+    for (const method of ["GET", "PUT", "POST"]) {
+      if (!source.includes(`export async function ${method}`)) continue;
+      const body = source.slice(source.indexOf(`export async function ${method}`));
+      assert.match(body.split("\n").slice(0, 3).join("\n"), /requireHenryOwner\(request\)/, `${path} ${method}`);
+    }
   }
 });
 
@@ -273,6 +279,6 @@ test("visão: estado da câmera vai ao modelo em cada pedido", async () => {
   const lib = readFileSync(new URL("../lib/henry-voice.js", import.meta.url), "utf8");
   assert.match(lib, /buildHenryVisionNote\(\{ vision, withImage \}\)/);
   const route = readFileSync(new URL("../app/api/admin/henry/route.js", import.meta.url), "utf8");
-  assert.match(route, /answerHenry\(auth, \{[^}]*vision, webSearch \}\)/);
-  assert.match(route, /answerStream\(auth, \{[^}]*vision, webSearch \}, style\)/);
+  assert.match(route, /answerHenry\(auth, \{[^}]*vision, webSearch[,}]/);
+  assert.match(route, /answerStream\(auth, \{[^}]*vision, webSearch[^}]*\}, style\)/);
 });

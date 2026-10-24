@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
-import { isOwnerAdminEmail, requireAdminApi } from "@/lib/admin-auth";
+import { requireHenryOwner } from "@/lib/henry-auth";
+import { engageHenryLock, henryLockTokenHash, resolveHenryLock } from "@/lib/henry-lock";
+import { isHenryLockCommand } from "@/lib/henry-lock-core.mjs";
 import { checkPublicRateLimit } from "@/lib/rate-limit";
 import {
   answerHenry,
@@ -21,7 +23,7 @@ import {
   transcribeHenryAudio,
   warmHenryReport
 } from "@/lib/henry-voice";
-import { HENRY_FALLBACK_REPLY, HENRY_MAX_QUESTION_LENGTH, isHenryEligible, parseHenryImage, safeHenryReply, shouldUseHenryImage } from "@/lib/henry-voice-core.mjs";
+import { HENRY_FALLBACK_REPLY, HENRY_MAX_QUESTION_LENGTH, parseHenryImage, safeHenryReply, shouldUseHenryImage } from "@/lib/henry-voice-core.mjs";
 import { henryBrowserRate, henryEndWaitMs, henryListenAckOn, henryStyleOptions, parseHenryStylePatch } from "@/lib/henry-voice-style.mjs";
 import { splitForSpeech } from "@/lib/henry-voice-conversation.mjs";
 import { parseHenryPulsePatch } from "@/lib/henry-pulse-core.mjs";
@@ -59,22 +61,15 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export const maxDuration = 60; // relatório de período longo (ex.: 90 dias) calculado na hora
 
-// Assistente de voz "Henry" (docs/BUSINESS_RULES.md HENRY-1). Só o DONO, na conta real, fora de "Alterar conta" — os
-// outros perfis recebem 403 (o componente nem é montado para eles; a barreira é esta rota). SOMENTE LEITURA.
-async function requireHenryOwner(request) {
-  const auth = await requireAdminApi(request);
-  if (!auth.ok) return auth;
-  if (!isHenryEligible({ ok: auth.ok, accountSwitchMode: auth.accountSwitchMode, isOwner: isOwnerAdminEmail(auth.user?.email) })) {
-    return { ok: false, status: 403, error: "O assistente Henry é só do dono, na conta dele (fora de \"Alterar conta\")." };
-  }
-  return auth;
-}
+// Assistente de voz "Henry" (docs/BUSINESS_RULES.md HENRY-1). Só o DONO, na conta real, fora de "Alterar conta"
+// (requireHenryOwner, lib/henry-auth.js). SOMENTE LEITURA. Tela de bloqueio (HENRY-LOCK): bloqueado, nada do CRM sai
+// daqui — resolveHenryLock → answerHenry({ locked }), avisos de cliente e a conversa de hoje.
 
 export async function GET(request) {
   const auth = await requireHenryOwner(request);
   if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status });
   try {
-    const [{ enabled, vision, webSearch, mobileWake, clientAlerts, teamArrivals, voiceNotices, pulse, style }, dayTurns] = await Promise.all([readHenrySettings(), readHenryDayTurns().catch(() => [])]);
+    const [{ enabled, vision, webSearch, mobileWake, clientAlerts, teamArrivals, voiceNotices, pulse, style }, dayTurns, lock] = await Promise.all([readHenrySettings(), readHenryDayTurns().catch(() => []), resolveHenryLock(auth, { tokenHash: henryLockTokenHash(request) })]);
     const provider = henryVoiceProvider();
     // Lista de vozes da ElevenLabs só para o cartão de configurações (?vozes=1); o ícone do canto não precisa dela.
     // Junto, o saldo de caracteres (GET /v1/user/subscription). 401/403 viram frase clara de permissão na tela.
@@ -110,7 +105,8 @@ export async function GET(request) {
       teamArrivals,
       voiceNotices, // "Avisos só por voz (sem card na tela)" — nasce ligado
       pulse, // "Pulso do CRM" (rascunho HENRY-1 "Pulso"): { enabled (nasce desligado), intensity, types, snippets }
-      dayTurns: enabled ? dayTurns : [], // memória do dia: a tela cheia mostra a conversa de hoje (só texto)
+      dayTurns: enabled && !lock.locked ? dayTurns : [], // memória do dia: a tela cheia mostra a conversa de hoje (só texto); bloqueado = nada
+      lock, // tela de bloqueio (HENRY-LOCK): { configured, locked, fullscreen, idleMinutes, waitSeconds }
       serverVoice: isHenryVoiceConfigured(),
       provider,
       providerLabel: HENRY_PROVIDER_LABELS[provider],
@@ -210,7 +206,7 @@ function answerStream(auth, request, style) {
           }
         });
         const navigate = navigationPayload(answer.navigate);
-        send({ reply: answer.reply, navigate, openUrl: openUrlPayload(answer.openUrl), detail: answer.detail || null, spotify: spotifyPayload(answer.spotify), morning: morningPayload(answer.morning), scene: answer.scene || null, ...(answer.memoryCleared ? { memoryCleared: true } : {}), ...(answer.musicPlaying ? { musicPlaying: true } : {}), ...(answer.spotifyMoved ? { spotifyMoved: true } : {}) });
+        send({ reply: answer.reply, navigate, openUrl: openUrlPayload(answer.openUrl), detail: answer.detail || null, spotify: spotifyPayload(answer.spotify), morning: morningPayload(answer.morning), scene: answer.scene || null, ...(answer.memoryCleared ? { memoryCleared: true } : {}), ...(answer.musicPlaying ? { musicPlaying: true } : {}), ...(answer.spotifyMoved ? { spotifyMoved: true } : {}), ...(request.lockFields || {}) });
         const replyAt = Date.now();
         const parts = splitForSpeech(answer.reply);
         const reuse = early && parts[0] === early.text;
@@ -296,6 +292,11 @@ export async function POST(request) {
     try {
       const { enabled, clientAlerts, teamArrivals, voiceNotices, style } = await readHenrySettings();
       if (!enabled || (!clientAlerts && !teamArrivals && !voiceNotices)) return NextResponse.json({ disabled: true, events: [] });
+      // Tela bloqueada (HENRY-LOCK): aviso com dado do CRM só depois da senha. A consulta segura o cursor (hold) e o aviso
+      // sai quando desbloquear; falar a informação devolve 423. "phrase" (frases fixas, sem dado) segue.
+      if (body?.action !== "phrase" && (await resolveHenryLock(auth, { tokenHash: henryLockTokenHash(request), clientLocked: body?.locked === true })).locked) {
+        return body?.action === "poll" ? NextResponse.json({ cursor: typeof body?.since === "string" ? body.since : "", hold: true, locked: true, events: [] }) : NextResponse.json({ error: "Tela bloqueada: digite a senha para ouvir o aviso.", locked: true }, { status: 423 });
+      }
       const kinds = { clients: clientAlerts, arrivals: teamArrivals };
       const voice = body?.voice !== false;
       if (body?.action === "poll") {
@@ -370,26 +371,40 @@ export async function POST(request) {
 
   try {
     // Aparelho, configuração e limite de taxa ao mesmo tempo (eram três idas ao banco em fila).
-    const [allowedDevice, { enabled, vision, webSearch, style }, allowedRate] = await Promise.all([
+    // Tela de bloqueio (HENRY-LOCK): o estado é lido aqui (pergunta = interação, renova a inatividade); bloqueado → o
+    // Henry conversa e toca música, mas sem nenhum dado do CRM (answerHenry({ locked })). Falhou a leitura → erro (nunca
+    // responde dado sem conferir).
+    const [allowedDevice, { enabled, vision, webSearch, style }, allowedRate, lockState] = await Promise.all([
       deviceId ? claimHenryDevice(auth, deviceId).catch(() => true) : true,
       readHenrySettings(),
-      checkPublicRateLimit(`henry:${auth.profile?.id}`, { windowSeconds: 60, maxAttempts: 20 })
+      checkPublicRateLimit(`henry:${auth.profile?.id}`, { windowSeconds: 60, maxAttempts: 20 }),
+      resolveHenryLock(auth, { tokenHash: henryLockTokenHash(request), clientLocked: body?.locked === true, touch: true })
     ]);
     // Outro aparelho está conversando com o Henry agora: este fica calado (o mesmo pedido ouvido pelos dois).
     if (!allowedDevice) return NextResponse.json({ skipped: "other_device" });
     if (!enabled) return NextResponse.json({ error: "O Henry está desligado. Ligue em Alexa e Henry." }, { status: 409 });
     if (!allowedRate) return NextResponse.json({ error: "Muitas perguntas seguidas. Espere um minuto." }, { status: 429 });
+    // "Henry, bloqueia": bloqueia no servidor antes de responder (a tela abre a tela cheia bloqueada com `lock`).
+    let locked = lockState.locked;
+    let lockNow = false;
+    if (lockState.configured && mode === "question" && isHenryLockCommand(question)) {
+      await engageHenryLock(auth);
+      locked = true;
+      lockNow = true;
+    }
+    const lockFields = lockState.configured ? { locked, ...(lockNow ? { lock: true } : {}) } : {};
     const image = shouldUseHenryImage({ vision, mode, question }) ? parseHenryImage(body?.image) : null;
     // Modo conversa: `stream` = linhas (NDJSON) abertas na hora: progresso/narração enquanto pensa, depois o texto e a voz
     // em partes (1ª frase primeiro). Mesmo texto, mesma barreira (safeHenryReply já aplicada).
     const morning = parseMorningState(body?.morning);
     // Volume que a tela guardou ao abaixar a música para ele falar: a troca de aparelho devolve no aparelho de origem.
     const spotifyVolume = Number.isInteger(body?.spotifyVolume) && body.spotifyVolume >= 0 && body.spotifyVolume <= 100 ? body.spotifyVolume : null;
-    if (body?.stream === true && body?.voice !== false) return answerStream(auth, { mode, question, history: body?.history, image, morning, spotifyVolume, vision, webSearch }, style);
-    const answer = await answerHenry(auth, { mode, question, history: body?.history, image, style, morning, spotifyVolume, vision, webSearch });
+    const lockCommand = lockNow ? "done" : mode === "question" && !lockState.configured && isHenryLockCommand(question) ? "no_pin" : "";
+    if (body?.stream === true && body?.voice !== false) return answerStream(auth, { mode, question, history: body?.history, image, morning, spotifyVolume, vision, webSearch, locked, lockCommand, lockFields }, style);
+    const answer = await answerHenry(auth, { mode, question, history: body?.history, image, style, morning, spotifyVolume, vision, webSearch, locked, lockCommand });
     const navigate = navigationPayload(answer.navigate);
     const audio = body?.voice === false ? null : await synthesizeHenrySpeech(auth, answer.reply, style);
-    return NextResponse.json({ reply: answer.reply, navigate, openUrl: openUrlPayload(answer.openUrl), detail: answer.detail || null, spotify: spotifyPayload(answer.spotify), morning: morningPayload(answer.morning), scene: answer.scene || null, memoryCleared: answer.memoryCleared === true, ...(answer.musicPlaying ? { musicPlaying: true } : {}), ...(answer.spotifyMoved ? { spotifyMoved: true } : {}), audio });
+    return NextResponse.json({ reply: answer.reply, navigate, openUrl: openUrlPayload(answer.openUrl), detail: answer.detail || null, spotify: spotifyPayload(answer.spotify), morning: morningPayload(answer.morning), scene: answer.scene || null, memoryCleared: answer.memoryCleared === true, ...(answer.musicPlaying ? { musicPlaying: true } : {}), ...(answer.spotifyMoved ? { spotifyMoved: true } : {}), ...lockFields, audio });
   } catch (error) {
     console.warn(`[henry] pergunta falhou: ${error?.status ? error.message : error?.name === "TimeoutError" ? "timeout" : "erro"}.`);
     return NextResponse.json({ error: error?.status ? error.message : "Não consegui responder agora. Tente de novo." }, { status: error?.status || 502 });

@@ -107,6 +107,8 @@ import { henryOrbMode, thinkingActivity } from "./henry-orb-states.mjs";
 import HenryCursor from "./HenryCursor";
 import { OPENING_SOUND_AT_S, playHenryOpeningSound } from "./HenryOpeningScene";
 import { captureWebcamFrame } from "./webcam-capture";
+import HenryLockScreen, { HenryUnlockedBadge } from "./HenryLockScreen";
+import { HENRY_LOCK_EVENT, normalizeIdleMinutes } from "@/lib/henry-lock-core.mjs";
 import { HENRY_VAD_BARGE_OPTIONS, HENRY_VAD_RECORD_OPTIONS, createHenryVad } from "./henry-vad";
 
 // Assistente de voz "Henry" (pedido do dono, 2026-10-22 — docs/BUSINESS_RULES.md HENRY-1). Montado no layout do painel só
@@ -266,6 +268,14 @@ export default function HenryVoiceAssistant() {
   const [micState, setMicState] = useState("idle"); // idle | listening | blocked
   const [phase, setPhase] = useState("idle"); // idle | armed | thinking | speaking
   const [expanded, setExpanded] = useState(false);
+  // Tela de bloqueio (REGRA OFICIAL — dono, 2026-10-23; HENRY-LOCK). configured = senha definida (sem senha, nada muda);
+  // locked = bloqueado (a tela cheia não minimiza, a conversa de antes some e todo pedido vai com locked: true — quem barra o
+  // dado é o servidor). turnStart = conversa visível desde o bloqueio. lastTouch = última renovação da inatividade no servidor.
+  const [lock, setLock] = useState({ configured: false, locked: false, idleMinutes: 10, waitSeconds: 0, turnStart: 0 });
+  const lockRef = useRef(lock);
+  lockRef.current = lock;
+  const lastTouchRef = useRef(0);
+  const applyServerLockRef = useRef(null); // resposta do servidor com `lock`/`locked` (definida mais abaixo)
   const [turns, setTurns] = useState([]);
   const [typed, setTyped] = useState("");
   const [notice, setNotice] = useState("");
@@ -480,6 +490,10 @@ export default function HenryVoiceAssistant() {
         setMobileWake(data?.mobileWake === true);
         setAlertsOn(data?.clientAlerts !== false || data?.teamArrivals !== false || data?.voiceNotices !== false);
         setVoiceNotices(data?.voiceNotices !== false);
+        // Tela de bloqueio: bloqueado no servidor (ex.: recarregou com a tela travada) continua bloqueado aqui.
+        if (data?.lock?.configured) {
+          setLock((current) => ({ ...current, configured: true, locked: data.lock.locked === true, idleMinutes: normalizeIdleMinutes(data.lock.idleMinutes), waitSeconds: Number(data.lock.waitSeconds) || 0, turnStart: data.lock.locked ? turnsRef.current.length : 0 }));
+        }
         setPulseConfig(data?.pulse?.enabled === true ? henryPulseConfig(data.pulse) : null);
       })
       .catch(() => alive && setEnabled(false))
@@ -1515,7 +1529,7 @@ export default function HenryVoiceAssistant() {
       const response = await fetch("/api/admin/henry", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ mode, question, history, ...(image ? { image } : {}), ...(morning ? { morning } : {}), ...(spotifyVolume !== null ? { spotifyVolume } : {}), stream: true, deviceId: deviceIdRef.current }),
+        body: JSON.stringify({ mode, question, history, ...(image ? { image } : {}), ...(morning ? { morning } : {}), ...(spotifyVolume !== null ? { spotifyVolume } : {}), ...(lockRef.current.locked ? { locked: true } : {}), stream: true, deviceId: deviceIdRef.current }),
         signal: controller.signal
       });
       image = null;
@@ -1536,6 +1550,7 @@ export default function HenryVoiceAssistant() {
           return;
         }
         if (data.memoryCleared) clearTurns();
+        applyServerLockRef.current?.(data);
         onReply(data.reply || "", data.navigate, data.detail || null, data.scene || null, data.openUrl || null, data.spotify || null, data.morning || null, data.musicPlaying === true, data.spotifyMoved === true);
         enqueueClip({ audio: data.audio, text: data.reply || "" });
         endSpeech();
@@ -1568,6 +1583,7 @@ export default function HenryVoiceAssistant() {
           if (typeof message?.reply === "string") {
             if (!marks.reply) marks.reply = Date.now();
             if (message.memoryCleared) clearTurns();
+            applyServerLockRef.current?.(message);
             onReply(message.reply, message.navigate, message.detail || null, message.scene || null, message.openUrl || null, message.spotify || null, message.morning || null, message.musicPlaying === true, message.spotifyMoved === true);
           }
           else if (typeof message?.text === "string") {
@@ -2097,7 +2113,8 @@ export default function HenryVoiceAssistant() {
   // fora do mudo). Evento novo → fala só o vocativo e abre o microfone (janela de conversa). "Pode falar" → a informação;
   // "agora não" → "depois te falo" e tenta em ~10 min; sem resposta em ~9 s → chama de novo; de novo sem resposta → fica
   // pendente (indicador na tela; tocar faz ele falar); outra pergunta → responde e depois oferece o aviso.
-  const alertIdle = () => phaseRef.current === "idle" && !conversationRef.current.active && !recordRef.current && !mutedRef.current;
+  // Tela bloqueada (HENRY-LOCK): avisos com dado do CRM esperam o desbloqueio (o servidor também segura).
+  const alertIdle = () => phaseRef.current === "idle" && !conversationRef.current.active && !recordRef.current && !mutedRef.current && !lockRef.current.locked;
 
   const alertAudioKey = (text) => `mm-henry-alert-audio:${narrationKeyRef.current}:${text}`;
   const alertPhraseAudio = useCallback(async (text) => {
@@ -2811,7 +2828,10 @@ export default function HenryVoiceAssistant() {
     document.body.style.overflow = "hidden";
     if (!window.history.state?.henryOpen) window.history.pushState({ ...(window.history.state || {}), henryOpen: true }, "");
     const onPop = () => {
-      if (!window.history.state?.henryOpen) setExpanded(false);
+      if (window.history.state?.henryOpen) return;
+      // Bloqueado: o "voltar" não sai da tela de bloqueio (volta a entrada no histórico).
+      if (lockRef.current.locked) window.history.pushState({ ...(window.history.state || {}), henryOpen: true }, "");
+      else setExpanded(false);
     };
     window.addEventListener("popstate", onPop);
     return () => {
@@ -2984,7 +3004,7 @@ export default function HenryVoiceAssistant() {
       if (event.altKey && !event.ctrlKey && !event.metaKey && (event.key === "b" || event.key === "B" || event.code === "KeyB")) {
         event.preventDefault();
         toggleMute();
-      } else if (event.key === "Escape" && expanded && !openingRef.current) {
+      } else if (event.key === "Escape" && expanded && !openingRef.current && !lockRef.current.locked) {
         setExpanded(false);
       }
     };
@@ -2992,8 +3012,109 @@ export default function HenryVoiceAssistant() {
     return () => window.removeEventListener("keydown", onKey);
   }, [active, expanded, toggleMute]);
 
+  // --- Tela de bloqueio (HENRY-LOCK) --------------------------------------------------------------------------------
+  // Bloqueia SÓ a tela deste aparelho (o servidor já sabe, ou é avisado por engageLock). keepLast = mantém visível a
+  // última pergunta (o servidor respondeu "pede a senha" a ela).
+  const lockLocally = useCallback((keepLast = false) => {
+    const current = lockRef.current;
+    if (!current.configured || current.locked) return;
+    const start = Math.max(0, turnsRef.current.length - (keepLast ? 1 : 0));
+    const next = { ...current, locked: true, turnStart: start };
+    lockRef.current = next;
+    setLock(next);
+    conversationRef.current = { ...conversationRef.current, historyStart: start }; // o modelo não recebe a conversa de antes
+  }, []);
+  // Abrir a tela cheia, "Henry, bloqueia", botão do cadeado e inatividade.
+  const engageLock = useCallback(() => {
+    if (!lockRef.current.configured) return;
+    lockLocally();
+    setExpanded(true);
+    fetch("/api/admin/henry/lock", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "engage" }) }).catch(() => {});
+  }, [lockLocally]);
+  applyServerLockRef.current = (message) => {
+    if (!lockRef.current.configured) return;
+    if (message?.lock === true) {
+      lockLocally(true);
+      setExpanded(true);
+    } else if (message?.locked === true) lockLocally(true);
+  };
+  // Senha digitada na tela: o servidor confere (tentativas e esperas são dele) e grava o cookie deste aparelho.
+  const unlockScreen = useCallback(async (pin) => {
+    try {
+      const response = await fetch("/api/admin/henry/lock", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "unlock", pin }) });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) return { ok: false, error: data?.error || "Não consegui conferir a senha.", waitSeconds: Number(data?.waitSeconds) || 0 };
+      const next = { ...lockRef.current, locked: false, waitSeconds: 0, idleMinutes: normalizeIdleMinutes(data?.idleMinutes) };
+      lockRef.current = next;
+      setLock(next);
+      lastActivityRef.current = Date.now();
+      lastTouchRef.current = Date.now();
+      return { ok: true };
+    } catch {
+      return { ok: false, error: "Sem conexão. Tente de novo." };
+    }
+  }, []);
+  // Abriu a tela cheia → bloqueia; saiu dela desbloqueado → o Henry pequeno volta ao comportamento de antes (servidor).
+  const wasExpandedRef = useRef(false);
+  useEffect(() => {
+    const was = wasExpandedRef.current;
+    wasExpandedRef.current = expanded;
+    if (!lockRef.current.configured) return;
+    if (expanded && !was && !lockRef.current.locked) engageLock(); // já bloqueado (engageLock/servidor): nada a fazer
+    else if (!expanded && was && !lockRef.current.locked) {
+      fetch("/api/admin/henry/lock", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "leave" }) })
+        .then((response) => (response.ok ? null : response.json().catch(() => null)))
+        .then((data) => {
+          if (data?.locked) lockLocally();
+        })
+        .catch(() => {});
+    }
+  }, [expanded, engageLock, lockLocally]);
+  // Inatividade na tela cheia desbloqueada: toque/tecla/fala contam; passou do tempo → bloqueia. A cada ~1 min com
+  // interação, renova no servidor (que também expira sozinho se a tela parar de avisar).
+  useEffect(() => {
+    if (!expanded || !lock.configured || lock.locked) return undefined;
+    const mark = () => {
+      lastActivityRef.current = Date.now();
+    };
+    window.addEventListener("pointerdown", mark);
+    window.addEventListener("keydown", mark);
+    const timer = window.setInterval(() => {
+      const now = Date.now();
+      if (now - lastActivityRef.current > lock.idleMinutes * 60_000) {
+        engageLock();
+        return;
+      }
+      if (lastActivityRef.current > lastTouchRef.current && now - lastTouchRef.current > 60_000) {
+        lastTouchRef.current = now;
+        fetch("/api/admin/henry/lock", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "touch" }) })
+          .then((response) => (response.ok ? response.json() : null))
+          .then((data) => {
+            if (data?.locked) lockLocally();
+          })
+          .catch(() => {});
+      }
+    }, 10_000);
+    return () => {
+      window.removeEventListener("pointerdown", mark);
+      window.removeEventListener("keydown", mark);
+      window.clearInterval(timer);
+    };
+  }, [expanded, lock.configured, lock.locked, lock.idleMinutes, engageLock, lockLocally]);
+  // Cartão do Henry definiu a senha ou mudou o tempo: vale já, sem recarregar.
+  useEffect(() => {
+    const onSettings = (event) => {
+      const detail = event?.detail || {};
+      setLock((current) => ({ ...current, configured: detail.configured === true || current.configured, idleMinutes: normalizeIdleMinutes(detail.idleMinutes ?? current.idleMinutes) }));
+    };
+    window.addEventListener(HENRY_LOCK_EVENT, onSettings);
+    return () => window.removeEventListener(HENRY_LOCK_EVENT, onSettings);
+  }, []);
+
   if (!active) return null;
 
+  // Bloqueado: só a conversa desde o bloqueio aparece (a de antes pode ter dado do CRM).
+  const shownTurns = lock.configured && lock.locked ? turns.slice(lock.turnStart) : turns;
   const status = capturing
     ? "Olhando pela câmera…"
     : recordMode
@@ -3038,7 +3159,9 @@ export default function HenryVoiceAssistant() {
     <HenryVoiceView
       expanded={expanded}
       onExpand={openScene}
-      onMinimize={() => setExpanded(false)}
+      onMinimize={() => {
+        if (!lockRef.current.locked) setExpanded(false); // bloqueado: só sai com a senha
+      }}
       speaking={phase === "speaking"}
       onInterrupt={() => {
         if (!soundRetryRef.current) interrupt();
@@ -3049,8 +3172,8 @@ export default function HenryVoiceAssistant() {
       engaged={inConversation || phase !== "idle" || recording || calling}
       heardHint={!heard.accepted && heard.text && Date.now() - heard.at < 8000 ? `Ouvi: “${heard.text}” (diga “Henry” antes)` : ""}
       inConversation={inConversation}
-      caption={recording ? status : captionFor(phase, turns)} /* gravando: "Ouvindo…" também no ícone minimizado */
-      turns={turns}
+      caption={recording ? status : captionFor(phase, shownTurns)} /* gravando: "Ouvindo…" também no ícone minimizado */
+      turns={shownTurns}
       notice={notice}
       micOff={recordMode ? !recording : muted || !supported || micState === "blocked"}
       onToggleMute={recordMode ? talk : toggleMute}
@@ -3080,12 +3203,19 @@ export default function HenryVoiceAssistant() {
       onMorningPlay={startMorningPlay}
       opening={opening}
       onOpeningDone={finishOpening}
+      locked={lock.configured && lock.locked}
+      lockLayer={
+        lock.configured && expanded ? (
+          lock.locked ? <HenryLockScreen key={lock.turnStart} mobile={!desktop} initialWaitSeconds={lock.waitSeconds} onSubmit={unlockScreen} /> : <HenryUnlockedBadge onLock={engageLock} />
+        ) : null
+      }
       pulse={pulseConfig}
       alertList={alertList}
       onPulseOpen={(link) => {
         // Card do Pulso: mesma navegação guiada das respostas (minimiza + cursor); só destino da lista fechada.
         const navigate = { key: "pulso", path: link?.path || "", label: "Pulso do CRM", ...(link?.clientId ? { clientId: link.clientId } : {}) };
-        if (!shouldMinimizeForNavigation(navigate)) return;
+        // Tela bloqueada (HENRY-LOCK): o card do Pulso mostra, mas não tira da tela de bloqueio (só sai com a senha).
+        if (!shouldMinimizeForNavigation(navigate) || lockRef.current.locked) return;
         setExpanded(false);
         setNavRequest({ ...navigate, id: Date.now() });
       }}

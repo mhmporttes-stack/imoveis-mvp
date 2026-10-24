@@ -112,6 +112,10 @@ export default function HenryVoiceView({
   onOpeningDone,
   openingName = "Matheus",
   openingTelemetry = null,
+  // Tela de bloqueio (HENRY-LOCK, dono 2026-10-23): lockLayer = risquinhos/cadeados (bloqueado) ou o cadeado aberto do
+  // canto (desbloqueado), vindos do HenryVoiceAssistant; locked = sem o "minimizar" e, no celular, conversa mais acima.
+  lockLayer = null,
+  locked = false,
   // Pulso do CRM (rascunho HENRY-1 "Pulso"): config do HenryPulse (null = desligado), abrir o link do card e, só na
   // vitrine, a fonte de eventos de exemplo.
   pulse = null,
@@ -332,7 +336,8 @@ export default function HenryVoiceView({
         </p>
         <p className="mt-0.5 text-xs text-white/55" aria-live="polite">{status}</p>
       </div>
-      <button
+      {lockLayer}
+      {locked ? null : <button
         type="button"
         onClick={onMinimize}
         className="absolute right-4 top-[calc(0.75rem+env(safe-area-inset-top))] flex h-11 w-11 items-center justify-center rounded-full text-white/70 transition hover:bg-white/10 hover:text-white md:right-6 md:top-5 md:h-9 md:w-9"
@@ -342,7 +347,7 @@ export default function HenryVoiceView({
         <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
           <path d="M6 6l12 12M18 6L6 18" />
         </svg>
-      </button>
+      </button>}
 
       <HenryAlertList items={alertList} mobile={mobile} />
       {/* Pulso do CRM: atrás do anel (cards e feixes em volta dele); apagado quando ele pensa ou fala. */}
@@ -359,7 +364,7 @@ export default function HenryVoiceView({
         <HenryMusicScene music={musicScene} orbSize={orbSize} mobile={mobile} />
       </div>
 
-      <div className="absolute inset-x-4 bottom-[calc(1rem+env(safe-area-inset-bottom))] flex flex-col items-end gap-3 md:inset-x-auto md:bottom-6 md:right-8 md:w-[min(420px,40vw)]">
+      <div className={`absolute inset-x-4 ${locked && mobile ? "bottom-[calc(5.5rem+env(safe-area-inset-bottom))]" : "bottom-[calc(1rem+env(safe-area-inset-bottom))]"} flex flex-col items-end gap-3 md:inset-x-auto md:bottom-6 md:right-8 md:w-[min(420px,40vw)]`}>
         {/* Texto sem card (dono, 2026-10-22): só as palavras sobre a cena, com sombra para ler (iPhone incluso). */}
         <div
           className="flex max-h-[30vh] w-full flex-col items-end gap-1.5 overflow-y-auto text-right text-[14px] leading-snug md:max-h-none md:overflow-visible md:text-[13px]"
