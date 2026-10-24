@@ -40,6 +40,17 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-24 — Henry fala no masculino palavra feminina ("entraram dois transferências")
+- **Data:** 2026-10-24
+- **Sintoma:** "Ele falou 'entraram dois transferências'. Ele devia ter dito 'entraram duas' [...] vários lugares colocando no masculino palavras em feminino."
+- **Área:** Henry (voz)
+- **Impacto:** só o dono; toda fala com 1/2/x1/x2/centenas antes de substantivo feminino fora da lista antiga.
+- **Causa raiz:** os textos vão à voz com número em dígitos ("2 transferências") e o provedor lê sempre no masculino; a correção de 22/10 (`feminineNumbers`) usava lista FECHADA sem "transferência", "tarefa" e outras (e tinha "alerta" e "mil" errados). O modelo às vezes escrevia "dois"/"um" por extenso, que nada corrigia.
+- **Correção:** regra única `lib/pt-br-concordancia.mjs` (lista + terminações femininas, "um/dois" por extenso, "mil" pelo que vem depois) usada por `pronounceForSpeech`; montadores com `contagem`; regra no prompt fixo.
+- **Arquivos/commit:** `lib/pt-br-concordancia.mjs`, `lib/henry-voice-providers.mjs`, `lib/henry-*-core.mjs`, `lib/alexa-config-core.mjs` — branch `fix/henry-concordancia`.
+- **Prevenção/teste:** `tests/pt-br-concordancia.test.mjs` (tabela 1/2/3 × substantivo, snapshots dos avisos, varredura dos bancos de frases e dos montadores).
+- **Status:** Corrigido (não publicado — aguarda merge)
+
 ### 2026-10-24 — Henry "não consegue visualizar" se a cliente do aviso está no oficial ou no WhatsApp pessoal
 - **Data:** 2026-10-24
 - **Sintoma:** o Henry avisou "entrou uma cliente nova e está com você"; o dono perguntou se ela estava no número da API oficial ou no pessoal e ele respondeu que não conseguia visualizar.
