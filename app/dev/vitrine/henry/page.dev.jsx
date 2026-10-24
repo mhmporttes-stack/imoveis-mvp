@@ -1,5 +1,6 @@
 import HenryDemo from "../_components/HenryDemo";
 import HenryCursorDemo from "../_components/HenryCursorDemo";
+import HenryLockDemo from "../_components/HenryLockDemo";
 
 // Vitrine DEV do assistente de voz Henry (HENRY-1). Só no `next dev`; sinal de áudio simulado e conversa fictícia.
 //   ?modo=idle|listening|thinking|speaking  ·  ?tela=icone (ícone do canto sobre fundo do painel)
@@ -20,6 +21,8 @@ export const dynamic = "force-dynamic";
 export default async function HenryVitrine({ searchParams }) {
   const params = await searchParams;
   if (params?.cena === "cursor") return <HenryCursorDemo />;
+  // Tela de bloqueio (HENRY-LOCK): ?bloqueio=1|digitando|erro|teclado|aberto (senha fictícia 123456 só aqui).
+  if (params?.bloqueio) return <HenryLockDemo variant={String(params.bloqueio)} />;
   const scene = ["buscando", "procurando", "corretor", "relatorio", "achou", "musica"].includes(params?.cena) ? params.cena : "";
   const sceneMode = scene === "buscando" || scene === "procurando" ? "thinking" : scene ? "speaking" : "";
   const pulse = params?.pulso === "1";

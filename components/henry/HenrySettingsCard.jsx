@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import Field, { inputClasses } from "@/components/ui/Field";
 import { henryReserveVoiceChain, pickBestBrowserVoice, pronounceForSpeech } from "@/lib/henry-voice-providers.mjs";
 import { HENRY_END_WAIT_EVENT } from "@/lib/henry-voice-conversation.mjs";
+import HenryLockSettings from "./HenryLockSettings";
 import { HENRY_PULSE_INTENSITIES, HENRY_PULSE_TYPES, HENRY_PULSE_TYPE_KEYS } from "@/lib/henry-pulse-core.mjs";
 import {
   DESKTOP_WAKE_CUSTOM_MAX_CHARS,
@@ -232,6 +233,7 @@ export default function HenrySettingsCard() {
         />
       ) : null}
       {state.spotify ? <HenrySpotifySection status={state.spotify} onChange={(spotify) => setState((current) => ({ ...current, spotify }))} /> : null}
+      {state.allowed ? <HenryLockSettings /> : null}
       {error ? <p className="mt-3 text-sm font-bold text-red-700">{error}</p> : null}
     </section>
   );

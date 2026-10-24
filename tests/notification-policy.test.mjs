@@ -11,7 +11,7 @@ test("só cliente novo, atividade agendada, transferência de clientes e teste s
   // official_chat_assigned: exceção do dono (2026-10-18, PRES-25) — conversa do oficial atribuída pelo código do atendimento.
   // documents_list_auto: exceção do dono (2026-10-20) — lista de documentos pedida no oficial (enviada sozinha ou pendente).
   // marketplace_extension_silent: exceção do dono (2026-10-22, MKT-2g) — extensão do Marketplace sem sinal, push aos admins.
-  assert.deepEqual([...ALLOWED_NOTIFICATION_KINDS].sort(), ["clients_transferred", "documents_list_auto", "marketplace_extension_silent", "marketplace_internal", "new_client", "official_chat_assigned", "scheduled_activity", "test", "whatsapp_connection"]);
+  assert.deepEqual([...ALLOWED_NOTIFICATION_KINDS].sort(), ["clients_transferred", "documents_list_auto", "henry_lockout", "marketplace_extension_silent", "marketplace_internal", "new_client", "official_chat_assigned", "scheduled_activity", "test", "whatsapp_connection"]);
   for (const kind of ["new_client", "scheduled_activity", "clients_transferred", "test", "whatsapp_connection", "official_chat_assigned", "documents_list_auto", "marketplace_extension_silent", "marketplace_internal"]) assert.equal(isNotificationAllowed(kind), true, kind);
   for (const kind of ["chat_message", "chat_internal", "document_analysis", "automation", "prospecting_reply", "alert", "", undefined, null]) assert.equal(isNotificationAllowed(kind), false, String(kind));
 });
@@ -46,7 +46,7 @@ test("push: chamadores permitidos declaram o tipo; os demais NÃO declaram (fica
   // 2026-10-22); qualquer outro valor vira "sem tipo" e continua bloqueado.
   const alerts = read("lib/crm-alerts.js");
   assert.ok(alerts.includes("const pushKind = alertPushKind(row.context);"));
-  assert.deepEqual([...ALERT_PUSH_KINDS].sort(), ["marketplace_extension_silent", "whatsapp_connection"]);
+  assert.deepEqual([...ALERT_PUSH_KINDS].sort(), ["henry_lockout", "marketplace_extension_silent", "whatsapp_connection"]);
   assert.equal(alertPushKind({ push_kind: "whatsapp_connection" }), "whatsapp_connection");
   assert.equal(alertPushKind({ push_kind: "marketplace_extension_silent" }), "marketplace_extension_silent");
   for (const value of ["new_client", "official_chat_assigned", "documents_list_auto", "test", "", undefined]) assert.equal(alertPushKind({ push_kind: value }), undefined, String(value));
