@@ -92,7 +92,7 @@ import {
   henryListenPolicy,
   readHenryPttOnly
 } from "@/lib/henry-voice-conversation.mjs";
-import { HENRY_SPOTIFY_RAMP_DELAY_MS, SPOTIFY_DUCK_VOLUME, speechDuckAction, speechDuckLevel, spotifyRampPlan } from "@/lib/henry-spotify-core.mjs";
+import { HENRY_SPOTIFY_RAMP_DELAY_MS, SPOTIFY_DUCK_VOLUME, speechDuckAction, speechDuckLevel, spotifyRampPlan, spotifyRestoreStep, spotifyUserMemoryFor } from "@/lib/henry-spotify-core.mjs";
 import { ELEVENLABS_REALTIME_SAMPLE_RATE, henryReserveVoiceChain, pickBestBrowserVoice, pronounceForSpeech, splitSentences } from "@/lib/henry-voice-providers.mjs";
 import { HENRY_WAIT_PHRASES, MUSIC_TOPIC, ackToneDurationMs, henryAckContext, henryMusicIntent, isAckPhrase, mergeHenryMusic, musicQueryFromText, narrationWarmBatches, normalizeHenryScene, pickListenAck, pickWaitPhrase, rememberPhrase, shouldAcknowledgeHeard, shouldNarrate, spotifyDeviceRequestKind, waitPhrasesToSynthesize } from "@/lib/henry-voice-narration.mjs";
 import { HENRY_LISTEN_PROMPTS, henryGreetingRequest, isHenryGreeting, pickVariant, rememberVariant } from "@/lib/henry-voice-persona.mjs";
@@ -435,6 +435,16 @@ export default function HenryVoiceAssistant() {
   const missedReplyRef = useRef(() => false);
   // Volume do Spotify baixo enquanto ele escuta/responde: previous = volume guardado; keep = não restaurar ("pausa"/volume).
   const spotifyDuckRef = useRef({ previous: null, pending: false, keep: false, timer: 0, level: null, ramping: false });
+  // Volume do DONO (sobrevive ao fim de um abaixar/subir, ~15 min): o próximo abaixar parte dele se o Spotify ainda estiver
+  // no nível que o Henry pôs — nunca 25% de 25% (bug real 2026-10-24). Pedido de volume do dono troca por ele.
+  const spotifyUserRef = useRef(null);
+  const rememberSpotifyUser = (volume, lastLevel = null) => {
+    spotifyUserRef.current = Number.isInteger(volume) ? { volume, lastLevel: Number.isInteger(lastLevel) ? lastLevel : null, at: Date.now() } : null;
+  };
+  const spotifyUserFields = () => {
+    const memory = spotifyUserMemoryFor(spotifyUserRef.current);
+    return memory ? { userVolume: memory.volume, ...(memory.lastLevel !== null ? { lastLevel: memory.lastLevel } : {}) } : {};
+  };
   const [navRequest, setNavRequest] = useState(null);
   // Ouviu "Henry" no parcial: o ícone já dobra de tamanho, mesmo minimizado (dono, 2026-10-22), antes da frase terminar.
   const [calling, setCalling] = useState(false);
@@ -632,22 +642,45 @@ export default function HenryVoiceAssistant() {
     duck.ramping = true;
     duck.timer = 0;
     let expect = Number.isInteger(duck.level) ? duck.level : null;
+    // expectFrom = o nível baixo de onde a subida parte: o Spotify demora a refletir cada passo, então tudo entre ele e o
+    // último passo ainda é do Henry (antes a subida parava no meio por isso e a música ficava baixa).
+    const expectFrom = expect;
     const plan = expect === null ? [{ volume: previous, atMs: 0 }] : spotifyRampPlan({ from: expect, to: previous });
     const startedAt = Date.now();
+    const send = (volume) => fetch("/api/admin/henry/spotify/player", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "restore", volume, ...(expect === null ? {} : { expect, expectFrom }) }) })
+      .then((response) => (response.ok ? response.json() : null))
+      .catch(() => null);
     for (const step of plan) {
       const wait = step.atMs - (Date.now() - startedAt);
       if (wait > 0) await new Promise((resolve) => window.setTimeout(resolve, wait));
       if (spotifyRampRef.current !== token) return; // fala nova: quem decide agora é o abaixar da fala
-      const body = { action: "restore", volume: step.volume, ...(expect === null ? {} : { expect }) };
-      const result = await fetch("/api/admin/henry/spotify/player", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) })
-        .then((response) => (response.ok ? response.json() : null))
-        .catch(() => null);
+      let outcome = spotifyRestoreStep(await send(step.volume));
+      if (outcome === "retry") {
+        // Falha passageira (rede/Spotify): uma nova tentativa antes de desistir — nunca deixa a música baixa por um erro.
+        await new Promise((resolve) => window.setTimeout(resolve, 700));
+        if (spotifyRampRef.current !== token) return;
+        outcome = spotifyRestoreStep(await send(step.volume), { retried: true });
+      }
       if (spotifyRampRef.current !== token) return;
-      if (!result?.ok) break; // ajuste manual (skipped) ou falha: não insiste
+      if (outcome === "manual") {
+        // O dono mexeu no volume: o dele vale, nada a restaurar nem lembrar.
+        rememberSpotifyUser(null);
+        reset();
+        return;
+      }
+      if (outcome === "keep") {
+        // Falhou de novo: para, mas LEMBRA o volume do dono e o nível em que ficou (o próximo abaixar/subir parte dele).
+        rememberSpotifyUser(previous, expect);
+        reset();
+        return;
+      }
       expect = step.volume;
       spotifyDuckRef.current.level = step.volume;
     }
-    if (spotifyRampRef.current === token) reset();
+    if (spotifyRampRef.current === token) {
+      rememberSpotifyUser(previous);
+      reset();
+    }
   }, []);
   // Abaixa a música (~15%) ao acordar com ela tocando; volta sozinha em ~30 s sem atividade (segurança).
   const duckSpotifyVolume = useCallback(() => {
@@ -657,7 +690,7 @@ export default function HenryVoiceAssistant() {
     duck.timer = window.setTimeout(restoreSpotifyVolume, MUSIC_DUCK_SAFETY_MS);
     if (duck.previous !== null || duck.pending) return;
     duck.pending = true;
-    duck.promise = fetch("/api/admin/henry/spotify/player", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "duck" }) })
+    duck.promise = fetch("/api/admin/henry/spotify/player", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "duck", ...spotifyUserFields() }) })
       .then((response) => (response.ok ? response.json() : null))
       .then((data) => {
         const current = spotifyDuckRef.current;
@@ -665,6 +698,7 @@ export default function HenryVoiceAssistant() {
         if (data?.ducked && Number.isInteger(data.previous)) {
           current.previous = data.previous;
           current.level = Number.isInteger(data.level) ? data.level : SPOTIFY_DUCK_VOLUME;
+          rememberSpotifyUser(current.previous, current.level);
         }
       })
       .catch(() => {
@@ -687,11 +721,13 @@ export default function HenryVoiceAssistant() {
       const level = speechDuckLevel(duck.previous);
       const expect = Number.isInteger(duck.level) ? duck.level : null;
       duck.level = level;
-      fetch("/api/admin/henry/spotify/player", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "restore", volume: level, ...(expect === null ? {} : { expect }) }) }).catch(() => {});
+      rememberSpotifyUser(duck.previous, level);
+      // Subida em andamento: qualquer volume entre o nível baixo e o último passo ainda é do Henry (o Spotify atrasa).
+      fetch("/api/admin/henry/spotify/player", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "restore", volume: level, ...(expect === null ? {} : { expect, expectFrom: level }) }) }).catch(() => {});
       return;
     }
     duck.pending = true;
-    duck.promise = fetch("/api/admin/henry/spotify/player", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "duck", speech: true }) })
+    duck.promise = fetch("/api/admin/henry/spotify/player", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "duck", speech: true, ...spotifyUserFields() }) })
       .then((response) => (response.ok ? response.json() : null))
       .then((data) => {
         const current = spotifyDuckRef.current;
@@ -699,6 +735,7 @@ export default function HenryVoiceAssistant() {
         if (data?.ducked && Number.isInteger(data.previous)) {
           current.previous = data.previous;
           current.level = Number.isInteger(data.level) ? data.level : speechDuckLevel(data.previous);
+          rememberSpotifyUser(current.previous, current.level);
         }
       })
       .catch(() => {
@@ -1381,7 +1418,7 @@ export default function HenryVoiceAssistant() {
   // Spotify fechado: abre a URI pelo protocolo spotify: (âncora na mesma aba) e pede ao servidor para esperar o aparelho
   // (~10 s) e tocar nele. Tocou → silêncio (a música fala por si). Não pegou (ou iPhone sem play) → frase curta pedindo um
   // play no Spotify — só se o dono não fez outra pergunta nesse meio-tempo. Nunca força nada além disso.
-  const openSpotifyAndPlay = useCallback(async (uri, requestId, volume = null) => {
+  const openSpotifyAndPlay = useCallback(async (uri, requestId, quiet = false) => {
     try {
       // App de desktop: o próprio app abre o Spotify (sem o "Abrir Spotify?" do navegador).
       if (desktopBridgeRef.current) {
@@ -1403,9 +1440,9 @@ export default function HenryVoiceAssistant() {
       const response = await fetch("/api/admin/henry/spotify/play", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        // Nome do que a busca achou (a cena já mostra): "Pronto, tá tocando! <nome>." — no bom dia (volume baixo) não fala
-        // por cima do relatório.
-        body: JSON.stringify({ uri, ...(volume === null ? {} : { volume, announce: false }), name: musicRef.current?.name || "", artists: musicRef.current?.artists || "" })
+        // Nome do que a busca achou (a cena já mostra): "Pronto, tá tocando! <nome>." — no bom dia (quiet) não fala por cima
+        // do relatório. Nunca manda volume: o play não mexe no volume do Spotify (dono, 2026-10-24).
+        body: JSON.stringify({ uri, ...(quiet ? { announce: false } : {}), name: musicRef.current?.name || "", artists: musicRef.current?.artists || "" })
       });
       data = await response.json().catch(() => null);
       if (!response.ok) data = { ok: false, reply: data?.error || "Não consegui tocar no Spotify. Dá play uma vez nele." };
@@ -1641,10 +1678,12 @@ export default function HenryVoiceAssistant() {
       const query = morning ? "" : musicQueryFromText(question);
       updateMusic({ stage: "connect", ...(query ? { query } : {}) });
     }
-    // Música tocando: abaixa enquanto ele responde; "pausa"/volume não restauram depois.
+    // Música tocando: abaixa enquanto ele responde; "pausa" não restaura depois. Pedido de VOLUME não usa `keep`: aplicado,
+    // o servidor devolve spotifyVolumeSet (vira o volume do dono e cancela a volta); não aplicado, a música volta ao de antes.
+    const volumeRequest = mode === "question" && /\b(volume|som|aumenta|aumente|abaixa|abaixe|baixa)\b/i.test(question);
     if (musicPlaying()) {
       duckSpotifyVolume();
-      if (mode === "question" && (isMusicPauseCommand(question) || (musicIntent && /\b(volume|som|aumenta|abaixa|baixa)\b/i.test(question)))) spotifyDuckRef.current.keep = true;
+      if (mode === "question" && isMusicPauseCommand(question)) spotifyDuckRef.current.keep = true;
     }
     touchConversation();
     // "Esquece a conversa de hoje": a tela também começa do zero.
@@ -1653,10 +1692,18 @@ export default function HenryVoiceAssistant() {
       conversationRef.current = { ...conversationRef.current, historyStart: 0 };
       setTurns([]);
     };
-    const onReply = (reply, navigate, detail = null, rawScene = null, openUrl = null, spotify = null, nextMorning = null, musicNow = false, spotifyMoved = false) => {
+    const onReply = (reply, navigate, detail = null, rawScene = null, openUrl = null, spotify = null, nextMorning = null, musicNow = false, spotifyMoved = false, spotifyVolumeSet = null) => {
       if (requestIdRef.current === id) {
         // Música passou para outro aparelho: o servidor já devolveu o volume no de origem; o novo fica com o volume dele.
         if (spotifyMoved) spotifyDuckRef.current.keep = true;
+        // Pedido de volume do dono APLICADO e conferido no Spotify (dono, 2026-10-24): vence qualquer volta pendente — a
+        // subida para, o abaixar guardado é esquecido e este passa a ser o volume do dono (a fala abaixa e volta a ELE).
+        if (Number.isInteger(spotifyVolumeSet)) {
+          spotifyRampRef.current += 1;
+          window.clearTimeout(spotifyDuckRef.current.timer);
+          spotifyDuckRef.current = { previous: null, pending: false, keep: false, timer: 0, level: null, ramping: false };
+          rememberSpotifyUser(spotifyVolumeSet);
+        }
         morningRef.current = nextMorning?.step ? { step: nextMorning.step } : null;
         // Resposta que termina em pergunta (ou passo do bom dia) = pergunta aberta: espera a resposta curta, sem o nome.
         pendingReplyRef.current = nextMorning?.step || henryAsksQuestion(reply) ? openPendingReply(nextMorning?.step || "question") : { active: false };
@@ -1698,7 +1745,7 @@ export default function HenryVoiceAssistant() {
       // Spotify fechado (`open_spotify`): abre o app pela URI na MESMA aba (âncora, sem aba nova — no PC abre o app
       // desktop; o navegador pode perguntar "Abrir Spotify?" na 1ª vez) e o servidor espera o aparelho e dá o play.
       if (spotify?.action === "open_spotify" && typeof spotify.uri === "string" && /^spotify:(track|playlist|album|artist):[A-Za-z0-9]+$/.test(spotify.uri)) {
-        openSpotifyAndPlay(spotify.uri, id, Number.isInteger(spotify.volume) ? spotify.volume : null);
+        openSpotifyAndPlay(spotify.uri, id, spotify.quiet === true);
       }
     };
     try {
@@ -1709,10 +1756,12 @@ export default function HenryVoiceAssistant() {
         image = await captureWebcamFrame();
         setCapturing(false);
       }
-      // Troca de aparelho com a música baixa: espera (até 1,5 s) o volume guardado para o servidor devolvê-lo no aparelho de origem.
-      if (deviceKind && spotifyDuckRef.current.pending && spotifyDuckRef.current.promise) await Promise.race([spotifyDuckRef.current.promise, new Promise((resolve) => window.setTimeout(resolve, 1500))]);
+      // Troca de aparelho ou pedido de volume com a música baixa: espera (até 1,5 s) o volume guardado — o servidor devolve
+      // no aparelho de origem ou usa como base do "aumenta/abaixa" (nunca o volume abaixado, bug real 2026-10-24).
+      const needsUserVolume = Boolean(deviceKind) || volumeRequest;
+      if (needsUserVolume && spotifyDuckRef.current.pending && spotifyDuckRef.current.promise) await Promise.race([spotifyDuckRef.current.promise, new Promise((resolve) => window.setTimeout(resolve, 1500))]);
       if (requestIdRef.current !== id) return;
-      const spotifyVolume = deviceKind && Number.isInteger(spotifyDuckRef.current.previous) ? spotifyDuckRef.current.previous : null;
+      const spotifyVolume = needsUserVolume && Number.isInteger(spotifyDuckRef.current.previous) ? spotifyDuckRef.current.previous : null;
       const response = await fetch("/api/admin/henry", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -1738,7 +1787,7 @@ export default function HenryVoiceAssistant() {
         }
         if (data.memoryCleared) clearTurns();
         applyServerLockRef.current?.(data);
-        onReply(data.reply || "", data.navigate, data.detail || null, data.scene || null, data.openUrl || null, data.spotify || null, data.morning || null, data.musicPlaying === true, data.spotifyMoved === true);
+        onReply(data.reply || "", data.navigate, data.detail || null, data.scene || null, data.openUrl || null, data.spotify || null, data.morning || null, data.musicPlaying === true, data.spotifyMoved === true, Number.isInteger(data.spotifyVolumeSet) ? data.spotifyVolumeSet : null);
         enqueueClip({ audio: data.audio, text: data.reply || "" });
         endSpeech();
         return;
@@ -1771,7 +1820,7 @@ export default function HenryVoiceAssistant() {
             if (!marks.reply) marks.reply = Date.now();
             if (message.memoryCleared) clearTurns();
             applyServerLockRef.current?.(message);
-            onReply(message.reply, message.navigate, message.detail || null, message.scene || null, message.openUrl || null, message.spotify || null, message.morning || null, message.musicPlaying === true, message.spotifyMoved === true);
+            onReply(message.reply, message.navigate, message.detail || null, message.scene || null, message.openUrl || null, message.spotify || null, message.morning || null, message.musicPlaying === true, message.spotifyMoved === true, Number.isInteger(message.spotifyVolumeSet) ? message.spotifyVolumeSet : null);
           }
           else if (typeof message?.text === "string") {
             if (!marks.firstAudio) marks.firstAudio = Date.now();

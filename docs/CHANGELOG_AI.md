@@ -43,6 +43,15 @@ Copie o modelo abaixo (uma entrada por bloco):
 ```
 
 
+### 2026-10-24 — Henry: volume do Spotify (play sem volume, "aumenta" conferido, abaixar sem encadear)
+- **Data:** 2026-10-24
+- **Área:** Henry
+- **Alteração:** (1) O play nunca define volume: `MORNING_VOLUME` (28%) saiu do bom dia e do `open_spotify` (agora `quiet: true` só para não anunciar); `runSpotifyCommand`/`playOnSpotifyWhenReady` não fazem PUT de volume no play; `POST /api/admin/henry/spotify/play` ignora `volume`. (2) Ferramenta de volume: passo relativo parte do volume do dono guardado pela tela (`spotifyVolume` → `baseVolume`), confere no `GET /v1/me/player` (1 nova tentativa) e só confirma se aplicou (`spotifyVolumeOutcome`; `volume_not_applied` → fala "não mudou"; sem leitura → "pedi X%"). Aplicado → evento `spotifyVolumeSet` (stream e JSON) cancela subida/abaixar pendentes e vira o volume do dono; pedido de volume não usa mais `keep`. (3) Abaixar/voltar: rota `player` aceita `userVolume`/`lastLevel` no `duck` (`resolveDuckPrevious`: Spotify ainda no nível do Henry → "antes" = volume do dono, sem 25% de 25%) e `expectFrom` no `restore` (atraso do Spotify não é "manual"); falha ao ler o player = `failed`, não manual; tela tenta cada passo de novo uma vez e, se falhar, lembra o volume do dono por até 15 min (`spotifyRestoreStep`, `spotifyUserMemoryFor`).
+- **Motivo:** dono: "ele fala que aumentou, mas na verdade não está aumentando… toda vez que ele dá play, ele vai para o volume mínimo, quase mudo" (ver `INCIDENTES.md`, 2026-10-24).
+- **Arquivos afetados:** `lib/henry-spotify-core.mjs`, `lib/henry-spotify.js`, `lib/henry-voice.js`, `lib/henry-morning-core.mjs`, `app/api/admin/henry/route.js`, `app/api/admin/henry/spotify/player/route.js`, `app/api/admin/henry/spotify/play/route.js`, `components/henry/HenryVoiceAssistant.jsx`, `tests/henry-spotify-volume.test.mjs`, `tests/henry-morning.test.mjs`, `tests/henry-push-to-talk.test.mjs`, `docs/BUSINESS_RULES.md`, `.claude/rules/integracoes-externas.md`, `docs/INCIDENTES.md`
+- **Risco/observação:** o bom dia agora toca no volume que o Spotify já estava (a regra antiga de 28% era COMPORTAMENTO ATUAL a confirmar; contrariada pela queixa do dono). Memória do volume do dono vale 15 min: se o dono puser à mão um volume a ±7 do nível baixo do Henry nesse tempo, o próximo abaixar/voltar pode levar ao volume antigo. Verificação de volume adiciona ~0,6–1,2 s à ferramenta (timeout 6 s). Validar no ar: "aumenta o volume" com música tocando e um play pelo Henry.
+- **Autor:** Claude Code
+
 ### 2026-10-24 — Henry: pedido de música sem frase de CRM/dados (confirmação e espera)
 - **Data:** 2026-10-24
 - **Área:** Henry

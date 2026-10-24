@@ -50,8 +50,8 @@ function openUrlPayload(url) {
 // Spotify fechado: ação `open_spotify` com a URI do item (só spotify:track|playlist|album|artist:<id>).
 function spotifyPayload(spotify) {
   if (!(spotify?.action === "open_spotify" && isSpotifyUri(spotify.uri))) return null;
-  const volume = Number.isInteger(spotify.volume) && spotify.volume >= 0 && spotify.volume <= 100 ? spotify.volume : null;
-  return { action: "open_spotify", uri: spotify.uri, ...(volume !== null ? { volume } : {}) };
+  // quiet (bom dia): tocou → não anuncia por cima do relatório. Nunca volume: o play não mexe no volume (dono, 2026-10-24).
+  return { action: "open_spotify", uri: spotify.uri, ...(spotify.quiet === true ? { quiet: true } : {}) };
 }
 
 // Bom dia em conversa (dono, 2026-10-23): próximo passo que a tela guarda na janela de conversa (só o nome do passo).
@@ -211,7 +211,7 @@ function answerStream(auth, request, style) {
           }
         });
         const navigate = navigationPayload(answer.navigate);
-        send({ reply: answer.reply, navigate, openUrl: openUrlPayload(answer.openUrl), detail: answer.detail || null, spotify: spotifyPayload(answer.spotify), morning: morningPayload(answer.morning), scene: answer.scene || null, ...(answer.memoryCleared ? { memoryCleared: true } : {}), ...(answer.musicPlaying ? { musicPlaying: true } : {}), ...(answer.spotifyMoved ? { spotifyMoved: true } : {}), ...(request.lockFields || {}) });
+        send({ reply: answer.reply, navigate, openUrl: openUrlPayload(answer.openUrl), detail: answer.detail || null, spotify: spotifyPayload(answer.spotify), morning: morningPayload(answer.morning), scene: answer.scene || null, ...(answer.memoryCleared ? { memoryCleared: true } : {}), ...(answer.musicPlaying ? { musicPlaying: true } : {}), ...(answer.spotifyMoved ? { spotifyMoved: true } : {}), ...(Number.isInteger(answer.spotifyVolumeSet) ? { spotifyVolumeSet: answer.spotifyVolumeSet } : {}), ...(request.lockFields || {}) });
         const replyAt = Date.now();
         const parts = splitForSpeech(answer.reply);
         const reuse = early && parts[0] === early.text;
@@ -455,7 +455,7 @@ export async function POST(request) {
     const answer = await answerHenry(auth, { mode, question, history: body?.history, image, style, morning, spotifyVolume, vision, webSearch, alertState, locked, lockCommand });
     const navigate = navigationPayload(answer.navigate);
     const audio = body?.voice === false ? null : await synthesizeHenrySpeech(auth, answer.reply, style);
-    return NextResponse.json({ reply: answer.reply, navigate, openUrl: openUrlPayload(answer.openUrl), detail: answer.detail || null, spotify: spotifyPayload(answer.spotify), morning: morningPayload(answer.morning), scene: answer.scene || null, memoryCleared: answer.memoryCleared === true, ...(answer.musicPlaying ? { musicPlaying: true } : {}), ...(answer.spotifyMoved ? { spotifyMoved: true } : {}), ...lockFields, audio });
+    return NextResponse.json({ reply: answer.reply, navigate, openUrl: openUrlPayload(answer.openUrl), detail: answer.detail || null, spotify: spotifyPayload(answer.spotify), morning: morningPayload(answer.morning), scene: answer.scene || null, memoryCleared: answer.memoryCleared === true, ...(answer.musicPlaying ? { musicPlaying: true } : {}), ...(answer.spotifyMoved ? { spotifyMoved: true } : {}), ...(Number.isInteger(answer.spotifyVolumeSet) ? { spotifyVolumeSet: answer.spotifyVolumeSet } : {}), ...lockFields, audio });
   } catch (error) {
     console.warn(`[henry] pergunta falhou: ${error?.status ? error.message : error?.name === "TimeoutError" ? "timeout" : "erro"}.`);
     return NextResponse.json({ error: error?.status ? error.message : "Não consegui responder agora. Tente de novo." }, { status: error?.status || 502 });

@@ -193,7 +193,8 @@ test("ligações: tela usa as regras únicas (teclas, mudo, abaixar na fala, sub
   assert.match(view, /Ouvindo… solte para enviar/);
   assert.match(view, /onToggleVoiceMute/);
   const route = readFileSync(new URL("../app/api/admin/henry/spotify/player/route.js", import.meta.url), "utf8");
-  assert.match(route, /restoreHenrySpotify\(body\.volume, \{ expect \}\)/);
+  assert.match(route, /restoreHenrySpotify\(body\.volume, \{ expect: percentOrNull\(body\?\.expect\), expectFrom: percentOrNull\(body\?\.expectFrom\) \}\)/);
+  assert.match(route, /userVolume: percentOrNull\(body\?\.userVolume\), lastLevel: percentOrNull\(body\?\.lastLevel\)/);
 });
 
 // Bug do dono (2026-10-24): "quando eu solto para enviar, ele pega só a última coisa que eu falei".

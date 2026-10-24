@@ -40,6 +40,16 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-24 — Henry: "aumenta o volume" → diz que aumentou e não aumenta; a cada play a música cai para quase mudo
+- **Data:** 2026-10-24
+- **Sintoma:** "Estou pedindo para ele aumentar o volume, ele fala que aumentou, mas na verdade não está aumentando. Toda vez que eu coloco uma música […] ele vai para o volume mínimo, quase mudo, acho que 10%."
+- **Área:** Henry + Spotify (volume)
+- **Impacto:** só o dono, com música tocando.
+- **Causa raiz:** (1) o "aumenta" somava o passo ao volume ABAIXADO (15% enquanto ele escuta), não ao do dono — 60% virava 30% e ele dizia "aumentei"; e o `keep` impedia a volta, então ficava sempre em ~30%; a resposta nunca conferia o player. (2) o play do bom dia fixava 28% e a fala abaixava para 25% disso (~7%). (3) a subida de volta parava no meio: o Spotify demora a refletir cada passo, o `expect` estrito via "mexeu manual" e desistia; qualquer falha também desistia e esquecia o volume do dono; o próximo abaixar partia do volume já baixo (25% de 25%).
+- **Correção:** play nunca define volume (`MORNING_VOLUME` removido); "aumenta/abaixa" parte do volume do dono (`baseVolume`) e confere no player (1 nova tentativa; não aplicou → "não mudou"; `spotifyVolumeOutcome`); pedido aplicado vira o volume do dono e cancela a volta (`spotifyVolumeSet`); abaixar parte do volume do dono lembrado pela tela (`resolveDuckPrevious`, `spotifyUserMemoryFor`); subida aceita o atraso (`expectFrom`), tenta de novo uma vez e não esquece (`spotifyRestoreStep`); falha ao ler o player não é "manual".
+- **Arquivos/commit:** `lib/henry-spotify-core.mjs`, `lib/henry-spotify.js`, `lib/henry-voice.js`, `lib/henry-morning-core.mjs`, rotas `app/api/admin/henry/{route.js,spotify/player,spotify/play}`, `components/henry/HenryVoiceAssistant.jsx` — branch `fix/henry-spotify-volume`.
+- **Prevenção/teste:** `tests/henry-spotify-volume.test.mjs` (play sem volume, abaixar não encadeia, manual vence a volta, só confirma se aplicou).
+
 ### 2026-10-24 — Henry: segurando Enter, ao soltar ele "pega só a última coisa que eu falei"
 - **Data:** 2026-10-24
 - **Sintoma:** aperta Enter, fala uma frase longa, solta — o Henry responde só ao último pedaço e "não entende".

@@ -11,7 +11,7 @@ export const dynamic = "force-dynamic";
 export const maxDuration = 30; // espera o aparelho aparecer por até ~10 s
 
 // Spotify do Henry (docs/BUSINESS_RULES.md HENRY-1), só o dono na conta real.
-// POST { uri, volume?, name?, artists? } → depois de a tela abrir o app pela URI (`open_spotify`), espera um aparelho
+// POST { uri, announce?, name?, artists? } → depois de a tela abrir o app pela URI (`open_spotify`), espera um aparelho
 // aparecer e toca a URI nele. Resposta { ok, reply, audio }: tocou → "Pronto, tá tocando! <nome>." (dono, 2026-10-23;
 // nome/artista que a busca já mostrou na tela, passando pela barreira da fala); senão a frase curta do erro.
 export async function POST(request) {
@@ -24,9 +24,8 @@ export async function POST(request) {
   }
   const body = await request.json().catch(() => ({}));
   if (!isSpotifyUri(body?.uri)) return NextResponse.json({ error: "Item do Spotify inválido." }, { status: 400 });
-  // Volume opcional (bom dia com música: baixo, para não competir com a voz).
-  const volume = Number.isInteger(body?.volume) && body.volume >= 0 && body.volume <= 100 ? body.volume : null;
-  const result = await playSpotifyAfterOpen(body.uri, { volume });
+  // Sem volume (dono, 2026-10-24: o play não mexe no volume do Spotify); `volume` antigo no corpo é ignorado.
+  const result = await playSpotifyAfterOpen(body.uri);
   if (result.ok && body?.announce !== false) {
     const line = safeHenryReply(musicPlayingLine({ name: typeof body?.name === "string" ? body.name : "", artists: typeof body?.artists === "string" ? body.artists : "" }));
     result.reply = line === HENRY_FALLBACK_REPLY ? "Pronto, tá tocando!" : line;
