@@ -18,7 +18,7 @@ Pagamento `cancelled` e venda `cancelled` ficam fora de tudo. Recebido sem data 
 
 ## Integração com a previsão de recebimento (Agenda)
 
-A previsão do saldo da comissão (`expected_receipt_date`, `computeForecastAmount` de `lib/financial-expected-receipt-core.mjs`) entra como **PREVISTO**, na data prevista, com o mesmo saldo da Agenda (comissão BRUTA − recebido − parcelas já datadas; sem dupla contagem; venda recebida/cancelada não tem previsão). **Só o dono vê essa data** (regra do dono, 2026-10-02): o servidor já a esvazia para outros perfis, então para um admin geral que não seja o dono a Saúde simplesmente não inclui a previsão do saldo (só parcelas datadas). Previsão nunca vira recebido — só a confirmação humana cria o pagamento. Divergência conhecida herdada (não alterada): o saldo usa a comissão livre e o status usa a bruta.
+A previsão do saldo da comissão (`expected_receipt_date`, `computeForecastAmount` de `lib/financial-expected-receipt-core.mjs`) entra como **PREVISTO**, na data prevista, com o mesmo saldo da Agenda (comissão BRUTA − recebido − parcelas já datadas; sem dupla contagem; venda recebida/cancelada não tem previsão). **Só o dono vê essa data** (regra do dono, 2026-10-02): o servidor já a esvazia para outros perfis, então para um admin geral que não seja o dono a Saúde simplesmente não inclui a previsão do saldo (só parcelas datadas). Previsão nunca vira recebido — só a confirmação humana cria o pagamento. Saldo e status usam a mesma base: comissão **BRUTA** (base única de recebimento desde 2026-10-02, `lib/financial-receipt-basis.mjs`; a antiga divergência "saldo pela livre × status pela bruta" foi corrigida).
 
 ## Modelo de dados novo (aditivo)
 

@@ -61,6 +61,14 @@ Copie o modelo abaixo (uma entrada por bloco):
 - **Arquivos afetados:** `components/panel-gates-by-app.mjs` (novo), `components/DeferredPanelGates.jsx`, `components/alerts/AlertCenterGate.jsx`, `app/admin/layout.jsx`, `app/chat-app/page.jsx`, `tests/panel-gates-by-app.test.mjs` (novo), rule `automacoes-notificacoes.md`, `docs/BUSINESS_RULES.md` AL-APP.
 - **Risco/observação:** "Entendi e abrir" leva a outra área → o app Chat volta ao Chat (ciência já registrada). Sem mudança de servidor.
 - **Autor:** Claude Code (crm-editor)
+### 2026-10-24 — Auditoria de regras (parte C): documentação alinhada ao código (sem mudar regra)
+- **Data:** 2026-10-24
+- **Área:** Roleta / Meta Diária / Notificações / Documentos / Financeiro / Academia / Permissões
+- **Alteração:** só texto. ROL-4: prazo 10 min (`delay_value = 10`) onde dizia 5 min; ROL-2b: 1 por corretor respeitando os 10 min da ROL-2h; migrations da FUN-15l/ROL-2h marcadas como aplicadas; FUN-15 "Transferir" = fila de reativação; sem 3ª tentativa na roleta. Meta: espera pós-conexão 30 min (rule, MD-14b, OPERACAO_DISPAROS §1/§9); números do código (30 por corretor, 10/10/0, teto do dia `daily_cap_override` hoje 15, aquecimento limitado por ele); devolvido à fila volta ao corretor anterior ou ao dono (FUN-11, MD-14/PRO-6/CLI-6) e exceção já existente do Particular sem responsável como COMPORTAMENTO ATUAL. D-11 fechada (WA-4b/WHATSAPP: nota interna do WhatsApp não avisa, AUT-9) e exceções da AUT-9 completadas (`documents_list_auto`, `henry_lockout`). DOC-1 alinhado à matriz (união estável = certidão de nascimento; CTPS para todos). Financeiro: `received_date` = data informada; Saúde usa a base bruta única. Academia: F2–F7 implementadas (ACA-1, nota/tentativas, "Alterar conta"). Permissões: 2FA dono e gestores (`requireRealTwoFactorApi`/`requireOwnerPendingSecondFactorApi`, inclusive comentário em `lib/admin-auth.js`), bloqueio do WhatsApp em até 30 s em outra instância, contagens de rotas/migrations trocadas por "ver inventário", `requirePrimaryAdminApi/Page` marcadas "sem uso; não use em rota nova" (funções mantidas).
+- **Arquivos afetados:** `.claude/rules/{roleta-prospeccao-campanhas,crm-clientes-funil,meta-diaria-ranking,financeiro,academia,auth-permissoes,database-supabase}.md`, `docs/{BUSINESS_RULES,OPERACAO_DISPAROS,WHATSAPP,FINANCEIRO_SAUDE,PERMISSIONS,SYSTEM_ARCHITECTURE}.md`, comentário em `lib/admin-auth.js`.
+- **Risco/observação:** nenhuma mudança de comportamento. Texto histórico mantido com anotação de data onde já era registro. Não mexido (outros agentes): comentários "só admin/gestor" do envio à CCA e prazo da Formação Inicial.
+- **Autor:** Claude (crm-editor)
+
 ### 2026-10-24 — Auditoria de regras (parte B): falha fechada no perfil, congelamento da Meta e negativos em fonte única
 - **Data:** 2026-10-24
 - **Área:** Permissões / Meta Diária / Status
