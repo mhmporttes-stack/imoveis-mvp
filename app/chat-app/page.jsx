@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import WhatsappChat from "@/components/WhatsappChat";
 import { chatViewerKey } from "@/lib/chat-viewer-key.mjs";
 import ChatAppHome from "@/components/ChatAppHome";
+import DeferredPanelGates from "@/components/DeferredPanelGates";
 import { WhatsappAccessProvider } from "@/components/WhatsappAccessProvider";
 import { getAdminFromCookies } from "@/lib/admin-auth";
 import { isGeneralAdminAuth, isManagerProfile } from "@/lib/admin-profiles";
@@ -35,6 +36,9 @@ export default async function ChatAppPage({ searchParams }) {
   return (
     <WhatsappAccessProvider blocked={false} basic={isBasicMode(auth.profile)}>
       <ChatAppHome />
+      {/* Bloqueios no app "Chat" (dono, 2026-10-24): Importante da Central e janela do cliente esfriado (FUN-15). Só o
+          gate de alertas (os demais avisos ficam fora do Chat, components/panel-gates-by-app.mjs); fora de "Alterar conta". */}
+      <DeferredPanelGates alerts={auth.accountSwitchMode ? null : { userId: auth.profile?.id }} />
       <main className="bg-mist">
         <WhatsappChat appMode canManage={canManage} canEditRules={isGeneralAdminAuth(auth)} currentUserId={auth.profile?.id || ""} currentUserName={auth.profile?.name || ""} viewerKey={chatViewerKey(auth)} canSeeArchived={isArchivedChatViewer(auth)} initialClientId={typeof params.client === "string" ? params.client : ""} initialText="" />
       </main>

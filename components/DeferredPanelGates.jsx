@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from "react";
 import dynamic from "next/dynamic";
+import { getMmApp } from "@/components/pwaHome";
+import { gatesForApp } from "@/components/panel-gates-by-app.mjs";
 
 // Velocidade, etapa 3 (dono, 2026-10-22): Mensagem do Dia, Celebração, Supervisão e Central de Alertas saíram do JS
 // inicial do painel (traziam o `motion` das cenas e os balões para toda tela, inclusive antes de qualquer aviso existir).
@@ -29,9 +31,12 @@ function useIdleReady() {
 }
 
 // Cada prop é o objeto de props do gate (ou null quando o layout não monta aquele gate para esta conta).
-export default function DeferredPanelGates({ daily = null, celebration = null, supervision = null, alerts = null }) {
+// App da tela inicial (dono, 2026-10-24): Financeiro sem avisos; Chat só com os bloqueios (Importante + esfriado) —
+// regra única em components/panel-gates-by-app.mjs. O app é lido quando a tela fica ociosa (data-mm-app já marcado).
+export default function DeferredPanelGates(props) {
   const ready = useIdleReady();
   if (!ready) return null;
+  const { daily, celebration, supervision, alerts } = gatesForApp(getMmApp(), props);
   return (
     <>
       {daily ? <DailyMessageGate {...daily} /> : null}

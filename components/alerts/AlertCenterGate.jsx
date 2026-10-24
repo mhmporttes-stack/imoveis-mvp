@@ -52,7 +52,9 @@ async function postJson(url, body) {
   return data;
 }
 
-export default function AlertCenterGate({ userId }) {
+// importantOnly (app "Chat" da tela inicial, dono 2026-10-24): só o Importante (e a janela do cliente esfriado, FUN-15);
+// o Informativo não aparece nem é marcado como visto aqui — continua para o Painel.
+export default function AlertCenterGate({ userId, importantOnly = false }) {
   const [topic, setTopic] = useState("");
   const [important, setImportant] = useState([]);
   const [queue, setQueue] = useState([]);
@@ -81,6 +83,7 @@ export default function AlertCenterGate({ userId }) {
       const data = await response.json();
       setTopic(data.topic || "");
       setImportant(data.important || []);
+      if (importantOnly) return;
       const informative = data.informative || [];
       if (voiceModeRef.current) {
         const fresh = informative.filter((item) => item?.id && !seenInformative.current.has(item.id) && !heldRef.current.has(item.id));
@@ -91,7 +94,7 @@ export default function AlertCenterGate({ userId }) {
     } catch {
       // Sem rede: tenta de novo no próximo ping/intervalo.
     }
-  }, []);
+  }, [importantOnly]);
 
   useEffect(() => {
     const onMode = (event) => {
@@ -199,7 +202,7 @@ export default function AlertCenterGate({ userId }) {
   if (!userId) return null;
   return (
     <>
-      <InformativeStack items={visible} waiting={waiting} paused={pausedInformative} isMobile={isMobile} onDone={dismissInformative} />
+      {importantOnly ? null : <InformativeStack items={visible} waiting={waiting} paused={pausedInformative} isMobile={isMobile} onDone={dismissInformative} />}
       {currentImportant ? (
         <ImportantDialog key={currentImportant.id} alert={currentImportant} position={1} total={important.length} onAcknowledge={acknowledge} />
       ) : null}

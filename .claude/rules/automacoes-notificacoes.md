@@ -25,6 +25,11 @@ paths:
   - "lib/supervision-messages*"
   - "components/supervision/**"
   - "app/api/admin/supervision-messages/**"
+  - "components/alerts/**"
+  - "components/DeferredPanelGates.jsx"
+  - "components/panel-gates-by-app.mjs"
+  - "components/HideInFinanceiroApp.jsx"
+  - "app/chat-app/**"
 ---
 
 # Automações, notificações, push e mensagem diária
@@ -72,6 +77,7 @@ Card motivacional/devocional mostrado aos corretores uma vez por dia — **não 
 - Servidor: `lib/crm-alerts.js` (núcleo puro `lib/crm-alerts-core.mjs`, testes `tests/crm-alerts-core.test.mjs`). Rotas `/api/admin/alerts` (pendentes do próprio usuário), `…/shown`, `…/[id]/ack`, `…/test` e `…/definitions` (admin geral).
 - Tela: `components/alerts/AlertCenterGate.jsx` no layout, fora de "Alterar conta", como a Supervisão. Realtime por usuário com consulta de segurança a cada 60 s. O Importante é um `<dialog>` nativo, fica acima de gavetas e espera Supervisão/Reconhecimento/Mensagem do dia; a Supervisão espera ele.
 - **Não crie outro sistema de alerta na tela:** novo alerta = linha em `crm_alert_definitions` + `createAlertDeliveries`. Supervisão, Celebração, Mensagem do dia e `crm_notifications` continuam como estão.
+- **[REGRA OFICIAL DE NEGÓCIO — dono, 2026-10-24] Bloqueios também no app "Chat" da tela inicial.** O alerta **Importante** da Central (bloqueia o CRM) e a janela obrigatória do motivo do cliente esfriado (FUN-15, só sai com motivo) aparecem e bloqueiam também dentro do app "Chat" (iPhone etc.). App "Financeiro" continua sem avisos; no app Chat, Mensagem do dia, Celebração, Supervisão e o **Informativo** continuam escondidos; "Alterar conta" como sempre (sem Central). Regra única `gatesForApp` (`components/panel-gates-by-app.mjs`), usada por `DeferredPanelGates` (fora do `HideInFinanceiroApp` no `app/admin/layout.jsx`; montado também em `app/chat-app/page.jsx`); `AlertCenterGate` com `importantOnly`. Testes `tests/panel-gates-by-app.test.mjs`. Detalhe: `docs/BUSINESS_RULES.md` AL-APP.
 - **[COMPORTAMENTO ATUAL DA IMPLEMENTAÇÃO — 2026-10-04]** `whatsapp_session_attention` (Importante): sessão individual do WhatsApp que exige intervenção humana (`needs_attention`, `retry_limit`, `qr_expired` de conta já usada) → gestora responsável + admins gerais, com idempotência por ocorrência e encerramento automático ao reconectar. Detalhe e tabela de estados: `docs/WHATSAPP.md` §1-B. Alerta com `context.link` interno (`alertLink`) ganha botão de abrir na Central.
 - **[REGRA OFICIAL DE NEGÓCIO — dono, 2026-10-10]** Alertas do WhatsApp individual: `whatsapp_connection_self` (Importante só ao corretor dono do número que caiu; alerta da Central com push, via `push_kind = whatsapp_connection` no contexto — `createAlertDeliveries` só aceita os tipos de `ALERT_PUSH_KINDS`, `lib/notification-policy-core.mjs`) e `whatsapp_service_stalled` (Importante aos admins gerais quando o serviço do WhatsApp para de renovar o lease > 5 min, no cron `whatsapp-flows`). Ambos funcionam sem a linha da definição (texto padrão, ligados); definição desligada = desligado. Ver `integracoes-externas.md` e `docs/BUSINESS_RULES.md` WA-20/WA-22.
 - **[REGRA OFICIAL DE NEGÓCIO — dono, 2026-10-18]** Exceção à política de notificações (AUT-9): conversa do WhatsApp oficial atribuída ao corretor pelo código do atendimento (PRES-25) gera UM aviso no sino + push por atribuição (tipo `official_chat_assigned`, `lib/whatsapp-contact-code.js`); nenhuma outra mensagem de Chat notifica. Detalhe: `docs/BUSINESS_RULES.md` AUT-9c.
