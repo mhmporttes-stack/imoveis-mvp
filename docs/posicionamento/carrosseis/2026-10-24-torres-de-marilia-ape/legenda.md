@@ -10,7 +10,7 @@ Dados enviados pelo dono: apartamento à venda no Condomínio Torres de Marília
 
 **Marketplace:** na fila, aprovado (id b0fad2c3).
 
-**Instagram:** enviado 1x em 2026-10-24, tempo esgotado; não apareceu no Windsor (cache). NÃO reenviar sem o dono confirmar.
+**Instagram:** enviado 1x em 2026-10-24 (tempo esgotado), saiu certo — dono confirmou.
 
 ## Legenda
 
