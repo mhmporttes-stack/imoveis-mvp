@@ -73,9 +73,9 @@ export function playHenryOpeningSound(context, delay = 0) {
   };
 }
 
-// Mesmos fios do anel (sementes do HenryOrb) para o feixe embaraçado: 18 fios × 200 pontos (fluidez, v26).
+// Mesmos fios do anel (sementes do HenryOrb) para o feixe embaraçado: até 16 fios × 200 pontos (fluidez, v28).
 const WAKE_POINTS = 200;
-const WAKE_SEEDS = Array.from({ length: 18 }, (_, index) => {
+const WAKE_SEEDS = Array.from({ length: 16 }, (_, index) => {
   const i = (index * 7) % 52;
   return { a: i * 2.399963 + 0.3, b: i * 1.618 + 1.1, k: 0.65 + (((i * 37) % 100) / 100) * 0.7 };
 });
@@ -128,17 +128,23 @@ function useWakeCanvas(canvasRef, { enabled, geometryRef, onBoom }) {
         ctx.strokeStyle = gradient;
         const tangle = 26 - 18 * close; // embaraçado e largo no começo, fino como o anel no fim
         const alpha = Math.min(1, time / 0.3) * (0.55 + 0.4 * close); // bem visível, se sobressaindo
-        // Fluidez (dono, 2026-10-23, protótipo v26): a trajetória (centro + normal) é calculada UMA vez por quadro em
-        // Float32Array e cada fio só soma o próprio deslocamento; curvas pelos pontos médios (quadraticCurveTo), sem quinas;
-        // o brilho largo é um traço só do feixe inteiro, não um por fio. 18 fios × 200 pontos.
-        const n = Math.max(2, Math.min(WAKE_POINTS, Math.ceil(WAKE_POINTS * Math.min(1, time / Math.max(trail, 0.001)))));
+        // Fluidez (dono, 2026-10-23/24, protótipos v26/v28): a trajetória (centro + normal) é calculada UMA vez por quadro
+        // em Float32Array e cada fio só soma o próprio deslocamento; corpo de cada fio num traço só (pontos densos).
+        // Final da linha (v28): sem corte reto — a partir de 60% do comprimento a cauda some aos poucos (alpha e espessura
+        // até zero), em 6 trechos encostados sem sobrepor (lineCap butt: no modo aditivo sobreposição marcaria) e os fios se
+        // juntam enquanto somem. Sem a faixa larga de brilho (o dono via como uma "marca"). Computador 16 fios × 200
+        // pontos; celular (< 820 px) 14 × 160.
+        const phone = W < 820;
+        const strands = phone ? 14 : 16;
+        const points = phone ? 160 : WAKE_POINTS;
+        const n = Math.max(2, Math.min(points, Math.ceil(points * Math.min(1, time / Math.max(trail, 0.001)))));
         const PX = new Float32Array(n + 1);
         const PY = new Float32Array(n + 1);
         const NX = new Float32Array(n + 1);
         const NY = new Float32Array(n + 1);
         const U = new Float32Array(n + 1);
         for (let k = 0; k <= n; k += 1) {
-          const u = k / WAKE_POINTS;
+          const u = k / points;
           const [hx, hy] = head.at(Math.max(0, time - u * trail));
           PX[k] = hx;
           PY[k] = hy;
@@ -153,39 +159,43 @@ function useWakeCanvas(canvasRef, { enabled, geometryRef, onBoom }) {
           NX[k] = -dy / l;
           NY[k] = dx / l;
         }
-        const smoothPath = (offAt) => {
-          const path = new Path2D();
-          let px = PX[0] + NX[0] * offAt(0);
-          let py = PY[0] + NY[0] * offAt(0);
-          path.moveTo(px, py);
-          for (let k = 1; k <= n; k += 1) {
-            const o = offAt(k);
-            const x = PX[k] + NX[k] * o;
-            const y = PY[k] + NY[k] * o;
-            path.quadraticCurveTo(px, py, (px + x) / 2, (py + y) / 2);
-            px = x;
-            py = y;
-          }
-          path.lineTo(px, py);
-          return path;
-        };
-        ctx.globalAlpha = alpha * 0.16; // brilho largo: um traço só, no centro do feixe
-        ctx.lineWidth = tangle * 1.4 + 4;
+        const tailStart = Math.floor(n * 0.6);
+        const fade = (k) => (k <= tailStart ? 1 : Math.max(0, 1 - (k - tailStart) / Math.max(1, n - tailStart)));
+        const width = 1.1 + close * 0.4;
+        const X = new Float32Array(n + 1);
+        const Y = new Float32Array(n + 1);
         ctx.lineCap = "butt";
         ctx.lineJoin = "round";
-        ctx.stroke(smoothPath(() => 0));
-        ctx.lineWidth = 1.1 + close * 0.4;
-        ctx.globalAlpha = alpha;
-        for (const seed of WAKE_SEEDS) {
+        for (let index = 0; index < strands; index += 1) {
+          const seed = WAKE_SEEDS[index];
           const f1 = 5 + seed.k * 6;
           const w1 = 3 + seed.k * 2;
-          // fios cruzando entre si (embaraçado): cada um ondula com frequência e fase próprias
-          ctx.stroke(
-            smoothPath((k) => {
-              const u = U[k];
-              return tangle * (Math.sin(u * f1 + time * w1 + seed.a) * 0.65 + Math.sin(u * 13 - time * 4 + seed.b) * 0.35) * (0.4 + 0.6 * Math.sin(Math.PI * Math.min(1, u * 1.2 + 0.1)));
-            })
-          );
+          for (let k = 0; k <= n; k += 1) {
+            const u = U[k];
+            // fios cruzando entre si (embaraçado); na cauda se juntam enquanto somem
+            const o = tangle * (Math.sin(u * f1 + time * w1 + seed.a) * 0.65 + Math.sin(u * 13 - time * 4 + seed.b) * 0.35) * (0.4 + 0.6 * Math.sin(Math.PI * Math.min(1, u * 1.2 + 0.1))) * (0.35 + 0.65 * fade(k));
+            X[k] = PX[k] + NX[k] * o;
+            Y[k] = PY[k] + NY[k] * o;
+          }
+          let path = new Path2D(); // corpo até onde começa a cauda, num traço só
+          path.moveTo(X[0], Y[0]);
+          for (let k = 1; k <= tailStart; k += 1) path.lineTo(X[k], Y[k]);
+          ctx.globalAlpha = alpha;
+          ctx.lineWidth = width;
+          ctx.stroke(path);
+          const length = n - tailStart; // cauda: 6 trechos encostados, cada um mais fino e mais apagado
+          for (let c = 0; c < 6; c += 1) {
+            const s0 = tailStart + Math.floor((length * c) / 6);
+            const s1 = tailStart + Math.floor((length * (c + 1)) / 6);
+            if (s1 <= s0) continue;
+            path = new Path2D();
+            path.moveTo(X[s0], Y[s0]);
+            for (let k = s0 + 1; k <= s1; k += 1) path.lineTo(X[k], Y[k]);
+            const f = fade((s0 + s1) / 2);
+            ctx.globalAlpha = alpha * f * f;
+            ctx.lineWidth = width * (0.4 + 0.6 * f);
+            ctx.stroke(path);
+          }
         }
         ctx.lineJoin = "miter";
         if (time < HENRY_WAKE.boom) {

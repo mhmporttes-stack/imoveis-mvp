@@ -137,17 +137,22 @@ export function wakeSmooth(a, b, value) {
 // velocidade angular depois da entrada.
 export function wakeHead({ cx, cy, R, big }) {
   const { in: T_IN, laps: T_LAPS, fast: T_FAST } = HENRY_WAKE;
-  const A = (6 * Math.PI) / (T_LAPS * T_LAPS);
-  const W1 = 2 * A * T_LAPS;
-  const angleAt = (tau) => (tau <= T_LAPS ? A * tau * tau : 6 * Math.PI + W1 * (tau - T_LAPS) + 22 * Math.pow(tau - T_LAPS, 2));
-  const omega = (tau) => (tau <= T_LAPS ? 2 * A * tau : W1 + 44 * (tau - T_LAPS));
-  const radiusAt = (tau) => big + (R - big) * Math.pow(wakeSmooth(0, T_LAPS + T_FAST, tau), 1.3);
+  // Emenda suave (dono, 2026-10-24, protótipo v27: "um risco no topo, os fios dobrando"): a subida termina na HORIZONTAL
+  // (controle na altura do topo) e o giro começa com a mesma velocidade com que a subida chega — antes o giro partia do
+  // zero (A·τ²) e a cabeça parava ali, dobrando os fios.
   const x0 = -80;
   const y0 = cy;
-  const x1 = cx * 0.2;
-  const y1 = cy - big * 1.15;
+  const x1 = cx * 0.25;
+  const y1 = cy - big;
   const x2 = cx;
   const y2 = cy - big;
+  const vEnd = 2 * (x2 - x1) * (0.4 / T_IN); // velocidade da cabeça no fim da subida (px/s)
+  const W0 = vEnd / big; // mesma velocidade, em ângulo, no início do giro
+  const A = (6 * Math.PI - W0 * T_LAPS) / (T_LAPS * T_LAPS); // 3 voltas em T_LAPS, acelerando a partir de W0
+  const W1 = W0 + 2 * A * T_LAPS;
+  const angleAt = (tau) => (tau <= T_LAPS ? W0 * tau + A * tau * tau : 6 * Math.PI + W1 * (tau - T_LAPS) + 22 * Math.pow(tau - T_LAPS, 2));
+  const omega = (tau) => (tau <= T_LAPS ? W0 + 2 * A * tau : W1 + 44 * (tau - T_LAPS));
+  const radiusAt = (tau) => big + (R - big) * Math.pow(wakeSmooth(0, T_LAPS + T_FAST, tau), 1.3);
   const at = (tt) => {
     if (tt <= T_IN) {
       const k = wakeSmooth(0, T_IN, tt) * 0.6 + (tt / T_IN) * 0.4; // começa devagar, chega no topo já andando

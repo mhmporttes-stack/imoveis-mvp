@@ -500,6 +500,14 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-24 — Bom dia do Henry: emenda suave no topo e cauda que some (protótipos v27/v28)
+- **Data:** 2026-10-24
+- **Área:** Henry / cena de abertura do bom dia (`HenryOpeningScene`)
+- **Alteração:** (1) emenda suave onde a subida vira giro: controle da subida na altura do topo (termina na horizontal) e o giro começa com a velocidade de chegada (`wakeHead`: `W0 = vEnd/big`, `angleAt = W0·τ + A·τ²`, `A = (6π − W0·T_LAPS)/T_LAPS²`); (2) sem a faixa larga de brilho; (3) cauda contínua sumindo a partir de 60% do comprimento, em 6 trechos encostados, fios se juntando; (4) 16 fios × 200 pontos no computador, 14 × 160 no celular, corpo de cada fio num traço só.
+- **Motivo:** dono viu em produção um "risco"/quina no topo (a subida terminava inclinada e o giro partia do zero) e a faixa de brilho como uma "marca".
+- **Arquivos afetados:** `components/henry/henry-orb-states.mjs`, `components/henry/HenryOpeningScene.jsx`, `tests/henry-pulse.test.mjs` (continuidade de posição, direção < 2° e velocidade sem salto em T_IN).
+- **Risco/observação:** medido na vitrine (`next dev`, headless sem GPU) durante o feixe: celular p95 16,8 ms; computador mediana 33 ms / p95 67 ms (o anel em tela cheia sozinho já mede ~33 ms no `next dev`). Branch `fix/bomdia-emenda`, publicação com o ok do dono.
+
 ### 2026-10-23 — Cliente transferido entra em "Novos atendimentos" de quem recebeu (CLI-7b)
 - **Data:** 2026-10-23
 - **Área:** Clientes / Pendências (balão, Início, filtro "Novos atendimentos", Alexa "sem atendimento humano")

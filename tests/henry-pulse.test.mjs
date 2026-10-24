@@ -271,6 +271,33 @@ test("Bom dia novo (v22/v25): feixe sai da esquerda, sobe ao topo, gira e fecha 
   assert.ok(Math.abs(Math.hypot(xb - 720, yb - 450) - 200) < 1e-6, "fecha no raio do anel");
 });
 
+test("Bom dia novo (v27, emenda suave): no topo a subida vira giro sem quina nem parada", async () => {
+  const { HENRY_WAKE, wakeHead } = await import("../components/henry/henry-orb-states.mjs");
+  for (const g of [{ cx: 720, cy: 450, R: 200, big: 380 }, { cx: 195, cy: 304, R: 107, big: 234 }]) {
+    const head = wakeHead(g);
+    const T = HENRY_WAKE.in;
+    const h = 1e-4;
+    const velocity = (t0, t1) => {
+      const [ax, ay] = head.at(t0);
+      const [bx, by] = head.at(t1);
+      return [(bx - ax) / (t1 - t0), (by - ay) / (t1 - t0)];
+    };
+    const before = velocity(T - 2 * h, T - h); // fim da subida
+    const after = velocity(T + h, T + 2 * h); // começo do giro
+    const [p0x, p0y] = head.at(T - 1e-7);
+    const [p1x, p1y] = head.at(T + 1e-7);
+    assert.ok(Math.hypot(p1x - p0x, p1y - p0y) < 0.01, "posição contínua");
+    const angle = (v) => Math.atan2(v[1], v[0]);
+    const diff = Math.abs(((angle(after) - angle(before) + 3 * Math.PI) % (2 * Math.PI)) - Math.PI);
+    assert.ok(diff < (2 * Math.PI) / 180, `direção sem quina (${((diff * 180) / Math.PI).toFixed(2)}°)`);
+    const speedBefore = Math.hypot(...before);
+    const speedAfter = Math.hypot(...after);
+    assert.ok(speedBefore > 30, "a cabeça chega no topo andando (nunca parada)");
+    assert.ok(Math.abs(speedAfter - speedBefore) / speedBefore < 0.02, `velocidade sem salto (${speedBefore.toFixed(0)} → ${speedAfter.toFixed(0)} px/s)`);
+    assert.ok(Math.abs(head.angleAt(HENRY_WAKE.laps) - 6 * Math.PI) < 1e-9, "continua dando 3 voltas");
+  }
+});
+
 test("Avisos lidos (v22): um item por aviso falado, na ordem, cada um entra quando a fala dele começa", async () => {
   const { alertDisplayItems, alertItemOffsets, composeHenryNoticeLines } = await import("../lib/henry-voice-client-alerts-core.mjs");
   const notices = composeHenryNoticeLines([{ id: "n1", title: "Reunião", body: "Amanhã às 9h", created_at: "2026-10-23T10:00:00Z" }]);
