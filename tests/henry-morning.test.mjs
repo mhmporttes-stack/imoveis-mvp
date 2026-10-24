@@ -129,9 +129,11 @@ test("bom dia: fluxo ligado no servidor e na tela (só o dono, somente leitura, 
   assert.match(voice, /morning: \{ step: "music" \}/);
   assert.match(voice, /morning: \{ step: "style" \}/);
   assert.match(voice, /step: "birthday"/);
-  assert.match(voice, /const target = suggested \? suggested.target : resolveMorningMusic\(answer, style\)/); // sugestão aceita toca ela; estilo = o configurado
+  assert.match(voice, /target = suggested\.target;/); // sugestão aceita toca ela
+  assert.match(voice, /morningGenreTarget\(reply\.genre, \{ style, taste \}\)/); // estilo = o configurado / playlist dele / padrão (2026-10-24)
+  assert.match(voice, /morningArtistTarget\(reply\.query\)/); // cantor = busca o artista (2026-10-24)
   assert.match(voice, /todaysMorningSuggestion\(/);
-  assert.match(voice, /startHenryMorningMusic\(target, MORNING_VOLUME\)/);
+  assert.match(voice, /startHenryMorningMusic\(target, MORNING_VOLUME, \{ acceptBest: answer !== "artist" \}\)/);
   const loader = readFileSync(new URL("../lib/henry-morning.js", import.meta.url), "utf8");
   assert.doesNotMatch(loader, /\.(insert|update|upsert|delete)\(/); // somente leitura
   assert.match(loader, /AUTOMATIC_SIMULATION_SOURCE/);
