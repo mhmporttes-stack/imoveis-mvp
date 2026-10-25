@@ -38,7 +38,8 @@ test("1: meta do dia da equipe SEMPRE consulta a Meta Diária da equipe (rota di
   }
   assert.equal(route("e a meta de ontem da equipe?")?.input.periodo, "ontem");
   // outras perguntas da meta (quem bateu, quanto falta, de um corretor) ficam com o modelo
-  assert.equal(route("Quanto falta pra bater a meta hoje?"), null);
+  // Treino 5: "quanto falta pra bater a meta" = o tamanho da meta (feitas e faltando), pela rota direta
+  assert.deepEqual(route("Quanto falta pra bater a meta hoje?")?.input, { assunto: "meta_equipe", periodo: "hoje", detalhe: "tamanho" });
   assert.equal(route("Quem bateu a meta hoje?"), null);
   assert.equal(route("E a meta da Carol hoje?"), null);
   // servidor: a ferramenta roda antes do modelo; frase pronta do catálogo = resposta sem rodada do modelo
