@@ -40,6 +40,17 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-25 — Henry: piada vira "Abra a tela correspondente", "Bom descanso" no bom dia, "mesma coisa de novo" vira pergunta genérica
+- **Data:** 2026-10-25
+- **Sintoma:** Treino 11 (21:36Z, automático): "bora de piada rapidinho?" → "Não posso falar isso por voz. Abra a tela correspondente no CRM."; bom dia com "pode ser sertanejo mesmo" → "TOOOCA, MIROSMAR! … Bom descanso, e amanhã a gente segue"; "você tá falando a mesma coisa de novo" depois do gargalo → "Você queria o quê: vendas, funil ou ranking?"; "me mostra o WhatsApp também" → "Quer que eu abra o Chat agora?"; "como que foi teu dia?" 9,6 s.
+- **Área:** Henry (voz/IA) / Treino
+- **Impacto:** só o dono; resposta robótica/errada.
+- **Causa raiz:** papo barrado caía na frase de "abra a tela" (sem nova tentativa); saudação do repertório do relatório pela hora do relógio; sugestão "Pense em Mim" sem gênero → padrão Zezé; reclamação de repetição não olhava se a resposta anterior já atendia; nenhuma rota para "me mostra o WhatsApp"; papo com o histórico do dia.
+- **Correção:** `HENRY_BARRED_CASUAL_RETRY`/`casualFallback`, `saudacao_manha` no relatório + `dropNightClosing`, `genre` nas sugestões, `henryDeepenRequest`, `henryScreenOpenRequest`, `casualModelHistory`. Detalhe: `docs/CHANGELOG_AI.md` 2026-10-25 (Treino 11).
+- **Arquivos/commit:** branch `fix/henry-achados-treino-11`.
+- **Prevenção/teste:** `tests/henry-achados-treino-11.test.mjs` (falas reais).
+- **Status:** Resolvido (aguarda publicação; rodar o Treino de novo depois)
+
 ### 2026-10-25 — Henry responde "Você queria o quê?" a uma reclamação com pedido, "Vendas de agora: 3." e "aquela visão" vira câmera
 - **Data:** 2026-10-25
 - **Sintoma:** Treino 10 (21:17Z, automático): "não era isso… Quero saber o que eu faço pra fechar mais" → "Foi mal. Você queria o quê: vendas, funil ou ranking?" e, na 2ª reclamação, a mesma pergunta; "tá longo demais, resume" → "Vendas de agora: 3."; "me dá aquela visão de novo" → "Visão pela câmera tá desligada"; bom dia "pode ser um sertanejo mesmo, tanto faz o cantor" parecia não tocar.

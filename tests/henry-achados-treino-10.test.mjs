@@ -58,7 +58,8 @@ test("1b: 2ª reclamação logo depois da pergunta genérica = o último pedido 
   assert.match(henryComplaintFallbackHint(CLUE), /NÃO pergunte de novo/);
   // Ligação no servidor: releitura antes da resposta fixa e da rota direta.
   assert.match(lib, /henryComplaintFallbackRequest\(text, memoryTurns\.length \? memoryTurns : previous\)/);
-  assert.match(lib, /\(reinterpreted \? "" : \(lastAssistant && isBareHenryComplaint\(text\)/);
+  // Treino 11: a releitura e o aprofundamento (henryDeepenRequest) pulam a pergunta genérica.
+  assert.match(lib, /\(reinterpreted \|\| deepen \? "" : \(lastAssistant && isBareHenryComplaint\(text\)/);
   assert.match(lib, /reinterpreted && !direct \? henryComplaintFallbackHint\(reinterpreted\)/);
   assert.match(lib, /henryDirectRoute\(reinterpreted \|\| text,/);
 });
