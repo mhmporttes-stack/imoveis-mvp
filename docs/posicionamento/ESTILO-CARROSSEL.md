@@ -1,5 +1,7 @@
 # Estilo dos carrosséis de Matheus (@mhm.machado)
 
+**Medida padrão (dono, 2026-10-25): 1080×1440 (3:4)**, entregue em JPG 2160×2880. A grade do Instagram é 3:4 e o app aceita esse formato (anúncio de 2025). Post de imóvel publicado pela API (Windsor) continua 1080×1350, porque a API só aceita de 4:5 a 1.91:1.
+
 Aprendido dos posts já publicados (enviados pelo dono em 2026-10-11). Usado pelo `/carrossel`.
 
 ## Direção de design (pedido do dono, 2026-10-11: "mais leve, menos carregado, elegante e moderno")

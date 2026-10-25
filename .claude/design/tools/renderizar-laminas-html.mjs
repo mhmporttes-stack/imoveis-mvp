@@ -1,5 +1,5 @@
 // Renderiza lâminas de carrossel escritas à mão em HTML (layout livre, para recriar referências que o
-// renderizar-carrossel.mjs não cobre). Cada <section class="lamina"> vira um PNG 1080x1350.
+// renderizar-carrossel.mjs não cobre). Cada <section class="lamina"> vira um PNG do tamanho dela: padrão 1080x1440 (3:4, dono 2026-10-25); lâminas antigas de 1350 continuam funcionando.
 // Fontes do Google: <meta name="fontes" content="family=Anton&family=Plus+Jakarta+Sans:wght@400;700;800"> (embutidas).
 // Imagens: caminhos relativos ao arquivo HTML.
 //
@@ -45,7 +45,7 @@ function loadPlaywright() {
 
 const { chromium } = loadPlaywright();
 const browser = await chromium.launch();
-const page = await browser.newPage({ viewport: { width: 1080, height: 1350 }, deviceScaleFactor: escala });
+const page = await browser.newPage({ viewport: { width: 1080, height: 1440 }, deviceScaleFactor: escala });
 // Imagens relativas embutidas como data URL (setContent não lê file://).
 html = html.replace(/src="([^"]+)"/g, (m, src) => {
   if (/^(data:|https?:)/.test(src)) return m;

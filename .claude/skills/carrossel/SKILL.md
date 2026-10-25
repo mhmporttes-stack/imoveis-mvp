@@ -1,6 +1,6 @@
 ---
 name: carrossel
-description: "Cria carrossel/post do Instagram de Matheus a partir de referências (prints/fotos de posts que ele gostou): recria a ESTRUTURA com o padrão dele (fundo preto, minimalista, azul da marca, foto + @mhm.machado no rodapé) e entrega PNG 1080x1350 + legenda. Use para \"cria um carrossel\", \"recria esse post\". Não publica."
+description: "Cria carrossel/post do Instagram de Matheus a partir de referências (prints/fotos de posts que ele gostou): recria a ESTRUTURA com o padrão dele (fundo preto, minimalista, azul da marca, foto + @mhm.machado no rodapé) e entrega JPG 3:4 (1080x1440, em 2x) + legenda. Use para \"cria um carrossel\", \"recria esse post\". Não publica."
 ---
 
 # Carrossel do Instagram a partir de referência
@@ -12,7 +12,7 @@ Agente: `marketing-posicionamento` (conteúdo orgânico). Nada é publicado: ent
 - Minimalista, muito respiro; texto branco; destaque em **azul da marca** (`**palavra**` no roteiro).
 - **Rodapé desligado por padrão** (dono, 2026-10-12): só colocar quando ele pedir (`"rodape": true`). Quando pedido: rodapé em toda lâmina no estilo do topo do perfil do Instagram: **foto em círculo com anel colorido** + **mhm.machado** com selo de verificado + "Corretor de Imóveis" — rodapé pequeno e discreto (pedido do dono, 2026-10-11) (o @ real; `@matheusmachadoimoveis` não existe).
 - Sem logo e sem numeração ("1/4") no topo (pedido do dono, 2026-10-11): a identidade é o rodapé. Se algum dia usar marca, só o símbolo oficial `public/assets/matheus-machado-symbol.png` (regra 10 do CLAUDE.md).
-- Formato 1080×1350 (4:5). Capa com gancho forte; 1 ideia por lâmina; última lâmina = chamada para ação.
+- **Formato 1080×1440 (3:4)** — padrão do dono desde 2026-10-25 (Instagram aceita 3:4 desde 2025 e a grade do perfil é 3:4): `.lamina{width:1080px;height:1440px}`. Exceção: post publicado pela API (Windsor/imóvel, `publicar-imovel`) continua 1080×1350 (4:5), porque a API só aceita de 4:5 a 1.91:1 e cortaria o 3:4. Capa com gancho forte; 1 ideia por lâmina; última lâmina = chamada para ação.
 
 ## Estilo do dono
 Leia `docs/posicionamento/ESTILO-CARROSSEL.md` (modelos que ele já postou, tipos de lâmina, ícones, linguagem). Posts antigos eram amarelos → hoje sempre azul.
