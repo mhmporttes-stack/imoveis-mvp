@@ -736,6 +736,15 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-25 — Henry: achados do Treino 2 (música "rock." no fim, pedido composto, cumprimento + pergunta, imóveis, meta, "não foi isso", funil do mês, "voltar pro funil") — branch `fix/henry-achados-treino-2`, NÃO publicado
+- **Data:** 2026-10-25
+- **Área:** Henry (voz/IA) / Treino do Henry
+- **Alteração:** (1) `musicPlayingLine` sem nome de faixa põe o pedido dentro da frase (`musicRequestPhrase`; treino e reserva do play guardam `{ query }`, não `{ name }`). (2) `isMusicRequest` olha a parte antes do conector ("e depois", "e me"...) — o "cliente" da 2ª parte desfazia o pedido; novo `lib/henry-voice-turn.mjs`: `henryQuestionPart`, `replyAnswersQuestion`, rodada extra `henryUnansweredRetry` quando a parte-pergunta fica sem ferramenta do CRM e sem conteúdo (música vai na frente), dica `henryTurnHint`. (3) Prompt: cumprimento + pergunta → responde a pergunta ("movimento" = `relatorio_do_dia`); "movimento" e imóveis entram em `isCrmQuestion`. (4) Ferramenta `buscar_imoveis` (leitura, `listProperties`, `buildHenryPropertiesReport`). (5) `consultar_crm` `meta_equipe` junta "quantos bateram"; prompt proíbe "quer que eu traga o número". (6) Reclamação: dica + troca da resposta repetida (`isHenryComplaint`/`henryRepeatedAfterComplaint`/`HENRY_COMPLAINT_REPLIES`). (7) Ferramenta `funil_periodo` (FUNIL-PAINEL do `getPerformanceOverview`, `buildHenryFunnelReport`); `consultar_crm` de funil fora de hoje/ontem vai para ela; `henryPeriodFromText` entende "desse mês"/"do mês"/"da semana". (8) `henryResumeTopic` ("bora voltar pro funil" → assunto + pergunta anterior). (9) Treino: `pergunta_ignorada`, `repetiu_apos_reclamacao`.
+- **Motivo:** rodada do Treino do dono de 2026-10-25T16:11:25Z (crm_settings `henry_training_reports`), provavelmente anterior ao deploy de `f55bffe`; nenhum dos 9 itens estava coberto por `f55bffe` (conferido no código).
+- **Arquivos afetados:** `lib/henry-voice.js`, `lib/henry-voice-turn.mjs` (novo), `lib/henry-voice-core.mjs`, `lib/henry-voice-narration.mjs`, `lib/henry-voice-persona.mjs`, `lib/henry-reports-core.mjs`, `lib/henry-reports.js`, `lib/henry-training-core.mjs`, `tests/henry-achados-treino-2.test.mjs`, `docs/BUSINESS_RULES.md` (HENRY-1), `docs/INCIDENTES.md`, `.claude/rules/integracoes-externas.md`.
+- **Risco/observação:** a rodada extra custa uma chamada a mais ao modelo só quando a pergunta ficou sem resposta. `pergunta_ignorada` também marca a frase de ânimo sem número do resumo positivo (dia fraco) — conferir no relatório. Preço de imóvel nunca vai à voz. Sem migration.
+- **Autor:** crm-editor (Claude Code)
+
 ### 2026-10-25 — Henry: achados do Treino ("Nenhuma delas", "Suspense:", "a Sem", ranking da semana recusado, oferta de ação, "é só chamar")
 - **Data:** 2026-10-25
 - **Área:** Henry (voz/IA) / Treino do Henry / voz da Alexa (nome de cliente)

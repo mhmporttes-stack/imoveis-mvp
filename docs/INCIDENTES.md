@@ -40,6 +40,17 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-25 — Henry ignora a pergunta (música composta, "e aí, beleza? como tá o movimento?"), diz "não tenho acesso aos imóveis", repete a resposta depois de "não foi isso" e recusa o funil do mês
+- **Data:** 2026-10-25
+- **Sintoma:** Treino 2: "Coloca um rock aí" → "Prontinho, já começou! rock."; "bota alguma coisa mais tranquila aí e depois me diz quantos cliente novo entrou hoje" → só a música; "E aí, Henry, beleza? Como é que tá o movimento hoje?" → "Fala, chefe! Tô bem, e você?"; imóvel → "Não tenho acesso aos imóveis pela voz"; meta da equipe → "Quer que eu traga o número exato?"; "não foi isso que eu perguntei" → "Foram 3 vendas" de novo; "funil desse mês" → "só hoje ou ontem"; "Bora voltar pro funil" → falou da tela de Clientes.
+- **Área:** Henry (voz/IA)
+- **Impacto:** só o dono; respostas incompletas/erradas, números da tela certos.
+- **Causa raiz:** (1) sem nome de faixa, `musicPlayingLine` colava o termo de busca depois da exclamação; (2) `isMusicRequest` recusava o pedido por causa do "cliente" da 2ª parte e nada conferia se a parte-pergunta foi respondida (a fala fixa da música apagava o resto); (3) prompt só tinha regra de cumprimento puro, com o exemplo "Fala, chefe! Tô bem, e você?"; (4) nenhuma ferramenta lia imóveis; (5) `meta_equipe` só com percentual e prompt sem proibir oferecer o número; (6) nada tratava a reclamação; (7) funil do catálogo da Alexa é a fotografia de agora e "desse mês" não era reconhecido; (8) "voltar pro" não tinha leitura de assunto.
+- **Correção:** `lib/henry-voice-turn.mjs` (parte-pergunta, rodada extra, reclamação, retomada), ferramentas `buscar_imoveis` e `funil_periodo`, meta com "quantos bateram", frases de música com o pedido dentro, regras no prompt, achados novos no Treino. Detalhe: `docs/CHANGELOG_AI.md` 2026-10-25 (Treino 2).
+- **Arquivos/commit:** branch `fix/henry-achados-treino-2`.
+- **Prevenção/teste:** `tests/henry-achados-treino-2.test.mjs` (falas reais).
+- **Status:** Monitorando (rodar o Treino de novo depois da publicação)
+
 ### 2026-10-25 — Henry responde "Nenhuma delas", começa com "Suspense:", fala "a Sem" e recusa o ranking da semana
 - **Data:** 2026-10-25
 - **Sintoma:** no Treino do Henry: "e a meta do dia da equipe?" → "Nenhuma delas"; "tem conversa no WhatsApp esperando?" → "Suspense: são 116…"; "quem tá parado há mais tempo?" → "a Noemi, a Sem, a Leticia…"; "ranking da semana?" → "Então não dá pra trazer a semana por voz agora"; "é só chamar" em todo agradecimento; promessa de "deixar a agenda pronta".
