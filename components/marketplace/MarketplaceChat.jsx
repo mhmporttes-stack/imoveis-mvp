@@ -30,6 +30,10 @@ const time = new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "
 // (`filters`) e aplica o escopo. Na lista, o nome do corretor (1º nome) no lugar da etiqueta; sem corretor = "Roleta".
 const ROULETTE = "__roleta";
 const firstName = (name) => String(name || "").trim().split(/\s+/)[0] || "";
+// Messenger oficial da Página (MSG-1, dono, 2026-10-25): mesma tela, canal "messenger" vindo do servidor. A resposta sai
+// na hora pela Meta, só dentro da janela (o servidor decide e bloqueia; aqui só se mostra).
+const MESSENGER_LABEL = "Messenger · Página do Facebook";
+const isMessenger = (item) => item?.channel === "messenger";
 // Abre na hora (dono, 2026-10-22): lista e últimas conversas abertas vêm do cache por conta (components/chat-view-cache.js,
 // também pré-carregado pelo AdminWarmup) e atualizam em seguida pelas mesmas APIs. Lista buscada há menos de
 // FRESH_MS (ex.: pelo pré-carregamento) não é buscada de novo ao entrar — a próxima volta do polling atualiza.
@@ -574,7 +578,7 @@ export default function MarketplaceChat({ canEditSettings = false, canAssign = f
                       <span className="truncate font-semibold text-navy">{item.contactName}</span>
                       <Badge tone={item.assignedName ? "info" : "warning"}>{firstName(item.assignedName) || "Roleta"}</Badge>
                     </span>
-                    <span className="block truncate text-xs text-muted">{item.listingTitle || "Anúncio não identificado"}</span>
+                    <span className="block truncate text-xs text-muted">{isMessenger(item) ? MESSENGER_LABEL : item.listingTitle || "Anúncio não identificado"}</span>
                     <span className="block truncate text-sm text-ink">{item.lastMessagePreview}</span>
                     <span className="block text-xs text-muted">{item.waiting ? "Aguardando corretor on-line" : item.assignedName || "Sem atendente"}{item.lastMessageAt ? ` · ${time.format(new Date(item.lastMessageAt))}` : ""}</span>
                   </span>
@@ -602,7 +606,7 @@ export default function MarketplaceChat({ canEditSettings = false, canAssign = f
                     <Badge tone="info" className="shrink-0">{conversation.assignedName ? String(conversation.assignedName).split(" ")[0] : "Roleta"}</Badge>
                   </p>
                   <p className="truncate text-xs text-muted">
-                    {conversation.listingUrl ? <a className="text-brand underline" href={conversation.listingUrl} target="_blank" rel="noreferrer">{conversation.listingTitle || "Ver anúncio"}</a> : conversation.listingTitle || "Anúncio não identificado"}
+                    {isMessenger(conversation) ? MESSENGER_LABEL : conversation.listingUrl ? <a className="text-brand underline" href={conversation.listingUrl} target="_blank" rel="noreferrer">{conversation.listingTitle || "Ver anúncio"}</a> : conversation.listingTitle || "Anúncio não identificado"}
                   </p>
                 </div>
               </div>
@@ -627,6 +631,18 @@ export default function MarketplaceChat({ canEditSettings = false, canAssign = f
                 <AlertTriangle className="h-4 w-4 shrink-0" aria-hidden="true" />
                 Mensagem não entregue — reenviando automaticamente
               </p>
+            ) : null}
+            {isMessenger(conversation) && conversation.messengerWindow ? (
+              conversation.messengerWindow.open ? (
+                <p role="status" data-messenger-window className="shrink-0 border-b border-line px-3 py-1.5 text-xs text-muted">
+                  Messenger: pode responder até {time.format(new Date(conversation.messengerWindow.endsAt))}{conversation.messengerWindow.kind === "7d" ? " (veio de anúncio)" : ""}.
+                </p>
+              ) : (
+                <p role="status" data-messenger-window className="flex shrink-0 items-center gap-2 border-b border-line bg-warning-soft px-3 py-2 text-sm font-semibold text-warning">
+                  <AlertTriangle className="h-4 w-4 shrink-0" aria-hidden="true" />
+                  Janela do Messenger fechada: só dá para responder quando o cliente mandar uma nova mensagem (regra da Meta).
+                </p>
+              )
             ) : null}
             <div ref={messagesRef} key={selectedId} data-chat-wallpaper className="min-h-0 flex-1 space-y-2 overflow-y-auto overscroll-contain bg-mist p-3">
               {(thread.messages || []).map((message) => message.internal ? (
@@ -684,7 +700,7 @@ export default function MarketplaceChat({ canEditSettings = false, canAssign = f
               onDrop={(event) => { const files = filesFromTransfer(event.dataTransfer); if (files.length) { event.preventDefault(); addFiles(files); } }}>
               {slashQuery !== null ? <ShortcutPicker query={slashQuery} shortcuts={shortcuts} onPick={pickShortcut} onManage={canManageShortcuts ? () => setManagingShortcuts(true) : null} /> : null}
               <ChatAttachmentTray attachments={attachments} disabled={busy} onRetry={send}
-                hint={supportsMarketplaceMedia(list.extension?.extensionVersion) ? "o texto digitado sai antes" : `saem quando a extensão do PC estiver na ${MARKETPLACE_MEDIA_MIN_VERSION}`} />
+                hint={isMessenger(conversation) ? "pelo Messenger, só fotos; o texto digitado sai antes" : supportsMarketplaceMedia(list.extension?.extensionVersion) ? "o texto digitado sai antes" : `saem quando a extensão do PC estiver na ${MARKETPLACE_MEDIA_MIN_VERSION}`} />
               {progress ? <p role="status" className="mb-2 text-xs font-semibold text-brand">{progress}</p> : null}
               <div className="flex gap-2">
               {/* "Nosso WhatsApp" (dono, 2026-10-22: "Enviar o número deve enviar o oficial"): cola o link do WhatsApp OFICIAL
@@ -695,8 +711,8 @@ export default function MarketplaceChat({ canEditSettings = false, canAssign = f
               {conversation.canInternal ? <InternalToggle active={false} onClick={() => setInternalMode(true)} /> : null}
               <textarea ref={textRef} className={`${inputClasses} min-h-touch py-2`} rows={2} maxLength={MAX_OUTBOUND_LENGTH} value={text} onChange={(event) => { setText(event.target.value); notifyTyping(); }}
                 onPaste={(event) => { const files = filesFromTransfer(event.clipboardData); if (files.length) { event.preventDefault(); addFiles(files); } }}
-                placeholder={attachments.items.length ? "Mensagem (opcional) — sai antes dos arquivos" : "Escreva a resposta ou / para atalhos (sai pelo Facebook em ~1–2 min)"} />
-              <Button type="submit" loading={busy} disabled={(!text.trim() && !attachments.items.length) || slashQuery !== null} aria-label="Enviar"><Send className="h-4 w-4" /></Button>
+                placeholder={attachments.items.length ? "Mensagem (opcional) — sai antes dos arquivos" : isMessenger(conversation) ? "Escreva a resposta ou / para atalhos (sai na hora pelo Messenger)" : "Escreva a resposta ou / para atalhos (sai pelo Facebook em ~1–2 min)"} />
+              <Button type="submit" loading={busy} disabled={(!text.trim() && !attachments.items.length) || slashQuery !== null || (isMessenger(conversation) && conversation.messengerWindow?.open === false)} aria-label="Enviar"><Send className="h-4 w-4" /></Button>
               </div>
             </form>
             )}

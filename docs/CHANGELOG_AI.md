@@ -43,6 +43,15 @@ Copie o modelo abaixo (uma entrada por bloco):
 ```
 
 
+### 2026-10-25 — Messenger oficial: conversa nova vai para a roleta (MSG-1)
+- **Data:** 2026-10-25
+- **Área:** Messenger / Roleta / Chat Marketplace
+- **Alteração:** Conversa nova do Messenger da Página deixa de ficar com o dono (`assignment_source = manual`) e passa pelo MESMO caminho do Marketplace: `deliverMessengerConversation` (novo, `lib/marketplace-chat.js`) → `assignDirect` (atribuição do dia do admin, só o par dia → pessoa — `messengerDeliveryRoute`) ou `distribute` (`assignRoundRobinLead`, fila `waiting_distribution_at`, cliente criado com o sorteado, histórico com `source = facebook_messenger`, aviso "Novo cliente do Messenger"); fila de espera e prazo/redistribuição MKT-2e já valiam para as conversas da tabela. `lib/messenger.js`: conversa é criada sem responsável e distribuída depois de gravar a mensagem; reenvio da Meta após falha na distribuição entrega no caminho do "duplicate" (`needsMessengerDistribution`); `ensureMessengerClient` dividido em `createMessengerClient` (cadastro+vínculo+etiqueta, usado pela roleta) + histórico/aviso (só "Adicionar ao CRM" manual, inalterado). Origem do cliente `destination: "roulette"`.
+- **Motivo:** decisão do dono (2026-10-25): "conversa nova do Messenger vai para a roleta, igual ao Marketplace".
+- **Arquivos afetados:** `lib/messenger.js`, `lib/marketplace-chat.js`, `lib/messenger-core.mjs`, `tests/messenger-core.test.mjs`, `docs/BUSINESS_RULES.md` (MSG-1), `docs/MESSENGER.md`, `.claude/rules/integracoes-externas.md`.
+- **Risco/observação:** import circular estático `lib/messenger.js` ↔ `lib/marketplace-chat.js` (só chamadas em tempo de execução; build ok). Conversas já criadas com o dono continuam com ele. Sem migration.
+- **Autor:** crm-editor (Claude Code)
+
 ### 2026-10-25 — Henry: "clientes novos" (um número só), números compostos por extenso na voz e repetição por semelhança
 - **Data:** 2026-10-25
 - **Área:** Henry (fala, prompt, frases de espera/confirmação, vocabulário, Treino)
@@ -734,6 +743,16 @@ Copie o modelo abaixo (uma entrada por bloco):
 - **Arquivos:** `lib/henry-training-core.mjs` (`appendTrainingScenario`, `parseTrainingRounds`, `summarizeTrainingRound`, `countTrainingIssues`), `lib/henry-training.js`, `app/api/admin/henry/treino/route.js`, `components/henry/HenryTrainingCard.jsx`, `tests/henry-training.test.mjs`; docs `BUSINESS_RULES.md` HENRY-1 "Modo treino".
 - **Validação:** `node --test tests/henry*.test.mjs` verdes; `pnpm build`.
 - **Risco/observação:** sem migration (pior caso ~1 MB de JSON numa linha; típico bem menos). Leitura-modifica-grava a cada cenário — só o dono roda, em sequência.
+
+### 2026-10-25 — Messenger oficial da Página do Facebook, fase 1 (receber e responder pelo CRM) — branch `feat/messenger-oficial`, NÃO publicado
+- **Data:** 2026-10-25
+- **Área:** integrações (Meta Messenger), Chat Marketplace, clientes (origem nova `facebook_messenger`).
+- **O quê:** webhook `app/api/webhooks/messenger` (GET verify token; POST com HMAC `x-hub-signature-256`, falha fechado; mensagem/postback/eco/entrega/leitura/anúncio; idempotente pelo `mid`); conversas projetadas no Chat Marketplace como canal "Messenger" (`thread_key = messenger:<PSID>`), cliente novo só com o nome, com o dono; envio na hora pela Send API (texto e foto) só na janela de 24 h/7 dias de anúncio, sem tag; "Entregue"/"Lida". A sincronização da extensão, o limite por hora, o reprocessamento de falhas e a renormalização do Marketplace passam a excluir `messenger:%`. `createMarketplaceRegistration` ganhou `fallbackName`/`historySource` (padrões = comportamento anterior).
+- **Por quê:** decisão do dono (25/10) de abrir o Messenger oficial pela Página (MSG-1). Escolha de projeção: Chat Marketplace (tabelas sem telefone, mesmo escopo, nota interna, atribuição e cliente) em vez de `whatsapp_conversations` (ancorada em telefone/sessão e com Fluxos/lembretes/envio do WhatsApp que não podem disparar para o Facebook) — nenhuma tela ou tabela nova de conversa.
+- **Banco:** migration `20261025180000_messenger_oficial.sql` (3 colunas aditivas em `marketplace_conversations`) — **aplicar antes de ligar o webhook**. Variáveis novas: `MESSENGER_PAGE_ID`, `MESSENGER_PAGE_ACCESS_TOKEN`, `MESSENGER_APP_SECRET`, `MESSENGER_VERIFY_TOKEN` (+ opcional `MESSENGER_GRAPH_API_VERSION`).
+- **Docs:** `docs/BUSINESS_RULES.md` MSG-1, `docs/WHATSAPP.md` §13-B, `.claude/rules/integracoes-externas.md`, guia `docs/MESSENGER.md`.
+- **Testes:** `tests/messenger-core.test.mjs` (assinatura, leitura/idempotência, janela 24 h/7 dias, projeção, isolamento da extensão) + suítes do Marketplace/Chat.
+- **DECISÃO NECESSÁRIA:** distribuição das conversas do Messenger (hoje: dono). **Risco/observação:** resposta pelo Messenger conta como "último atendimento" do cliente pela mesma leitura do Marketplace (MKT-2h, `marketplace_messages`) — coerente, mas não decidido pelo dono; envio que expira por tempo (sem resposta da Meta) fica "Não enviada" e "Tentar de novo" pode duplicar se a Meta tiver entregue.
 
 ### 2026-10-25 — Extensões Marketplace 1.9.8 e Seguidor Instagram 1.1.6: trabalham com a janela de trabalho atrás de outra em tela cheia; Marketplace nunca mais em silêncio — branch `fix/extensoes-aba-atras`, NÃO publicado
 - **Data:** 2026-10-25
