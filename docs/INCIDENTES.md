@@ -40,6 +40,17 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-25 — Henry responde "Você queria o quê?" a uma reclamação com pedido, "Vendas de agora: 3." e "aquela visão" vira câmera
+- **Data:** 2026-10-25
+- **Sintoma:** Treino 10 (21:17Z, automático): "não era isso… Quero saber o que eu faço pra fechar mais" → "Foi mal. Você queria o quê: vendas, funil ou ranking?" e, na 2ª reclamação, a mesma pergunta; "tá longo demais, resume" → "Vendas de agora: 3."; "me dá aquela visão de novo" → "Visão pela câmera tá desligada"; bom dia "pode ser um sertanejo mesmo, tanto faz o cantor" parecia não tocar.
+- **Área:** Henry (voz/IA) / Treino
+- **Impacto:** só o dono; resposta genérica/robótica em vez da resposta.
+- **Causa raiz:** `isBareHenryComplaint` ignorava o pedido depois da reclamação; nada relia o contexto após a pergunta genérica; rótulo de várias palavras escapava de `stripSpeechLabel`; "visão" sozinha era lida pelo modelo como câmera; "tanto faz" ganhava do gênero e o relatório do Treino descartava o campo `music`.
+- **Correção:** `COMPLAINT_REQUEST` + `isHenryPlanRequest` na reclamação, `henryComplaintFallbackRequest`, `PERIOD_LABEL`/`isHenryShortenRequest`, `henryRepeatSummaryReply`, gênero antes do "tanto faz" + `morningSuggestionMatchesGenre`, `music` no `storedExchange`. Detalhe: `docs/CHANGELOG_AI.md` 2026-10-25 (Treino 10).
+- **Arquivos/commit:** branch `fix/henry-achados-treino-10`.
+- **Prevenção/teste:** `tests/henry-achados-treino-10.test.mjs` (falas reais).
+- **Status:** Resolvido (aguarda publicação; rodar o Treino de novo depois)
+
 ### 2026-10-25 — Henry repete "3 vendas" depois de "não foi isso", oferece o gargalo em vez de falar e explica que não tem agenda na despedida
 - **Data:** 2026-10-25
 - **Sintoma:** Treino 9 (20:30Z, automático): "Entendi, mas não foi isso que eu perguntei." → repetiu "3 vendas" (com "20 aprovação" a mais); "me fala do funil" → "Quer que eu veja em qual etapa a gente mais perde gente?"; "por hoje é isso, pode fechar a agenda" → "Não tenho agenda pra fechar…"; "a Jennyfer 23 e Ketlin 17"; "é só chamar"/"Quer que eu dê mais uma?" no papo; "agora sim, o número de vendas já resolve" → repetiu "3 vendas".

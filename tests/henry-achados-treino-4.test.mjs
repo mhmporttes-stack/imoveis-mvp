@@ -92,7 +92,7 @@ test("1: sem frase crua do cache, sem duplicar, meta e ranking ditos como gente"
 test("2: período do ranking herdado da conversa do dia inteira", () => {
   const ask = "Peraí, Henry, deixa o pipeline de lado. Me fala do ranking primeiro.";
   assert.deepEqual(route(ask, DAY), { name: "ranking_periodo", input: { periodo: "esta_semana" }, topic: "ranking", speak: true });
-  assert.match(lib, /henryDirectRoute\(text, \{ turns: memoryTurns\.length \? memoryTurns : previous, today: saoPauloDateKey\(\) \}\)/);
+  assert.match(lib, /henryDirectRoute\((?:reinterpreted \|\| )?text, \{ turns: memoryTurns\.length \? memoryTurns : previous, today: saoPauloDateKey\(\) \}\)/);
 });
 
 // 3. "me conta uma piada aí, Henry, pra desopilar depois de tanto cliente hoje" → relatorio_do_dia (11,3 s, 3 rodadas).
