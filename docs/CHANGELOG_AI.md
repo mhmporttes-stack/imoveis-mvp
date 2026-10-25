@@ -57,6 +57,15 @@ Copie o modelo abaixo (uma entrada por bloco):
 ```
 
 
+### 2026-10-25 — Henry: achados do Treino 9 (reclamação sem detalhe repetia "3 vendas", funil oferecia o gargalo, despedida explicava limitação, artigo faltando na lista, oferta no fim do papo, concordância repetia o número) — branch `fix/henry-achados-treino-9`, NÃO publicado
+- **Data:** 2026-10-25
+- **Área:** Henry (voz/IA) / Treino do Henry
+- **Alteração:** (1) **Reclamação sem pista:** "Entendi, mas não foi isso que eu perguntei." → `funil_periodo`, 3 rodadas, "Este mês a gente fechou 3 vendas, e 20 clientes passaram pela aprovação." — `henryRepeatedAfterComplaint` comparava só o conjunto de números (3 vs 3+20). Agora compara também o número + métrica principal (`henryMainMetric`, "3:vend"); reclamação sem pista (`isBareHenryComplaint`) = pergunta fixa sem modelo/ferramenta (`henryBareComplaintReply`, 2 variantes sem repetir). (2) **Funil:** "me fala do funil" herda o período da última fala de vendas/funil/aprovados (`SALES_TOPIC`); `funil_periodo` da rota `funil` = fala montada (`speak: true`) com `bottleneckLine` (gargalo em frase curta, `henryFunnelBottleneck().curta`) e fora do resumo positivo; resposta do modelo em rota direta perde a oferta final (`trimTrailingOffer`, mantém oferta de abrir tela). (3) **Despedida:** `henryFarewellReply` (fixa, sem modelo). (4) **Artigo:** `buildHenryAwaitingReport` usa artigo em todos ou nenhum. (5) **Oferta no papo:** `trimCasualOffer` em cumprimento/pessoal/piada/concordância (oferta e bordão "é só chamar" sempre saem) + persona. (6) **Concordância:** `henryAgreementReply` ("Beleza!/Show!/Fechou!/Boa!", sem número) quando não há pergunta dele em aberto.
+- **Motivo:** rodada automática do Treino de 2026-10-25T20:30:54Z (crm_settings `henry_training_reports`, id `5a656f56-3bb9-4717-9c21-9b4489f4a3b7`).
+- **Arquivos afetados:** `lib/henry-voice.js`, `lib/henry-voice-turn.mjs`, `lib/henry-voice-persona.mjs`, `lib/henry-reports-core.mjs`, `lib/henry-repetition-core.mjs`; `tests/henry-achados-treino-9.test.mjs` (novo, falas reais); trava atualizada em `tests/henry-achados-treino-3.test.mjs` ("volta pro funil" agora `speak: true`).
+- **Risco/observação:** "me fala do funil" sem período em lugar nenhum continua o funil de hoje (catálogo, sem gargalo). Funil pedido passa a falar a queda (gargalo) — antes, como "resumo", omitia zero e queda (HENRY-1 Resumo positivo); se o dono preferir o funil sem a queda, é só tirar `bottleneckLine`. Concordância e despedida não passam mais pelo modelo. Sem migration. Validado: `node --test tests/henry*.test.mjs tests/alexa*.test.mjs tests/crm-metrics*.test.mjs` e `next build`.
+- **Autor:** crm-editor (Claude Code)
+
 ### 2026-10-25 — Henry: achados do Treino 8 (busca dita sem busca, "a ferramenta não entendeu", "quem ficou em segundo", parados há mais tempo, "por que não fecha" após reclamação, plano pra subir a taxa, conversas aguardando em fala de gente, retomar a dona Joana, "me lembra do WhatsApp") — branch `fix/henry-achados-treino-8`, NÃO publicado
 - **Data:** 2026-10-25
 - **Área:** Henry (voz/IA) / Treino do Henry / pré-cálculo de métricas

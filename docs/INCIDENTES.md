@@ -40,6 +40,17 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-25 — Henry repete "3 vendas" depois de "não foi isso", oferece o gargalo em vez de falar e explica que não tem agenda na despedida
+- **Data:** 2026-10-25
+- **Sintoma:** Treino 9 (20:30Z, automático): "Entendi, mas não foi isso que eu perguntei." → repetiu "3 vendas" (com "20 aprovação" a mais); "me fala do funil" → "Quer que eu veja em qual etapa a gente mais perde gente?"; "por hoje é isso, pode fechar a agenda" → "Não tenho agenda pra fechar…"; "a Jennyfer 23 e Ketlin 17"; "é só chamar"/"Quer que eu dê mais uma?" no papo; "agora sim, o número de vendas já resolve" → repetiu "3 vendas".
+- **Área:** Henry (voz/IA) / Treino
+- **Impacto:** só o dono; respostas repetidas/ofertas em vez de resposta.
+- **Causa raiz:** comparação da reclamação só pelo conjunto de números; reclamação sem pista ia ao modelo com ferramentas; funil do período ia ao modelo e como "resumo positivo" sem o gargalo; despedida e concordância dependiam do modelo (que repetia a memória do dia); artigo decidido por nome; bordão só cortado quando repetido.
+- **Correção:** `henryMainMetric`, `isBareHenryComplaint`/`henryBareComplaintReply`, `bottleneckLine` + `speak: true`, `trimTrailingOffer`/`trimCasualOffer`, `henryFarewellReply`, `henryAgreementReply`, artigo tudo-ou-nada. Detalhe: `docs/CHANGELOG_AI.md` 2026-10-25 (Treino 9).
+- **Arquivos/commit:** branch `fix/henry-achados-treino-9`.
+- **Prevenção/teste:** `tests/henry-achados-treino-9.test.mjs` (falas reais).
+- **Status:** Resolvido (aguarda publicação; rodar o Treino de novo depois)
+
 ### 2026-10-25 — Henry diz que procurou sem procurar, fala "a ferramenta não entendeu" e não sabe quem ficou em segundo
 - **Data:** 2026-10-25
 - **Sintoma:** Treino 8 (19:10Z, automático): "e a dona Joana, ela já respondeu?" → "Não achei nenhum cliente chamado Joana" sem ferramenta; "o cliente da Vila Carvalho…" → "a consulta não voltou" sem ferramenta; meta da equipe "bateu ou tá faltando" → "A ferramenta não entendeu essa consulta"; "Quem ficou em segundo?" → "Ainda não tenho o segundo colocado"; "quem tá há mais tempo sem retorno" 11,8 s com 2 ferramentas; "por que a gente não está fechando" após reclamação → "O que você quer saber?"; "cadê o plano" → recusa; "Matheus com 24" na lista; "voltando pro assunto do cliente" → funil; "me lembra do WhatsApp" → ofereceu lembrete.

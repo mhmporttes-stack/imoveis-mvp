@@ -120,7 +120,7 @@ test("5: ranking sem período na fala = o último período falado sobre o rankin
   assert.deepEqual(route(ask, []), { name: "consultar_crm", input: { assunto: "ranking", periodo: "hoje" }, topic: "ranking", speak: true });
   assert.deepEqual(route("e o ranking do mês?", DAY), { name: "ranking_periodo", input: { periodo: "este_mes" }, topic: "ranking", speak: true });
   // o funil segue a mesma regra ("volta pro funil" = o mês que ele tinha pedido)
-  assert.deepEqual(route("Beleza, Henry, deixa isso pra depois e volta pro funil, vamos lá.", DAY), { name: "funil_periodo", input: { periodo: "este_mes" }, topic: "funil" });
+  assert.deepEqual(route("Beleza, Henry, deixa isso pra depois e volta pro funil, vamos lá.", DAY), { name: "funil_periodo", input: { periodo: "este_mes" }, topic: "funil", speak: true }); // Treino 9: fala montada com o gargalo
   assert.match(buildHenryStaticPrompt(), /Ranking ou funil sem período na fala: use o último período que ele falou sobre o MESMO assunto hoje/);
 });
 
