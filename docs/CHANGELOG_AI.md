@@ -43,6 +43,15 @@ Copie o modelo abaixo (uma entrada por bloco):
 ```
 
 
+### 2026-10-25 — Messenger oficial: conversa nova vai para a roleta (MSG-1)
+- **Data:** 2026-10-25
+- **Área:** Messenger / Roleta / Chat Marketplace
+- **Alteração:** Conversa nova do Messenger da Página deixa de ficar com o dono (`assignment_source = manual`) e passa pelo MESMO caminho do Marketplace: `deliverMessengerConversation` (novo, `lib/marketplace-chat.js`) → `assignDirect` (atribuição do dia do admin, só o par dia → pessoa — `messengerDeliveryRoute`) ou `distribute` (`assignRoundRobinLead`, fila `waiting_distribution_at`, cliente criado com o sorteado, histórico com `source = facebook_messenger`, aviso "Novo cliente do Messenger"); fila de espera e prazo/redistribuição MKT-2e já valiam para as conversas da tabela. `lib/messenger.js`: conversa é criada sem responsável e distribuída depois de gravar a mensagem; reenvio da Meta após falha na distribuição entrega no caminho do "duplicate" (`needsMessengerDistribution`); `ensureMessengerClient` dividido em `createMessengerClient` (cadastro+vínculo+etiqueta, usado pela roleta) + histórico/aviso (só "Adicionar ao CRM" manual, inalterado). Origem do cliente `destination: "roulette"`.
+- **Motivo:** decisão do dono (2026-10-25): "conversa nova do Messenger vai para a roleta, igual ao Marketplace".
+- **Arquivos afetados:** `lib/messenger.js`, `lib/marketplace-chat.js`, `lib/messenger-core.mjs`, `tests/messenger-core.test.mjs`, `docs/BUSINESS_RULES.md` (MSG-1), `docs/MESSENGER.md`, `.claude/rules/integracoes-externas.md`.
+- **Risco/observação:** import circular estático `lib/messenger.js` ↔ `lib/marketplace-chat.js` (só chamadas em tempo de execução; build ok). Conversas já criadas com o dono continuam com ele. Sem migration.
+- **Autor:** crm-editor (Claude Code)
+
 ### 2026-10-25 — Henry: "clientes novos" (um número só), números compostos por extenso na voz e repetição por semelhança
 - **Data:** 2026-10-25
 - **Área:** Henry (fala, prompt, frases de espera/confirmação, vocabulário, Treino)

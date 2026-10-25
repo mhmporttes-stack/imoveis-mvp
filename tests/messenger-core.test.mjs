@@ -8,8 +8,10 @@ import {
   buildMessengerSendBody,
   describeMessengerSendError,
   isMessengerThreadKey,
+  messengerDeliveryRoute,
   messengerMessageRow,
   messengerReceiptLabel,
+  needsMessengerDistribution,
   messengerThreadKey,
   messengerWindow,
   parseMessengerWebhook,
@@ -139,4 +141,25 @@ test("idempotência e isolamento no código: mid repetido ignorado; extensão nu
   const route = read("app/api/webhooks/messenger/route.js");
   assert.match(route, /verifyMessengerWebhookSignature\(rawBody, signature\)/);
   assert.match(route, /status: 401/);
+});
+
+test("distribuição (dono, 2026-10-25): roleta igual ao Marketplace; só o par dia → pessoa do admin desvia", () => {
+  assert.deepEqual(messengerDeliveryRoute({ kind: "assignee", userId: "u1" }), { kind: "assignee", userId: "u1" });
+  for (const route of [{ kind: "roulette" }, { kind: "ignore" }, { kind: "admin", reason: "sem_data" }, { kind: "assignee" }, undefined]) {
+    assert.deepEqual(messengerDeliveryRoute(route), { kind: "roulette" });
+  }
+  assert.equal(needsMessengerDistribution({ assigned_user_id: null, waiting_distribution_at: null }), true);
+  assert.equal(needsMessengerDistribution({ assigned_user_id: null, waiting_distribution_at: null }, { echo: true }), false, "eco da Página nunca distribui");
+  assert.equal(needsMessengerDistribution({ assigned_user_id: "u1" }), false);
+  assert.equal(needsMessengerDistribution({ waiting_distribution_at: "2026-10-25T12:00:00Z" }), false, "já na fila de espera");
+  assert.equal(needsMessengerDistribution(null), false);
+
+  const messenger = read("lib/messenger.js");
+  assert.doesNotMatch(messenger, /ASSIGNMENT_SOURCE\.MANUAL|ownerProfileId/, "não fica mais com o dono");
+  assert.match(messenger, /deliverMessengerConversation\(updated, now\)/);
+  const chat = read("lib/marketplace-chat.js");
+  const deliver = chat.slice(chat.indexOf("export async function deliverMessengerConversation("), chat.indexOf("// Fila de espera (a cada"));
+  assert.match(deliver, /assignDirect\(conversation, route\.userId, now\)/);
+  assert.match(deliver, /distribute\(conversation, \{ now \}\)/, "mesmo distribute do Marketplace");
+  assert.match(chat, /if \(isMessengerThreadKey\(conversation\.thread_key\)\) return createMessengerClient\(/, "cliente com origem do Messenger");
 });

@@ -136,7 +136,7 @@ test("MKT-2e no servidor: sem elegível → fila de espera, nunca volta a quem p
   assert.match(overdue, /else if \(await moveConversationToWaiting\(conversation, now\)\)/, "ninguém liberado → fila de espera");
   const queue = lib.slice(lib.indexOf("export async function processMarketplaceDistribution"), lib.indexOf("// --- Monitoramento do job"));
   assert.match(queue, /excludedBrokerId: conversation\.lost_by_user_id/, "fila não devolve a quem perdeu");
-  assert.ok(queue.indexOf("lost_by_user_id") < queue.indexOf("routeNewConversation"), "quem perdeu pelo prazo não passa pela 1ª carga");
+  assert.ok(queue.indexOf("lost_by_user_id") < queue.indexOf("newConversationRoute("), "quem perdeu pelo prazo não passa pela 1ª carga");
   const reply = lib.slice(lib.indexOf("export async function queueMarketplaceReply"), lib.indexOf("export async function assignMarketplaceConversation"));
   assert.doesNotMatch(reply, /last_human_reply_at:/, "pôr na fila não é resposta enviada");
   assert.match(read("app/api/cron/scheduled-activities/route.js"), /runMarketplaceRedistributionJob/);

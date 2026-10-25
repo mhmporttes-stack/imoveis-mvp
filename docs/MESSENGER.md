@@ -50,4 +50,4 @@ Depois peça um novo deploy (as variáveis só valem num deploy novo). **O que v
 
 ## Decisão pendente
 
-- **Quem recebe as conversas do Messenger:** hoje todas ficam com você. Se quiser que entrem na roleta como o Marketplace, é só dizer.
+- **Quem recebe as conversas do Messenger:** a roleta, igual ao Marketplace (decisão sua, 2026-10-25). O cliente vai para um corretor on-line com WhatsApp conectado; se ninguém estiver liberado, espera na fila; se o corretor não responder no prazo da roleta, passa para o próximo. A atribuição do dia que você configura no Chat Marketplace também vale.
