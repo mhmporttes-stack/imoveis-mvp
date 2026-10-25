@@ -13,6 +13,7 @@ import {
   shouldNarrate,
   waitPhrasesToSynthesize
 } from "../lib/henry-voice-narration.mjs";
+import { distinctBySimilarity, isSimilarToAny } from "../lib/henry-repetition-core.mjs";
 
 const ui = readFileSync(new URL("../components/henry/HenryVoiceAssistant.jsx", import.meta.url), "utf8");
 const lib = readFileSync(new URL("../lib/henry-voice.js", import.meta.url), "utf8");
@@ -22,18 +23,44 @@ const seeded = (seed = 7) => () => {
 };
 const scopeOf = (topic) => HENRY_WAIT_PHRASES.filter((phrase) => !phrase.topics.includes("music") && (phrase.topics.includes(topic) || phrase.topics.includes("geral")));
 
-test("no mesmo dia nenhuma frase repete enquanto houver outra do assunto ou geral com áudio", () => {
+// Desde 2026-10-25 (dono: "muda uma palavra e fala a mesma frase") "repetir" = a mesma frase OU uma PARECIDA
+// (isSimilarToAny): o dia segue sem nenhuma parecida enquanto houver outra; só depois volta a repetir.
+test("no mesmo dia nenhuma frase repete (nem parecida) enquanto houver outra do assunto ou geral com áudio", () => {
   for (const topic of ["relatorio", "geral", "clientes", "internet", "music"]) {
     const scope = topic === "music" ? HENRY_WAIT_PHRASES.filter((phrase) => phrase.topics.includes("music")) : scopeOf(topic);
     let used = [];
+    const said = [];
     const random = seeded(topic.length);
     for (let index = 0; index < scope.length; index += 1) {
       const choice = pickWaitPhrase({ topic, recentIds: used, usedToday: used, random });
       assert.ok(choice, `${topic}: acabou antes do banco (${index}/${scope.length})`);
-      assert.ok(!used.includes(choice.id), `${topic}: ${choice.id} repetiu no dia`);
       assert.ok(scope.includes(choice), `${topic}: ${choice.id} fora do assunto`);
+      if (used.includes(choice.id) || isSimilarToAny(choice.text, said)) {
+        // Só depois de esgotar as não parecidas, e com variedade de verdade (a maior parte do escopo).
+        assert.ok(scope.every((phrase) => used.includes(phrase.id) || isSimilarToAny(phrase.text, said)), `${topic}: repetiu com frase nova sobrando`);
+        assert.ok(index >= Math.min(scope.length, 4) * 0.5, `${topic}: só ${index} frases distintas`);
+        break;
+      }
+      said.push(choice.text);
       used = rememberPhrase(used, choice.id, 200);
     }
+  }
+});
+
+test("parecida com o que já foi falado hoje (troca de uma palavra, confirmação de escuta incluída) não sai", () => {
+  const byText = (text) => [...HENRY_WAIT_PHRASES, ...HENRY_ACK_ITEMS].find((phrase) => phrase.text === text);
+  const said = byText("Tô passando os olhos nos números.");
+  const similar = byText("Deixa eu dar uma conferida nesses números.");
+  for (let index = 0; index < 60; index += 1) {
+    const choice = pickWaitPhrase({ topic: "relatorio", recentIds: [said.id], usedToday: [said.id], random: () => index / 60 });
+    assert.notEqual(choice.id, similar.id);
+    assert.ok(!isSimilarToAny(choice.text, [said.text]), choice.text);
+  }
+  // A confirmação "Tô olhando aqui." (mesma lista do aparelho) bloqueia a espera "Tô passando os olhos nos números."
+  const ack = byText("Tô olhando aqui.");
+  for (let index = 0; index < 60; index += 1) {
+    const choice = pickWaitPhrase({ topic: "relatorio", recentIds: [ack.id], usedToday: [ack.id], random: () => index / 60 });
+    assert.ok(!isSimilarToAny(choice.text, [ack.text]), choice.text);
   }
 });
 
@@ -99,4 +126,15 @@ test("com confirmação de escuta, a 1ª frase de espera só ~2,5 s depois da co
   // A tela marca o pedido como confirmado nos dois caminhos.
   assert.match(ui, /acked: ackedBeforeAsk/);
   assert.match(ui, /acked: wait\.acked/);
+});
+
+// Banco grande e variado (dono, 2026-10-25: "teria que ter um vocabulário bem extenso"): dezenas por tipo, contadas por
+// SEMELHANÇA (frases que só trocam uma palavra contam como uma).
+test("bancos: dezenas de frases de espera, música e confirmações realmente diferentes", () => {
+  const crm = HENRY_WAIT_PHRASES.filter((phrase) => !phrase.topics.includes("music")).map((phrase) => phrase.text);
+  const music = HENRY_WAIT_PHRASES.filter((phrase) => phrase.topics.includes("music")).map((phrase) => phrase.text);
+  const ackPhrases = HENRY_ACK_ITEMS.filter((item) => item.topics.includes("ack_phrase")).map((item) => item.text);
+  assert.ok(distinctBySimilarity(crm).length >= 90, `espera: ${distinctBySimilarity(crm).length}`);
+  assert.ok(distinctBySimilarity(music).length >= 25, `música: ${distinctBySimilarity(music).length}`);
+  assert.ok(distinctBySimilarity(ackPhrases).length >= 35, `confirmações: ${distinctBySimilarity(ackPhrases).length}`);
 });

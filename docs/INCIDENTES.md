@@ -40,6 +40,17 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-25 — Henry: "leads" e "clientes novos" como duas coisas, "201" falado estranho e aberturas repetidas ("Ok, vou dar uma olhada nos números")
+- **Data:** 2026-10-25
+- **Sintoma:** "Leads e clientes novos são a mesma coisa"; "o 201, quando ele fala, não fica natural"; "o início dele é muito repetitivo [...] muda uma palavra e fala a mesma frase".
+- **Área:** Henry (voz/fala)
+- **Impacto:** só o dono; fala confusa e repetitiva, números da tela certos.
+- **Causa raiz:** (1) resumo com duas contagens do mesmo cadastro (leads de hoje do Início + clientes novos do funil/desde ontem); (2) número masculino composto ia em dígitos para a ElevenLabs flash v2.5, que lê dígitos compostos mal; (3) não repetir = id/texto exato; o banco de vocabulário e os exemplos do prompt empurravam "vou olhar/deixa eu ver" como abertura.
+- **Correção:** um item "N clientes novos" (definição do Início); compostos por extenso no gênero certo em `concordarNumeros`; semelhança (`lib/henry-repetition-core.mjs`) em espera, confirmação, repertório, abertura do modelo e Treino; bancos ampliados; prompt "comece direto".
+- **Arquivos/commit:** ver `docs/CHANGELOG_AI.md` 2026-10-25 — branch `fix/henry-numeros-aberturas`
+- **Prevenção/teste:** `tests/henry-repetition.test.mjs`, tabela de números em `tests/pt-br-concordancia.test.mjs`, bancos por semelhança em `tests/henry-wait-phrases.test.mjs`.
+- **Status:** Monitorando (ouvir o "201" e o começo das respostas no PC do dono)
+
 ### 2026-10-25 — Extensão do Marketplace em "silêncio total" e respostas presas com a janela de trabalho atrás de outra em tela cheia
 - **Data:** 2026-10-25 (sintoma desde 2026-10-24 12:44 UTC)
 - **Sintoma:** "a aba do Marketplace e a do Instagram ficam abertas, porém eu abro outra janela para utilizar, em tela cheia; as duas abas ficam atrás dessa." Último sinal da extensão (MKT-2g) em 24/10 12:44 UTC e nunca mais; antes, diagnóstico `aba_oculta` (`visibility hidden`, `hasFocus false`); 4 respostas de corretores presas (queued/sending). Publicação de anúncio funcionou.

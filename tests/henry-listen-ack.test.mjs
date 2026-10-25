@@ -29,8 +29,10 @@ const seq = (...values) => {
 test("banco: interjeições e frases curtas do dono, ids únicos, fora das frases de espera; sons curtos", () => {
   const words = HENRY_ACK_ITEMS.filter((item) => item.topics.includes("ack_word")).map((item) => item.text);
   const lines = HENRY_ACK_ITEMS.filter((item) => item.topics.includes("ack_phrase")).map((item) => item.text);
-  assert.deepEqual(words, ["Hum…", "Opa.", "Uhum.", "Beleza.", "Certo.", "Show.", "Fechou."]);
-  assert.equal(lines.length, 6);
+  // As do dono continuam na frente; banco ampliado em 2026-10-25 ("é tudo a mesma coisa"): dezenas de cada tipo.
+  assert.deepEqual(words.slice(0, 7), ["Hum…", "Opa.", "Uhum.", "Beleza.", "Certo.", "Show.", "Fechou."]);
+  assert.ok(words.length >= 20, `${words.length} interjeições`);
+  assert.ok(lines.length >= 35, `${lines.length} frases`);
   assert.ok(lines.includes("Peraí que eu confiro."));
   const ids = [...HENRY_ACK_ITEMS, ...HENRY_WAIT_PHRASES].map((item) => item.id);
   assert.equal(new Set(ids).size, ids.length);
@@ -148,5 +150,8 @@ test("música nunca ganha frase de verificação; sem texto só frase neutra", (
     assert.ok(HENRY_ACK_ITEMS.find((item) => item.id === cached.id).neutral, cached.id);
   }
   const neutral = HENRY_ACK_ITEMS.filter((item) => item.neutral).map((item) => item.text);
-  assert.deepEqual(neutral, ["Já te falo.", "Deixa comigo.", "Um segundinho."]);
+  assert.deepEqual(neutral.slice(0, 3), ["Já te falo.", "Deixa comigo.", "Um segundinho."]);
+  assert.ok(neutral.length >= 12, `${neutral.length} neutras`);
+  // Neutra = serve para qualquer pedido (inclusive música): nada de CRM, número, dado, verificação.
+  for (const text of neutral) assert.doesNotMatch(text.toLowerCase(), /crm|n[uú]mero|dado|confer|olh|verific|consult|pux|busc|procur/, text);
 });

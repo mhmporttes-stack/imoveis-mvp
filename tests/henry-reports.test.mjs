@@ -114,12 +114,13 @@ test("relatório mensal: leads por origem, funil, ranking, Meta Diária, atenç�
   // Fala: 3 a 5 frases, só contagens e primeiros nomes, passa na barreira da voz.
   const sentences = report.spoken.split(/(?<=[.!?])\s+/).filter(Boolean);
   assert.ok(sentences.length >= 3 && sentences.length <= 5, report.spoken);
-  assert.match(report.spoken, /214 leads, 128 de anúncio e 41 do Marketplace/);
+  assert.match(report.spoken, /214 clientes novos, 128 de anúncio e 41 do Marketplace/);
+  assert.doesNotMatch(report.spoken, /\blead/i); // lead = cliente novo (dono, 2026-10-25)
   assert.match(report.spoken, /Ana lidera o ranking com 412 pontos/);
   assert.match(report.spoken, /87%/);
   // Resumo positivo (dono, 2026-10-24): "aguardando resposta" e clientes frios ficam só na tela; tendência só de alta.
   assert.doesNotMatch(report.spoken, /aguardando|frios/);
-  assert.match(report.spoken, /os leads subiram 12%/);
+  assert.match(report.spoken, /os clientes novos subiram 12%/);
   assert.match(report.detail.sections.find((section) => section.title === "Atenção agora").rows[0].value, /^9$/);
   assert.ok(isSafeToSpeak(report.spoken));
   assert.equal(report.facts.meta_diaria_equipe, "87%");

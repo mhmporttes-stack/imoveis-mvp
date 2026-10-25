@@ -53,11 +53,16 @@ test("bom dia, dia normal: só o que foi bom, com concordância; zero e falha fi
   const rows = [{ presence: "online", metaPercent: 100 }, { presence: "online", metaPercent: 40 }, { presence: "offline", metaPercent: 0 }];
   const good = composePositiveDailyFacts({ leadsToday: 7, rows, extras: { newClients: 5, autoSimulations: 2, autoSimulationSends: 0 } });
   assert.equal(good.positive, true);
-  assert.equal(good.text, "Hoje já entraram 7 leads. Desde ontem entraram 5 clientes novos no CRM. Já saíram 2 simulações automáticas pelo site. 2 pessoas da equipe já estão on-line. Um corretor já bateu a Meta Diária.");
+  // Lead = cliente novo (REGRA OFICIAL, dono 2026-10-25): UM item, pela contagem do Início; o "desde ontem" não se repete.
+  assert.equal(good.text, "Hoje já entraram 7 clientes novos. Já saíram 2 simulações automáticas pelo site. 2 pessoas da equipe já estão on-line. Um corretor já bateu a Meta Diária.");
   assert.doesNotMatch(good.text, /nenhum|não|aguard|atras|parad/i);
   assert.ok(isSafeToSpeak(good.text));
   const one = composePositiveDailyFacts({ leadsToday: 1, rows: null, extras: { newClients: 1, autoSimulations: 0, autoSimulationSends: 1 } });
-  assert.equal(one.text, "Hoje já entrou um lead. Desde ontem entrou um cliente novo no CRM. Já enviei a simulação para um cliente.");
+  assert.equal(one.text, "Hoje já entrou um cliente novo. Já enviei a simulação para um cliente.");
+  assert.doesNotMatch(good.text + one.text, /\blead/i);
+  // Sem a contagem de hoje (falhou ou zero): vale o "desde ontem", nunca os dois.
+  const fallback = composePositiveDailyFacts({ leadsToday: null, rows: null, extras: { newClients: 5, autoSimulations: 0, autoSimulationSends: 0 } });
+  assert.equal(fallback.text, "Desde ontem entraram 5 clientes novos no CRM.");
 });
 
 test("bom dia, dia fraco: tudo zero → nada de bom (positive false) e frase curta de ânimo, sem número, sem repetir no dia", () => {
@@ -107,7 +112,10 @@ const teamGoal = { summary: { metaPercent: 0, atividadesDone: 0, atividadesTotal
 test("desempenho da equipe hoje (dia normal): fala só o que passou de zero; tela completa", () => {
   const range = resolveHenryPeriod({ periodo: "hoje" }, TODAY);
   const report = buildHenryPeriodReport({ range, overview, teamGoal, leads: { total: 6, ad: 6, marketplace: 0, other: 0 }, awaitingReply: 8, cooledPending: 3 });
-  assert.equal(report.spoken, "Hoje entraram 6 leads, 6 de anúncio. Foram 4 clientes novos, 12 atendimentos e 2 simulações. Ana lidera o ranking com 30 pontos.");
+  // Lead = cliente novo (dono, 2026-10-25): um número só ("6 clientes novos", do Início); o do funil não se repete.
+  assert.equal(report.spoken, "Hoje entraram 6 clientes novos, 6 de anúncio. Foram 12 atendimentos e 2 simulações. Ana lidera o ranking com 30 pontos.");
+  assert.equal(report.facts.funil.novosClientes, undefined);
+  assert.equal(report.facts.clientes_novos.total, 6);
   assert.doesNotMatch(report.spoken, /nenhum|\b0 |aguard|frio|Meta Diária/);
   assert.equal(report.weak, false);
   assert.equal(report.facts.funil.vendas, undefined); // zero não vai ao modelo
@@ -130,7 +138,7 @@ test("desempenho de período fraco: frase de ânimo no lugar dos zeros; sem 'nã
 test("pergunta direta com zero: responde o número (positive false / métrica do corretor)", () => {
   const range = resolveHenryPeriod({ periodo: "hoje" }, TODAY);
   const direct = buildHenryPeriodReport({ range, overview: zeroOverview, teamGoal, leads: { total: 0, ad: 0, marketplace: 0, other: 0 }, positive: false });
-  assert.match(direct.spoken, /não entrou nenhum lead/);
+  assert.match(direct.spoken, /não entrou nenhum cliente novo/);
   assert.match(direct.spoken, /0 simulações/);
   const broker = buildHenryBrokerReport({ broker: { id: "b2", name: "Bruno Lima" }, range, overview, teamGoal, metric: "simulacoes" });
   assert.equal(broker.spoken, "Bruno não teve nenhuma simulação hoje.");

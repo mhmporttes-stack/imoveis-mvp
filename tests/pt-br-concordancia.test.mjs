@@ -67,7 +67,8 @@ test("numeroPorExtenso e casos de borda da voz", () => {
   assert.equal(pronounceForSpeech("Entraram 2 clientes novos e 2 transferências."), "Entraram 2 clientes novos e duas transferências.");
   assert.equal(pronounceForSpeech("22 atividades, 212 visitas, 11 vendas, 12 horas"), "vinte e duas atividades, duzentas e doze visitas, 11 vendas, 12 horas");
   assert.equal(pronounceForSpeech("2 mil reais e 2 mil pessoas"), "2 mil reais e duas mil pessoas");
-  assert.equal(pronounceForSpeech("às 10:21 horas, 3,2 vendas, 1.200 vendas, 1 alerta"), "às 10:21 horas, 3,2 vendas, 1.200 vendas, 1 alerta");
+  // Milhar com ponto agora sai por extenso, no gênero certo (dono, 2026-10-25: números compostos lidos de forma estranha).
+  assert.equal(pronounceForSpeech("às 10:21 horas, 3,2 vendas, 1.200 vendas, 1 alerta"), "às 10:21 horas, 3,2 vendas, mil e duzentas vendas, 1 alerta");
   assert.equal(pronounceForSpeech("Dois conversas aguardam, 2 atrasadas"), "Duas conversas aguardam, duas atrasadas");
   assert.equal(pronounceForSpeech("Corretor tem dois estados"), "Corretor tem dois estados");
 });
@@ -163,4 +164,37 @@ test("montadores (lib/henry-*, lib/alexa-*, lib/alexa-v2/*): sem 'um/dois' fixo 
     });
   }
   assert.deepEqual(found, []);
+});
+
+// Dono, 2026-10-25: "repare que o 201, quando ele fala, não fica natural, tá bem estranho". A voz principal (ElevenLabs
+// flash v2.5) lê dígitos compostos mal (documentação da ElevenLabs, Best practices → Normalization): número de mais de
+// uma palavra falada vai por extenso, no gênero da palavra seguinte; cliente (dois gêneros) no plural genérico = masculino.
+test("tabela da voz: 1, 2, 21, 22, 100, 101, 200, 201, 1000, 1201 × cliente(s) / simulação(ões) / visita(s)", () => {
+  const table = {
+    1: ["um cliente", "uma simulação", "uma visita"],
+    2: ["2 clientes", "duas simulações", "duas visitas"],
+    21: ["vinte e um clientes", "vinte e uma simulações", "vinte e uma visitas"],
+    22: ["vinte e dois clientes", "vinte e duas simulações", "vinte e duas visitas"],
+    100: ["100 clientes", "100 simulações", "100 visitas"],
+    101: ["cento e um clientes", "cento e uma simulações", "cento e uma visitas"],
+    200: ["200 clientes", "duzentas simulações", "duzentas visitas"],
+    201: ["duzentos e um clientes", "duzentas e uma simulações", "duzentas e uma visitas"],
+    1000: ["1000 clientes", "1000 simulações", "1000 visitas"],
+    1201: ["mil duzentos e um clientes", "mil duzentas e uma simulações", "mil duzentas e uma visitas"]
+  };
+  for (const [key, expected] of Object.entries(table)) {
+    const n = Number(key);
+    const said = [["cliente", "clientes"], ["simulação", "simulações"], ["visita", "visitas"]].map(([one, many]) => pronounceForSpeech(contagem(n, one, many)));
+    assert.deepEqual(said, expected, `n = ${n}`);
+  }
+  // O caso do dono: o "201" falado.
+  assert.equal(pronounceForSpeech("Hoje entraram 201 clientes novos."), "Hoje entraram duzentos e um clientes novos.");
+  assert.equal(pronounceForSpeech("Foram 201."), "Foram duzentos e um.");
+  // Nunca mexe em dinheiro, hora, data, decimal, número grudado em letra nem número longo.
+  assert.equal(pronounceForSpeech("R$ 1.200,00, R$ 250, 10:45, 25/10, 3,5, 10h, 1º, 14999998888"), "R$ 1.200,00, R$ 250, 10:45, 25/10, 3,5, 10h, 1º, 14999998888");
+  assert.equal(pronounceForSpeech("45% da meta e 100%"), "quarenta e cinco por cento da meta e 100%");
+  assert.equal(numeroPorExtenso(1201, "f"), "mil duzentas e uma");
+  assert.equal(numeroPorExtenso(1100), "mil e cem");
+  assert.equal(numeroPorExtenso(2020), "dois mil e vinte");
+  assert.equal(numeroPorExtenso(201000, "f"), "duzentas e uma mil");
 });
