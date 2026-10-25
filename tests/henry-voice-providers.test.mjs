@@ -159,9 +159,10 @@ test("pronúncia brasileira do nome: Henry vira Rênri só na voz", () => {
 });
 
 test("voz: números concordam com palavra feminina (21 prospecções → vinte e uma)", () => {
-  assert.equal(pronounceForSpeech("fez 21 prospecções e 1 simulação, com 81 pontos"), "fez vinte e uma prospecções e uma simulação, com 81 pontos");
+  // Número composto vai por extenso (dono, 2026-10-25: "o 201 não fica natural"): "81 pontos" → "oitenta e um pontos".
+  assert.equal(pronounceForSpeech("fez 21 prospecções e 1 simulação, com 81 pontos"), "fez vinte e uma prospecções e uma simulação, com oitenta e um pontos");
   assert.equal(pronounceForSpeech("2 pessoas, 12 vendas, 200 visitas, 3 clientes"), "duas pessoas, 12 vendas, duzentas visitas, 3 clientes");
-  assert.equal(pronounceForSpeech("R$ 1.200,00 e 104% da meta"), "R$ 1.200,00 e 104% da meta");
+  assert.equal(pronounceForSpeech("R$ 1.200,00 e 104% da meta"), "R$ 1.200,00 e cento e quatro por cento da meta");
 });
 
 test("fala para texto: pedido ao Scribe da ElevenLabs em português", () => {

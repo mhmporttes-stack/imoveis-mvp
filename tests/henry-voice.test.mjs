@@ -98,7 +98,7 @@ test("relatório do dia: frase do Início + leads e documentos, primeiro nome e 
     assistant: { text: "Bom dia, Matheus. Hoje você tem 2 clientes aguardando resposta. Comece por Ana Paula Souza, que espera resposta há 1 h 05 min.", urgent: { name: "Ana Paula Souza" } },
     kpis: { leadsToday: { total: 4 }, docs: { total: 1 } }
   });
-  assert.equal(text, "Bom dia, Matheus. Hoje você tem 2 clientes aguardando resposta. Comece por Ana, que espera resposta há 1 hora e 5 minutos. Hoje entraram 4 leads. 1 cliente aguarda documentos.");
+  assert.equal(text, "Bom dia, Matheus. Hoje você tem 2 clientes aguardando resposta. Comece por Ana, que espera resposta há 1 hora e 5 minutos. Hoje entraram 4 clientes novos. 1 cliente aguarda documentos.");
   assert.equal(composeHenryDailyReport({}), "");
   assert.equal(speakableDurations("há 12 min"), "há 12 minutos");
 });
@@ -192,7 +192,7 @@ test("relatório: resumo do dono (INI-5) + elogio logo depois da saudação", ()
     { assistant: { text: "Bom dia, Matheus. Nada urgente agora." }, kpis: { docs: { total: 2 } } },
     { ownerText: "Bom dia, Matheus. Hoje entraram 3 leads. Equipe: 4 de 6 on-line.", compliment: "Matheus, essa camisa azul ficou ótima com o relógio." }
   );
-  assert.equal(text, "Bom dia, Matheus. Matheus, essa camisa azul ficou ótima com o relógio. Hoje entraram 3 leads. Equipe: 4 de 6 on-line. 2 clientes aguardam documentos.");
+  assert.equal(text, "Bom dia, Matheus. Matheus, essa camisa azul ficou ótima com o relógio. Hoje entraram 3 clientes novos. Equipe: 4 de 6 on-line. 2 clientes aguardam documentos."); // texto do Início diz "leads"; a fala do Henry, "clientes novos" (dono, 2026-10-25)
   assert.match(composeHenryDailyReport({ assistant: { text: "Boa tarde, Matheus. Nada urgente agora." } }, { ownerText: "" }), /^Boa tarde, Matheus\. Nada urgente agora\.$/);
   // Abertura sorteada (reserva sem modelo) entra depois do elogio, nunca "Segue o relatório".
   assert.match(composeHenryDailyReport({ assistant: { text: "Bom dia, Matheus. Nada urgente." } }, { compliment: "Bela camisa!", intro: "Bora pro resumo de hoje." }), /^Bom dia, Matheus\. Bela camisa! Bora pro resumo de hoje\. Nada urgente\.$/);

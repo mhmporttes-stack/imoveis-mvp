@@ -114,12 +114,21 @@ test("relatório mensal: leads por origem, funil, ranking, Meta Diária, atenç�
   // Fala: 3 a 5 frases, só contagens e primeiros nomes, passa na barreira da voz.
   const sentences = report.spoken.split(/(?<=[.!?])\s+/).filter(Boolean);
   assert.ok(sentences.length >= 3 && sentences.length <= 5, report.spoken);
-  assert.match(report.spoken, /214 leads, 128 de anúncio e 41 do Marketplace/);
+  assert.match(report.spoken, /214 clientes novos, 128 de anúncio e 41 do Marketplace/);
+  assert.doesNotMatch(report.spoken, /\blead/i); // lead = cliente novo (dono, 2026-10-25)
   assert.match(report.spoken, /Ana lidera o ranking com 412 pontos/);
   assert.match(report.spoken, /87%/);
-  assert.match(report.spoken, /9 clientes aguardando resposta/);
+  // Resumo positivo (dono, 2026-10-24): "aguardando resposta" e clientes frios ficam só na tela; tendência só de alta.
+  assert.doesNotMatch(report.spoken, /aguardando|frios/);
+  assert.match(report.spoken, /os clientes novos subiram 12%/);
+  assert.match(report.detail.sections.find((section) => section.title === "Atenção agora").rows[0].value, /^9$/);
   assert.ok(isSafeToSpeak(report.spoken));
   assert.equal(report.facts.meta_diaria_equipe, "87%");
+  assert.equal(report.facts.agora, undefined);
+  // Pergunta direta (positive: false): a fala completa de antes, com o aguardando.
+  const full = buildHenryPeriodReport({ kind: "mensal", range, previousRange: previousHenryPeriod(range), overview, previousOverview, teamGoal, leads, previousLeads, awaitingReply: 9, cooledPending: 2, positive: false });
+  assert.match(full.spoken, /9 clientes aguardando resposta/);
+  assert.equal(full.facts.agora.aguardando_resposta, 9);
   // Cena "comparativo": mesmos números da seção de comparação, período atual x anterior.
   assert.equal(report.chart.previousLabel, "24/08 a 22/09");
   assert.deepEqual(report.chart.rows.map((row) => row.label), ["Leads", "Atendimentos", "Simulações", "Aprovados", "Vendas"]);
@@ -143,7 +152,7 @@ test("corretor no período: números da linha dele, posição no ranking e 2 nú
   const report = buildHenryBrokerReport({ broker: { id: "b2", name: "Bruno" }, range, overview, teamGoal });
   assert.deepEqual(report.stats, [{ label: "pontos", value: "377" }, { label: "meta", value: "70%" }]);
   assert.equal(report.facts.posicao_ranking, 2);
-  assert.match(report.spoken, /Bruno neste mês: 20 atendimentos, 10 simulações, 1 aprovado e 1 venda/);
+  assert.match(report.spoken, /Bruno neste mês: 20 atendimentos, 10 simulações, um aprovado e uma venda/);
   assert.ok(isSafeToSpeak(report.spoken));
   const missing = buildHenryBrokerReport({ broker: { id: "x", name: "Zé" }, range, overview, teamGoal });
   assert.equal(missing.facts.aviso, "sem números deste corretor no período");
@@ -255,7 +264,7 @@ test("pergunta sobre UM indicador: só ele vai ao modelo e à voz; prompt manda 
   assert.ok(HENRY_BROKER_METRIC_IDS.includes("vendas"));
   const lib = readFileSync(new URL("../lib/henry-voice.js", import.meta.url), "utf8");
   assert.match(lib, /metrica: \{ type: "string", enum: HENRY_BROKER_METRIC_IDS/);
-  assert.match(lib, /metric: String\(input\?\.metrica \|\| ""\)/);
+  assert.match(lib, /const metric = String\(input\?\.metrica \|\| ""\)/);
   const { buildHenryStaticPrompt } = await import("../lib/henry-voice-persona.mjs");
   const prompt = buildHenryStaticPrompt();
   assert.match(prompt, /Responda SÓ o que foi perguntado, em 1 frase/);

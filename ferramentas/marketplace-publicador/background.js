@@ -6,6 +6,8 @@ import { CHAT_EVERY_MINUTES, MAX_SENDS_PER_ROUND, ROUND_BUDGET_MS, chatLockAlive
 import { CHECKPOINT_PAUSE_MS } from "./lib/agenda.js";
 import { KEEP_AWAKE_ALARM, KEEP_AWAKE_EVERY_MINUTES, PULSE_PAGE, PULSE_TAB_CLOSE_MS, decidePulse, shouldHoldPower } from "./lib/keep-awake.js";
 import { WORK_WINDOW_SIZE, describeWorkView, findWorkWindow } from "./lib/work-window.js";
+import { createAwakeManager } from "./lib/page-awake.js";
+import { SIGNALED_SKIPS, roundStatus } from "./lib/round-status.js";
 
 const ALARM = "mp-tick";
 const CHAT_ALARM = "mp-chat";
@@ -270,7 +272,24 @@ async function openPropertyForm(tabId) {
 // O autocomplete de localização do Facebook ignora eventos sintéticos (isTrusted=false). Durante a publicação a aba
 // dedicada fica com o depurador ligado (o Chrome mostra a faixa "está depurando este navegador") e o content script
 // pede cliques/teclas reais por mensagem. Desligado ao fim, sempre.
-const attachedTabs = new Set();
+// 1.9.8 (dono, 25/10: "abro outra janela em tela cheia; as abas das extensões ficam atrás"): o depurador liga SÓ durante
+// cada ação no Facebook (ler a caixa, abrir/ler uma conversa, enviar, publicar, diagnóstico) e, ligado, emula foco
+// (lib/page-awake.js) — a página fica visível e com foco para o Chrome mesmo com a janela de trabalho atrás de outra,
+// sem trazer nada para a frente. Solto ao fim de cada ação (a faixa some 5 s depois; ações seguidas a mantêm).
+const awake = createAwakeManager({
+  attach: (tabId) => withTimeout(chrome.debugger.attach({ tabId }, "1.3"), 8000, "ligar o depurador"),
+  detach: (tabId) => chrome.debugger.detach({ tabId }),
+  send: (tabId, method, params) => cdp(tabId, method, params),
+  warn: (message) => console.warn("[marketplace]", message)
+});
+// Dono clicou em "Cancelar" na faixa, ou a aba fechou: o Chrome soltou o depurador.
+chrome.debugger.onDetach.addListener((source) => {
+  if (source?.tabId) awake.forget(source.tabId);
+});
+
+function withAwakePage(tabId, run) {
+  return awake.run(tabId, run);
+}
 const KEYS = {
   ArrowDown: { code: "ArrowDown", windowsVirtualKeyCode: 40 },
   Enter: { code: "Enter", windowsVirtualKeyCode: 13, text: "\r" },
@@ -279,29 +298,13 @@ const KEYS = {
   a: { code: "KeyA", windowsVirtualKeyCode: 65 }
 };
 
-async function attachDebugger(tabId) {
-  if (attachedTabs.has(tabId)) return;
-  try {
-    await chrome.debugger.attach({ tabId }, "1.3");
-    attachedTabs.add(tabId);
-  } catch (error) {
-    console.warn("[marketplace] depurador não ligou (segue com eventos comuns):", error?.message || error);
-  }
-}
-
-async function detachDebugger(tabId) {
-  if (!attachedTabs.has(tabId)) return;
-  attachedTabs.delete(tabId);
-  await chrome.debugger.detach({ tabId }).catch(() => {});
-}
-
 // Com prazo (1.8.10): comando ao depurador numa aba oculta pode não voltar nunca.
 function cdp(tabId, method, params) {
   return withTimeout(chrome.debugger.sendCommand({ tabId }, method, params), 8000, `depurador (${method})`);
 }
 
 async function trustedInput(tabId, message) {
-  if (!attachedTabs.has(tabId)) return { ok: false, reason: "sem_depurador" };
+  if (!awake.isAttached(tabId)) return { ok: false, reason: "sem_depurador" };
   if (message.action === "click") {
     const base = { x: Math.round(message.x), y: Math.round(message.y), button: "left", clickCount: 1 };
     await cdp(tabId, "Input.dispatchMouseEvent", { type: "mouseMoved", x: base.x, y: base.y });
@@ -354,7 +357,13 @@ async function runPublication(listing) {
   const tab = await chrome.tabs.create({ windowId: work.windowId, url: "about:blank", active: true });
   await protectTab(tab.id);
   await sleep(500);
-  await attachDebugger(tab.id);
+  // Depurador + emulação de foco durante a publicação inteira (1.9.8: funciona com a janela de trabalho atrás de outra).
+  const outcome = await withAwakePage(tab.id, () => publishOnTab(tab, listing, photos));
+  await chrome.tabs.remove(tab.id).catch(() => {});
+  return outcome;
+}
+
+async function publishOnTab(tab, listing, photos) {
   let outcome;
   try {
     const form = await openPropertyForm(tab.id);
@@ -381,9 +390,8 @@ async function runPublication(listing) {
     const checkpoint = current?.url ? /\/(checkpoint|login|two_step_verification)/.test(new URL(current.url).pathname) : false;
     outcome = { ok: false, clickedPublish: await reachedPublishClick(), checkpoint, step: (await loadState()).running?.step || "página do Facebook", error: `${error.message} (aba em ${current?.url || "?"})` };
   }
+  // Print ainda com o depurador ligado (página acordada).
   if (!outcome.ok) outcome = { ...outcome, screenshot: await screenshot(tab.windowId) };
-  await detachDebugger(tab.id);
-  await chrome.tabs.remove(tab.id).catch(() => {});
   return outcome;
 }
 
@@ -658,14 +666,15 @@ async function pageVisibility(tabId) {
   }
 }
 
-function hiddenTabMessage(focus = {}) {
-  const where = focus.windowState === "minimized" ? "janela de trabalho minimizada" : "janela de trabalho coberta por outra janela ou tela desligada/bloqueada — veja no popup o atalho do Chrome que resolve";
+// 1.9.8: com a emulação de foco a página fica visível mesmo atrás de outra janela; "hidden" agora = o depurador não ligou
+// (DevTools aberto nesta aba, "Cancelar" na faixa) ou a janela está minimizada.
+function hiddenTabMessage(focus = {}, awakeInfo = null) {
+  const where = focus.windowState === "minimized" ? "janela de trabalho minimizada" : awakeInfo?.awake === false ? `a extensão não conseguiu acordar a página — ${awakeInfo.error || "depurador não ligou"}` : "página oculta mesmo com a emulação de foco";
   return `O Chrome não está mostrando a aba do Facebook (${where}); assim o Facebook não abre a conversa. Fica para a próxima rodada.`;
 }
 
 async function trustedClick(tabId, x, y) {
-  await attachDebugger(tabId);
-  if (!attachedTabs.has(tabId)) return { ok: false, reason: "depurador não ligou (DevTools aberto nesta aba?)" };
+  if (!awake.isAttached(tabId)) return { ok: false, reason: "depurador não ligou (DevTools aberto nesta aba?)" };
   try {
     return await withTimeout(trustedInput(tabId, { action: "click", x, y }), 15000, "clique confiável");
   } catch (error) {
@@ -689,7 +698,7 @@ async function waitOpened(tabId, contactName, beforeUrl, iframesBefore, timeoutM
   return { ...(last || {}), found: null };
 }
 
-async function openAndReadByClick(tabId, thread, readMs) {
+async function openAndReadByClick(tabId, thread, readMs, awakeInfo = null) {
   const current = await chrome.tabs.get(tabId);
   if (!new URL(current.url || INBOX_URL).pathname.startsWith("/marketplace/inbox")) await navigateAndWait(tabId, INBOX_URL);
   const focus = await focusTab(tabId);
@@ -698,7 +707,7 @@ async function openAndReadByClick(tabId, thread, readMs) {
     // programa): o Facebook não abre a conversa nem carrega as mensagens assim (1.8.10) — não clica, não espera 25 s
     // nem 3,5 min; a conversa fica para a próxima rodada. Nunca tira a janela de minimizada nem rouba o foco do Windows.
     const view = await pageVisibility(tabId);
-    if (view.visibility === "hidden") return { ok: false, hidden: true, error: hiddenTabMessage(focus.info), opened: { ok: false, focus: focus.info, view } };
+    if (view.visibility === "hidden") return { ok: false, hidden: true, error: hiddenTabMessage(focus.info, awakeInfo), opened: { ok: false, focus: focus.info, view, awake: awakeInfo } };
     const prep = await pageCall(tabId, { type: "mp-inbox-prepare-open", threadKey: thread.threadKey, contactName: thread.contactName || "" }, 60000)
       .catch((error) => ({ ok: false, error: error.message }));
     if (!prep?.ok) return { ok: false, error: prep?.error || "Não preparou o clique.", stack: prep?.stack || "", opened: { ok: false, focus: focus.info } };
@@ -726,7 +735,8 @@ async function openAndReadByClick(tabId, thread, readMs) {
   }
 }
 
-async function readThread(tabId, thread, config) {
+// awakeInfo (1.9.8): { attached, awake, error } da emulação de foco ligada para esta conversa (withAwakePage).
+async function readThread(tabId, thread, config, awakeInfo = null) {
   // 1ª leitura (histórico inteiro) pode levar alguns minutos numa conversa longa.
   // maxMs: o leitor para de rolar antes do prazo e devolve o que juntou (1.8.7 — antes podia passar de 5 min).
   const readMs = thread.full ? THREAD_READ_MS.full : THREAD_READ_MS.incremental;
@@ -736,7 +746,7 @@ async function readThread(tabId, thread, config) {
     await injectInbox(tabId);
     read = await readOpenThread(tabId, thread, readMs);
   } else {
-    read = await openAndReadByClick(tabId, thread, readMs);
+    read = await openAndReadByClick(tabId, thread, readMs, awakeInfo);
   }
   // Falhou (não abriu, página sem resposta ou 0 mensagens): diagnóstico com o retrato tirado direto da página.
   if (!read?.ok && !read?.checkpoint) {
@@ -751,6 +761,7 @@ async function readThread(tabId, thread, config) {
       opened: read?.opened ? { ...read.opened, diagnostic: undefined } : null,
       openedPage: read?.opened?.diagnostic || null,
       view: await pageVisibility(tabId),
+      awake: awakeInfo,
       snapshot: read?.hidden ? null : await takeSnapshot(tabId)
     };
     read = { ...read, error: `${read?.error || "Não abriu a conversa."}${await sendOpenDiagnostic(config, payload)}` };
@@ -782,12 +793,18 @@ async function pauseForCheckpoint(where) {
 const SEND_OPEN_WAIT_MS = 45 * 1000;
 
 async function sendOutbound(tabId, config, message) {
+  // 1.9.8: depurador + emulação de foco só durante o envio (abrir a conversa, conferir, digitar).
+  const outcome = await withAwakePage(tabId, (awakeInfo) => sendOnPage(tabId, message, awakeInfo));
+  await postOutboundResult(config, message.id, outboundResultBody(outcome)).catch((error) => console.warn("[marketplace] retorno do envio falhou:", error?.message || error));
+  return outcome;
+}
+
+async function sendOnPage(tabId, message, awakeInfo) {
   let outcome;
   let focus = null;
   try {
     // 1.9.5: resposta com arquivo (foto/PDF) — baixa do CRM ANTES de abrir a conversa (falha aqui = nada enviado).
     const file = message.attachment ? await downloadAttachment(message.attachment).catch((error) => { throw Object.assign(error, { beforeSend: true }); }) : null;
-    await attachDebugger(tabId);
     focus = await focusTab(tabId);
     if (String(message.threadUrl || "").startsWith(FB_PREFIX)) {
       await navigateAndWait(tabId, message.threadUrl).catch((error) => { throw Object.assign(error, { beforeSend: true }); });
@@ -814,12 +831,10 @@ async function sendOutbound(tabId, config, message) {
     // Falhou antes de digitar (conversa não aberta, aba fechada): pode tentar de novo; senão, sem saber se saiu, não reenvia.
     outcome = { ok: false, sentAttempted: !error?.beforeSend, error: error.message };
     // 1.9.3: falha ao abrir com a página oculta para o Chrome → diz o motivo real no erro (vai ao CRM e ao aviso do admin).
-    if (error?.beforeSend && (await pageVisibility(tabId)).visibility === "hidden") outcome.error = `${error.message} ${hiddenTabMessage(focus?.info)}`.slice(0, 480);
+    if (error?.beforeSend && (await pageVisibility(tabId)).visibility === "hidden") outcome.error = `${error.message} ${hiddenTabMessage(focus?.info, awakeInfo)}`.slice(0, 480);
   } finally {
     if (focus) await focus.restore().catch(() => {});
   }
-  // O depurador fica ligado até o fim da rodada (desligado no finally do chatTick).
-  await postOutboundResult(config, message.id, outboundResultBody(outcome)).catch((error) => console.warn("[marketplace] retorno do envio falhou:", error?.message || error));
   return outcome;
 }
 
@@ -830,7 +845,6 @@ async function ensureRoundTab(tab, round) {
   const fresh = await getWorkTab();
   await round.set({ tabId: fresh.id }).catch(() => {});
   await sleep(500);
-  await attachDebugger(fresh.id);
   return fresh;
 }
 
@@ -857,8 +871,7 @@ async function chatBusy(now = new Date()) {
 // Fecha a aba e o depurador que uma rodada morta deixou para trás (o worker morreu antes do finally).
 async function closeOrphanTab(lock) {
   if (!lock?.tabId) return;
-  attachedTabs.delete(lock.tabId);
-  await chrome.debugger.detach({ tabId: lock.tabId }).catch(() => {});
+  await awake.release(lock.tabId);
   // A aba da janela de trabalho (1.9.4) fica: é reutilizada. Só fecha aba de rodada de versão anterior.
   if (!(await isWorkTab(lock.tabId))) await chrome.tabs.remove(lock.tabId).catch(() => {});
 }
@@ -922,6 +935,19 @@ function createChatRound(token, startedAt) {
   };
 }
 
+// Rodada pulada por pausa (1.9.8): sinal ao CRM com o motivo, sem abrir o Facebook.
+async function signalSkip(reason, state) {
+  const config = await loadConfig();
+  if (!config.key) return;
+  const detail = reason === "pausado" ? "Extensão pausada no popup (botão Pausar)." : state?.pauseReason || "Pausa de 24 h: o Facebook pediu verificação ou avisou de limite.";
+  try {
+    const synced = await withTimeout(postChatSync(config, [], undefined, roundStatus({ skipReason: reason, skipDetail: detail })), 45000, "sinal ao CRM");
+    if (synced?.settings) await chrome.storage.local.set({ chatSettings: synced.settings });
+  } catch (error) {
+    console.warn("[marketplace] sinal da pausa ao CRM falhou:", error?.message || error);
+  }
+}
+
 async function chatTick() {
   const { chatSettings, chatPreviews, chatBackoff } = await chrome.storage.local.get(["chatSettings", "chatPreviews", "chatBackoff"]);
   const state = await loadState();
@@ -930,6 +956,8 @@ async function chatTick() {
   if (decision.action !== "sync") {
     // Rodada pulada vai para `chatSkip` — não apaga as contagens/caminho/erro da última rodada (`chatLast`).
     await chrome.storage.local.set({ chatSkip: { at: new Date().toISOString(), result: decision.reason } });
+    // 1.9.8: pausa (botão Pausar ou 24 h de verificação) também avisa o CRM, com o motivo — nunca silêncio. Não toca no Facebook.
+    if (SIGNALED_SKIPS.has(decision.reason)) await signalSkip(decision.reason, state);
     return decision;
   }
   const config = await loadConfig();
@@ -951,15 +979,34 @@ async function chatTick() {
   let tab = null;
   let previews = { ...(chatPreviews || {}) };
   let settings = chatSettings || {};
+  // 1.9.8 — nunca silêncio: toda rodada chama a sincronização do CRM (sinal MKT-2g) com o estado dela (lib/round-status.js).
+  // Antes, uma falha na leitura da caixa encerrava a rodada sem chamar o CRM e sem enviar as respostas dos corretores.
+  let signaled = false;
+  let inboxError = "";
+  let hiddenError = "";
+  let fatal = null;
+  const sync = async (conversations, status) => {
+    const response = await postChatSync(config, conversations, undefined, status);
+    signaled = true;
+    return response;
+  };
   try {
     // 1.9.4: a aba da janela de trabalho (reutilizada), nunca aba nova na janela do dono.
     tab = await getWorkTab();
     await round.set({ tabId: tab.id });
     await protectTab(tab.id);
-    // Cliques reais (ícone do Messenger, item Marketplace, conversa) precisam do depurador ligado nesta aba.
-    await attachDebugger(tab.id);
+    // 1.9.8: o depurador (cliques reais + emulação de foco) liga só durante cada ação no Facebook (withAwakePage).
 
-    const inbox = await round.step("lendo a caixa do Marketplace", () => readInbox(tab.id), STEP_TIMEOUT_MS.inbox, summary);
+    let inbox = null;
+    try {
+      inbox = await round.step("lendo a caixa do Marketplace", () => withAwakePage(tab.id, () => readInbox(tab.id)), STEP_TIMEOUT_MS.inbox, summary);
+    } catch (error) {
+      if (error instanceof ChatLockLost) throw error;
+      // Caixa não lida (prazo, página sem resposta, aba fechada): registra o motivo e segue para o CRM e para os envios.
+      inboxError = `Caixa do Marketplace não lida: ${error?.message || error}`;
+      summary.error = inboxError;
+      await awake.release(tab.id);
+    }
     summary.inboxUrl = inbox?.url || "";
     summary.steps += (inbox?.steps || []).join(" → ");
     if (inbox?.checkpoint) {
@@ -969,12 +1016,12 @@ async function chatTick() {
     }
     const threads = inbox?.threads || [];
     summary.listed = threads.length;
-    if (!threads.length) {
+    if (inbox && !threads.length) {
       summary.error = "Nenhuma conversa encontrada na caixa do Marketplace (seletores a calibrar ou caixa vazia).";
       // Envia sozinho o diagnóstico de estrutura (no máximo 1 por hora) para calibrar os seletores.
       const { lastDiagnosticAt } = await chrome.storage.local.get("lastDiagnosticAt");
       if (!lastDiagnosticAt || Date.now() - new Date(lastDiagnosticAt).getTime() > 60 * 60 * 1000) {
-        summary.error += ` Diagnóstico: ${await round.step("enviando diagnóstico", () => sendDiagnostics(tab.id, config, { navigate: true }), STEP_TIMEOUT_MS.inbox, summary)}`;
+        summary.error += ` Diagnóstico: ${await round.step("enviando diagnóstico", () => withAwakePage(tab.id, () => sendDiagnostics(tab.id, config, { navigate: true })), STEP_TIMEOUT_MS.inbox, summary)}`;
       }
     }
 
@@ -1004,9 +1051,10 @@ async function chatTick() {
       const label = `lendo conversa ${index + 1}/${toRead.length} (${thread.contactName || "sem nome"}${thread.full ? ", histórico completo" : ""})`;
       let outcome;
       try {
-        outcome = await round.step(label, () => readThread(tab.id, thread, config), thread.full ? STEP_TIMEOUT_MS.threadFull : STEP_TIMEOUT_MS.thread, summary);
+        outcome = await round.step(label, () => withAwakePage(tab.id, (awakeInfo) => readThread(tab.id, thread, config, awakeInfo)), thread.full ? STEP_TIMEOUT_MS.threadFull : STEP_TIMEOUT_MS.thread, summary);
       } catch (error) {
         if (error instanceof ChatLockLost) throw error;
+        await awake.release(tab.id);
         outcome = { read: { ok: false, error: error.message }, conversation: null };
       }
       const { read, conversation } = outcome;
@@ -1018,6 +1066,7 @@ async function chatTick() {
       // Aba oculta (1.9.3): nenhuma outra conversa abre nesta rodada — para aqui, sem contar falha para a conversa.
       if (read?.hidden) {
         summary.error = read.error;
+        hiddenError = read.error;
         result = "chat_parcial";
         break;
       }
@@ -1029,7 +1078,7 @@ async function chatTick() {
         continue;
       }
       try {
-        const synced = await round.step(`enviando ao CRM: ${thread.contactName || "conversa"}`, () => postChatSync(config, [conversation]), STEP_TIMEOUT_MS.post, summary);
+        const synced = await round.step(`enviando ao CRM: ${thread.contactName || "conversa"}`, () => sync([conversation], roundStatus({ result: "lendo" })), STEP_TIMEOUT_MS.post, summary);
         posted += 1;
         summary.read += 1;
         summary.created += synced.created || 0;
@@ -1045,8 +1094,10 @@ async function chatTick() {
       }
     }
     // Nenhuma conversa enviada: uma chamada vazia busca a configuração e roda a fila/prazo da roleta no CRM.
-    if (!posted) {
-      const synced = await round.step("consultando o CRM", () => postChatSync(config, []), STEP_TIMEOUT_MS.post, summary);
+    // 1.9.8: leitura com falha (caixa não lida, página oculta) também chama, levando o motivo ao CRM.
+    const status = roundStatus({ inboxError, hidden: hiddenError, result: "leitura", note: summary.error });
+    if (!posted || !status.ok) {
+      const synced = await round.step("consultando o CRM", () => sync([], status), STEP_TIMEOUT_MS.post, summary);
       settings = synced.settings || settings;
       await chrome.storage.local.set({ chatSettings: settings });
       if (synced.settings?.syncEnabled === false) return { reason: (result = "chat_desligado") };
@@ -1081,13 +1132,21 @@ async function chatTick() {
     return { reason: result, ...summary };
   } catch (error) {
     console.warn("[marketplace] sincronização do chat falhou:", error?.message || error);
+    fatal = error;
     summary.error = error?.status === 401 ? "Chave recusada pelo CRM (gere outra no CRM)." : error?.message || String(error);
     result = "chat_erro";
     return { reason: result, error: summary.error };
   } finally {
     round.stop();
-    // A aba de trabalho fica aberta para a próxima rodada (1.9.4); só o depurador é desligado.
-    if (tab) await detachDebugger(tab.id);
+    // A aba de trabalho fica aberta para a próxima rodada (1.9.4); só o depurador é desligado (se ficou ligado por uma
+    // etapa abandonada pelo prazo).
+    if (tab) await awake.release(tab.id);
+    // 1.9.8: a rodada parou antes de chamar o CRM → manda o sinal com o motivo (exceto chave recusada ou trava perdida
+    // para outra rodada, que já sinaliza).
+    if (!signaled && !(fatal instanceof ChatLockLost) && fatal?.status !== 401) {
+      await withTimeout(postChatSync(config, [], undefined, roundStatus({ fatalError: summary.error || result })), STEP_TIMEOUT_MS.post, "sinal ao CRM")
+        .catch((error) => console.warn("[marketplace] sinal ao CRM falhou:", error?.message || error));
+    }
     // Só solta a trava se ainda for desta rodada (Destravar/rodada nova já podem ter trocado).
     const stored = await loadChatLock().catch(() => null);
     if (stored?.token === token) await chrome.storage.local.remove("chatLock");
@@ -1127,12 +1186,7 @@ async function diagnoseNow() {
   if (!config.key) return { error: "Configure a chave nas opções." };
   if (await chatBusy()) return { error: "Sincronização em andamento; tente de novo em 2 min." };
   const tab = await getWorkTab();
-  await attachDebugger(tab.id);
-  try {
-    const result = await sendDiagnostics(tab.id, config);
-    await chrome.storage.local.set({ lastDiagnostic: { at: new Date().toISOString(), result } });
-    return { result };
-  } finally {
-    await detachDebugger(tab.id);
-  }
+  const result = await withAwakePage(tab.id, () => sendDiagnostics(tab.id, config));
+  await chrome.storage.local.set({ lastDiagnostic: { at: new Date().toISOString(), result } });
+  return { result };
 }

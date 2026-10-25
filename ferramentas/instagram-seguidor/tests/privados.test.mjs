@@ -83,9 +83,10 @@ test('cancelar solicitação: só confirma com following E outgoing_request fals
   assert.equal(st.pedidoPendente, false);
   assert.match(ok.pedidos[0].url, /friendships\/destroy\/77\/$/);
 
-  const preso = apiCom([OK, PENDENTE, OK, PENDENTE]);
+  // 1.1.2: sem confirmação, confere o friendships/show uma 2ª vez (2,5 s depois) antes de tentar o legado.
+  const preso = apiCom([OK, PENDENTE, PENDENTE, OK, PENDENTE, PENDENTE]);
   await assert.rejects(preso.api.deixarDeSeguir('77', 'privado'), (e) => e.tipo === 'mudanca_api' && /não confirmou/.test(e.message));
-  assert.match(preso.pedidos[2].url, /\/web\/friendships\/77\/unfollow\/$/, 'tenta o legado antes de desistir');
+  assert.match(preso.pedidos[3].url, /\/web\/friendships\/77\/unfollow\/$/, 'tenta o legado antes de desistir');
 });
 
 test('simulação: privados viram "Solicitado", contam no limite, e sem retorno em 3 dias a solicitação é cancelada', { timeout: 240_000 }, async () => {

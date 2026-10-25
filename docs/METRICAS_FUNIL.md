@@ -30,7 +30,7 @@ Fonte única: `CLIENT_FUNNEL_STAGES` em `lib/client-status.js`.
 
 - Reprovado/Restrição/Blindagem **permanecem** na etapa 4 (FUN-2). Não são "saída do funil".
 - **Mudança de definição — corte 2026-10-24 (REGRA OFICIAL do dono, SIM-AUTO/ROL-2i):** "Simulação automática" (`auto_simulation`, existe desde 2026-10-19) passou a valer como "Simulação realizada" na etapa 2. Como o funil lê o histórico sem limite de data (MET-3), **recalcular hoje um período anterior inclui** os clientes que passaram por `auto_simulation` entre 2026-10-19 e 2026-10-24 (antes ficavam em rk 0 se não tivessem outro status de etapa) — números de Atendimento/Simulação desses dias publicados antes do corte podem ser menores que o recálculo. Para reproduzir a definição antiga, tire `('auto_simulation',2)` do `stage_of`. Pontuação não muda (a automática não pontua; `STATUS_TO_SCORING_KEY`).
-- **Fora do funil** (rk = 0): `automated_service`, `pending` (Aguardando simulação), `awaiting_return` (Tentando contato), `archived`, `do_not_contact`. "Prospecção" é a **base** do funil, não uma etapa.
+- **Fora do funil** (rk = 0): `automated_service`, `pending` (Aguardando simulação), `awaiting_contact` (Aguardando contato — transferido, CLI-7c, 2026-10-25), `awaiting_return` (Tentando contato), `archived`, `do_not_contact`. "Prospecção" é a **base** do funil, não uma etapa.
 - Venda ao entrar sem nunca ter tido Reunião grava marco "Reunião realizada" `sistema/automatico_por_venda` 1 s antes (FUN-5): clientes em Venda quase sempre têm também Reunião no histórico.
 
 ## MET-3 — Etapa mais avançada alcançada (`rk` do cliente)

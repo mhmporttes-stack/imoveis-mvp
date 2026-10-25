@@ -40,6 +40,82 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-25 — Henry: "leads" e "clientes novos" como duas coisas, "201" falado estranho e aberturas repetidas ("Ok, vou dar uma olhada nos números")
+- **Data:** 2026-10-25
+- **Sintoma:** "Leads e clientes novos são a mesma coisa"; "o 201, quando ele fala, não fica natural"; "o início dele é muito repetitivo [...] muda uma palavra e fala a mesma frase".
+- **Área:** Henry (voz/fala)
+- **Impacto:** só o dono; fala confusa e repetitiva, números da tela certos.
+- **Causa raiz:** (1) resumo com duas contagens do mesmo cadastro (leads de hoje do Início + clientes novos do funil/desde ontem); (2) número masculino composto ia em dígitos para a ElevenLabs flash v2.5, que lê dígitos compostos mal; (3) não repetir = id/texto exato; o banco de vocabulário e os exemplos do prompt empurravam "vou olhar/deixa eu ver" como abertura.
+- **Correção:** um item "N clientes novos" (definição do Início); compostos por extenso no gênero certo em `concordarNumeros`; semelhança (`lib/henry-repetition-core.mjs`) em espera, confirmação, repertório, abertura do modelo e Treino; bancos ampliados; prompt "comece direto".
+- **Arquivos/commit:** ver `docs/CHANGELOG_AI.md` 2026-10-25 — branch `fix/henry-numeros-aberturas`
+- **Prevenção/teste:** `tests/henry-repetition.test.mjs`, tabela de números em `tests/pt-br-concordancia.test.mjs`, bancos por semelhança em `tests/henry-wait-phrases.test.mjs`.
+- **Status:** Monitorando (ouvir o "201" e o começo das respostas no PC do dono)
+
+### 2026-10-25 — Extensão do Marketplace em "silêncio total" e respostas presas com a janela de trabalho atrás de outra em tela cheia
+- **Data:** 2026-10-25 (sintoma desde 2026-10-24 12:44 UTC)
+- **Sintoma:** "a aba do Marketplace e a do Instagram ficam abertas, porém eu abro outra janela para utilizar, em tela cheia; as duas abas ficam atrás dessa." Último sinal da extensão (MKT-2g) em 24/10 12:44 UTC e nunca mais; antes, diagnóstico `aba_oculta` (`visibility hidden`, `hasFocus false`); 4 respostas de corretores presas (queued/sending). Publicação de anúncio funcionou.
+- **Área:** `ferramentas/marketplace-publicador` (1.9.7), `ferramentas/instagram-seguidor` (1.1.5), sinal MKT-2g
+- **Impacto:** Chat do Marketplace parado (nada lido, nenhuma resposta enviada) sem motivo visível no CRM.
+- **Causa raiz:** (1) coberta, a janela de trabalho fica oculta para o Chrome (para de desenhar; Facebook não abre a conversa); (2) o único sinal ao CRM era a sincronização feita DEPOIS de ler a caixa — leitura com erro/prazo estourado ia para o `catch` do `chatTick` sem chamar o CRM, e o laço de envio também ficava depois da leitura. O alarme e o service worker funcionavam; a rodada é que terminava muda.
+- **Correção:** 1.9.8 — emulação de foco pelo depurador só durante cada ação (`lib/page-awake.js`: página visível e com foco atrás de outra janela, sem trazer à frente); falha na caixa não encerra a rodada (CRM + envios seguem); toda rodada/pausa chama o CRM com `round {ok, stage, error}`; CRM guarda o motivo, mostra no Chat e o aviso "sem sinal" conta da última leitura ok. Instagram 1.1.6: mesma emulação na leitura do botão e cliques do perfil.
+- **Arquivos/commit:** ver `docs/CHANGELOG_AI.md` 2026-10-25 — branch `fix/extensoes-aba-atras`
+- **Prevenção/teste:** `ferramentas/marketplace-publicador/tests/page-awake.test.js`, `ferramentas/instagram-seguidor/tests/pagina-acordada.test.mjs`, `tests/marketplace-extension-signal.test.mjs`; teste manual em Chrome for Testing com página que só reage visível + com foco.
+- **Status:** Monitorando (instalar 1.9.8/1.1.6 no PC do dono e conferir o Chat com a janela atrás da tela cheia)
+
+### 2026-10-24 — Henry: "aumenta o volume" → diz que aumentou e não aumenta; a cada play a música cai para quase mudo
+- **Data:** 2026-10-24
+- **Sintoma:** "Estou pedindo para ele aumentar o volume, ele fala que aumentou, mas na verdade não está aumentando. Toda vez que eu coloco uma música […] ele vai para o volume mínimo, quase mudo, acho que 10%."
+- **Área:** Henry + Spotify (volume)
+- **Impacto:** só o dono, com música tocando.
+- **Causa raiz:** (1) o "aumenta" somava o passo ao volume ABAIXADO (15% enquanto ele escuta), não ao do dono — 60% virava 30% e ele dizia "aumentei"; e o `keep` impedia a volta, então ficava sempre em ~30%; a resposta nunca conferia o player. (2) o play do bom dia fixava 28% e a fala abaixava para 25% disso (~7%). (3) a subida de volta parava no meio: o Spotify demora a refletir cada passo, o `expect` estrito via "mexeu manual" e desistia; qualquer falha também desistia e esquecia o volume do dono; o próximo abaixar partia do volume já baixo (25% de 25%).
+- **Correção:** play nunca define volume (`MORNING_VOLUME` removido); "aumenta/abaixa" parte do volume do dono (`baseVolume`) e confere no player (1 nova tentativa; não aplicou → "não mudou"; `spotifyVolumeOutcome`); pedido aplicado vira o volume do dono e cancela a volta (`spotifyVolumeSet`); abaixar parte do volume do dono lembrado pela tela (`resolveDuckPrevious`, `spotifyUserMemoryFor`); subida aceita o atraso (`expectFrom`), tenta de novo uma vez e não esquece (`spotifyRestoreStep`); falha ao ler o player não é "manual".
+- **Arquivos/commit:** `lib/henry-spotify-core.mjs`, `lib/henry-spotify.js`, `lib/henry-voice.js`, `lib/henry-morning-core.mjs`, rotas `app/api/admin/henry/{route.js,spotify/player,spotify/play}`, `components/henry/HenryVoiceAssistant.jsx` — branch `fix/henry-spotify-volume`.
+- **Prevenção/teste:** `tests/henry-spotify-volume.test.mjs` (play sem volume, abaixar não encadeia, manual vence a volta, só confirma se aplicou).
+
+### 2026-10-24 — Henry: segurando Enter, ao soltar ele "pega só a última coisa que eu falei"
+- **Data:** 2026-10-24
+- **Sintoma:** aperta Enter, fala uma frase longa, solta — o Henry responde só ao último pedaço e "não entende".
+- **Área:** Henry (aperte-para-falar, Chrome)
+- **Impacto:** só o dono; computador com o reconhecimento do Chrome.
+- **Causa raiz:** (1) o final do último trecho chegava DEPOIS do envio (~0,5 s após soltar) com palavras diferentes do parcial já usado; a checagem de "trecho já usado" (`remainderAfter`) não reconhecia e ele virava um 2º pedido (janela de conversa aberta) que substituía o 1º; (2) reinício do reconhecimento no meio do aperto descartava o parcial em aberto; (3) reapertar logo depois de soltar zerava o que ainda não tinha sido enviado.
+- **Correção:** acumulador por (sessão do reconhecedor, índice) enquanto aperta + resultados atrasados desses trechos ignorados depois de soltar + reaperto em ~0,5 s continua o mesmo pedido (`trackPttResult`/`pttLateResultIgnored`, `lib/henry-voice-conversation.mjs`).
+- **Arquivos/commit:** `lib/henry-voice-conversation.mjs`, `components/henry/HenryVoiceAssistant.jsx` — branch `feat/henry-ptt-ao-vivo`.
+- **Prevenção/teste:** `tests/henry-push-to-talk.test.mjs` (junção de vários trechos, reinício, final atrasado).
+
+### 2026-10-24 — Henry fala "tô consultando os dados", "analisando o CRM", "dando uma olhadinha" quando o dono pede música
+- **Data:** 2026-10-24
+- **Sintoma:** "Toda vez que eu peço uma música, ele fala algo relacionado ao CRM… 'estou consultando os dados', 'estou analisando o CRM', 'estou dando uma olhadinha'."
+- **Área:** Henry (confirmação de escuta e frases de espera)
+- **Impacto:** só o dono; pedidos de música por voz (falado, aperte-para-falar, app de desktop, iPhone).
+- **Causa raiz:** três pontos na mesma lib (`lib/henry-voice-narration.mjs`): (1) `henryAckContext` tratava "toca/tocar/playlist/música" como pedido de DADOS → sempre frase de verificação ("Peraí que eu confiro.", "Tô olhando aqui.", "Beleza, já tô vendo."); (2) na gravação (aperte-para-falar, desktop, iPhone) a confirmação sai antes da transcrição, sem texto → 25% de chance de uma dessas mesmas frases; (3) `isMusicRequest` não reconhecia "quero ouvir/escutar X", "manda um pagode", "vamos de sertanejo", "dá um play", "volta a tocar", cortesia antes do verbo ("por favor toca", "você pode tocar", "pode colocar") nem o nome transcrito como "Henrique"/"Enri" → tópico padrão "geral" → frases de espera "Só um instante, tô analisando seus dados." / "Bora ver o que o CRM diz." (e "quantas músicas…" virava música por engano).
+- **Correção:** música é lida pelo texto antes de escolher a confirmação (contexto `music` → só som ou interjeição); sem texto, a frase sorteada é só uma das neutras (`neutral: true`: "Já te falo.", "Deixa comigo.", "Um segundinho."); `isMusicRequest` ampliado (positivos e negativos), mesma função no servidor (`henryInitialProgress`) e na tela (`henryMusicIntent`) → tópico `music` e frases do Spotify desde o 1º evento.
+- **Arquivos/commit:** `lib/henry-voice-narration.mjs` — branch `fix/henry-musica-frase-espera`.
+- **Prevenção/teste:** `tests/henry-music.test.mjs`, `tests/henry-listen-ack.test.mjs`.
+- **Status:** Corrigido (não publicado — aguarda merge)
+
+### 2026-10-24 — Henry: "tenho um aviso, posso falar?" → "sim, qual é esse aviso?" → "não tenho nenhum aviso"
+- **Data:** 2026-10-24
+- **Sintoma:** o Henry chamou para um aviso; o dono respondeu "sim, pode me falar, qual é esse aviso?" e ele disse que não tinha aviso e foi "procurar no CRM".
+- **Área:** Henry (avisos por voz)
+- **Impacto:** dono; aviso de cliente/chegada/Central/aniversário não entregue quando a resposta era longa ou vinha depois do chamado.
+- **Causa raiz:** `classifyAlertAnswer` só aceitava frases curtas (≤ 4 palavras) ou de uma lista fechada; "sim pode me falar qual esse aviso" (7 palavras) virava "other" e ia ao modelo como pergunta nova — e o modelo não recebia nada sobre o aviso guardado (só o navegador sabia). Depois do chamado (aviso no indicador) "qual é o aviso?" também ia ao modelo.
+- **Correção:** decisão única `decideAlertReply` (aceite de qualquer tamanho feito só de palavras de permissão, pergunta pelo aviso, indicador, "Esse aviso já foi resolvido." quando nada sobrou), usada por `handleFinal` e `ask` (todos os caminhos); o pedido ao modelo leva `alertState` → `buildHenryAlertNote`.
+- **Arquivos/commit:** `lib/henry-voice-client-alerts-core.mjs`, `components/henry/HenryVoiceAssistant.jsx`, `lib/henry-voice.js`, `lib/henry-voice-persona.mjs`, `app/api/admin/henry/route.js` — branch `fix/henry-aviso-resposta`
+- **Prevenção/teste:** `tests/henry-alert-reply.test.mjs`.
+- **Status:** Resolvido (aguardando publicação)
+
+
+### 2026-10-24 — Henry fala no masculino palavra feminina ("entraram dois transferências")
+- **Data:** 2026-10-24
+- **Sintoma:** "Ele falou 'entraram dois transferências'. Ele devia ter dito 'entraram duas' [...] vários lugares colocando no masculino palavras em feminino."
+- **Área:** Henry (voz)
+- **Impacto:** só o dono; toda fala com 1/2/x1/x2/centenas antes de substantivo feminino fora da lista antiga.
+- **Causa raiz:** os textos vão à voz com número em dígitos ("2 transferências") e o provedor lê sempre no masculino; a correção de 22/10 (`feminineNumbers`) usava lista FECHADA sem "transferência", "tarefa" e outras (e tinha "alerta" e "mil" errados). O modelo às vezes escrevia "dois"/"um" por extenso, que nada corrigia.
+- **Correção:** regra única `lib/pt-br-concordancia.mjs` (lista + terminações femininas, "um/dois" por extenso, "mil" pelo que vem depois) usada por `pronounceForSpeech`; montadores com `contagem`; regra no prompt fixo.
+- **Arquivos/commit:** `lib/pt-br-concordancia.mjs`, `lib/henry-voice-providers.mjs`, `lib/henry-*-core.mjs`, `lib/alexa-config-core.mjs` — branch `fix/henry-concordancia`.
+- **Prevenção/teste:** `tests/pt-br-concordancia.test.mjs` (tabela 1/2/3 × substantivo, snapshots dos avisos, varredura dos bancos de frases e dos montadores).
+- **Status:** Corrigido (não publicado — aguarda merge)
+
 ### 2026-10-24 — Henry "não consegue visualizar" se a cliente do aviso está no oficial ou no WhatsApp pessoal
 - **Data:** 2026-10-24
 - **Sintoma:** o Henry avisou "entrou uma cliente nova e está com você"; o dono perguntou se ela estava no número da API oficial ou no pessoal e ele respondeu que não conseguia visualizar.
@@ -137,6 +213,28 @@ Copie o modelo abaixo (uma entrada por bloco):
 - **Arquivos/commit:** `desktop-app/src/main.js`, `desktop-app/src/preload.js`, `components/page-visibility.js`, `components/henry/HenryOrb.jsx` — commit da versão 1.3.1 do app.
 - **Prevenção/teste:** `tests/page-visibility.test.mjs`, `desktop-app/tests/core.test.js` (`isWindowHidden`, lista da ponte), `tests/henry-voice-conversation.test.mjs` (30/15 fps e camada do brilho). Risco residual: outros ~30 pontos com `document.hidden` direto não pausam no app minimizado.
 - **Status:** Monitorando (medir CPU no PC do dono com GPU)
+
+### 2026-10-24 — Seguidor Instagram: DM de boas-vindas some em silêncio quando a API responde HTML
+- **Data:** 2026-10-24
+- **Sintoma:** pessoa seguiu de volta, mas a boas-vindas nunca chega e o popup não avisa nada (histórico: "resultado incerto, não será repetida").
+- **Área:** Ferramenta pessoal fora do CRM (`ferramentas/instagram-seguidor/`)
+- **Impacto:** toda DM de boas-vindas perdida enquanto a API privada de mensagens devolver a página HTML (mesma causa do show_many/seguir).
+- **Causa raiz:** HTML 200 em `direct_v2/threads/broadcast/text/` virava `mudanca_api` com status 200; em `processarDm` isso não é bloqueante nem 4xx, então caía no ramo "incerto" (`dmIncerta`, nunca reenviada). Mas HTML significa que o Instagram devolveu a página e não processou o envio.
+- **Correção (1.1.5):** `enviarDm` converte HTML (inclusive na alternativa por conversa) em `nao_enviada`; `processarDm` reagenda (+30 min, +2 h) e na 3ª falha desiste com alerta no popup "DM de boas-vindas não pôde ser enviada para @x" + notificação. A DM já usa os cabeçalhos da página (1.1.4). Sem envio por digitação na tela da DM.
+- **Arquivos/commit:** `ferramentas/instagram-seguidor/{instagram-api.js,background.js}` — branch `fix/instagram-seguidor-1.1.1`
+- **Prevenção/teste:** `ferramentas/instagram-seguidor/tests/dm-html.test.mjs` (fixture HTML na DM, 3 tentativas espaçadas + alerta, volta ao normal envia uma única vez).
+- **Status:** Monitorando
+
+### 2026-10-24 — Seguidor Instagram: "O endpoint friendships/show_many respondeu de forma inesperada (HTTP 200) … Resposta: HTML (título: Instagram)"
+- **Data:** 2026-10-24
+- **Sintoma:** popup da extensão Seguidor Instagram 1.1.3 mostrando o alerta de mudança de API no show_many (POST `/api/v1/friendships/show_many/` → HTTP 200 `text/html`).
+- **Área:** Ferramenta pessoal fora do CRM (`ferramentas/instagram-seguidor/`)
+- **Impacto:** checagem de follow-back em lote parada (aceite de solicitação de perfil privado e follow-back não detectados pela varredura); alerta assustador no popup. Mesmo padrão do seguir na 1.1.3.
+- **Causa raiz:** a API privada do Instagram responde a página HTML do site (HTTP 200) quando a chamada não parece vir do próprio app web; a extensão mandava cabeçalhos fixos (app-id/asbd embutidos no código) e nenhum da versão atual da página (`x-instagram-ajax`), e tratava HTML como "mudança de API" sem plano B na checagem. Não foi possível confirmar contra o Instagram real qual cabeçalho falta (sem ação real a partir do ambiente).
+- **Correção (1.1.4):** (a) as chamadas levam os cabeçalhos tirados da página aberta (app-id, asbd, `x-instagram-ajax`, csrf, claim — o diagnóstico mostra só os nomes); (b) HTML na API vira `indisponivel` (nunca sessão, pausa, alerta, perfil gasto ou limite do dia) e a checagem passa a ler o botão do perfil (Seguir / Seguir de volta / Seguindo / Solicitado) sem clicar, até 5 perfis por varredura de 30 min com intervalo humano; o friendships/show com HTML também cai na leitura do botão; (c) sem como saber se quem está "Seguindo" segue de volta, o deixar de seguir fica adiado.
+- **Arquivos/commit:** `ferramentas/instagram-seguidor/{instagram-api.js,background.js}` — branch `fix/instagram-seguidor-1.1.1`
+- **Prevenção/teste:** `ferramentas/instagram-seguidor/tests/checagem-html.test.mjs` (fixtures HTML/JSON do show_many e show, cabeçalhos da página, simulação com HTML e sem leitura). Risco residual: se o Instagram mudar o texto/estrutura do botão do perfil, a checagem fica "indisponível" (sem dano à conta).
+- **Status:** Monitorando (confirmar no Chrome do dono se o show_many volta a responder JSON com os cabeçalhos da página)
 
 ### 2026-10-23 — Henry repete muito a mesma frase de espera ("Tô passando os olhos nos números")
 - **Data:** 2026-10-23

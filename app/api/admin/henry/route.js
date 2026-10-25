@@ -6,6 +6,8 @@ import { checkPublicRateLimit } from "@/lib/rate-limit";
 import {
   answerHenry,
   claimHenryDevice,
+  createHenryLiveSttUrl,
+  recordHenryLiveSttUsage,
   getHenryNarration,
   henryNarrationVoiceKey,
   readHenryDayTurns,
@@ -48,8 +50,8 @@ function openUrlPayload(url) {
 // Spotify fechado: ação `open_spotify` com a URI do item (só spotify:track|playlist|album|artist:<id>).
 function spotifyPayload(spotify) {
   if (!(spotify?.action === "open_spotify" && isSpotifyUri(spotify.uri))) return null;
-  const volume = Number.isInteger(spotify.volume) && spotify.volume >= 0 && spotify.volume <= 100 ? spotify.volume : null;
-  return { action: "open_spotify", uri: spotify.uri, ...(volume !== null ? { volume } : {}) };
+  // quiet (bom dia): tocou → não anuncia por cima do relatório. Nunca volume: o play não mexe no volume (dono, 2026-10-24).
+  return { action: "open_spotify", uri: spotify.uri, ...(spotify.quiet === true ? { quiet: true } : {}) };
 }
 
 // Bom dia em conversa (dono, 2026-10-23): próximo passo que a tela guarda na janela de conversa (só o nome do passo).
@@ -209,7 +211,7 @@ function answerStream(auth, request, style) {
           }
         });
         const navigate = navigationPayload(answer.navigate);
-        send({ reply: answer.reply, navigate, openUrl: openUrlPayload(answer.openUrl), detail: answer.detail || null, spotify: spotifyPayload(answer.spotify), morning: morningPayload(answer.morning), scene: answer.scene || null, ...(answer.memoryCleared ? { memoryCleared: true } : {}), ...(answer.musicPlaying ? { musicPlaying: true } : {}), ...(answer.spotifyMoved ? { spotifyMoved: true } : {}), ...(request.lockFields || {}) });
+        send({ reply: answer.reply, navigate, openUrl: openUrlPayload(answer.openUrl), detail: answer.detail || null, spotify: spotifyPayload(answer.spotify), morning: morningPayload(answer.morning), scene: answer.scene || null, ...(answer.memoryCleared ? { memoryCleared: true } : {}), ...(answer.musicPlaying ? { musicPlaying: true } : {}), ...(answer.spotifyMoved ? { spotifyMoved: true } : {}), ...(Number.isInteger(answer.spotifyVolumeSet) ? { spotifyVolumeSet: answer.spotifyVolumeSet } : {}), ...(request.lockFields || {}) });
         const replyAt = Date.now();
         const parts = splitForSpeech(answer.reply);
         const reuse = early && parts[0] === early.text;
@@ -372,6 +374,26 @@ export async function POST(request) {
       return NextResponse.json({ error: "Frases de espera indisponíveis agora." }, { status: 502 });
     }
   }
+  // Transcrição ao vivo do aperte-para-falar (dono, 2026-10-24): { action: "token" } → { url } (WebSocket do Scribe
+  // Realtime com token de USO ÚNICO — a chave nunca sai daqui; url vazia = o navegador segue só com a gravação);
+  // { action: "usage", durationMs, ok } → registra o custo (henry_voice_stt). Nenhum áudio passa por esta rota.
+  if (body?.mode === "transcribe_live") {
+    try {
+      if (body?.action === "usage") {
+        await recordHenryLiveSttUsage(auth, { durationMs: Number(body?.durationMs) || 0, ok: body?.ok !== false });
+        return NextResponse.json({ ok: true });
+      }
+      if (body?.action !== "token") return NextResponse.json({ error: "Ação inválida." }, { status: 400 });
+      const [{ enabled }, allowedRate] = await Promise.all([readHenrySettings(), checkPublicRateLimit(`henry-live:${auth.profile?.id}`, { windowSeconds: 60, maxAttempts: 20 })]);
+      if (!enabled) return NextResponse.json({ error: "O Henry está desligado. Ligue em Alexa e Henry." }, { status: 409 });
+      if (!allowedRate) return NextResponse.json({ url: "", reason: "limite" });
+      const live = await createHenryLiveSttUrl();
+      return NextResponse.json({ url: live.url || "", ...(live.url ? {} : { reason: live.reason || "erro" }) });
+    } catch (error) {
+      console.warn(`[henry] fala ao vivo indisponível (${error?.name || "erro"}).`);
+      return NextResponse.json({ error: "Fala ao vivo indisponível agora." }, { status: 502 });
+    }
+  }
   if (body?.mode === "transcribe") {
     const checked = checkHenryAudio(body?.audio);
     if (!checked.audio) {
@@ -427,11 +449,13 @@ export async function POST(request) {
     // Volume que a tela guardou ao abaixar a música para ele falar: a troca de aparelho devolve no aparelho de origem.
     const spotifyVolume = Number.isInteger(body?.spotifyVolume) && body.spotifyVolume >= 0 && body.spotifyVolume <= 100 ? body.spotifyVolume : null;
     const lockCommand = lockNow ? "done" : mode === "question" && !lockState.configured && isHenryLockCommand(question) ? "no_pin" : "";
-    if (body?.stream === true && body?.voice !== false) return answerStream(auth, { mode, question, history: body?.history, image, morning, spotifyVolume, vision, webSearch, locked, lockCommand, lockFields }, style);
-    const answer = await answerHenry(auth, { mode, question, history: body?.history, image, style, morning, spotifyVolume, vision, webSearch, locked, lockCommand });
+    // Aviso guardado/resolvido no navegador (só o estado, nunca dado): vai ao prompt por buildHenryAlertNote.
+    const alertState = body?.alertState === "pending" || body?.alertState === "resolved" ? body.alertState : "";
+    if (body?.stream === true && body?.voice !== false) return answerStream(auth, { mode, question, history: body?.history, image, morning, spotifyVolume, vision, webSearch, alertState, locked, lockCommand, lockFields }, style);
+    const answer = await answerHenry(auth, { mode, question, history: body?.history, image, style, morning, spotifyVolume, vision, webSearch, alertState, locked, lockCommand });
     const navigate = navigationPayload(answer.navigate);
     const audio = body?.voice === false ? null : await synthesizeHenrySpeech(auth, answer.reply, style);
-    return NextResponse.json({ reply: answer.reply, navigate, openUrl: openUrlPayload(answer.openUrl), detail: answer.detail || null, spotify: spotifyPayload(answer.spotify), morning: morningPayload(answer.morning), scene: answer.scene || null, memoryCleared: answer.memoryCleared === true, ...(answer.musicPlaying ? { musicPlaying: true } : {}), ...(answer.spotifyMoved ? { spotifyMoved: true } : {}), ...lockFields, audio });
+    return NextResponse.json({ reply: answer.reply, navigate, openUrl: openUrlPayload(answer.openUrl), detail: answer.detail || null, spotify: spotifyPayload(answer.spotify), morning: morningPayload(answer.morning), scene: answer.scene || null, memoryCleared: answer.memoryCleared === true, ...(answer.musicPlaying ? { musicPlaying: true } : {}), ...(answer.spotifyMoved ? { spotifyMoved: true } : {}), ...(Number.isInteger(answer.spotifyVolumeSet) ? { spotifyVolumeSet: answer.spotifyVolumeSet } : {}), ...lockFields, audio });
   } catch (error) {
     console.warn(`[henry] pergunta falhou: ${error?.status ? error.message : error?.name === "TimeoutError" ? "timeout" : "erro"}.`);
     return NextResponse.json({ error: error?.status ? error.message : "Não consegui responder agora. Tente de novo." }, { status: error?.status || 502 });

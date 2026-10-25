@@ -4,7 +4,6 @@ import { readFileSync } from "node:fs";
 import {
   MORNING_MIROSMAR,
   MORNING_STYLE_QUESTION,
-  MORNING_VOLUME,
   birthdayDraft,
   birthdayQuestion,
   classifyMorningMusicAnswer,
@@ -65,7 +64,8 @@ test("bom dia: música do estilo (padrões, link configurado, texto = playlist) 
   for (const text of [MORNING_MIROSMAR, morningOpening("Matheus"), MORNING_STYLE_QUESTION]) assert.equal(safeHenryReply(text), text);
 });
 
-test("bom dia: tocar com volume baixo no aparelho (fetch mockado) e sem aparelho devolve a URI para abrir o app", async () => {
+// Bug do dono (2026-10-24): "toda vez que ele dá play, ele vai para o volume mínimo" — o play nunca mexe no volume.
+test("bom dia: tocar SEM mexer no volume (fetch mockado) e sem aparelho devolve a URI para abrir o app", async () => {
   const tokens = { getAccessToken: async () => "at" };
   const log = [];
   const fetchImpl = async (url, options) => {
@@ -74,15 +74,16 @@ test("bom dia: tocar com volume baixo no aparelho (fetch mockado) e sem aparelho
     if (path.startsWith("/v1/search")) return reply(200, { artists: { items: [{ uri: "spotify:artist:3kM5mmtwFE3GPhrxXRe3PL", name: "Zezé Di Camargo & Luciano" }] } });
     return reply(204);
   };
-  const played = await runSpotifyCommand({ action: "tocar", query: "Zezé Di Camargo & Luciano", type: "artist", volume: MORNING_VOLUME }, { fetchImpl, tokens });
+  // Mesmo um `volume` antigo no comando é ignorado: nenhum PUT de volume no play.
+  const played = await runSpotifyCommand({ action: "tocar", query: "Zezé Di Camargo & Luciano", type: "artist", volume: 28 }, { fetchImpl, tokens });
   assert.equal(played.ok, true);
-  assert.ok(log.includes(`PUT /v1/me/player/volume?volume_percent=${MORNING_VOLUME}`));
-  assert.ok(log.findIndex((line) => line.startsWith("PUT /v1/me/player/play")) < log.findIndex((line) => line.startsWith("PUT /v1/me/player/volume")));
+  assert.ok(log.some((line) => line.startsWith("PUT /v1/me/player/play")));
+  assert.ok(!log.some((line) => line.includes("/v1/me/player/volume")), "play não define volume");
   log.length = 0;
-  const viaLink = await runSpotifyCommand({ action: "tocar", uri: "spotify:playlist:37i9dQZF1DXcBWIGoYBM5M", type: "playlist", volume: MORNING_VOLUME }, { fetchImpl, tokens });
+  const viaLink = await runSpotifyCommand({ action: "tocar", uri: "spotify:playlist:37i9dQZF1DXcBWIGoYBM5M", type: "playlist" }, { fetchImpl, tokens });
   assert.equal(viaLink.ok, true);
   assert.ok(!log.some((line) => line.startsWith("GET /v1/search")), "link configurado não busca");
-  const closed = await runSpotifyCommand({ action: "tocar", query: "rock clássico", type: "playlist", volume: MORNING_VOLUME }, {
+  const closed = await runSpotifyCommand({ action: "tocar", query: "rock clássico", type: "playlist" }, {
     tokens,
     fetchImpl: async (url) => {
       if (url.includes("/v1/search")) return reply(200, { playlists: { items: [{ uri: "spotify:playlist:37i9dQZF1DXcBWIGoYBM5M", name: "Rock Classics" }] } });
@@ -133,7 +134,8 @@ test("bom dia: fluxo ligado no servidor e na tela (só o dono, somente leitura, 
   assert.match(voice, /morningGenreTarget\(reply\.genre, \{ style, taste \}\)/); // estilo = o configurado / playlist dele / padrão (2026-10-24)
   assert.match(voice, /morningArtistTarget\(reply\.query\)/); // cantor = busca o artista (2026-10-24)
   assert.match(voice, /todaysMorningSuggestion\(/);
-  assert.match(voice, /startHenryMorningMusic\(target, MORNING_VOLUME, \{ acceptBest: answer !== "artist" \}\)/);
+  assert.match(voice, /startHenryMorningMusic\(target, \{ acceptBest: answer !== "artist" \}\)/);
+  assert.doesNotMatch(voice, /MORNING_VOLUME/);
   const loader = readFileSync(new URL("../lib/henry-morning.js", import.meta.url), "utf8");
   assert.doesNotMatch(loader, /\.(insert|update|upsert|delete)\(/); // somente leitura
   assert.match(loader, /AUTOMATIC_SIMULATION_SOURCE/);
@@ -141,7 +143,7 @@ test("bom dia: fluxo ligado no servidor e na tela (só o dono, somente leitura, 
   const route = readFileSync(new URL("../app/api/admin/henry/route.js", import.meta.url), "utf8");
   assert.match(route, /parseMorningState\(body\?\.morning\)/);
   const ui = readFileSync(new URL("../components/henry/HenryVoiceAssistant.jsx", import.meta.url), "utf8");
-  assert.match(ui, /isConversationExpired\(conversationNow\.lastAt\)/);
+  assert.match(ui, /isConversationExpired\(conversationNow\.lastAt, Date\.now\(\), idleMs\)/); // "Só quando eu apertar": passo pendente espera até 5 min (conversationIdleMsFor)
   assert.match(ui, /morningRef\.current = null;/);
 });
 

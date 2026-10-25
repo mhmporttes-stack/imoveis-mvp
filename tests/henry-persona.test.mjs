@@ -128,7 +128,7 @@ test("relatório no jeito de amigo: todo número vem dos dados; número inventad
   // Fluxo do servidor: modelo → trava de números → barreira da fala; falhou → reserva com abertura sorteada.
   assert.match(lib, /if \(!text \|\| !reportNumbersMatch\(factual, text\)\)/);
   assert.match(lib, /const reply = rewritten \|\| \(fallback !== HENRY_FALLBACK_REPLY \? fallback : factual\)/);
-  assert.match(lib, /intro: pick\("intro", HENRY_REPORT_INTROS\)/);
+  assert.match(lib, /positiveText\(pick\("intro", HENRY_REPORT_INTROS\)\)/);
 });
 
 // --- Pesquisa na internet ---------------------------------------------------------------------------------------------

@@ -2,6 +2,7 @@
 name: performance-pc
 description: "Use quando o computador Windows do dono estiver lento: diagnóstico de CPU, RAM, SSD, rede, inicialização, Chrome e Claude, com baseline, otimizações seguras/reversíveis e comparação ANTES x DEPOIS. Não use para bug/código do CRM (crm-editor/auditor-crm)."
 tools: Read, Grep, Glob, Bash, PowerShell, Write, Edit, mcp__chrome-devtools
+model: sonnet
 memory: user
 ---
 

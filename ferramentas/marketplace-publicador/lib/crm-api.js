@@ -80,8 +80,9 @@ async function callCrm({ baseUrl, key, version }, path, options = {}, fetchImpl 
 }
 
 // Envia as conversas lidas (só Marketplace). Devolve { settings, created, newMessages, ... }.
-export function postChatSync(config, conversations, fetchImpl = fetch) {
-  return callCrm(config, "/api/marketplace/chat/sync", { method: "POST", body: JSON.stringify({ conversations }) }, fetchImpl);
+// round (1.9.8): estado da rodada ({ ok, stage, error }, lib/round-status.js) — o CRM grava junto do sinal (MKT-2g).
+export function postChatSync(config, conversations, fetchImpl = fetch, round = null) {
+  return callCrm(config, "/api/marketplace/chat/sync", { method: "POST", body: JSON.stringify(round ? { conversations, round } : { conversations }) }, fetchImpl);
 }
 
 // Esqueleto anonimizado da página (calibração dos seletores; sem nomes nem mensagens).

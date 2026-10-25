@@ -18,10 +18,11 @@ test("1.9.4: reusa a janela guardada; depois de reiniciar recupera a janela estr
   assert.equal(isFacebookUrl("https://www.facebook.com.evil.com/"), false);
 });
 
-test("1.9.4: indicador do popup — visível trabalha; minimizada, oculta ou fechada não", () => {
+test("1.9.4/1.9.8: indicador do popup — visível ou atrás de outra janela trabalha; minimizada ou fechada não", () => {
   assert.equal(describeWorkView({ exists: true, windowState: "normal", visibility: "visible" }).ok, true);
   assert.match(describeWorkView({ exists: true, windowState: "minimized", visibility: "hidden" }).text, /MINIMIZADA/);
-  assert.equal(describeWorkView({ exists: true, windowState: "normal", visibility: "hidden" }).ok, false);
+  // 1.9.8: atrás de outra janela (tela cheia do dono) a extensão acorda a página na hora da ação.
+  assert.equal(describeWorkView({ exists: true, windowState: "normal", visibility: "hidden" }).ok, true);
   assert.equal(describeWorkView({ exists: false }).ok, false);
 });
 

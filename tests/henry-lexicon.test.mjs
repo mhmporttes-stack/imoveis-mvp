@@ -18,11 +18,11 @@ import {
   vocabularyUsage
 } from "../lib/henry-voice-lexicon.mjs";
 import { appendDayTurns, dayLexiconState, recordDayLexicon } from "../lib/henry-memory-core.mjs";
-import { HENRY_CHAT_SCENES, HENRY_STYLE_GUIDE, HENRY_VARIATION_HINTS, henryNeedsTools, buildHenryDynamicPrompt, buildHenryStaticPrompt, buildHenrySystemBlocks, buildReportRewritePrompt, pickDayHint, reportNumbersMatch } from "../lib/henry-voice-persona.mjs";
+import { HENRY_CHAT_SCENES, HENRY_REPORT_INTROS, HENRY_STYLE_GUIDE, HENRY_VARIATION_HINTS, henryNeedsTools, buildHenryDynamicPrompt, buildHenryStaticPrompt, buildHenrySystemBlocks, buildReportRewritePrompt, pickDayHint, reportNumbersMatch } from "../lib/henry-voice-persona.mjs";
 import { laughForSpeech, pronounceForSpeech } from "../lib/henry-voice-providers.mjs";
 import { detectBargeIn } from "../lib/henry-voice-conversation.mjs";
 import { isSafeToSpeak } from "../lib/alexa-v2/sanitize.mjs";
-import { HENRY_WAIT_PHRASES } from "../lib/henry-voice-narration.mjs";
+import { HENRY_ACK_ITEMS, HENRY_WAIT_PHRASES } from "../lib/henry-voice-narration.mjs";
 
 const lib = readFileSync(new URL("../lib/henry-voice.js", import.meta.url), "utf8");
 const ALL = Object.values(HENRY_LEXICON).flatMap((category) => category.items);
@@ -88,6 +88,22 @@ test("frases de espera: seguras, sem número, sem 'Henry', sem palavra de parada
   for (const phrase of numbers) {
     assert.ok(phrase?.topics.includes("relatorio"), phrase?.id);
     assert.ok(phrase.text.split(/\s+/).length <= 8, phrase.text); // curtas
+  }
+});
+
+// Confirmações de escuta e aberturas do relatório (banco ampliado, dono 2026-10-25: "teria que ter um vocabulário bem
+// extenso"): as mesmas travas das frases de espera.
+test("confirmações de escuta e aberturas do relatório: seguras, sem número, sem 'Henry', sem repetir texto", () => {
+  const texts = [...HENRY_ACK_ITEMS.map((item) => item.text), ...HENRY_REPORT_INTROS];
+  assert.equal(new Set(texts.map(lexiconKey)).size, texts.length);
+  for (const text of texts) {
+    assert.ok(isSafeToSpeak(text), `barreira da fala: ${text}`);
+    assert.doesNotMatch(text, /\d/, text);
+    assert.ok(reportNumbersMatch("", text), `número por extenso: ${text}`);
+    assert.doesNotMatch(lexiconKey(text), /\bhenry\b|\brenri\b/, text);
+    for (const pattern of FORBIDDEN) assert.doesNotMatch(lexiconKey(text), pattern, text);
+    // "Peraí que eu confiro." (c2) é anterior a esta trava; as demais nunca têm palavra de parada.
+    if (text !== "Peraí que eu confiro.") assert.equal(detectBargeIn(text, "").interrupt, false, text);
   }
 });
 
@@ -244,7 +260,7 @@ test("prompt: guia de estilo longo no bloco com cache_control, travas mantidas, 
   assert.match(serious.promptText, /sem piada, sem ironia e sem risada/);
   assert.match(buildReportRewritePrompt({ repertoire: plan.promptText, usedExpressions: ["opa"] }), /Repertório desta resposta[\s\S]*|"opa"/);
   // Servidor: plano por resposta, resposta segue pela barreira e o uso vai para a memória do dia.
-  assert.match(lib, /const plan = planVocabulary\("question", text, lexicon\)/);
+  assert.match(lib, /const plan = planVocabulary\("question", text, lexicon, memoryTurns\)/);
   assert.match(lib, /repertoire: plan\.promptText, usedExpressions: plan\.usedExpressions/);
   assert.match(lib, /recordDayLexicon\(next, today, \{ \.\.\.vocabularyUsage\(reply, plan\), hint: plan\.hint \}\)/);
   assert.match(lib, /const reply = safeHenryReply\(stripUrls\(replyText\) \|\| fallback[,)]/); // screenFallback (dono, 2026-10-23) não troca a barreira

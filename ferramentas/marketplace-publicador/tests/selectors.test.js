@@ -182,7 +182,8 @@ test("entrada confiável: depurador ligado na aba dedicada, desligado no fim; lo
   assert.match(bg, /Input\.dispatchKeyEvent/);
   assert.match(bg, /Input\.insertText/);
   const run = bg.slice(bg.indexOf("async function runPublication("));
-  assert.ok(run.indexOf("detachDebugger(tab.id)") < run.indexOf("chrome.tabs.remove(tab.id)"));
+  // 1.9.8: depurador (com emulação de foco) ligado durante a publicação e solto antes de fechar a aba.
+  assert.ok(run.indexOf("withAwakePage(tab.id") > 0 && run.indexOf("withAwakePage(tab.id") < run.indexOf("chrome.tabs.remove(tab.id)"));
   assert.match(bg, /recoverInterruptedRun/);
   const content = readFileSync(new URL("../content.js", import.meta.url), "utf8");
   const fill = content.slice(content.indexOf("async function fillLocation("), content.indexOf("function emptyRequiredFields("));
