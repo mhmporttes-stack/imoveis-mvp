@@ -144,9 +144,10 @@ export function PaymentStatusBadge({ value, label }) {
 
 /* ---------- campos do editor: linha de resumo fixa no rodapé ---------- */
 
-export function EditorFooter({ metrics, onSave, saving }) {
+export function EditorFooter({ metrics, onSave, saving, overlay = null }) {
   return (
     <div className="sticky bottom-[var(--admin-bottom-nav-space,0px)] z-20 -mx-px border-t border-line bg-white/95 px-4 py-3 shadow-float backdrop-blur supports-[backdrop-filter]:bg-white/90 sm:rounded-b-card">
+      {overlay}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <dl className="grid grid-cols-3 gap-3 sm:flex sm:gap-6" aria-label="Resumo da venda">
           {metrics.map((metric) => (

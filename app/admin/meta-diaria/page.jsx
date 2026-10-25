@@ -11,6 +11,7 @@ import { canLoadDailyGoal, formatDailyGoalError, getBrokerDailyGoal, getOwnerTea
 import { newRenderId } from "@/lib/render-id.mjs";
 import MetaDayGuard from "@/components/MetaDayGuard";
 import { getTodayInSaoPaulo } from "@/lib/daily-report";
+import { chatViewerKey } from "@/lib/chat-viewer-key.mjs";
 
 export const dynamic = "force-dynamic";
 // Voltar para esta tela na hora (desempenho, 2026-10-12): o navegador reaproveita a tela por até 5 min em vez de esperar o
@@ -71,7 +72,7 @@ export default async function MetaDiariaPage() {
         </section>
       ) : (
         <SceneGate>
-          <DailyGoalDashboard initialGoal={goal} renderId={newRenderId()} brokerName={auth.profile?.name} brokerPhotoUrl={auth.profile?.photoUrl} />
+          <DailyGoalDashboard initialGoal={goal} renderId={newRenderId()} brokerName={auth.profile?.name} brokerPhotoUrl={auth.profile?.photoUrl} viewerKey={chatViewerKey(auth)} />
         </SceneGate>
       )}
     </main>

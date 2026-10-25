@@ -27,6 +27,7 @@ import { CLIENT_STATUS, clientStatusLabel, isAwaitingSimulationStatus } from "@/
 import { hasSimulationData, incomeTypeLabel, formatCurrency } from "@/lib/simulation-registration-format";
 import { formatMoneyBR } from "@/lib/simulation-list-utils";
 import StatusOptions from "./StatusOptions";
+import { ApprovedSceneLayer, approvedPulseClass, transferOutClass, useStatusChangeScene } from "@/components/motion/ProductScenes";
 import { useBasicMode, useWhatsappBlocked } from "@/components/WhatsappAccessProvider";
 import { clientPhone, formatAgo, getUrgencySignal, initialsOf } from "./client-format";
 import { OFFLINE_ACTION_LABEL, OFFLINE_CONFIRM_DESCRIPTION, OFFLINE_CONFIRM_TITLE, OFFLINE_UNDO_MS, offlineMarkLabel } from "@/lib/document-received-offline-core.mjs";
@@ -62,19 +63,27 @@ export default function ClientCard({ client, activities, responsibleName, respon
   // DOC-7: a ação "Recebi documentos por fora" saiu do corpo do card para o menu "…" (dono, 2026-10-22); a etiqueta
   // "1º documento recebido por fora · dd/mm" e o "Desfazer" (10 s) ficam na linha de selos.
   const offline = useDocumentsOfflineMark({ client, list, confirmAction });
+  // Cenas de produto (2026-10-25): crédito aprovado (só para o corretor responsável, quando a lista vê o status mudar) e saída
+  // do card transferido. Só apresentação: nada daqui grava ou decide; o status e a transferência vêm do que a lista já tem.
+  const approvedScene = useStatusChangeScene({ id: client.id, status: client.status, target: CLIENT_STATUS.APPROVED, enabled: Boolean(list?.canTransferOwnClient?.(client)) });
+  const leaving = Boolean(list?.transferExit?.[client.id]);
 
   return (
     <article
       aria-labelledby={`card-${client.id}`}
       data-henry-client-id={client.id}
       className={cx(
-        "flex min-w-0 flex-col rounded-card border bg-white transition-[border-color,box-shadow] duration-150",
+        "relative flex min-w-0 flex-col rounded-card border bg-white transition-[border-color,box-shadow] duration-150",
+        approvedScene && approvedPulseClass,
+        leaving && transferOutClass,
         selected ? "border-brand ring-1 ring-brand" : "border-line hover:border-navy/20",
         urgency?.key === "overdue" && !selected && "border-l-[3px] border-l-danger-strong",
         busy && "opacity-60"
       )}
       aria-busy={busy || undefined}
+      aria-hidden={leaving || undefined}
     >
+      {approvedScene ? <ApprovedSceneLayer /> : null}
       {/* Cabeçalho: quem é e em que pé está */}
       <header className="flex items-start gap-2.5 px-3.5 pt-2.5 sm:px-4">
         <ResponsibleAvatar responsibleProfile={responsibleProfile} />

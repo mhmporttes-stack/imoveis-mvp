@@ -1,11 +1,15 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRevalidateOnReuse } from "@/components/useRevalidateOnReuse";
 import { Check, MessageCircle, Pencil } from "lucide-react";
 import RevealCard from "@/components/motion/RevealCard";
 import MetaRing from "@/components/scenes/MetaRing";
 import { StaggerContainer, StaggerItem } from "@/components/motion/StaggerReveal";
+import { useSceneHeld } from "@/components/motion/SceneGate";
+import { dailyInClass } from "@/components/motion/ProductScenes";
+import { claimDailyIntro, dailyStaggerDelay, localSceneMemory, saoPauloDay } from "@/components/motion/product-scenes-core.mjs";
+import { useHenryFullscreen } from "@/components/henry/useHenryFullscreen";
 import DailyGoalAutoPanel from "@/components/DailyGoalAutoPanel";
 import DailyGoalCompensationNotice from "@/components/DailyGoalCompensationNotice";
 import { PRINTED_LIST_MODE_MESSAGE } from "@/lib/whatsapp-manual-disconnect-core.mjs";
@@ -21,10 +25,30 @@ const GROUPS = [
 // compensação e aviso do WhatsApp) — usado pela gestora no topo da Meta Diária da equipe (T-49). Mesmo cálculo e
 // mesmas regras do corretor (getBrokerDailyGoal); sem lista de contatos e sem painel de automação.
 // brokerName/brokerPhotoUrl (opcionais): foto do corretor no centro do anel (visual novo, 2026-10-22; só apresentação).
-export default function DailyGoalDashboard({ initialGoal, variant = "full", renderId = "", brokerName = "", brokerPhotoUrl = "" }) {
+// viewerKey (opcional, cena de 2026-10-25): conta que está olhando; sem ela a cena do primeiro acesso do dia não toca.
+export default function DailyGoalDashboard({ initialGoal, variant = "full", renderId = "", brokerName = "", brokerPhotoUrl = "", viewerKey = "" }) {
   const isCard = variant === "card";
   const [goal, setGoal] = useState(initialGoal);
   const [error, setError] = useState("");
+  // Cena do primeiro acesso do dia (só apresentação, ~1,2 s): até 6 cartões entram em escalonamento (≤ 40 ms) e o anel sobe do
+  // zero. Marca local por conta + dia (America/Sao_Paulo). null = ainda decidindo (o anel espera esse instante); não monta
+  // nada novo no servidor — a Meta continua sendo montada só quando a pessoa abre a tela (MD-16). Com a tela cheia do Henry
+  // aberta espera ele fechar.
+  const henryOpen = useHenryFullscreen();
+  const sceneHeld = useSceneHeld();
+  const [dayIntro, setDayIntro] = useState(null);
+  const dayIntroDecided = useRef(false);
+  useEffect(() => {
+    if (dayIntroDecided.current || henryOpen) return;
+    dayIntroDecided.current = true;
+    setDayIntro(claimDailyIntro({ memory: localSceneMemory, viewerKey, day: initialGoal?.date || saoPauloDay() }));
+  }, [henryOpen, viewerKey, initialGoal?.date]);
+  // Depois da cena a marca sai: cartão que entrar na lista mais tarde (ex.: depois de uma tentativa) não repete a entrada.
+  useEffect(() => {
+    if (dayIntro !== true || sceneHeld) return undefined;
+    const timer = setTimeout(() => setDayIntro(false), 2400);
+    return () => clearTimeout(timer);
+  }, [dayIntro, sceneHeld]);
   // Tela reaproveitada: relê a meta em segundo plano (mesma consulta da página; falha = fica o que já está na tela).
   useRevalidateOnReuse(renderId, () => {
     fetch("/api/daily-goal")
@@ -88,7 +112,7 @@ export default function DailyGoalDashboard({ initialGoal, variant = "full", rend
       <RevealCard className="rounded-[28px] border border-navy/10 bg-white p-6 shadow-soft md:p-8">
         {isCard ? <h2 className="mb-4 text-center text-sm font-black uppercase tracking-[0.14em] text-navy">Minha Meta Diária</h2> : null}
         <div className="flex flex-col items-center gap-3">
-          <MetaRing percent={goal.percent} name={brokerName} photoUrl={brokerPhotoUrl} />
+          <MetaRing percent={goal.percent} name={brokerName} photoUrl={brokerPhotoUrl} intro={dayIntro === null ? "wait" : dayIntro ? "daily" : ""} />
           <ul className="w-full max-w-xs space-y-1.5">
             <GoalLine
               label="Prospecção"
@@ -168,9 +192,10 @@ export default function DailyGoalDashboard({ initialGoal, variant = "full", rend
       {error ? <p className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-700">{error}</p> : null}
 
       {isCard ? null : <StaggerContainer className="space-y-8" staggerChildren={0.08} delayChildren={0.2}>
-        {GROUPS.map((group) => (
+        {GROUPS.map((group, groupIndex) => (
           <StaggerItem key={group.key}>
             <ClientGroup
+              introOffset={dayIntro ? GROUPS.slice(0, groupIndex).reduce((sum, previous) => sum + (goal.groups[previous.key].doneToday?.length || 0) + goal.groups[previous.key].clients.length, 0) : -1}
               title={group.title}
               clients={goal.groups[group.key].clients}
               doneToday={goal.groups[group.key].doneToday}
@@ -201,18 +226,25 @@ function GoalLine({ label, done, total, completed, remaining = 0 }) {
 // pular de seção — fica visível aqui mesmo, com um "realizado hoje", e só
 // migra pra próxima etapa amanhã (regra que já existia no cálculo de
 // pendências, ver lib/daily-goal.js — isto só deixa o resultado visível).
-function ClientGroup({ title, clients, doneToday = [], onSend, onSaveTemplate }) {
+function ClientGroup({ title, clients, doneToday = [], onSend, onSaveTemplate, introOffset = -1 }) {
   const hasAny = clients.length > 0 || doneToday.length > 0;
+  // Cena do primeiro acesso do dia: só os 6 primeiros cartões da tela (somando os grupos), e só depois que a cena de entrada terminou.
+  const held = useSceneHeld();
+  const introFor = (position) => {
+    if (introOffset < 0 || held) return null;
+    const delay = dailyStaggerDelay(introOffset + position);
+    return delay === null ? null : { className: dailyInClass, style: { "--i": (introOffset + position) } };
+  };
   return (
     <div>
       <h2 className="mb-3 text-lg font-black uppercase tracking-[0.08em] text-navy">{title}</h2>
       {hasAny ? (
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {doneToday.map((client) => (
-            <DoneTodayCard key={client.roundId} client={client} />
+          {doneToday.map((client, position) => (
+            <DoneTodayCard key={client.roundId} client={client} intro={introFor(position)} />
           ))}
-          {clients.map((client) => (
-            <ClientCard key={client.roundId} client={client} onSend={onSend} onSaveTemplate={onSaveTemplate} />
+          {clients.map((client, position) => (
+            <ClientCard key={client.roundId} client={client} onSend={onSend} onSaveTemplate={onSaveTemplate} intro={introFor(doneToday.length + position)} />
           ))}
         </div>
       ) : (
@@ -224,9 +256,9 @@ function ClientGroup({ title, clients, doneToday = [], onSend, onSaveTemplate })
   );
 }
 
-function DoneTodayCard({ client }) {
+function DoneTodayCard({ client, intro = null }) {
   return (
-    <article className="rounded-[18px] border border-dashed border-emerald-200 bg-emerald-50/50 p-4">
+    <article className={`rounded-[18px] border border-dashed border-emerald-200 bg-emerald-50/50 p-4 ${intro?.className || ""}`} style={intro?.style}>
       <h3 className="truncate text-base font-black text-navy">{client.fullName}</h3>
       <p className="text-xs font-bold text-muted">{client.clientCode}</p>
       <p className="mt-2 inline-flex items-center gap-1.5 text-[11px] font-extrabold uppercase tracking-[0.1em] text-emerald-700">
@@ -243,7 +275,7 @@ function emptyStateLabel(title) {
   return "Nenhuma última tentativa pendente hoje.";
 }
 
-function ClientCard({ client, onSend, onSaveTemplate }) {
+function ClientCard({ client, onSend, onSaveTemplate, intro = null }) {
   const [editing, setEditing] = useState(false);
   const [text, setText] = useState(client.previewMessage);
   const [busy, setBusy] = useState(false);
@@ -290,7 +322,7 @@ function ClientCard({ client, onSend, onSaveTemplate }) {
   }
 
   return (
-    <article className="rounded-[18px] border border-line bg-white p-4 shadow-[0_12px_30px_rgba(13,59,102,0.06)]">
+    <article className={`rounded-[18px] border border-line bg-white p-4 shadow-[0_12px_30px_rgba(13,59,102,0.06)] ${intro?.className || ""}`} style={intro?.style}>
       <h3 className="truncate text-base font-black text-navy">{client.fullName}</h3>
       <p className="text-xs font-bold text-muted">{client.clientCode}</p>
       <p className="mt-2 text-[11px] font-extrabold uppercase tracking-[0.1em] text-brand">{client.attemptNumber}º contato</p>

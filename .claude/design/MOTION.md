@@ -51,6 +51,20 @@ Fontes (só princípios, em palavras nossas): `ref-emil/` (E = emil-design-eng, 
 - Cenas fora do teto de 300 ms (podem mais, com saída e reduzido): Meta Diária, Henry, Celebração, Mensagem do dia, Central de Alertas importante, entrada por rolagem. UI de uso frequente (botão, switch, menu, toast, popup, lista) fica abaixo de 300 ms.
 - Os 4 padrões que já estão certos e valem de modelo: `Button`/`:active scale` (`components/ui/Button.jsx`), popup de cliente (`ClientPopupStack.module.css`), Supervisão/Alertas com `motion` (`EASE`, ≤ 260 ms, caminho reduzido separado), Henry (pausa com aba oculta e ritmo adaptativo, `HenryOrb`).
 
+## Cenas do produto (2026-10-25, aprovadas pelo dono: "Todas")
+
+Tese: confirmar com um momento curto o que é raro e importante (venda paga, crédito aprovado, transferência, primeiro acesso do dia, cadastro recebido) sem nunca atrasar clique ou rota. Orçamento: só `transform`/`opacity`/`stroke-dashoffset`; número escrito direto no nó (sem `setState` por quadro); cada cena roda uma vez e tem saída. Código: `components/motion/ProductScenes.{jsx,module.css}` + regras puras `product-scenes-core.mjs` (testes `tests/product-scenes.test.mjs`). Cada cena usa só o que a tela já recebeu (resposta da ação ou lista atual); a tela cheia do Henry (`useHenryFullscreen`) adia a 2 e a 4.
+
+| # | Cena | Gatilho (sinal que a tela já tem) | Dura | Reduzido |
+|---|---|---|---|---|
+| 1 | Venda "Pago" — selo "PAGO" bate (mesma linguagem do carimbo "Total de descontos"), brilho azul passa, comissão sobe contando | resposta de `saveDraft`/`applyReceiptResult` devolve a venda `received` que antes não era; só o dono (`canManageForecast`); uma vez por venda | 2,2 s | selo parado com fade, valor final na hora |
+| 2 | Crédito aprovado — check desenha no anel, faixa acende da esquerda, card pulsa 0,97→1 | `ClientCard` vê o status virar `approved` (último status visto na sessão); só corretor responsável; uma vez por id+status | 1,4 s | faixa/selo em fade, sem pulso |
+| 3 | Transferência — card encolhe e desliza 700 ms, selo "Transferido para <1º nome>" se apaga em 1,5 s | `updateClientResponsibleUser` ok quando o corretor transfere o próprio cliente; card "fantasma" por 1,7 s | 0,7 s + 1,5 s | card some em fade, selo em fade |
+| 4 | Primeiro acesso do dia à Meta Diária — até 6 cartões a 40 ms e anel sobe do zero em 1,2 s | marca `localStorage` por conta+dia (SP); só com `viewerKey` | 1,2 s | cartões em fade, anel no valor final |
+| 5 | Cadastro recebido — check se desenha e o anel fecha no botão "Abrindo o WhatsApp…" | `openingWhatsapp` verdadeiro; o redirecionamento não espera a animação | 0,7 s | check desenhado |
+
+Pontos de cuidado: em celular a cena 1 acontece junto do botão Salvar (a lista está escondida); a cena 3 fecha a ficha aberta para ficar à vista; `transform` no card da cena 2 só durante o pulso (nunca fica, para não prender `position: fixed`); nenhuma cena usa `will-change`.
+
 ## Reutilize o que existe
 
 `components/motion/*` (AnimatedNumber, AnimatedRing, RevealCard, Stagger, SceneTransition, usePrefersReducedMotion). Biblioteca de animação nova: só com aprovação do dono.

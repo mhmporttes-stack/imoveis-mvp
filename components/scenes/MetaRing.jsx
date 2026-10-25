@@ -18,6 +18,8 @@ const CIRCUMFERENCE = 2 * Math.PI * R; // ≈ 377
 const INTRO_S = 3.8;
 const PEAK_AT = 0.55;
 const HOLD_UNTIL = 0.68;
+// Primeiro acesso do dia (cena de 2026-10-25): o anel sobe do zero direto até o percentual real, em ~1,2 s (sem o "sobe e volta").
+const DAILY_S = 1.2;
 
 function initials(name) {
   const parts = String(name || "").trim().split(/\s+/).filter(Boolean);
@@ -53,12 +55,13 @@ function useStartWhenVisible(ref, enabled, delayMs) {
   return started;
 }
 
-export default function MetaRing({ percent = 0, name = "", photoUrl = "", size = 160, playOnView = false, delayMs = 0, label = "Meta diária" }) {
+// `intro`: "daily" = primeiro acesso do dia (sobe do zero em ~1,2 s); "wait" = ainda decidindo (anel espera, vazio); outro = comportamento de sempre.
+export default function MetaRing({ percent = 0, name = "", photoUrl = "", size = 160, playOnView = false, delayMs = 0, label = "Meta diária", intro = "" }) {
   const reduced = usePrefersReducedMotion();
   const rootRef = useRef(null);
   // Dentro de um SceneGate (Meta Diária), o anel espera a Cena 2 terminar antes de começar a subir.
   const held = useSceneHeld();
-  const started = useStartWhenVisible(rootRef, playOnView, delayMs) && !held;
+  const started = useStartWhenVisible(rootRef, playOnView, delayMs) && !held && intro !== "wait";
   const real = Math.max(0, Math.round(Number(percent) || 0));
   const ringTarget = Math.min(100, real);
   const value = useMotionValue(0);
@@ -81,6 +84,14 @@ export default function MetaRing({ percent = 0, name = "", photoUrl = "", size =
     }
     mounted.current = true;
     setPhase("rise");
+    if (intro === "daily") {
+      const direct = animate(value, ringTarget, { duration: DAILY_S, ease: [0.16, 1, 0.3, 1] });
+      const settle = setTimeout(() => setPhase("done"), DAILY_S * 1000);
+      return () => {
+        direct.stop();
+        clearTimeout(settle);
+      };
+    }
     const controls = animate(value, [0, 100, 100, ringTarget], {
       duration: INTRO_S,
       times: [0, PEAK_AT, HOLD_UNTIL, 1],

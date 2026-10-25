@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import {
   ArrowLeft,
@@ -33,6 +33,8 @@ import {
   SectionTabs
 } from "@/components/FinancialSalesParts";
 import { tabClasses } from "@/components/ui/Tabs";
+import { CountUp, PaidSceneLayer } from "@/components/motion/ProductScenes";
+import { sessionSceneMemory, shouldPlayPaidScene } from "@/components/motion/product-scenes-core.mjs";
 
 const FINANCIAL_STATUS_OPTIONS = [
   { value: "pending", label: "Pendente" },
@@ -110,6 +112,24 @@ export default function AdminFinancialDashboard({ initialSales = [], financialUs
   const [receiptAction, setReceiptAction] = useState(null);
   // Celular/tablet: "list" mostra a lista de vendas, "editor" a venda aberta (com "Voltar"). Em xl as duas aparecem juntas.
   const [mobileStep, setMobileStep] = useState("list");
+  // Cena "venda paga" (2026-10-25): só a conta que pode lançar recebimento (o dono) e só quando a RESPOSTA da própria
+  // ação devolve a venda como recebida; uma vez por venda. Nada é consultado nem gravado além do que a tela já fazia.
+  const [paidSaleId, setPaidSaleId] = useState("");
+  const salesRef = useRef(sales);
+  salesRef.current = sales;
+  useEffect(() => {
+    if (!paidSaleId) return undefined;
+    const timer = setTimeout(() => setPaidSaleId(""), 2400);
+    return () => clearTimeout(timer);
+  }, [paidSaleId]);
+  function maybePlayPaidScene(updated) {
+    if (!canManageForecast || !updated?.id) return;
+    const previous = salesRef.current.find((sale) => sale.id === updated.id);
+    const key = `mm-scene-paid:${updated.id}`;
+    if (!shouldPlayPaidScene({ previousStatus: previous?.financialStatus, nextStatus: updated.financialStatus, alreadyPlayed: sessionSceneMemory.read(key) === "1" })) return;
+    sessionSceneMemory.write(key, "1");
+    setPaidSaleId(updated.id);
+  }
   const brokers = useMemo(() => financialUsers.filter((user) => ["admin", "manager", "broker"].includes(user.role) && user.status === "active"), [financialUsers]);
   const managers = useMemo(() => financialUsers.filter((user) => ["admin", "manager"].includes(user.role) && user.status === "active"), [financialUsers]);
 
@@ -321,6 +341,7 @@ export default function AdminFinancialDashboard({ initialSales = [], financialUs
       const payload = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(payload.error || "Não foi possível salvar a venda.");
 
+      maybePlayPaidScene(payload);
       setSales((current) => current.map((sale) => (sale.id === payload.id ? payload : sale)));
       setDraftSale(createDraftSale(payload));
       setMessage("Alterações financeiras salvas.");
@@ -334,6 +355,7 @@ export default function AdminFinancialDashboard({ initialSales = [], financialUs
   function applyReceiptResult(result) {
     const updated = result?.sale;
     if (updated?.id) {
+      maybePlayPaidScene(updated);
       setSales((current) => current.map((sale) => (sale.id === updated.id ? updated : sale)));
       setDraftSale((current) => (current?.id === updated.id ? createDraftSale(updated) : current));
     }
@@ -467,7 +489,7 @@ export default function AdminFinancialDashboard({ initialSales = [], financialUs
       {canEdit && activeTab === "vendas" && (
         <div className="grid items-start gap-5 xl:grid-cols-[minmax(0,0.85fr)_minmax(560px,1.15fr)]">
           <div className={mobileStep === "editor" ? "max-xl:hidden" : ""}>
-            <SalesList sales={filteredSales} selectedSaleId={selectedSaleId} onSelect={selectSale} showReceiptDates />
+            <SalesList sales={filteredSales} selectedSaleId={selectedSaleId} onSelect={selectSale} showReceiptDates paidSaleId={paidSaleId} />
           </div>
           <div className={mobileStep === "list" ? "max-xl:hidden" : ""}>
             <SaleEditor
@@ -488,6 +510,7 @@ export default function AdminFinancialDashboard({ initialSales = [], financialUs
               canManageForecast={canManageForecast}
               brokers={brokers}
               managers={managers}
+              paidScene={Boolean(paidSaleId) && paidSaleId === selectedSaleId}
             />
           </div>
         </div>
@@ -643,7 +666,7 @@ function saleReceiptInfo(sale, totals, showDates) {
   };
 }
 
-function SalesList({ sales, selectedSaleId, onSelect, showReceiptDates = true }) {
+function SalesList({ sales, selectedSaleId, onSelect, showReceiptDates = true, paidSaleId = "" }) {
   if (!sales.length) {
     return (
       <div className="rounded-card border border-line bg-white">
@@ -663,6 +686,7 @@ function SalesList({ sales, selectedSaleId, onSelect, showReceiptDates = true })
         const totals = calculateSaleTotals(sale);
         const info = saleReceiptInfo(sale, totals, showReceiptDates);
         const option = FINANCIAL_STATUS_OPTIONS.find((item) => item.value === sale.financialStatus) || FINANCIAL_STATUS_OPTIONS[0];
+        const paying = Boolean(paidSaleId) && paidSaleId === sale.id;
         const classes = cx(
           "block w-full rounded-card border bg-white p-3.5 text-left sm:p-4",
           info.overdue ? "border-l-4 border-danger-line border-l-danger-strong" : "border-line",
@@ -680,7 +704,7 @@ function SalesList({ sales, selectedSaleId, onSelect, showReceiptDates = true })
             </span>
             <span className="mt-2.5 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 text-sm">
               <span className="text-ink-2">VGV <strong className="font-semibold tabular-nums text-ink">{formatCurrency(totals.saleValue)}</strong></span>
-              <span className="text-ink-2">Comissão livre <strong className="font-semibold tabular-nums text-ink">{formatCurrency(totals.freeCommission)}</strong></span>
+              <span className="text-ink-2">Comissão livre <strong className="font-semibold tabular-nums text-ink">{paying ? <CountUp value={totals.freeCommission} format={formatCurrency} /> : formatCurrency(totals.freeCommission)}</strong></span>
               {info.nextDate ? (
                 <span className={cx("tabular-nums", info.overdue ? "font-semibold text-danger" : "text-ink-2")}>
                   {info.nextLabel} {DATE_FORMATTER.format(info.nextDate)}
@@ -690,7 +714,8 @@ function SalesList({ sales, selectedSaleId, onSelect, showReceiptDates = true })
           </>
         );
         return (
-          <li key={sale.id}>
+          <li key={sale.id} className={paying ? "relative rounded-card" : undefined}>
+            {paying ? <PaidSceneLayer /> : null}
             {onSelect ? (
               <button type="button" onClick={() => onSelect(sale)} aria-current={active ? "true" : undefined} className={classes}>{body}</button>
             ) : (
@@ -720,7 +745,8 @@ function SaleEditor({
   onPaymentRemove,
   brokers,
   managers,
-  canManageForecast = false
+  canManageForecast = false,
+  paidScene = false
 }) {
   const draftForecast = computeForecastAmount({ grossCommission: draftTotals.grossCommission, financialStatus: draftSale?.financialStatus, payments: ensureArray(draftSale?.payments).map((payment) => ({ status: payment.status, amount: normalizeMoneyValue(payment.amount), expectedDate: payment.expectedDate })) });
   if (!sale?.id || !draftSale?.id) {
@@ -910,11 +936,14 @@ function SaleEditor({
         </Collapsible>
       </div>
 
+      {/* Celular/tablet: a lista de vendas fica escondida enquanto a venda está aberta, então o selo "PAGO" e o valor que sobe
+          contando acontecem aqui, junto do botão que acabou de ser tocado. Em xl a cena fica no card da lista, à vista ao lado. */}
       <EditorFooter
         saving={saving}
         onSave={onSave}
+        overlay={paidScene ? <div className="xl:hidden"><PaidSceneLayer above /></div> : null}
         metrics={[
-          { label: "Comissão livre", value: formatCurrency(draftTotals.freeCommission) },
+          { label: "Comissão livre", value: paidScene ? <><span className="xl:hidden"><CountUp value={draftTotals.freeCommission} format={formatCurrency} /></span><span className="max-xl:hidden">{formatCurrency(draftTotals.freeCommission)}</span></> : formatCurrency(draftTotals.freeCommission) },
           { label: "Recebido", value: formatCurrency(draftTotals.receivedTotal) },
           { label: "A receber", value: formatCurrency(draftTotals.receivableTotal) }
         ]}

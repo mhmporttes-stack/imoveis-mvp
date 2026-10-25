@@ -460,7 +460,14 @@ export default function SimulationForm({ brokerRefOverride = "", journeySelected
                 onClick={goNext}
                 type="button"
               >
-                {sending ? <span aria-hidden="true" className={styles.spinner} /> : null}
+                {/* Cadastro recebido (cena de 2026-10-25, ~700 ms): ao virar "Abrindo o WhatsApp…" um check se desenha e o anel fecha.
+                    Só apresentação: roda em paralelo, o redirecionamento (location.href) sai na mesma hora de antes. */}
+                {openingWhatsapp ? (
+                  <svg aria-hidden="true" className={styles.sentCheck} data-scene="sent" viewBox="0 0 24 24" fill="none">
+                    <circle className={styles.sentRing} cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2" strokeLinecap="round" transform="rotate(-90 12 12)" />
+                    <path className={styles.sentTick} d="M7.5 12.6l3.1 3.1 6-6.6" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                ) : sending ? <span aria-hidden="true" className={styles.spinner} /> : null}
                 {openingWhatsapp ? "Abrindo o WhatsApp…" : submitting ? "Enviando informações..." : isLastStep ? "Enviar informações" : "Continuar"}
                 {!sending ? FichaIcon.next : null}
               </button>

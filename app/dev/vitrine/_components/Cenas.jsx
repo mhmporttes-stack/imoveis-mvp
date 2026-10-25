@@ -7,7 +7,7 @@ import DailyGoalDashboard from "@/components/DailyGoalDashboard";
 import * as metaDiaria from "../_fixtures/meta-diaria";
 
 // Cenas do visual novo (2026-10-22) com dados FICTÍCIOS. ?tela=cenas&variante=
-//   mensagem | mensagem-longa | reconhecimento[:gatilho[:animação]] | meta
+//   mensagem | mensagem-longa | reconhecimento[:gatilho[:animação]] | meta | meta-dia[:repete]
 // Tema escuro: adicionar a classe mm-dark no <html> (o script de screenshot faz isso).
 const FOTO = `data:image/svg+xml;utf8,${encodeURIComponent(
   '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#8FB8D8"/><stop offset="1" stop-color="#2F5F86"/></linearGradient></defs><rect width="200" height="200" fill="url(#g)"/><circle cx="100" cy="82" r="38" fill="#F1D3BC"/><path d="M30 200c6-48 36-72 70-72s64 24 70 72z" fill="#1E3A57"/><path d="M62 78c0-30 18-46 38-46s38 16 38 46c-8-14-22-20-38-20s-30 6-38 20z" fill="#3B2A20"/></svg>'
@@ -39,6 +39,15 @@ export default function Cenas({ variante = "mensagem" }) {
     return (
       <main className="min-h-screen bg-mist py-14">
         <DailyGoalDashboard initialGoal={metaDiaria.brokerGoal} brokerName="Ana Paula Ribeiro" brokerPhotoUrl={FOTO} />
+      </main>
+    );
+  }
+  if (kind === "meta-dia") {
+    // Cena do primeiro acesso do dia (2026-10-25): cada carregamento usa uma conta nova, então sempre é "o primeiro acesso do dia".
+    // ?variante=meta-dia:repete reaproveita a conta (a cena NÃO toca na 2ª visita do dia).
+    return (
+      <main className="min-h-screen bg-mist py-14">
+        <DailyGoalDashboard initialGoal={metaDiaria.brokerGoal} brokerName="Ana Paula Ribeiro" brokerPhotoUrl={FOTO} viewerKey={a === "repete" ? "vitrine-fixa" : `vitrine-${Math.random().toString(36).slice(2)}`} />
       </main>
     );
   }

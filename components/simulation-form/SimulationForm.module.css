@@ -827,6 +827,27 @@
   border-right-color: transparent;
   animation: spin 0.8s linear infinite;
 }
+/* Cadastro recebido: check se desenhando dentro do anel da marca (WA-10b, ~700 ms; só stroke-dashoffset). */
+.btn .sentCheck {
+  width: 24px;
+  height: 24px;
+  color: var(--royal);
+}
+.sentRing {
+  stroke-dasharray: 63;
+  stroke-dashoffset: 63;
+  animation: sentDraw 450ms cubic-bezier(0.23, 1, 0.32, 1) forwards;
+}
+.sentTick {
+  stroke-dasharray: 14;
+  stroke-dashoffset: 14;
+  animation: sentDraw 320ms cubic-bezier(0.23, 1, 0.32, 1) 330ms forwards;
+}
+@keyframes sentDraw {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
 .sending .ctrl {
   opacity: 0.45;
   pointer-events: none;
@@ -1039,8 +1060,14 @@
   .orbit,
   .orbit g,
   .shake,
+  .sentRing,
+  .sentTick,
   .sending .bar i {
     animation: none !important;
+  }
+  .sentRing,
+  .sentTick {
+    stroke-dashoffset: 0;
   }
   .bar i {
     transition: none;

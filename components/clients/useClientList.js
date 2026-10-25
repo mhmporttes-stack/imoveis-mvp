@@ -12,6 +12,7 @@ import { decideCardWhatsapp, detectDevice, buildExternalWhatsappUrl, CARD_WA_EXT
 import { flagContactNotSaved } from "@/lib/whatsapp-contact-warning.mjs";
 import { withWhatsappText } from "@/lib/documents-forecast-core.mjs";
 import { statusRequiresReason } from "@/lib/status-reason-core.mjs";
+import { firstNameOf } from "@/components/motion/product-scenes-core.mjs";
 import { DEFAULT_FILTERS, PAGE_SIZE_OPTIONS, TAG_COLORS, buildDraftSimulationPayload, ensureArray, getScheduleDraft } from "./client-format";
 
 // Estado e ações da Lista de clientes. Mesmas chamadas de API, mesmas regras
@@ -28,6 +29,8 @@ function readCardDevice() {
     maxTouchPoints: navigator.maxTouchPoints || 0
   });
 }
+
+const TRANSFER_SCENE_MS = 1700;
 
 export function useClientList({
   adminProfiles = [],
@@ -72,6 +75,12 @@ export function useClientList({
   // Janela de motivo obrigatório (FUN-14, dono 2026-10-14): { client, kind: "archived"|"do_not_contact", via: "status"|"prospecting" }
   const [reasonTarget, setReasonTarget] = useState(null);
   const [receivedDateTarget, setReceivedDateTarget] = useState(null);
+  // Cena "transferência" (2026-10-25, só apresentação): o card que o corretor acabou de transferir continua na tela por ~1,7 s
+  // (700 ms saindo + selo "Transferido para <1º nome>" que se apaga), mesmo que a lista já tenha sido relida do servidor
+  // (a leitura de sempre não muda; o card "fantasma" só é exibido). { [id]: { toName, item, index } }
+  const [transferExit, setTransferExit] = useState({});
+  const transferExitTimers = useRef(new Set());
+  useEffect(() => () => { transferExitTimers.current.forEach((timer) => clearTimeout(timer)); }, []);
   // Botão "Enviar lista de documentos" da ficha: mensagem pronta aguardando a confirmação do corretor ({ client, message, decision })
   const [docsListTarget, setDocsListTarget] = useState(null);
 
@@ -378,6 +387,20 @@ export function useClientList({
       if (!response.ok) {
         notify(data.error || "Não foi possível alterar o corretor responsável.", "danger");
         return;
+      }
+      if (canTransferOwnClient(client) && responsibleUserId && responsibleUserId !== ownTransfer.selfId) {
+        // Corretor transferiu o próprio cliente: o card sai com a cena (a lista é relida na hora, como sempre).
+        const toName = firstNameOf(transferTargets.find((target) => target.id === responsibleUserId)?.name);
+        const index = Math.max(0, items.findIndex((item) => item.id === client.id));
+        setTransferExit((current) => ({ ...current, [client.id]: { toName, item: client, index } }));
+        const timer = setTimeout(() => {
+          transferExitTimers.current.delete(timer);
+          setTransferExit((current) => {
+            const { [client.id]: _gone, ...rest } = current;
+            return rest;
+          });
+        }, TRANSFER_SCENE_MS);
+        transferExitTimers.current.add(timer);
       }
       patchClientRegistration(client.id, data, { refreshAfter: true });
       notify("Responsável alterado.");
@@ -944,10 +967,19 @@ export function useClientList({
     }
   }
 
+  // Cena "transferência": o card transferido continua visível (no lugar de antes) até a cena acabar, mesmo já fora da lista lida.
+  const displayItems = useMemo(() => {
+    const exiting = Object.entries(transferExit).filter(([id]) => !items.some((item) => item.id === id));
+    if (!exiting.length) return items;
+    const merged = [...items];
+    exiting.sort((a, b) => a[1].index - b[1].index).forEach(([, entry]) => merged.splice(Math.min(entry.index, merged.length), 0, entry.item));
+    return merged;
+  }, [items, transferExit]);
+
   return {
     // estado
-    filters, searchInput, page, pageSize, items, total, totalPages, counters, pendingClientsCount,
-    loading, loadError, localTags, busyClientId: busyClientId || (chatNavPending ? openingChatClientId : ""), reasonTarget, receivedDateTarget, docsListTarget, canMarkSalePaid, responsibleProfiles, responsibleProfileMap, transferTargets,
+    filters, searchInput, page, pageSize, items: displayItems, total, totalPages, counters, pendingClientsCount,
+    transferExit, loading, loadError, localTags, busyClientId: busyClientId || (chatNavPending ? openingChatClientId : ""), reasonTarget, receivedDateTarget, docsListTarget, canMarkSalePaid, responsibleProfiles, responsibleProfileMap, transferTargets,
     // filtros e paginação
     setSearchInput, updateFilters, resetFilters, goToPage, changePageSize, fetchClients,
     // ações

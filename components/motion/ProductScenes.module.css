@@ -1,0 +1,114 @@
+/* Cenas de produto (2026-10-25, aprovadas pelo dono — "Todas"). Só transform/opacity/stroke-dashoffset, com saída e
+   caminho reduzido. Nenhuma cena bloqueia clique (pointer-events: none) e todas começam do estado final visível
+   quando o movimento é reduzido. Easing forte, nunca ease-in na entrada: .claude/design/MOTION.md. */
+
+/* ------------------------------------------------------------------ 1. Venda marcada como "Pago" (2,2 s) */
+/* Mesma linguagem do carimbo "Total de descontos" da apresentação (presentation.module.css .valStamp / stampSlam):
+   selo azul de borda dupla, inclinado, que bate vindo grande e gira até assentar, com onda de choque. */
+.paidLayer { position: absolute; inset: 0; border-radius: inherit; pointer-events: none; z-index: 2; }
+.paidSheen { position: absolute; inset: 0; overflow: hidden; border-radius: inherit; }
+.paidSheen::before {
+  content: ""; position: absolute; top: -10%; bottom: -10%; left: 0; width: 38%;
+  background: linear-gradient(100deg, transparent, rgba(91, 164, 245, 0.34), rgba(255, 255, 255, 0.5), rgba(91, 164, 245, 0.34), transparent);
+  transform: translateX(-130%) skewX(-18deg); opacity: 0;
+  animation: paidSheen 900ms cubic-bezier(0.4, 0, 0.2, 1) 520ms both;
+}
+.paidStamp {
+  position: absolute; top: 10px; right: 12px; transform-origin: 65% 55%;
+  padding: 3px 14px 4px; border: 2px solid #fff; border-radius: 10px; outline: 2px solid #5ba4f5; outline-offset: 2px;
+  background: linear-gradient(160deg, #1769d1, #0d3b66);
+  color: #fff; font-size: 13px; font-weight: 900; letter-spacing: 0.2em; line-height: 1.25; text-transform: uppercase;
+  box-shadow: 0 0 0 5px rgba(23, 105, 209, 0.18), 0 8px 18px rgba(2, 12, 24, 0.32), 0 0 22px rgba(91, 164, 245, 0.5);
+  opacity: 0; animation: paidStamp 2200ms linear both;
+}
+.paidStampAbove { top: auto; bottom: calc(100% + 10px); }
+.paidStamp::after {
+  content: ""; position: absolute; inset: -8px; border: 3px solid rgba(156, 195, 245, 0.9); border-radius: 16px;
+  opacity: 0; animation: paidWave 700ms ease-out 500ms both;
+}
+@keyframes paidStamp {
+  0%, 6% { opacity: 0; transform: rotate(-14deg) scale(2.4); animation-timing-function: cubic-bezier(0.23, 1, 0.32, 1); }
+  24% { opacity: 1; transform: rotate(-6deg) scale(1.08); animation-timing-function: cubic-bezier(0.4, 0, 0.6, 1); }
+  29% { opacity: 1; transform: rotate(-4deg) scale(0.95, 0.9); animation-timing-function: cubic-bezier(0.23, 1, 0.32, 1); }
+  35% { opacity: 1; transform: rotate(-6deg) scale(1); }
+  88% { opacity: 1; transform: rotate(-6deg) scale(1); animation-timing-function: cubic-bezier(0.4, 0, 1, 1); }
+  100% { opacity: 0; transform: rotate(-6deg) scale(0.94); }
+}
+@keyframes paidWave { 0% { opacity: 0.9; transform: scale(0.85); } 100% { opacity: 0; transform: scale(1.55, 1.9); } }
+@keyframes paidSheen { 0% { opacity: 0; transform: translateX(-130%) skewX(-18deg); } 15% { opacity: 1; } 100% { opacity: 0; transform: translateX(330%) skewX(-18deg); } }
+/* O valor que sobe contando fica em destaque azul enquanto conta. */
+.paidCount { display: inline-block; font-variant-numeric: tabular-nums; color: #1769d1; }
+
+/* ------------------------------------------------------------------ 2. Crédito aprovado na CCA (1,4 s) */
+.approvedPulse { animation: approvedPulse 480ms cubic-bezier(0.23, 1, 0.32, 1) 1; }
+@keyframes approvedPulse { 0% { transform: scale(0.97); } 100% { transform: scale(1); } }
+.approvedLayer { position: absolute; inset: 0; pointer-events: none; z-index: 2; }
+.approvedStrip {
+  position: absolute; left: 0; right: 0; top: 0; height: 3px; border-radius: 12px 12px 0 0; transform-origin: left center;
+  background: linear-gradient(90deg, #1769d1, #5ba4f5);
+  animation: approvedStrip 1400ms linear both;
+}
+@keyframes approvedStrip {
+  0% { transform: scaleX(0); opacity: 1; animation-timing-function: cubic-bezier(0.23, 1, 0.32, 1); }
+  38% { transform: scaleX(1); opacity: 1; }
+  72% { transform: scaleX(1); opacity: 1; animation-timing-function: ease-out; }
+  100% { transform: scaleX(1); opacity: 0; }
+}
+.approvedBadge {
+  position: absolute; top: 0; bottom: 0; right: 14px; margin: auto 0; width: 54px; height: 54px; border-radius: 50%;
+  background: rgba(255, 255, 255, 0.94); box-shadow: 0 6px 20px rgba(13, 59, 102, 0.2);
+  opacity: 0; animation: approvedBadge 1400ms linear both;
+}
+.approvedBadge svg { display: block; width: 100%; height: 100%; }
+.approvedRing { stroke-dasharray: 139; stroke-dashoffset: 139; animation: scenesDraw 520ms cubic-bezier(0.23, 1, 0.32, 1) 120ms forwards; }
+.approvedCheck { stroke-dasharray: 36; stroke-dashoffset: 36; animation: scenesDrawCheck 320ms cubic-bezier(0.23, 1, 0.32, 1) 520ms forwards; }
+@keyframes approvedBadge {
+  0%, 6% { opacity: 0; transform: scale(0.85); animation-timing-function: cubic-bezier(0.23, 1, 0.32, 1); }
+  20% { opacity: 1; transform: scale(1); }
+  76% { opacity: 1; transform: scale(1); animation-timing-function: ease-out; }
+  100% { opacity: 0; transform: scale(0.96); }
+}
+@keyframes scenesDraw { to { stroke-dashoffset: 0; } }
+@keyframes scenesDrawCheck { to { stroke-dashoffset: 0; } }
+
+/* ------------------------------------------------------------------ 3. Transferência de cliente (700 ms + selo 1,5 s) */
+.transferOut { pointer-events: none; animation: transferOut 700ms cubic-bezier(0.77, 0, 0.175, 1) forwards; }
+@keyframes transferOut { 0% { opacity: 1; transform: none; } 100% { opacity: 0; transform: translateX(36px) scale(0.92); } }
+.transferSeal {
+  position: absolute; inset: 0; margin: auto; width: fit-content; height: fit-content; max-width: calc(100% - 24px); pointer-events: none; z-index: 2;
+  display: inline-flex; align-items: center; gap: 8px; padding: 8px 14px; border-radius: 999px;
+  border: 1.5px solid rgba(23, 105, 209, 0.35); background: #eaf2fe; color: #0d3b66;
+  font-size: 14px; font-weight: 800; box-shadow: 0 6px 18px rgba(13, 59, 102, 0.16);
+  opacity: 0; animation: transferSeal 1500ms linear 160ms both;
+}
+.transferSeal svg { width: 18px; height: 18px; flex: none; }
+.transferSeal span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+@keyframes transferSeal {
+  0% { opacity: 0; transform: scale(0.95); animation-timing-function: cubic-bezier(0.23, 1, 0.32, 1); }
+  18% { opacity: 1; transform: scale(1); }
+  66% { opacity: 1; transform: scale(1); animation-timing-function: ease-out; }
+  100% { opacity: 0; transform: scale(1); }
+}
+
+/* ------------------------------------------------------------------ 4. Primeiro acesso do dia à Meta Diária (1,2 s) */
+/* Só os primeiros 6 cartões; o atraso de cada um vem de --i (≤ 40 ms entre eles). A lista já é clicável no 1º quadro:
+   animação não toca em pointer-events. */
+.dailyIn { animation: dailyIn 360ms cubic-bezier(0.23, 1, 0.32, 1) both; animation-delay: calc(var(--i, 0) * 40ms + 120ms); }
+@keyframes dailyIn { from { opacity: 0; transform: translateY(10px) scale(0.97); } to { opacity: 1; transform: none; } }
+
+/* ------------------------------------------------------------------ reduzido: sem deslocamento/escala/giro, estado final claro */
+@media (prefers-reduced-motion: reduce) {
+  .paidSheen { display: none; }
+  .paidStamp { animation: scenesFadeHold 2200ms linear both; transform: rotate(-6deg); }
+  .paidStamp::after { display: none; }
+  .approvedPulse { animation: none; }
+  .approvedStrip { animation: scenesFadeHold 1400ms linear both; }
+  .approvedBadge { animation: scenesFadeHold 1400ms linear both; }
+  .approvedRing, .approvedCheck { animation: none; stroke-dashoffset: 0; }
+  .transferOut { animation: scenesFadeOut 300ms linear forwards; }
+  .transferSeal { animation: scenesFadeHold 1500ms linear 100ms both; }
+  .dailyIn { animation: scenesFadeIn 200ms linear both; animation-delay: 0ms; }
+}
+@keyframes scenesFadeHold { 0% { opacity: 0; } 10% { opacity: 1; } 80% { opacity: 1; } 100% { opacity: 0; } }
+@keyframes scenesFadeOut { from { opacity: 1; } to { opacity: 0; } }
+@keyframes scenesFadeIn { from { opacity: 0; } to { opacity: 1; } }

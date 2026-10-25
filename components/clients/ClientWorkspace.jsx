@@ -16,6 +16,7 @@ import { SHORTCUT_ICON_BUTTON } from "@/components/ui/shortcut-icon";
 import { CLIENT_STATUS, CLIENT_STATUS_FILTER_GROUPS, CLIENT_STATUS_META } from "@/lib/client-status";
 import { formatMoneyBR } from "@/lib/simulation-list-utils";
 import ClientCard from "./ClientCard";
+import { TransferSeal } from "@/components/motion/ProductScenes";
 import ClientSheet, { DocumentsListDialog } from "./ClientSheet";
 import ProspectingRepliesPanel from "./ProspectingRepliesPanel";
 import { PAGE_SIZE_OPTIONS, datePresetRange, formatDateRangeLabel } from "./client-format";
@@ -68,6 +69,12 @@ export default function ClientWorkspace(props) {
     window.addEventListener("mm:henry-open-client", onHenryOpen);
     return () => window.removeEventListener("mm:henry-open-client", onHenryOpen);
   }, []);
+
+  // Cena "transferência" (2026-10-25): o corretor transfere pela ficha; ela fecha para o card sair da lista à vista (a ficha de
+  // um cliente que já não é dele não tem mais o que mostrar). Só apresentação — a transferência já foi gravada.
+  useEffect(() => {
+    if (openClientId && list.transferExit?.[openClientId]) setOpenClientId("");
+  }, [openClientId, list.transferExit]);
 
   const openClient = list.items.find((item) => item.id === openClientId) || null;
   // Na fila de espera da roleta o cliente fica guardado com o dono (FUN-11), mas a etiqueta mostra "Roleta" (dono,
@@ -204,8 +211,9 @@ export default function ClientWorkspace(props) {
         ) : list.items.length ? (
           <div className={cx("grid gap-3 transition-opacity duration-150 [grid-template-columns:repeat(auto-fill,minmax(min(100%,22rem),1fr))] xl:[grid-template-columns:repeat(auto-fill,minmax(26rem,1fr))]", list.loading && "opacity-60")} aria-busy={list.loading || undefined}>
             {list.items.map((client) => (
+              // Cena "transferência": o selo precisa ocupar o lugar do card enquanto ele sai, por isso cada card tem seu invólucro.
+              <div key={client.id} className="relative flex min-w-0 [&>article]:w-full">
               <ClientCard
-                key={client.id}
                 client={client}
                 activities={list.activitiesFor(client)}
                 responsibleName={responsibleNameOf(client)}
@@ -219,6 +227,8 @@ export default function ClientWorkspace(props) {
                 confirmAction={confirmAction}
                 onOpen={(focus = "") => openFicha(client.id, focus)}
               />
+              {list.transferExit?.[client.id] ? <TransferSeal name={list.transferExit[client.id].toName} /> : null}
+              </div>
             ))}
           </div>
         ) : (

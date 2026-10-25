@@ -909,6 +909,8 @@ export function propsFor(perfil = "admin", { pageSize = 20 } = {}) {
     initialFilters: { ...INITIAL_FILTERS },
     adminProfiles,
     canManageResponsibleUsers: isAdmin || isManager,
+    // CLI-7a (como app/admin/simulacoes/page.jsx): só o corretor transfere o próprio cliente (cena "transferência", 2026-10-25).
+    ownTransfer: perfil === "corretor" ? { selfId: P.bruno, targets: [P.ana, P.carla, P.diego].map((id) => ({ id, name: PROFILE_BY_ID.get(id).name })) } : null,
     // Na vitrine o perfil "admin" representa o dono (isOwnerAdminEmail).
     canReturnAssignedProspecting: isAdmin,
     isOwner: isAdmin,
