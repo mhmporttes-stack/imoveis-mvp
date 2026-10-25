@@ -117,7 +117,8 @@ test("4: imóveis e empreendimentos pela lista das telas (só leitura), preço s
 
 // 5. "como tá a meta do dia pra equipe?" → "ainda não batemos a meta… Quer que eu traga o número exato?"
 test("5: meta da equipe sai com o percentual E quantos bateram (catálogo da Alexa), sem oferecer o número", () => {
-  assert.match(lib, /if \(query\.assunto !== "meta_equipe"[^\n]*\) return main;\n\s+const who = await consultCatalog\(\{ assunto: "meta_bateram"/);
+  // Treino 4: os mesmos dados do catálogo (percentual + quem bateu), a fala é a do Henry (buildHenryTeamGoalSpeech).
+  assert.match(lib, /consultCatalog\(\{ assunto: "meta_bateram", periodo \}, context, \{ full: true \}\)[\s\S]*?buildHenryTeamGoalSpeech\(/);
   assert.match(buildHenryStaticPrompt(), /Nunca pergunte se ele quer o número/);
   const report = analyzeHenryTraining([{ owner: "como tá a meta do dia pra equipe?", reply: "Ainda não batemos a meta. Quer que eu traga o número exato?" }]);
   assert.ok(kinds(report).includes("pergunta_ignorada"));

@@ -5,6 +5,7 @@ import assert from "node:assert/strict";
 import { MORNING_GENRES, MORNING_STEPS, classifyMorningMusicReply, parseMorningState } from "../lib/henry-morning-core.mjs";
 import {
   MORNING_OPEN_CHOICES,
+  morningOpenChoices,
   MORNING_SUGGESTIONS,
   morningArtistTarget,
   morningConfirmLine,
@@ -63,8 +64,11 @@ test("frase do bom dia: sugestão concreta primeiro + abertura para estilo ou ca
       const line = morningSuggestionLine(entry, "Matheus", { now: MONDAY, random: () => r });
       assert.ok(line.includes(entry.say), line);
       assert.ok(line.indexOf(entry.say) < line.search(/estilo|cantor/), line);
-      assert.ok(MORNING_OPEN_CHOICES.some((tail) => line.endsWith(tail)), line);
-      assert.match(line, /rock, sertanejo/);
+      assert.ok(morningOpenChoices(entry).some((tail) => line.endsWith(tail)), line);
+      // Treino 4: os estilos citados nunca repetem o da sugestão ("Vai um sertanejo raiz…? Ou … rock, sertanejo, pagode…")
+      const tail = line.slice(line.indexOf(" Ou ") + 1);
+      for (const style of ["rock", "sertanejo", "pagode", "mpb"]) if (` ${entry.say.toLowerCase()} `.includes(` ${style} `)) assert.equal(tail.toLowerCase().includes(style), false, line);
+      assert.equal(tail.split(",").length >= 3, true, line);
       assert.equal(/rock ou sertanejo/i.test(line), false, line);
       assert.equal(safeHenryReply(line), line, line);
       assert.ok(line.length <= 220, line);
@@ -72,7 +76,7 @@ test("frase do bom dia: sugestão concreta primeiro + abertura para estilo ou ca
   }
   // A abertura já dita hoje não volta enquanto houver outra.
   const first = morningSuggestionLine(MORNING_SUGGESTIONS[0], "Matheus", { now: MONDAY, random: () => 0 });
-  const tail = MORNING_OPEN_CHOICES.find((item) => first.endsWith(item));
+  const tail = morningOpenChoices(MORNING_SUGGESTIONS[0]).find((item) => first.endsWith(item));
   const again = morningSuggestionLine(MORNING_SUGGESTIONS[0], "Matheus", { now: MONDAY, random: () => 0, said: [first] });
   assert.equal(again.endsWith(tail), false, again);
 });

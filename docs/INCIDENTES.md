@@ -40,6 +40,17 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-25 — Henry fala "Última atualização há 28 minutos" duas vezes, ranking no período errado, piada vira CRM, "aquela parada" vira clientes novos, repete após reclamação, não fala os nomes
+- **Data:** 2026-10-25
+- **Sintoma:** Treino 4 (17:27Z, já com `1e18d9c`): meta da equipe = "Última atualização há 28 minutos. A meta da equipe está em 0 por cento. Última atualização há 28 minutos. Ninguém bateu a meta ainda."; "me fala do ranking primeiro" (depois de "ranking dessa semana") → "Ranking hoje: 1º Gabriel e 2º Bruna."; piada → `relatorio_do_dia` 11,3 s; "aquela parada que você tava falando" → "Hoje entraram 2 clientes novos."; "não era isso" → "São 3 vendas…" de novo; "atendimentos de hoje" → oferta; "o nome deles" → "estão na tela"; volume com 2 rodadas e frase longa; ranking_periodo/relatorio_do_dia 6,4–7,5 s.
+- **Área:** Henry (voz/IA) / cache de métricas
+- **Impacto:** só o dono; fala robótica, errada ou lenta.
+- **Causa raiz:** a rota direta falava a frase do catálogo da Alexa, que traz o prefixo de dado velho (`answerQuery`) em CADA frase — a meta junta duas; o período herdado era procurado só na janela de turnos do modelo (o "ranking dessa semana" já tinha saído); "cliente"/"parada"/"vendas" ligavam `isCrmQuestion` → rodada extra com ferramenta obrigatória em piada, referência e concordância; a reclamação comparava só dígitos ("Três" × "3"); clientes novos com nomes ficava fora da rota direta; volume/aparelho só pelo modelo. Lentidão: o Henry recalculava qualquer cache fora da validade (15/45 min) e o job `?mode=heavy` **não existe em produção** (migration `20261023210000` não aplicada) — pesados só na reserva do `refresh` (30 em 30 min no domingo).
+- **Correção:** `deps.staleText` no roteador (Henry sem a frase crua; menção só > 1 h), falas próprias de meta/ranking, período pela conversa do dia inteira, `isCasualRequest`/`isHenryAgreement`/`isPreviousReference`, `numbersOf`, rotas diretas de atendimentos/nomes/volume/aparelho/música + pergunta, cache do Henry até 1 h, Meta do dia do relatório pelo pré-cálculo, achados `cache_cru`/`texto_duplicado`. Detalhe: `docs/CHANGELOG_AI.md` 2026-10-25 (Treino 4). **Pendente:** aplicar a migration do job pesado.
+- **Arquivos/commit:** branch `fix/henry-achados-treino-4`.
+- **Prevenção/teste:** `tests/henry-achados-treino-4.test.mjs` (falas reais).
+- **Status:** Monitorando (rodar o Treino de novo depois da publicação)
+
 ### 2026-10-25 — Henry não busca a meta da equipe (3ª vez), promete "vou puxar" e não puxa, responde 8–11 s, diz 12 e 2 clientes novos no mesmo dia, ranking no período errado, puxa CRM em "como foi teu dia?"
 - **Data:** 2026-10-25
 - **Sintoma:** Treino 3 (16:42Z, já com `206958b`): "como tá a meta do dia pra equipe?" → "Ainda não tenho o número… Pergunta de novo que eu busco agora."; "quero saber onde a gente tá errando" → "Se quiser, eu puxo o funil…" e depois "Vou puxar o funil deste mês agora…" sem número; clientes novos/movimento/funil 8,5–11 s; "12 clientes novos" (16:11Z) × "2" (15:22Z/16:42Z); "me fala do ranking primeiro" (depois de "ranking dessa semana") → o mês; "como foi teu dia?" → "Entraram 2 clientes novos"; "Põe um rock aí" → "Me diz o artista…".
