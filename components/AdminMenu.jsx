@@ -345,6 +345,8 @@ export default function AdminMenu({ isAdmin = false, isBroker = false, isAssocia
 
   return (
     <div className="mm-app-hide admin-sidebar fixed inset-y-0 left-0 z-[35] hidden w-[var(--mm-shell-sidebar)] md:block">
+      {/* Sombra da gaveta aberta: camada própria FORA do recorte (o clip-path cortaria a sombra); só opacity + translate. */}
+      <span aria-hidden="true" data-open={open ? "true" : "false"} className="admin-sidebar-shadow pointer-events-none absolute inset-y-0 left-0 w-[260px] shadow-float" />
       <nav
         aria-label="Menu principal"
         onMouseEnter={() => setOpen(true)}
@@ -352,12 +354,10 @@ export default function AdminMenu({ isAdmin = false, isBroker = false, isAssocia
         onFocus={() => setOpen(true)}
         onBlur={(event) => { if (!event.currentTarget.contains(event.relatedTarget)) setOpen(false); }}
         data-open={open ? "true" : "false"}
-        className={cx(
-          "admin-sidebar-panel absolute inset-y-0 left-0 flex flex-col overflow-hidden border-r border-line pb-3 pt-[calc(env(safe-area-inset-top)+16px)]",
-          "transition-[width,box-shadow] duration-200 ease-out-ui motion-reduce:transition-none",
-          open ? "w-[260px] shadow-float" : "w-[var(--mm-shell-sidebar)]"
-        )}
+        className="admin-sidebar-nav absolute inset-y-0 left-0 flex w-[260px] flex-col overflow-hidden pb-3 pt-[calc(env(safe-area-inset-top)+16px)]"
       >
+        {/* Fundo + borda: desliza por translateX; o recorte (clip-path) mostra só a coluna de 76 px até abrir (dono, 2026-10-25: sem animar width). */}
+        <span aria-hidden="true" data-open={open ? "true" : "false"} className="admin-sidebar-panel admin-sidebar-bg absolute inset-y-0 left-0 -z-10 w-[260px] border-r border-line" />
         <Link href="/admin/simulacoes" className="mx-2.5 mb-3 flex min-h-touch shrink-0 items-center gap-3 rounded-control px-[5px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent" aria-label="Matheus Machado Corretor de Imóveis — Clientes">
           <img src="/assets/matheus-machado-symbol.png" alt="" width={40} height={40} className="h-10 w-10 shrink-0 object-contain" />
           <span className={cx("min-w-0 whitespace-nowrap leading-tight transition-opacity duration-150", open ? "opacity-100" : "opacity-0")}>
@@ -389,9 +389,11 @@ export default function AdminMenu({ isAdmin = false, isBroker = false, isAssocia
                         className={cx(
                           "relative mb-0.5 flex min-h-[42px] items-center gap-3 rounded-control border px-[13px] text-sm",
                           "transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent",
-                          isCurrent ? "border-accent-line bg-accent-soft font-bold text-ink" : "border-transparent font-medium text-ink-2 hover:bg-surface-2 hover:text-ink"
+                          // Fechado, o destaque é a "pílula" do trilho (abaixo); aberto, é a própria linha — sem animar largura.
+                          isCurrent ? cx("font-bold text-ink", open ? "border-accent-line bg-accent-soft" : "border-transparent") : "border-transparent font-medium text-ink-2 hover:bg-surface-2 hover:text-ink"
                         )}
                       >
+                        {isCurrent ? <span aria-hidden="true" className={cx("pointer-events-none absolute -bottom-px -left-px -top-px w-14 rounded-control border border-accent-line bg-accent-soft transition-opacity duration-150", open ? "opacity-0" : "opacity-100")} /> : null}
                         <span className={cx("relative inline-flex w-6 shrink-0 justify-center", isCurrent ? "text-accent" : "text-muted")}>
                           <Icon className="h-[21px] w-[21px]" strokeWidth={1.8} aria-hidden="true" />
                           {!open && badge ? <span className="mm-count-dot absolute -right-1.5 -top-1" aria-hidden="true" /> : null}

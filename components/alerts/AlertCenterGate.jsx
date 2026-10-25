@@ -231,6 +231,11 @@ function InformativeStack({ items, waiting, paused, isMobile, onDone }) {
   );
 }
 
+// Só a apresentação (dono, 2026-10-25): entrada ~300 ms, saída ~200 ms. O tempo de permanência continua
+// INFORMATIVE_TIMING (lib/crm-alerts-core.mjs) — não mexer lá.
+const INFORMATIVE_ENTER_ANIM_MS = 300;
+const INFORMATIVE_EXIT_ANIM_MS = 200;
+
 function InformativeCard({ item, paused, reduce, onDone, isMobile, waiting = 0 }) {
   const [hovered, setHovered] = useState(false);
   const remaining = useRef(INFORMATIVE_TIMING.enterMs + INFORMATIVE_TIMING.visibleMs);
@@ -268,8 +273,8 @@ function InformativeCard({ item, paused, reduce, onDone, isMobile, waiting = 0 }
     : {
         // Visual novo (2026-10-22): entra pela direita; a barra embaixo mostra os ~5 s (para junto com o tempo).
         initial: { opacity: 0, x: 60 },
-        animate: { opacity: 1, x: 0, transition: { duration: INFORMATIVE_TIMING.enterMs / 1000, ease: [0.2, 0.8, 0.2, 1] } },
-        exit: { opacity: 0, x: 40, transition: { duration: INFORMATIVE_TIMING.exitMs / 1000, ease: "easeOut" } }
+        animate: { opacity: 1, x: 0, transition: { duration: INFORMATIVE_ENTER_ANIM_MS / 1000, ease: [0.23, 1, 0.32, 1] } },
+        exit: { opacity: 0, x: 40, transition: { duration: INFORMATIVE_EXIT_ANIM_MS / 1000, ease: [0.23, 1, 0.32, 1] } }
       };
 
   return (
@@ -298,7 +303,7 @@ function InformativeCard({ item, paused, reduce, onDone, isMobile, waiting = 0 }
           type="button"
           onClick={() => onDone(item.id)}
           aria-label="Fechar aviso"
-          className={`grid size-8 shrink-0 place-items-center rounded-full ${scene.toastClose} ${isMobile ? "" : "opacity-0 focus:opacity-100 group-hover:opacity-100"}`}
+          className={`grid size-8 shrink-0 place-items-center rounded-full ${scene.toastClose} ${isMobile ? "" : "[@media(hover:hover)]:opacity-0 focus:opacity-100 group-hover:opacity-100"}`}
         >
           <X className="h-4 w-4" />
         </button>

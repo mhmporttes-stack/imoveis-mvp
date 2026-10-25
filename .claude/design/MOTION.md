@@ -47,7 +47,7 @@ Fontes (só princípios, em palavras nossas): `ref-emil/` (E = emil-design-eng, 
 13. **Revise como o craque (R, E).** Em câmera lenta 2–5×, quadro a quadro, no celular de verdade e no dia seguinte. Relate achados em tabela Antes | Depois | Por quê, com arquivo:linha. Na dúvida se o movimento "está bom", o forte é apagar.
 
 ### Precedência no projeto
-- Decisões do dono mandam: `--mm-motion-*` em `app/globals.css` (cenas do Chat, sheets, mensagem nova) foram triplicadas duas vezes a pedido dele (2026-10-12) e a opacidade ficou em 400 ms (2026-10-22). Não "corrija" para 300 ms sem pedir; proponha.
+- Decisões do dono mandam: `--mm-motion-*` em `app/globals.css`. As cenas do Chat, sheets e mensagem nova foram triplicadas duas vezes a pedido dele (2026-10-12) e a opacidade ficou em 400 ms (2026-10-22). **Em 2026-10-25 o dono aprovou voltar Sheets (500 ms), menu de ações (400 ms) e mensagem nova (450 ms) à faixa de 0,4–0,6 s** ("aplique de 1 até 8"); troca de tela, abas, voltar e indicador da navegação seguem nos valores de 2026-10-12. Não "corrija" para 300 ms sem pedir; proponha.
 - Cenas fora do teto de 300 ms (podem mais, com saída e reduzido): Meta Diária, Henry, Celebração, Mensagem do dia, Central de Alertas importante, entrada por rolagem. UI de uso frequente (botão, switch, menu, toast, popup, lista) fica abaixo de 300 ms.
 - Os 4 padrões que já estão certos e valem de modelo: `Button`/`:active scale` (`components/ui/Button.jsx`), popup de cliente (`ClientPopupStack.module.css`), Supervisão/Alertas com `motion` (`EASE`, ≤ 260 ms, caminho reduzido separado), Henry (pausa com aba oculta e ritmo adaptativo, `HenryOrb`).
 

@@ -19,6 +19,7 @@ import WhatsappIndividualStatus from "@/components/WhatsappIndividualStatus";
 import HideInFinanceiroApp from "@/components/HideInFinanceiroApp";
 import GoogleContactsStatus from "@/components/GoogleContactsStatus";
 import SceneTransitionRoot from "@/components/motion/SceneTransitionRoot";
+import PanelMotionConfig from "@/components/motion/PanelMotionConfig";
 import { ADMIN_FONT_CSS } from "@/components/admin-font";
 import Link from "next/link";
 import { getAdminFromCookies, isOwnerAdminEmail } from "@/lib/admin-auth";
@@ -44,6 +45,7 @@ export default async function AdminLayout({ children }) {
 
   return (
     <AcademyMenuProvider enabled={isAcademyEnabled()}>
+      <PanelMotionConfig>
       <style dangerouslySetInnerHTML={{ __html: ADMIN_FONT_CSS }} />
       {/* Presença é do usuário REAL: em "Alterar conta" não usa o id do corretor emulado. */}
       {auth.ok ? <AdminPresenceHeartbeat userId={resolvePresenceProfileId(auth)} /> : null}
@@ -148,6 +150,7 @@ export default async function AdminLayout({ children }) {
           ) : null}
         </div>
       ) : null}
+      </PanelMotionConfig>
     </AcademyMenuProvider>
   );
 }

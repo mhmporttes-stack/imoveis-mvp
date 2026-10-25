@@ -25,6 +25,10 @@ const themedPalettes = Object.fromEntries(PALETTES.map((name) => [name, themedSc
 // aditivo: os tokens antigos (ink, muted, navy, brand, mist, line, soft,
 // premium) continuam valendo até cada tela ser redesenhada.
 module.exports = {
+  // Hover só onde existe hover (dono, 2026-10-25, item 8): todo `hover:`/`group-hover:`/`peer-hover:` vira
+  // `@media (hover: hover) { ... }`. No celular/tablet de toque o estilo "grudava" depois do toque; agora só
+  // vale com mouse/trackpad. Conteúdo que SÓ aparecia no hover precisa de alternativa de toque (ver AlertCenterGate).
+  future: { hoverOnlyWhenSupported: true },
   content: [
     "./app/**/*.{js,jsx}",
     "./components/**/*.{js,jsx}",

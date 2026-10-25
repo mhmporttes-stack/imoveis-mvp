@@ -1,4 +1,5 @@
 import { Manrope } from "next/font/google";
+import PanelMotionConfig from "@/components/motion/PanelMotionConfig";
 
 // Terceiro ícone da tela inicial (pedido do dono, 2026-10-09): "Chat", independente do
 // "Painel". Só esta rota usa o manifesto/ícone do Chat; o resto do site continua com o
@@ -33,7 +34,7 @@ export default function ChatAppLayout({ children }) {
     <>
       <style dangerouslySetInnerHTML={{ __html: FONT_CSS }} />
       <script dangerouslySetInnerHTML={{ __html: 'document.documentElement.setAttribute("data-mm-app","chat")' }} />
-      {children}
+      <PanelMotionConfig>{children}</PanelMotionConfig>
     </>
   );
 }
