@@ -160,7 +160,7 @@ test("simulação, documentos e linha do tempo pelas fontes da ficha", () => {
 // --- Outras leituras ---------------------------------------------------------------------------------------------------
 test("chat, financeiro e presença: frases seguras para a voz", () => {
   const awaiting = buildHenryAwaitingReport({ total: 5, late: 2, groups: [{ brokerId: "b1", count: 3, oldest: { name: "Maria Silva", waitingMinutes: 90 } }, { brokerId: "b2", count: 2 }], brokerName: ctx.brokerName });
-  assert.match(awaiting.spoken, /5 conversas aguardam resposta, 2 atrasadas; Ana com 3, Carolina com 2/);
+  assert.equal(awaiting.spoken, "São 5 conversas esperando resposta, 2 atrasadas. Ana tem 3 e Carolina 2."); // Treino 8: fala de gente
   assert.equal(buildHenryAwaitingReport({ groups: [{ brokerId: "b1", count: 3 }], brokerName: ctx.brokerName, onlyBrokerId: "b1" }).facts.aguardando_resposta, 3);
   const conversation = buildHenryConversationReport({ clientName: "Maria Silva", conversations: [{ unread_count: 2, last_inbound_at: "2026-10-22T10:00:00Z", last_message_at: "x", ai_summary: { text: "Quer: casa", generated_at: "2026-10-22T11:00:00Z", last_message_at: "x" } }], formatDate: () => "22/10" });
   assert.equal(conversation.facts.resumo_em_cache.desatualizado, false);

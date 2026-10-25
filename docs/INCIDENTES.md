@@ -40,6 +40,17 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-25 — Henry diz que procurou sem procurar, fala "a ferramenta não entendeu" e não sabe quem ficou em segundo
+- **Data:** 2026-10-25
+- **Sintoma:** Treino 8 (19:10Z, automático): "e a dona Joana, ela já respondeu?" → "Não achei nenhum cliente chamado Joana" sem ferramenta; "o cliente da Vila Carvalho…" → "a consulta não voltou" sem ferramenta; meta da equipe "bateu ou tá faltando" → "A ferramenta não entendeu essa consulta"; "Quem ficou em segundo?" → "Ainda não tenho o segundo colocado"; "quem tá há mais tempo sem retorno" 11,8 s com 2 ferramentas; "por que a gente não está fechando" após reclamação → "O que você quer saber?"; "cadê o plano" → recusa; "Matheus com 24" na lista; "voltando pro assunto do cliente" → funil; "me lembra do WhatsApp" → ofereceu lembrete.
+- **Área:** Henry (voz/IA) / Treino
+- **Impacto:** só o dono; resposta falsa (dizer que buscou), fala interna e respostas erradas.
+- **Causa raiz:** sem rota direta para cliente com nome nem barreira para "não achei" sem ferramenta; "Não entendi." cru do catálogo ia ao modelo; comparação só com "quem mais/menos"; parados sem rota; diagnóstico só no fim da fala e dependente do modelo após reclamação; sem plano; montagem das conversas com o nome do dono; retomada pegava a última fala de cliente (com lugar) e não a com nome; "me lembra do" fora do resumo do WhatsApp. Lentidão do corretor: rodada provavelmente antes do deploy do Treino 7.
+- **Correção:** `henryClientNameRequest`/`henryPlaceClientReply`/`henryClaimedLookupWithoutTool`; instrução do catálogo + `stripInternalTalk`; rota meta "bateu/faltando"; `comparisonFollowUp` (`posicao`/`seguintes`); rota `sem_contato` + `buildHenryStaleClientsSpeech`; `WHY_NOT_CLOSING` + `speak: "fixed"`; `isHenryPlanRequest` + `henryBottleneckPlan`; `buildHenryAwaitingReport` com `ownerId`; `henryResumeTopic` com `name`; `WHATSAPP_REMIND`; `rollingOverviewIdFor`. Detalhe: `docs/CHANGELOG_AI.md` 2026-10-25 (Treino 8).
+- **Arquivos/commit:** branch `fix/henry-achados-treino-8`.
+- **Prevenção/teste:** `tests/henry-achados-treino-8.test.mjs` (falas reais); achados do Treino `busca_sem_ferramenta` e `vazamento_interno`.
+- **Status:** Resolvido (aguarda publicação; rodar o Treino de novo depois e medir `[henry] tempos consultar_corretor`)
+
 ### 2026-10-25 — Henry demora 9 s num corretor, muda o gargalo a cada resposta, fala números no "boa tarde", não toca o "pagode antes" e diz que não trocou a música de aparelho
 - **Data:** 2026-10-25
 - **Sintoma:** Treino 7 (18:49Z, automático): "quantas simulações o Eduardo rodou nos últimos trinta dias?" 11,9 s (9,3 s de ferramenta); gargalo "entre aprovação e venda" → "entre enviados e aprovados" → "na documentação"; bom dia "Pode ser sim, mas coloca um pagode antes" → relatório sem música; "E aí, Henry, boa tarde!" → "…a equipe já fez 4 atendimentos"; "voltando pro assunto do cliente" → "989 clientes novos"; "troca essa música aí e coloca na Alexa" → "Não consegui trocar"; "Beleza, pode abrir." → "Pode ficar tranquilo."; "conversas no WhatsApp esperando resposta?" 3 rodadas.

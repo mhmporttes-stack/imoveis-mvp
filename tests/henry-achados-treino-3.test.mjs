@@ -57,8 +57,8 @@ test("1: meta do dia da equipe SEMPRE consulta a Meta Diária da equipe (rota di
 //    mês agora e te mostrar…" (1,1 s, sem ferramenta).
 test("2: diagnóstico vai direto ao funil; promessa sem ação vira rodada com ferramenta obrigatória", () => {
   const ask = "Não era isso que eu perguntei, Henry. Eu quero saber onde a gente tá errando.";
-  assert.deepEqual(route(ask, DAY), { name: "funil_periodo", input: { periodo: "este_mes" }, topic: "diagnostico" });
-  assert.deepEqual(route("qual o gargalo da semana passada?"), { name: "funil_periodo", input: { periodo: "semana_passada" }, topic: "diagnostico" });
+  assert.deepEqual(route(ask, DAY), { name: "funil_periodo", input: { periodo: "este_mes" }, topic: "diagnostico", speak: "fixed" }); // Treino 8: frase do gargalo fixa
+  assert.deepEqual(route("qual o gargalo da semana passada?"), { name: "funil_periodo", input: { periodo: "semana_passada" }, topic: "diagnostico", speak: "fixed" });
   const hint = henryTurnHint({ text: ask, lastAssistant: "Este mês já são 3 vendas fechadas, bora pra mais!", turns: DAY, direct: route(ask, DAY) });
   assert.match(hint, /gargalo/);
   assert.match(hint, /não diga que vai buscar nem ofereça buscar/);
@@ -81,7 +81,7 @@ test("2: diagnóstico vai direto ao funil; promessa sem ação vira rodada com f
 test("3: rota direta sem rodada do modelo quando a ferramenta já traz a frase; Treino guarda os tempos", () => {
   assert.match(lib, /if \(parts\.every\(\(part\) => part !== null\)\) \{\n\s+skipModel = true;/);
   assert.match(lib, /for \(; !skipModel && rounds <= MAX_TOOL_ROUNDS; rounds \+= 1\)/);
-  assert.match(lib, /const spoken = step\.speak && !complaint && !context\.providerFailed \? henryDirectSpeech\(contents\[index\], \{ any: step\.speak === "always" \}\) : "";/);
+  assert.match(lib, /const spoken = step\.speak && \(fixed \|\| !complaint\) && !context\.providerFailed \? henryDirectSpeech\(contents\[index\], \{ any: step\.speak === "always" \|\| fixed, fixed \}\) : "";/); // Treino 8: "fixed" fala mesmo após reclamação
   assert.match(lib, /if \(timing\.rounds\) logModelUsage\(auth, feature, usage\);/);
   assert.match(lib, /timing\.toolNames = context\.tools\.map\(\(tool\) => tool\.name\);/);
   assert.match(training, /toolNames: Array\.isArray\(answer\.timing\?\.toolNames\)/);

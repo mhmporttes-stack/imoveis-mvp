@@ -82,7 +82,7 @@ test("3: os aprovados esperando = lista da etapa agora (quantos, mais antigos na
   assert.equal(route(ask, [{ role: "assistant", text: "Tem 20 conversas aguardando resposta." }]), null); // sem etapa na conversa
   // Treino 7: conversa no WhatsApp esperando resposta = rota direta das conversas aguardando (nunca a etapa).
   assert.equal(route("Henry, tem alguma conversa no WhatsApp esperando resposta?")?.name, "conversas_aguardando");
-  assert.equal(route("quem tá parado há mais tempo no CRM?"), null); // parados: o catálogo de sempre
+  assert.equal(route("quem tá parado há mais tempo no CRM?")?.input?.assunto, "sem_contato"); // Treino 8: parados pela rota direta (catálogo sem_contato)
   const rows = [
     { full_name: "Ana Paula Souza", since: "2026-09-21T15:00:00Z", broker: "Bruna" },
     { full_name: "Sem nome", since: "2026-09-30T15:00:00Z" },

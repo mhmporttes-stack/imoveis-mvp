@@ -40,7 +40,7 @@ test("1: assunto da situação de AGORA (parados/sem contato) com período longo
   // A coerção roda ANTES da recusa (consultCatalog) e das ferramentas de período.
   assert.ok(lib.indexOf("NOW_CATALOG_TOPICS.has(query.assunto)") < lib.indexOf("const rankingPeriod = rankingPeriodFor(query, context.question);"));
   assert.match(lib, /parados\/sem contato \(sem_contato; 'quem está parado há mais tempo' = formato lista\)/);
-  assert.equal(route("Henry, me fala aí quem tá parado há mais tempo no CRM?"), null); // segue com o modelo e o catálogo
+  assert.deepEqual(route("Henry, me fala aí quem tá parado há mais tempo no CRM?")?.input, { assunto: "sem_contato", formato: "lista" }); // Treino 8: rota direta, mesmo catálogo
 });
 
 // 2. "Baixa um pouco aí, Henry, tá muito alto." → "Já abaixei o volume." sem nenhuma ferramenta.
@@ -65,7 +65,7 @@ test("2: volume curto sem a palavra som/volume pela rota direta + barreira de a�
   for (const fine of ["Não abaixei o volume ainda.", "Vou tocar algo pra você.", "A tela de Clientes já tá aberta no computador.", "A conversão diminui quando o lead esfria."]) assert.equal(henryClaimedActionWithoutTool(fine, []), null, fine);
   assert.match(henryClaimedActionWithoutTool("Já abaixei o volume.", []).retry, /Chame AGORA a ferramenta \(spotify\)/);
   // Servidor: UMA rodada que obriga a ferramenta; continuou sem → a frase de que não fez.
-  assert.match(lib, /const claimed = withTools && !claimRetried && rounds < MAX_TOOL_ROUNDS && !toolUses\.length \? henryClaimedActionWithoutTool\(replyText, context\.tools\.map\(\(tool\) => tool\.name\)\) : null;/);
+  assert.match(lib, /const claimed = withTools && !claimRetried && rounds < MAX_TOOL_ROUNDS && !toolUses\.length\n\s+\? henryClaimedActionWithoutTool\(replyText, context\.tools\.map\(\(tool\) => tool\.name\)\) \|\| /); // Treino 8: + busca dita sem busca
   assert.match(lib, /messages\.push\(\{ role: "user", content: claimed\.retry \}\);\n\s+forceTool = true;/);
   assert.match(lib, /const stillClaimed = henryClaimedActionWithoutTool\(replyText, context\.tools\.map\(\(tool\) => tool\.name\)\);\n\s+if \(stillClaimed\) \{[\s\S]*?replyText = stillClaimed\.fail;/);
   // Treino: achado "acao_sem_ferramenta" com a troca real.

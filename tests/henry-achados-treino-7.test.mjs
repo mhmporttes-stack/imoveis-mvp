@@ -77,7 +77,7 @@ test("2: gargalo determinístico no montador do funil (maior queda proporcional 
   assert.deepEqual(route("não fecha", turns).input, { periodo: "semana_passada" });
   assert.deepEqual(route("me diz onde tá travando", turns).input, { periodo: "semana_passada" });
   assert.equal(isHenryDiagnosisQuestion("fecha a tela"), false);
-  assert.match(lib, /diagnosis: isHenryDiagnosisQuestion\(context\.question\),/);
+  assert.match(lib, /diagnosis: plan \|\| context\.directTopic === "diagnostico" \|\| isHenryDiagnosisQuestion\(context\.question\),/); // Treino 8: o plano também usa o gargalo
   assert.match(henryTurnHint({ text: "não fecha", direct: route("não fecha") }), /fale SÓ esse gargalo/);
 });
 
@@ -170,7 +170,7 @@ test("7: \"pode abrir\" de tela que já está aberta = \"Tá aberta, é só olha
   assert.equal(henryAlreadyOpenReply("Beleza, pode abrir.", "Quer que eu abra a tela de Clientes?"), "");
   assert.equal(henryAlreadyOpenReply("Beleza.", "A tela de Clientes já tá aberta."), "");
   assert.equal(isHenryAgreement("Beleza, pode abrir."), false); // pedido, não concordância
-  assert.match(lib, /const alreadyOpen = !image && !accepted \? henryAlreadyOpenReply\(text, lastAssistant\) : "";/);
+  assert.match(lib, /const fixedReply = !image && !accepted \? henryAlreadyOpenReply\(text, lastAssistant\) \|\| \(locked \? "" : henryPlaceClientReply\(text\)\) : "";/); // Treino 8: + cliente por lugar
 });
 
 // 8. "conversas no WhatsApp esperando resposta?" → 3 rodadas, 4,2 s.
