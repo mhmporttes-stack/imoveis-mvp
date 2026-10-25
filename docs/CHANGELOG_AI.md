@@ -4,6 +4,9 @@
 > Manual dos agentes: [`../AGENTS.md`](../AGENTS.md) · Contexto: [`CRM_CONTEXT.md`](CRM_CONTEXT.md) · Regras: [`BUSINESS_RULES.md`](BUSINESS_RULES.md) · Arquitetura: [`SYSTEM_ARCHITECTURE.md`](SYSTEM_ARCHITECTURE.md).
 
 
+## 2026-10-25 — Henry pensando: Cérebro realista no lugar dos neurônios
+Dono aprovou o "Cérebro realista" do protótipo Pulso do CRM para o estado pensando. Novo `components/henry/henry-brain.js` (cérebro 3D, impulsos por feixes, ondas de regiões, varredura; ~938 nós computador / ~399 celular e ícone; sprites uma vez; revezamento por quadro); `HenryOrb.jsx` perdeu a rede neural, o feixe dourado e o dourado dos nós (`buildNeuralNet` e a prop `nodes` removidos); estado `thinking` com anel calmo (warm 0, beamOn 0, amp 0.42, counterSpin 0.22, respiração suave). Boom e outros estados intactos. Pausa por `isPageHidden`; reduced-motion = quadro parado. Branch `feat/henry-cerebro-pensando`, NÃO publicada em main. Regra: `docs/BUSINESS_RULES.md` HENRY-1. Visto na vitrine (computador, celular, ícone, movimento reduzido, ciclo de estados).
+
 ## 2026-10-25 — Recado do Henry marcado "Enviada pelo Henry"
 Dono: "Sim pode avisar que foi enviado pelo Henry". `sendSupervisionMessage` aceita `origin` (`crm`|`henry`); o Henry grava `origin = 'henry'`; o balão do corretor mostra "Enviada pelo Henry" e o push ganha "(enviada pelo Henry)". `toSupervisionMessage` expõe `origin`. Sem migration (coluna já existia, texto livre).
 

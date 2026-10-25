@@ -237,7 +237,7 @@ export default function HenryVoiceView({
             style={{ background: BACKDROP, width: MOBILE_BIG, height: MOBILE_BIG, transform: `scale(${box / MOBILE_BIG})`, transformOrigin: "bottom left" }}
             aria-label={`Falar com o Henry. ${status}`}
           >
-            <HenryOrb size={MOBILE_BIG} fibers={18} points={48} alpha={0.45} lineWidth={0.8} nodes={6} getSignal={getSignal} sleep={sleeping && !engaged} />
+            <HenryOrb size={MOBILE_BIG} fibers={18} points={48} alpha={0.45} lineWidth={0.8} getSignal={getSignal} sleep={sleeping && !engaged} />
             {inConversation ? <ConversationDot /> : null}
           </button>
           <HenrySceneStyles />
@@ -326,7 +326,7 @@ export default function HenryVoiceView({
             aria-label={`Abrir o Henry. ${status}`}
             title={`Henry — ${heardHint || status}`}
           >
-            <HenryOrb size={ICON_BIG} fibers={24} points={60} alpha={0.42} lineWidth={0.8} nodes={7} getSignal={getSignal} sleep={sleeping && !engaged} />
+            <HenryOrb size={ICON_BIG} fibers={24} points={60} alpha={0.42} lineWidth={0.8} getSignal={getSignal} sleep={sleeping && !engaged} />
             {capturing ? <CaptureDot className="absolute right-3 top-3" /> : null}
             {inConversation ? <ConversationDot /> : null}
           </button>
@@ -422,10 +422,10 @@ export default function HenryVoiceView({
       <div className={`relative transition-transform duration-300 ease-out motion-reduce:transition-none ${mobile ? (keypadFocus ? "-translate-y-[14vh] scale-[0.72]" : "-translate-y-[14vh]") : ""}`}>
         {onTalk ? (
           <button type="button" onPointerDown={preventTouchSelection} onClick={onTalk} className="block rounded-full" aria-label={recording ? "Enviar o que eu falei" : "Tocar para falar com o Henry"}>
-            <HenryOrb size={orbSize} fibers={mobile ? 40 : 52} points={mobile ? 110 : 140} alpha={0.3} lineWidth={0.85} glow nodes={mobile ? 16 : 24} getSignal={orbSignal} />
+            <HenryOrb size={orbSize} fibers={mobile ? 40 : 52} points={mobile ? 110 : 140} alpha={0.3} lineWidth={0.85} glow getSignal={orbSignal} />
           </button>
         ) : (
-          <HenryOrb size={orbSize} fibers={mobile ? 40 : 52} points={mobile ? 110 : 140} alpha={0.3} lineWidth={0.85} glow nodes={mobile ? 16 : 24} getSignal={orbSignal} />
+          <HenryOrb size={orbSize} fibers={mobile ? 40 : 52} points={mobile ? 110 : 140} alpha={0.3} lineWidth={0.85} glow getSignal={orbSignal} />
         )}
         {unlockSweep ? <span key={unlockSweep} className="henry-unlock-sweep pointer-events-none absolute inset-0 rounded-full" aria-hidden="true" /> : null}
         <HenryBrokerCards brokers={brokers} orbSize={orbSize} mobile={mobile} />

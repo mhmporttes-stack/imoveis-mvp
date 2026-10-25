@@ -38,7 +38,8 @@ import {
   splitForSpeech
 } from "../lib/henry-voice-conversation.mjs";
 import { HENRY_HISTORY_TURNS, sanitizeHistory } from "../lib/henry-voice-core.mjs";
-import { HENRY_ORB_MODES, HENRY_ORB_STATES, buildNeuralNet, henryOrbMode, mixHexColor, orbEase, orbStops, thinkingActivity } from "../components/henry/henry-orb-states.mjs";
+import { buildHenryBrain } from "../components/henry/henry-brain.js";
+import { HENRY_ORB_MODES, HENRY_ORB_STATES, henryOrbMode, mixHexColor, orbEase, orbStops, thinkingActivity } from "../components/henry/henry-orb-states.mjs";
 
 test("palavras de parada: só frase curta feita delas", () => {
   for (const phrase of ["para", "Para!", "espera", "pera", "peraí", "chega", "para, Henry", "ei, espera aí", "pode parar"]) {
@@ -117,7 +118,7 @@ test("legenda do ícone: pergunta enquanto pensa, resposta enquanto fala/convers
 test("anel: estados distintos, transição de ~300 ms e cor quente ao falar", () => {
   const { idle, listening, thinking, speaking } = HENRY_ORB_STATES;
   assert.ok(listening.levelAmp > 1 && listening.travel > 0 && listening.glowLevel > 0.5); // ouvindo: segue o volume
-  assert.ok(thinking.counterSpin > 0.5 && thinking.beamOn === 1 && thinking.breath > idle.breath); // pensando
+  assert.ok(thinking.counterSpin > 0 && thinking.beamOn === 0 && thinking.warm === 0 && thinking.dim > idle.dim && thinking.neural === 1); // pensando: anel calmo + cérebro (2026-10-25)
   assert.ok(speaking.sphere === 1 && speaking.fan === 1 && speaking.warm === 1 && speaking.levelSwell > listening.levelSwell); // falando
   assert.ok(idle.amp < listening.amp && idle.spin > 0); // parado: respira e gira devagar
   // ~95% do caminho em 300 ms, em 60 fps ou 30 fps.
@@ -131,7 +132,7 @@ test("anel: estados distintos, transição de ~300 ms e cor quente ao falar", ()
   assert.equal(orbStops(1)[0][1], "#ffffff");
 });
 
-test("anel: estados distinguíveis — parado, esperando, ouvindo, pensando (rede neural), falando", () => {
+test("anel: estados distinguíveis — parado, esperando, ouvindo, pensando (Cérebro realista), falando", () => {
   // Fonte única do estado visual (dono, 2026-10-23).
   assert.equal(henryOrbMode({ phase: "speaking", recording: true }), "speaking");
   assert.equal(henryOrbMode({ phase: "thinking", recording: true }), "listening"); // gravando o pedido = ouvindo
@@ -145,7 +146,9 @@ test("anel: estados distinguíveis — parado, esperando, ouvindo, pensando (red
   assert.equal(henryOrbMode(), "idle");
   for (const mode of ["idle", "waiting", "listening", "thinking", "speaking"]) assert.ok(HENRY_ORB_MODES.includes(mode));
   const { idle, waiting, thinking, speaking, listening } = HENRY_ORB_STATES;
-  // Só "pensando" tem rede no centro; ao falar ela some (interpolação de ~300 ms).
+  // Só "pensando" tem o cérebro no centro; ao falar ele apaga (interpolação de ~300 ms). Anel calmo, frio e sem feixe dourado (dono, 2026-10-25).
+  assert.equal(thinking.beamOn, 0);
+  assert.equal(thinking.warm, 0);
   assert.equal(thinking.neural, 1);
   for (const state of [idle, waiting, listening, speaking]) assert.equal(state.neural, 0);
   // Esperando = brilho no contorno; parado = escurecido e sem contorno.
@@ -157,21 +160,19 @@ test("anel: estados distinguíveis — parado, esperando, ouvindo, pensando (red
   for (const state of Object.values(HENRY_ORB_STATES)) assert.equal(Object.keys(state).sort().join(), keys);
 });
 
-test("rede neural: papo calmo, busca intensa, progresso aumenta; rede determinística dentro dos anéis", () => {
+test("Cérebro realista: intensidade por assunto; geometria determinística, ~938 nós no computador e ~399 no celular", () => {
   assert.ok(thinkingActivity({ topic: "geral" }) < thinkingActivity({ topic: "music" }));
   assert.ok(thinkingActivity({ topic: "music" }) < thinkingActivity({ topic: "relatorio" }));
   assert.ok(thinkingActivity({ topic: "internet", progress: 3 }) > thinkingActivity({ topic: "internet" }));
   assert.equal(thinkingActivity({ topic: "funil", progress: 50 }), 1);
-  const big = buildNeuralNet(24);
-  assert.equal(big.nodes.length, 24);
-  assert.deepEqual(buildNeuralNet(24), big);
-  for (const node of big.nodes) assert.ok(Math.hypot(node.x, node.y) <= 0.7 + 1e-9);
-  assert.ok(big.edges.length >= 24 && big.tendrils.length > 0);
-  for (const edge of big.edges) assert.ok(edge.a < edge.b && edge.b < 24);
-  const icon = buildNeuralNet(6); // ícone minimizado: poucos nós
-  assert.equal(icon.nodes.length, 6);
-  assert.ok(icon.edges.length > 0);
-  assert.equal(buildNeuralNet(500).nodes.length, 40); // teto de desempenho
+  const big = buildHenryBrain(false);
+  const small = buildHenryBrain(true);
+  assert.equal(buildHenryBrain(false), big); // montado uma vez
+  assert.ok(big.nodes.n > 900 && big.nodes.n < 980, String(big.nodes.n));
+  assert.ok(small.nodes.n > 380 && small.nodes.n < 420, String(small.nodes.n));
+  assert.ok(small.G.n < big.G.n);
+  assert.equal(big.tr.length, 2 * 14 + 5); // 14 feixes bilaterais + 5 calosos
+  for (const q of big.tr) assert.ok(q.n >= 2 && q.off + q.n <= big.T.n);
 });
 
 test("anel e ícone: limites de desempenho e movimento reduzido", () => {
@@ -185,13 +186,18 @@ test("anel e ícone: limites de desempenho e movimento reduzido", () => {
   assert.match(orb, /const FULLSCREEN_ECO_FRAME_MS = 1000 \/ 15;/);
   assert.match(orb, /const FULLSCREEN_ECO_AFTER_MS = 60000;/);
   assert.match(orb, /const glowLayer = glow \? createGlowLayer\(/);
-  assert.match(orb, /buildNeuralNet\(nodes\)/);
-  assert.match(orb, /pulses\.length >= 36/); // teto de sinapses por quadro
+  // Cérebro realista (2026-10-25): módulo próprio, sprites criados uma vez, revezamento por quadro, sem dourado.
+  assert.match(orb, /createHenryBrain\(/);
+  assert.match(orb, /window\.innerWidth < 820/);
+  assert.doesNotMatch(orb, /buildNeuralNet|#F3DCA6.*gold|pulse\.gold/);
+  const brain = readFileSync(new URL("../components/henry/henry-brain.js", import.meta.url), "utf8");
+  assert.match(brain, /if \(CSP\.glow\) return CSP;/); // sprites uma vez
+  assert.match(brain, /C\.fc\+\+ % turns/); // revezamento
+  assert.doesNotMatch(brain, /F3DCA6|FFF1CF|FFF6DD/i); // sem dourado
   const view = readFileSync(new URL("../components/henry/HenryVoiceView.jsx", import.meta.url), "utf8");
   assert.match(view, /motion-reduce:transition-none/);
   assert.match(view, /pointer-events-none fixed/);
   for (const match of view.matchAll(/fibers=\{(\d+)\}/g)) assert.ok(Number(match[1]) <= 60);
-  for (const match of view.matchAll(/nodes=\{(\d+)\}/g)) assert.ok(Number(match[1]) <= 8); // ícone: poucos nós
   assert.match(view, /Henry pensando…/); // leitor de tela
 });
 

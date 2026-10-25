@@ -11,8 +11,7 @@ import HenryLockDemo from "../_components/HenryLockDemo";
 //   ?cena=abertura (cena de abertura do bom dia; ▶ repete; &numeros=1 com telemetria fictícia)
 //   ?cena=cursor (navegação guiada: o cursor do Henry vai ao menu, clica e abre o card do cliente)
 //   ?cena=musica&etapa=connect|search|found|opening|playing|error|ciclo (cena do Spotify) · ?ondas=1|ciclo (Tocando agora)
-//   ?estado=parado|esperando|ouvindo|pensando|buscando|falando|ciclo (estados do anel; pensando = rede neural calma no centro,
-//   buscando = rede intensa com pulsos de progresso; ciclo = passa por todos para ver as transições) · combina com ?tela=icone
+//   ?estado=parado|esperando|ouvindo|pensando|buscando|falando|ciclo (estados do anel; pensando = Cérebro realista no centro (buscando = o mesmo, 2026-10-25); ciclo = passa por todos para ver as transições) · combina com ?tela=icone
 //   ?avisos=1 (lista dos avisos lidos pelo Henry, FICTÍCIOS) · ?cena=abertura (bom dia novo, v22)
 //   ?pulso=1 (Pulso do CRM com eventos de EXEMPLO; sem ?modo= fica ocioso — ?modo=thinking|speaking mostra o apagado)
 //   Celular: abrir com a janela em 390×844 (mesma apresentação do app: tocar para falar, ícone acima da barra inferior).
