@@ -102,7 +102,7 @@ test("3: pedido de piada é papo, sem ferramenta, mesmo citando cliente", () => 
   assert.equal(henryQuestionPart(ask), "");
   assert.equal(route(ask), null);
   assert.match(henryTurnHint({ text: ask }), /piada[\s\S]*nenhum número nem assunto do CRM/);
-  assert.match(lib, /const personal = !image && !greeting && !accepted && \(isPersonalQuestion\(text\) \|\| isCasualRequest\(text\)/);
+  assert.match(lib, /const personal = !image && !greeting && !accepted && (?:!screenOpen && )?\(isPersonalQuestion\(text\) \|\| isCasualRequest\(text\)/);
   // o Treino não acusa "pergunta ignorada" numa piada
   const report = analyzeHenryTraining([{ owner: ask, reply: "Sabe por que o corretor levou uma escada pra visita? Porque o cliente queria subir de vida!" }]);
   assert.equal(kinds(report).includes("pergunta_ignorada"), false);

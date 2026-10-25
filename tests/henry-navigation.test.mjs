@@ -40,7 +40,7 @@ test("aceite da sugestão: 'sim', 'abre', 'pode' depois de 'quer que eu abra?'",
   assert.equal(offeredToOpen("Posso abrir o Desempenho pra você."), true);
   assert.equal(offeredToOpen("Hoje entraram 4 leads."), false);
   const lib = readFileSync(new URL("../lib/henry-voice.js", import.meta.url), "utf8");
-  assert.match(lib, /const accepted = isAcceptance\(text\) && offeredToOpen\(lastAssistant\);/);
+  assert.match(lib, /const accepted = (?:!screenOpen && )?isAcceptance\(text\) && offeredToOpen\(lastAssistant\);/);
 });
 
 test("abrir ficha de cliente: um achado abre; vários perguntam qual; nenhum avisa", () => {

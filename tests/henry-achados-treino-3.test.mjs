@@ -44,7 +44,7 @@ test("1: meta do dia da equipe SEMPRE consulta a Meta Diária da equipe (rota di
   assert.equal(route("E a meta da Carol hoje?"), null);
   // servidor: a ferramenta roda antes do modelo; frase pronta do catálogo = resposta sem rodada do modelo
   // (Treino 4: período herdado lido na conversa do dia inteira; música + pergunta rodam as duas ferramentas juntas)
-  assert.match(lib, /const direct = withTools && !image && !accepted && !locked \? henryDirectRoute\((?:reinterpreted \|\| )?text, \{ turns: memoryTurns\.length \? memoryTurns : previous, today: saoPauloDateKey\(\) \}\) : null;/);
+  assert.match(lib, /const direct = withTools && !image && !accepted && !locked \? (?:\(deepen \? deepen\.route : )?henryDirectRoute\((?:reinterpreted \|\| )?text, \{ turns: memoryTurns\.length \? memoryTurns : previous, today: saoPauloDateKey\(\) \}\)\)? : null;/);
   assert.match(lib, /if \(direct\) \{\n[\s\S]*?const contents = \[\];\n\s+if \(direct\.sequential\) for \(const block of blocks\) contents\.push\(await runTool\(block\.name, block\.input, auth, context\)\);\n\s+else contents\.push\(\.\.\.\(await Promise\.all\(blocks\.map\(\(block\) => runTool\(block\.name, block\.input, auth, context\)\)\)\)\);/);
   assert.match(lib, /messages\.push\(\{ role: "user", content: blocks\.map\(\(block, index\) => \(\{ type: "tool_result", tool_use_id: block\.id, content: contents\[index\] \}\)\) \}\);/);
   // a rodada extra da pergunta ignorada agora OBRIGA uma ferramenta (o modelo recusou de novo na rodada extra)
@@ -135,7 +135,7 @@ test("6: pergunta pessoal ao Henry é papo — sem ferramentas e sem número do 
   assert.equal(isPersonalQuestion("E aí, Henry, como é que tá o movimento hoje?"), false);
   assert.deepEqual(route("E aí, Henry, como é que tá o movimento hoje?"), { name: "relatorio_do_dia", input: {}, topic: "movimento" });
   assert.equal(isPersonalQuestion("como você tá e como tá a meta?"), false);
-  assert.match(lib, /const personal = !image && !greeting && !accepted && \(isPersonalQuestion\(text\) \|\| isCasualRequest\(text\)/);
+  assert.match(lib, /const personal = !image && !greeting && !accepted && (?:!screenOpen && )?\(isPersonalQuestion\(text\) \|\| isCasualRequest\(text\)/);
   assert.match(lib, /const withTools = Boolean\(image\) \|\| \(!greeting && !personal && \(/);
   assert.match(buildHenryStaticPrompt(), /Pergunta sobre VOCÊ \("como foi o teu dia\?"/);
 });
