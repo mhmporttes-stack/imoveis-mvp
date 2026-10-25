@@ -5,6 +5,7 @@ import Field, { inputClasses } from "@/components/ui/Field";
 import { henryReserveVoiceChain, pickBestBrowserVoice, pronounceForSpeech } from "@/lib/henry-voice-providers.mjs";
 import { HENRY_END_WAIT_EVENT, HENRY_PTT_ONLY_EVENT, HENRY_PTT_ONLY_KEY, readHenryPttOnly } from "@/lib/henry-voice-conversation.mjs";
 import HenryLockSettings from "./HenryLockSettings";
+import HenryPttShortcutSetting from "./HenryPttShortcutSetting";
 import { HENRY_PULSE_INTENSITIES, HENRY_PULSE_TYPES, HENRY_PULSE_TYPE_KEYS } from "@/lib/henry-pulse-core.mjs";
 import {
   DESKTOP_WAKE_CUSTOM_MAX_CHARS,
@@ -426,6 +427,7 @@ function HenryVoiceStyleSection({ saved, options, serverVoice, provider = "brows
           </button>
         </div>
       ) : null}
+      <HenryPttShortcutSetting saved={saved?.pttShortcut || ""} onSaved={onSaved} />
       {desktopApp && desktopWake !== null ? (
         <div className="mt-3 flex max-w-2xl flex-wrap items-center justify-between gap-3">
           <div>

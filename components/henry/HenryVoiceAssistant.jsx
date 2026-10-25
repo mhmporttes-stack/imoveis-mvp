@@ -70,6 +70,8 @@ import {
   isPushToTalkRelease,
   pushToTalkKeyAction,
   pushToTalkReleaseAction,
+  henryRingHoldReady,
+  henryRingPressAction,
   readHenryVoiceMuted,
   HENRY_LIVE_CONNECT_WAIT_MS,
   HENRY_LIVE_MAX_MS,
@@ -133,6 +135,7 @@ import {
   desktopCanReportFullscreen
 } from "@/lib/henry-desktop-core.mjs";
 import { isPageHidden, onPageVisibilityChange } from "@/components/page-visibility";
+import { HENRY_PTT_SHORTCUT_EVENT, isPttShortcutKey, pttShortcutToken, resolvePttShortcut } from "@/lib/henry-ptt-shortcut-core.mjs";
 import HenryVoiceView from "./HenryVoiceView";
 import { henryOrbMode, thinkingActivity } from "./henry-orb-states.mjs";
 import HenryCursor from "./HenryCursor";
@@ -515,6 +518,17 @@ export default function HenryVoiceAssistant() {
     return () => window.removeEventListener(HENRY_END_WAIT_EVENT, onEndWait);
   }, []);
 
+  // Atalho de fala (dono, 2026-10-25): salvo no servidor (style.pttShortcut, igual em todos os aparelhos); trocado na tela
+  // de configuração vale já, sem recarregar.
+  const pttShortcutRef = useRef("");
+  useEffect(() => {
+    const onShortcut = (event) => {
+      pttShortcutRef.current = resolvePttShortcut(event?.detail?.shortcut);
+    };
+    window.addEventListener(HENRY_PTT_SHORTCUT_EVENT, onShortcut);
+    return () => window.removeEventListener(HENRY_PTT_SHORTCUT_EVENT, onShortcut);
+  }, []);
+
   // --- Habilitado? (rota confere o dono e o liga/desliga) -------------------------------------------------------------
   useEffect(() => {
     let alive = true;
@@ -542,6 +556,7 @@ export default function HenryVoiceAssistant() {
         if (Number.isFinite(data?.browserRate)) browserRateRef.current = data.browserRate;
         if (Number.isFinite(data?.endWaitMs)) endWaitMsRef.current = data.endWaitMs;
         listenAckRef.current = data?.listenAck !== false;
+        pttShortcutRef.current = resolvePttShortcut(data?.style?.pttShortcut);
         narrationKeyRef.current = typeof data?.narrationKey === "string" ? data.narrationKey : "";
         // Memória do dia (REGRA OFICIAL, dono 2026-10-22): a conversa de hoje volta ao abrir/recarregar (só texto).
         if (Array.isArray(data?.dayTurns) && data.dayTurns.length && !turnsRef.current.length) {
@@ -3690,16 +3705,23 @@ export default function HenryVoiceAssistant() {
   useEffect(() => {
     if (!active) return undefined;
     const keys = pttKeysRef.current;
+    // Atalho de fala: teclas seguradas agora (peças de lib/henry-ptt-shortcut-core.mjs, esquerda/direita iguais).
+    const held = new Set();
     const trackModifiers = (event, down) => {
       if (event.key === "Control" || event.key === "Meta") keys.ctrl = down;
       if (event.key === "Shift") keys.shift = down;
+      const token = pttShortcutToken(event.code);
+      if (token) {
+        if (down) held.add(token);
+        else held.delete(token);
+      }
     };
     const onDown = (event) => {
       trackModifiers(event, true);
       const ptt = pttRef.current;
       if (ptt.active) {
-        // Segurando: a repetição da tecla não faz nada (nem Enter de formulário).
-        if (ptt.source !== "pointer" && (event.key === "Enter" || event.code === "KeyH")) event.preventDefault();
+        // Segurando: a repetição da tecla não faz nada (nem Enter de formulário, nem a tecla do atalho de fala).
+        if (ptt.source !== "pointer" && (event.key === "Enter" || event.code === "KeyH" || (ptt.source === "custom" && isPttShortcutKey(pttShortcutRef.current, event.code)))) event.preventDefault();
         return;
       }
       if (event.defaultPrevented || event.repeat) return;
@@ -3714,14 +3736,16 @@ export default function HenryVoiceAssistant() {
         target: event.target,
         henryActive: true,
         expanded: expandedRef.current,
-        locked: lockRef.current.locked || openingRef.current
+        locked: lockRef.current.locked || openingRef.current,
+        shortcut: pttShortcutRef.current,
+        held
       });
       if (action && beginPushToTalk(action)) event.preventDefault();
     };
     const onUp = (event) => {
       trackModifiers(event, false);
       const ptt = pttRef.current;
-      if (!ptt.active || ptt.source === "pointer" || !isPushToTalkRelease(ptt.source, { key: event.key, code: event.code })) return;
+      if (!ptt.active || ptt.source === "pointer" || !isPushToTalkRelease(ptt.source, { key: event.key, code: event.code }, pttShortcutRef.current)) return;
       event.preventDefault();
       endPushToTalk();
     };
@@ -3729,6 +3753,7 @@ export default function HenryVoiceAssistant() {
     const onBlur = () => {
       keys.ctrl = false;
       keys.shift = false;
+      held.clear();
       if (pttRef.current.active && pttRef.current.source !== "pointer") endPushToTalk();
     };
     window.addEventListener("keydown", onDown);
@@ -3778,6 +3803,57 @@ export default function HenryVoiceAssistant() {
     },
     onContextMenu: (event) => event.preventDefault() // toque longo no Android não abre menu
   };
+  // Anel minimizado do celular (dono, 2026-10-25): segurar = ouve na hora, SEM abrir a tela cheia (fonte "pointer");
+  // soltar = envia; toque curto = abre como sempre. Decisão em henryRingPressAction/henryRingHoldReady.
+  const ringHoldRef = useRef({ timer: 0, started: false, pressed: false, downAt: 0, suppressUntil: 0 });
+  const endRingHold = (cancelled) => {
+    const hold = ringHoldRef.current;
+    window.clearTimeout(hold.timer);
+    const action = henryRingPressAction({ started: hold.started, heldMs: Date.now() - hold.downAt });
+    hold.pressed = false;
+    hold.started = false;
+    if (action === "open") return; // o clique que vem em seguida abre a tela cheia, como hoje
+    hold.suppressUntil = Date.now() + 800; // o clique depois do soltar não abre a tela cheia
+    if (!cancelled) unlockAudio(); // soltar o dedo é gesto: libera o som da resposta no iPhone
+    endPushToTalk();
+  };
+  const ringHold = {
+    onPointerDown: (event) => {
+      if (event.button) return;
+      const hold = ringHoldRef.current;
+      window.clearTimeout(hold.timer);
+      hold.started = false;
+      hold.pressed = true;
+      hold.downAt = Date.now();
+      try {
+        event.currentTarget.setPointerCapture?.(event.pointerId);
+      } catch {
+        // sem captura: o soltar ainda chega quase sempre
+      }
+      hold.timer = window.setTimeout(() => {
+        if (!henryRingHoldReady({ pressed: hold.pressed, heldMs: Date.now() - hold.downAt })) return;
+        hold.started = beginPushToTalk("pointer");
+        if (hold.started) {
+          try {
+            window.navigator.vibrate?.(30); // retorno curto (Android; o iPhone não vibra pelo site)
+          } catch {
+            // sem vibração
+          }
+        }
+      }, HENRY_PTT_TAP_MS);
+    },
+    onPointerUp: () => endRingHold(false),
+    onPointerCancel: () => endRingHold(true),
+    onContextMenu: (event) => event.preventDefault(), // toque longo não abre menu (Android) nem "copiar" (iPhone)
+    onClick: (event) => {
+      if (Date.now() < ringHoldRef.current.suppressUntil) {
+        event.preventDefault();
+        return;
+      }
+      openScene();
+    }
+  };
+
   const micClick = recordMode ? talk : toggleMute;
   const onMicClick = () => {
     if (Date.now() < micHoldRef.current.suppressUntil) return;
@@ -3932,6 +4008,7 @@ export default function HenryVoiceAssistant() {
       micOff={recordMode ? !recording : muted || !supported || micState === "blocked"}
       onToggleMute={onMicClick}
       micHold={micHold}
+      ringHold={ringHold}
       pttHolding={pttHolding}
       voiceMuted={voiceMuted}
       onToggleVoiceMute={toggleVoiceMute}

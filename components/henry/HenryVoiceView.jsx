@@ -78,6 +78,7 @@ export default function HenryVoiceView({
   onToggleMute,
   // Aperte para falar (dono, 2026-10-24): handlers de toque longo do botão do microfone e o indicador "solte para enviar".
   micHold = null,
+  ringHold = null, // anel minimizado do celular: segurar = aperte-para-falar sem abrir a tela cheia (dono, 2026-10-25)
   pttHolding = false,
   // Mudo (dono, 2026-10-24): voz do Henry desligada (ele responde só na tela). null = sem o botão.
   voiceMuted = false,
@@ -231,11 +232,25 @@ export default function HenryVoiceView({
         <div className="relative transition-[width,height] duration-300 ease-out motion-reduce:transition-none" style={{ width: box, height: box }}>
           <button
             type="button"
-            onPointerDown={preventTouchSelection}
-            onClick={onExpand}
-            className="pointer-events-auto absolute bottom-0 left-0 flex items-center justify-center overflow-hidden rounded-full shadow-float ring-1 ring-white/10 transition-transform duration-300 ease-out motion-reduce:transition-none"
-            style={{ background: BACKDROP, width: MOBILE_BIG, height: MOBILE_BIG, transform: `scale(${box / MOBILE_BIG})`, transformOrigin: "bottom left" }}
-            aria-label={`Falar com o Henry. ${status}`}
+            {...(ringHold || {})}
+            onPointerDown={(event) => {
+              preventTouchSelection(event);
+              ringHold?.onPointerDown?.(event);
+            }}
+            onClick={ringHold?.onClick || onExpand}
+            className={`pointer-events-auto absolute bottom-0 left-0 flex items-center justify-center overflow-hidden rounded-full shadow-float ring-1 ring-white/10 transition-transform duration-300 ease-out motion-reduce:transition-none ${pttHolding ? "animate-pulse motion-reduce:animate-none" : ""}`}
+            style={{
+              ...HENRY_NO_SELECT,
+              background: BACKDROP,
+              width: MOBILE_BIG,
+              height: MOBILE_BIG,
+              transform: `scale(${box / MOBILE_BIG})`,
+              transformOrigin: "bottom left",
+              // Segurando: sem rolagem/zoom/menu do toque longo (iPhone e Android) e anel aceso.
+              touchAction: "none",
+              ...(pttHolding ? { boxShadow: `0 0 0 3px ${ACCENT}` } : {})
+            }}
+            aria-label={`Falar com o Henry (toque para abrir, segure para falar). ${status}`}
           >
             <HenryOrb size={MOBILE_BIG} fibers={18} points={48} alpha={0.45} lineWidth={0.8} getSignal={getSignal} sleep={sleeping && !engaged} />
             {inConversation ? <ConversationDot /> : null}
