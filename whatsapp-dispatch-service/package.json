@@ -1,0 +1,29 @@
+{
+  "name": "whatsapp-dispatch-service",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Microsserviço de envio de WhatsApp para leads do CRM imoveis-mvp: fila persistente (Redis + BullMQ), Postgres (schema wa_dispatch), consentimento, não contato, limites por instância e adaptadores de provedor (WhatsApp Cloud API oficial da Meta e whatsapp-individual-service). NÃO está ligado ao CRM.",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "start:api": "node src/server.js --role=api",
+    "start:worker": "node src/server.js --role=worker",
+    "start:scheduler": "node src/server.js --role=scheduler",
+    "migrate": "node scripts/migrate.js",
+    "test": "node --test --test-concurrency=1 \"tests/*.test.js\"",
+    "test:unit": "node --test --test-concurrency=1 \"tests/unit-*.test.js\"",
+    "test:integration": "node --test --test-concurrency=1 \"tests/integration-*.test.js\""
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "bullmq": "^5.34.0",
+    "express": "^4.21.2",
+    "ioredis": "^5.4.2",
+    "pg": "^8.13.1",
+    "pino": "^9.6.0",
+    "zod": "^3.24.1"
+  }
+}

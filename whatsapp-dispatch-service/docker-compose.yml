@@ -1,0 +1,92 @@
+# whatsapp-dispatch-service — infraestrutura local (Postgres + Redis) e os três processos do serviço.
+# Postgres e Redis ficam só na rede interna "backend" (sem porta publicada). A API publica 3031 só em 127.0.0.1.
+# Senhas vêm do arquivo .env (copie de .env.example). Para usar o Postgres do CRM (Supabase), defina DATABASE_URL
+# no .env e suba só redis/migrate/api/worker/scheduler.
+name: whatsapp-dispatch
+
+x-app: &app
+  image: whatsapp-dispatch-service:local
+  build: .
+  env_file: .env
+  environment:
+    DATABASE_URL: ${DATABASE_URL:-postgres://wa_dispatch:${POSTGRES_PASSWORD}@postgres:5432/wa_dispatch}
+    REDIS_URL: ${REDIS_URL:-redis://:${REDIS_PASSWORD}@redis:6379/0}
+  restart: unless-stopped
+  read_only: true
+  tmpfs: [/tmp]
+  security_opt: ["no-new-privileges:true"]
+  networks: [backend, egress]
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: wa_dispatch
+      POSTGRES_USER: wa_dispatch
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?defina POSTGRES_PASSWORD no .env}
+    volumes: [pgdata:/var/lib/postgresql/data]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U wa_dispatch -d wa_dispatch"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    restart: unless-stopped
+    networks: [backend]
+
+  redis:
+    image: redis:7-alpine
+    # AOF ligado: a fila sobrevive a reinício do Redis. noeviction: nunca descarta trabalho por falta de memória.
+    command: ["redis-server", "--appendonly", "yes", "--appendfsync", "everysec", "--maxmemory-policy", "noeviction", "--requirepass", "${REDIS_PASSWORD:?defina REDIS_PASSWORD no .env}"]
+    volumes: [redisdata:/data]
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli -a \"$$REDIS_PASSWORD\" --no-auth-warning ping | grep PONG"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    restart: unless-stopped
+    networks: [backend]
+
+  migrate:
+    <<: *app
+    command: ["node", "scripts/migrate.js"]
+    restart: "no"
+    depends_on:
+      postgres: { condition: service_healthy }
+
+  api:
+    <<: *app
+    command: ["node", "src/server.js", "--role=api"]
+    ports: ["127.0.0.1:3031:3031"]
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+      redis: { condition: service_healthy }
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3031/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  worker:
+    <<: *app
+    command: ["node", "src/server.js", "--role=worker"]
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+      redis: { condition: service_healthy }
+
+  scheduler:
+    <<: *app
+    command: ["node", "src/server.js", "--role=scheduler"]
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+      redis: { condition: service_healthy }
+
+networks:
+  backend:
+    internal: true   # sem saída para a internet e sem porta publicada
+  egress: {}         # saída para a Graph API da Meta / CRM
+
+volumes:
+  pgdata:
+  redisdata:

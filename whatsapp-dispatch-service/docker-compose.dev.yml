@@ -1,0 +1,11 @@
+# Só para desenvolvimento/testes na própria máquina: publica Postgres e Redis em 127.0.0.1 (portas altas).
+# Uso: docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d postgres redis
+services:
+  postgres:
+    ports: ["127.0.0.1:55432:5432"]
+    networks: [backend, devhost]
+  redis:
+    ports: ["127.0.0.1:56379:6379"]
+    networks: [backend, devhost]
+networks:
+  devhost: {}
