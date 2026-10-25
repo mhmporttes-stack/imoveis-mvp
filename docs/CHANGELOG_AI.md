@@ -772,6 +772,14 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-25 — Henry: atalho de fala de 2 teclas e anel segurado no celular (HENRY-1) — branch `feat/henry-atalho-fala`, NÃO publicado
+- **Pedido do dono:** "Adicione nas configurações da Alexa (Henry) opção de atalho de fala: eu registro 2 botões e quando eu apertar esses dois botões, mesmo com o Henry minimizado, ele começa a me ouvir imediatamente." + "No app do celular isso deve funcionar se eu segurar o ícone do Henry minimizado." Ajuste: o dono não usa o app de desktop — só site e celular.
+- **O que mudou:** cartão do Henry (`/admin/alexa`) ganha "Atalho de fala" (Gravar/Limpar; some sem teclado e vira dica do anel). Atalho salvo em `henry_voice_assistant.style.pttShortcut` pela rota existente (`parseHenryStylePatch` valida; sem migration, sem rota nova). O Henry da página acompanha as teclas seguradas e, quando batem exatamente com o atalho, começa o mesmo aperte-para-falar do Enter (fonte `custom`). Celular: segurar o anel minimizado = aperte-para-falar sem abrir a tela cheia (vibração curta, anel aceso, sem menu do toque longo); toque curto abre como antes.
+- **Arquivos:** `lib/henry-ptt-shortcut-core.mjs` (novo), `lib/henry-voice-conversation.mjs`, `lib/henry-voice-style.mjs`, `components/henry/HenryPttShortcutSetting.jsx` (novo), `HenrySettingsCard.jsx`, `HenryVoiceAssistant.jsx`, `HenryVoiceView.jsx`. Testes `tests/henry-ptt-shortcut.test.mjs` (novo), `tests/henry-voice-style.test.mjs` (campo novo no estilo resolvido).
+- **Docs:** `docs/BUSINESS_RULES.md` HENRY-1 "Atalho de fala"; `.claude/rules/integracoes-externas.md`.
+- **Risco/observação:** o navegador só entrega teclas com a aba do CRM em foco (fora dela não há como ouvir o atalho). `desktop-app/` não foi alterado. A CONFIRMAR no aparelho real: toque longo no anel no iPhone (PWA) sem menu de "copiar" e com o microfone abrindo pelo toque segurado (mesmo caminho do toque longo no microfone, que já funciona).
+
+
 ### 2026-10-25 — Henry manda recado à equipe pela mensagem da Supervisão (HENRY-1, 2ª escrita)
 - **Pedido do dono:** "Quero que o Henry também possa enviar alertas (mensagens fixadas na tela dos corretores)… ele escreve e envia aquela mesma mensagem que eu envio pela Meta Diária." Depois: "Sem sim, ele apenas envia, não preciso confirmar nada."
 - **O que mudou:** ferramenta `enviar_alerta_corretor` (`escrita_interna_direta`) em `lib/henry-voice.js`; regras puras `lib/henry-team-alert-core.mjs` (destinatário ativo por `brokerKeys`, ambíguo/inexistente não envia, texto até 500, falas e tela); servidor `lib/henry-team-alert.js` reaproveita `sendSupervisionMessage` (mesma tabela `supervision_messages`, balão fixo, push) — nenhum caminho novo; Treino simula; 2ª trava do dono (`isHenryEligible`). Gatilho `isTeamAlertRequest` fora da rota direta (`lib/henry-voice-turn.mjs`) e como dica; prompt fixo abre a exceção; `isHenryToolLocked` fecha a nova classe com a tela bloqueada.
