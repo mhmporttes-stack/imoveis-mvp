@@ -52,13 +52,13 @@ test("1.8.7: background — trava em chatLock com finally, envio incremental, li
   assert.doesNotMatch(source, /chatRunning:\s*new Date/, "a trava antiga em state.chatRunning não pode voltar");
   assert.match(source, /finally \{\s*round\.stop\(\);/);
   assert.match(source, /if \(stored\?\.token === token\) await chrome\.storage\.local\.remove\("chatLock"\)/);
-  assert.match(source, /postChatSync\(config, \[conversation\]\)/, "cada conversa vai ao CRM logo depois de lida");
+  assert.match(source, /sync\(\[conversation\], roundStatus\(/, "cada conversa vai ao CRM logo depois de lida");
   assert.match(source, /round\.elapsed\(\) > ROUND_BUDGET_MS/);
   assert.match(source, /"mp-chat-unlock"/);
   const popup = readFileSync(new URL("../popup.html", import.meta.url), "utf8");
   assert.match(popup, /id="unlock"[^>]*>Destravar sincronização</);
   const manifest = JSON.parse(readFileSync(new URL("../manifest.json", import.meta.url), "utf8"));
-  assert.equal(manifest.version, "1.9.7");
+  assert.equal(manifest.version, "1.9.8");
 });
 
 test("lê só conversas que mudaram, no máximo 5 por rodada", () => {

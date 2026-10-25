@@ -40,6 +40,17 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-25 — Extensão do Marketplace em "silêncio total" e respostas presas com a janela de trabalho atrás de outra em tela cheia
+- **Data:** 2026-10-25 (sintoma desde 2026-10-24 12:44 UTC)
+- **Sintoma:** "a aba do Marketplace e a do Instagram ficam abertas, porém eu abro outra janela para utilizar, em tela cheia; as duas abas ficam atrás dessa." Último sinal da extensão (MKT-2g) em 24/10 12:44 UTC e nunca mais; antes, diagnóstico `aba_oculta` (`visibility hidden`, `hasFocus false`); 4 respostas de corretores presas (queued/sending). Publicação de anúncio funcionou.
+- **Área:** `ferramentas/marketplace-publicador` (1.9.7), `ferramentas/instagram-seguidor` (1.1.5), sinal MKT-2g
+- **Impacto:** Chat do Marketplace parado (nada lido, nenhuma resposta enviada) sem motivo visível no CRM.
+- **Causa raiz:** (1) coberta, a janela de trabalho fica oculta para o Chrome (para de desenhar; Facebook não abre a conversa); (2) o único sinal ao CRM era a sincronização feita DEPOIS de ler a caixa — leitura com erro/prazo estourado ia para o `catch` do `chatTick` sem chamar o CRM, e o laço de envio também ficava depois da leitura. O alarme e o service worker funcionavam; a rodada é que terminava muda.
+- **Correção:** 1.9.8 — emulação de foco pelo depurador só durante cada ação (`lib/page-awake.js`: página visível e com foco atrás de outra janela, sem trazer à frente); falha na caixa não encerra a rodada (CRM + envios seguem); toda rodada/pausa chama o CRM com `round {ok, stage, error}`; CRM guarda o motivo, mostra no Chat e o aviso "sem sinal" conta da última leitura ok. Instagram 1.1.6: mesma emulação na leitura do botão e cliques do perfil.
+- **Arquivos/commit:** ver `docs/CHANGELOG_AI.md` 2026-10-25 — branch `fix/extensoes-aba-atras`
+- **Prevenção/teste:** `ferramentas/marketplace-publicador/tests/page-awake.test.js`, `ferramentas/instagram-seguidor/tests/pagina-acordada.test.mjs`, `tests/marketplace-extension-signal.test.mjs`; teste manual em Chrome for Testing com página que só reage visível + com foco.
+- **Status:** Monitorando (instalar 1.9.8/1.1.6 no PC do dono e conferir o Chat com a janela atrás da tela cheia)
+
 ### 2026-10-24 — Henry: "aumenta o volume" → diz que aumentou e não aumenta; a cada play a música cai para quase mudo
 - **Data:** 2026-10-24
 - **Sintoma:** "Estou pedindo para ele aumentar o volume, ele fala que aumentou, mas na verdade não está aumentando. Toda vez que eu coloco uma música […] ele vai para o volume mínimo, quase mudo, acho que 10%."

@@ -12,6 +12,7 @@
 
 import { classificarErro, trechoSeguro } from './lib/regras.js';
 import { TAMANHO_JANELA, CHAVE_JANELA, acharJanelaTrabalho, podeCriarJanela, ehUrlInstagram, descreverJanela } from './lib/janela-trabalho.js';
+import { createAwakeManager } from './lib/page-awake.js';
 
 export const BASE = 'https://www.instagram.com';
 export const IG_APP_ID_WEB = '936619743392459';
@@ -775,26 +776,50 @@ export async function lerEstadoNaPagina(textos) {
   };
 }
 
-/** 1.1.4: abre o perfil na janela de trabalho (sem foco) e LÊ o botão (não clica). */
-export async function lerPerfilNaAba({ username }) {
-  if (!username) return { ok: false, erro: 'sem @ do perfil' };
-  const tabId = await garantirAbaInstagram();
-  await chrome.tabs.update(tabId, { url: `${BASE}/${encodeURIComponent(username)}/` });
-  await new Promise((r) => setTimeout(r, 400));
-  await esperarCarregar(tabId);
-  const [res] = await chrome.scripting.executeScript({ target: { tabId }, world: 'MAIN', func: lerEstadoNaPagina, args: [TEXTOS_LEITURA] });
-  return (res && res.result) || { ok: false, erro: 'a aba não respondeu' };
+// --- Página acordada (1.1.6) ------------------------------------------------------------------------------------
+// Problema real (dono, 25/10/2026): "abro outra janela para utilizar, em tela cheia; as duas abas das extensões ficam
+// abertas atrás dessa." Coberta, a aba de trabalho fica OCULTA para o Chrome: ele para de desenhar o perfil e segura os
+// timers da página (a espera de 250 ms pelo botão vira até 1 min por volta) — a leitura do botão e os cliques do perfil
+// demoram ou falham. Durante a leitura/clique do perfil (só eles; as chamadas de API não precisam) a extensão liga o
+// depurador e emula foco (lib/page-awake.js — cópia idêntica da do marketplace-publicador, conferida em teste): a página
+// fica visível e com foco sem trazer nada para a frente. Solto logo depois; a faixa "…começou a depurar este navegador"
+// aparece só nesses segundos (some 5 s depois). Depurador recusado (DevTools aberto na aba): segue como antes.
+function comPrazo(promessa, ms, rotulo) {
+  let timer;
+  return Promise.race([promessa, new Promise((_, rejeitar) => { timer = setTimeout(() => rejeitar(new Error(`${rotulo}: passou de ${Math.round(ms / 1000)} s`)), ms); })])
+    .finally(() => clearTimeout(timer));
 }
 
-/** Abre o perfil na janela de trabalho (sem foco) e executa os cliques. */
+const paginaAcordada = createAwakeManager({
+  attach: (tabId) => comPrazo(chrome.debugger.attach({ tabId }, '1.3'), 8000, 'ligar o depurador'),
+  detach: (tabId) => chrome.debugger.detach({ tabId }),
+  send: (tabId, method, params) => comPrazo(chrome.debugger.sendCommand({ tabId }, method, params), 8000, method),
+  warn: (mensagem) => console.warn('[seguidor-ig]', mensagem),
+});
+// O dono clicou em "Cancelar" na faixa ou a aba fechou: o Chrome soltou o depurador.
+if (globalThis.chrome?.debugger?.onDetach) chrome.debugger.onDetach.addListener((origem) => origem?.tabId && paginaAcordada.forget(origem.tabId));
+
+async function abrirPerfilEExecutar(username, func, args) {
+  const tabId = await garantirAbaInstagram();
+  return paginaAcordada.run(tabId, async () => {
+    await chrome.tabs.update(tabId, { url: `${BASE}/${encodeURIComponent(username)}/` });
+    await new Promise((r) => setTimeout(r, 400));
+    await esperarCarregar(tabId);
+    const [res] = await chrome.scripting.executeScript({ target: { tabId }, world: 'MAIN', func, args });
+    return (res && res.result) || { ok: false, erro: 'a aba não respondeu' };
+  });
+}
+
+/** 1.1.4: abre o perfil na janela de trabalho (sem foco) e LÊ o botão (não clica). 1.1.6: com a página acordada. */
+export async function lerPerfilNaAba({ username }) {
+  if (!username) return { ok: false, erro: 'sem @ do perfil' };
+  return abrirPerfilEExecutar(username, lerEstadoNaPagina, [TEXTOS_LEITURA]);
+}
+
+/** Abre o perfil na janela de trabalho (sem foco) e executa os cliques. 1.1.6: com a página acordada. */
 export async function clicarNaAba({ username, passos }) {
   if (!username) return { ok: false, erro: 'sem @ do perfil' };
-  const tabId = await garantirAbaInstagram();
-  await chrome.tabs.update(tabId, { url: `${BASE}/${encodeURIComponent(username)}/` });
-  await new Promise((r) => setTimeout(r, 400));
-  await esperarCarregar(tabId);
-  const [res] = await chrome.scripting.executeScript({ target: { tabId }, world: 'MAIN', func: clicarNaPagina, args: [passos] });
-  return (res && res.result) || { ok: false, erro: 'a aba não respondeu' };
+  return abrirPerfilEExecutar(username, clicarNaPagina, [passos]);
 }
 
 /** API pronta para uso dentro da extensão. */

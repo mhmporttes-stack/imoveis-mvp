@@ -24,8 +24,10 @@ export function findWorkWindow(windows = [], stored = null) {
 // Texto do popup sobre a janela de trabalho (visibilidade lida na própria página do Facebook).
 export function describeWorkView(view) {
   if (!view?.exists) return { ok: false, text: "Janela de trabalho fechada — toque em \"Abrir janela de trabalho\" (ou ela reabre sozinha na próxima rodada)." };
-  if (view.windowState === "minimized") return { ok: false, text: "Janela de trabalho MINIMIZADA: o Facebook não abre conversa assim. Deixe-a aberta (pode ficar atrás de outras janelas)." };
+  if (view.windowState === "minimized") return { ok: false, text: "Janela de trabalho MINIMIZADA: o Facebook pode não abrir conversa assim. Deixe-a aberta (pode ficar atrás de outras janelas, inclusive em tela cheia)." };
   if (view.visibility === "visible") return { ok: true, text: "Janela de trabalho visível — a extensão consegue trabalhar agora." };
-  if (view.visibility === "hidden") return { ok: false, text: "Janela de trabalho oculta para o Chrome (coberta por outra janela, tela desligada ou bloqueada). Veja no README como abrir o Chrome pelo atalho que deixa ela trabalhar atrás das outras." };
+  // 1.9.8: atrás de outra janela (inclusive tela cheia) a extensão acorda a página durante cada ação (emulação de foco
+  // pelo depurador, lib/page-awake.js) — não precisa mais do atalho do Chrome.
+  if (view.visibility === "hidden") return { ok: true, text: "Janela de trabalho atrás de outra janela — tudo bem: a extensão acorda a página durante cada ação (pode aparecer a faixa \"…começou a depurar este navegador\" por alguns segundos)." };
   return { ok: false, text: "Não consegui ler a janela de trabalho agora (página carregando)." };
 }

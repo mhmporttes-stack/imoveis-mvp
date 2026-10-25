@@ -10,10 +10,11 @@ export const runtime = "nodejs";
 export async function POST(request) {
   const rejected = await rejectExtensionRequest(request, "marketplace-chat-sync");
   if (rejected) return rejected;
-  // Sinal de "extensão ativa" (MKT-2g): toda chamada autenticada conta, mesmo vazia ou com erro na sincronização. Falha ao
-  // gravar o sinal não impede a sincronização (aparece no log; o cron avisaria "sem sinal").
-  await recordMarketplaceExtensionSignal(new Date(), { version: request.headers.get("x-extension-version") || "" }).catch((error) => console.error("[marketplace-chat] sinal da extensão não gravado:", error?.message || error));
   const body = await request.json().catch(() => null);
+  // Sinal de "extensão ativa" (MKT-2g): toda chamada autenticada conta, mesmo vazia, com corpo inválido ou com erro na
+  // sincronização. Falha ao gravar o sinal não impede a sincronização (aparece no log; o cron avisaria "sem sinal").
+  // round (extensão 1.9.8+): estado da rodada — o motivo de uma leitura que falhou chega ao CRM (nunca silêncio).
+  await recordMarketplaceExtensionSignal(new Date(), { version: request.headers.get("x-extension-version") || "", round: body?.round || null }).catch((error) => console.error("[marketplace-chat] sinal da extensão não gravado:", error?.message || error));
   if (!body) return NextResponse.json({ error: "Requisição inválida." }, { status: 400 });
   try {
     return NextResponse.json(await syncMarketplaceConversations(body));

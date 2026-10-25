@@ -22,6 +22,7 @@ Extensão pessoal do Matheus Machado Corretor de Imóveis. Pega no CRM **só os 
 2. Em `chrome://extensions`, clique no botão de recarregar (seta circular) do "Publicador Marketplace".
 3. A chave e as opções continuam salvas — não precisa configurar de novo.
 4. **Versão 1.9.6 (24/10/2026):** resposta do corretor que **não foi entregue** é tentada de novo **a cada 30 s** até sair (regra do dono). Antes de digitar de novo uma resposta que pode ter saído, a extensão **confere a conversa** — se já está lá, só marca como enviada (nunca manda duas vezes). Para sozinha se o Facebook bloquear/encerrar a conversa, se o cliente estiver em "Não contactar" ou depois de 24 h — aí fica "Não enviada" no CRM, com alerta. Cada reenvio conta no limite por hora. Confira se o cartão da extensão mostra "1.9.6". Sem permissão nova.
+5. **Versão 1.9.8 (25/10/2026):** funciona com a **janela de trabalho atrás de outra janela, inclusive em tela cheia**, sem você mudar nada e sem o atalho especial do Chrome (veja "Janela de trabalho" abaixo). E a extensão **nunca mais fica em silêncio**: se não conseguir ler o Facebook, avisa o CRM com o motivo a cada rodada (o Chat Marketplace mostra "última rodada falhou: …" e o aviso aos administradores diz o motivo), e as respostas dos corretores são tentadas mesmo assim. Confira se o cartão da extensão mostra "1.9.8". Sem permissão nova.
 5. **Versão 1.9.7 (24/10/2026):** a sugestão de resposta rápida do Facebook ("Sim, você tem interesse?") não entra mais como mensagem do cliente — ela vinha num bloco com id próprio e passava pelo filtro da 1.9.1. E a **resposta automática de disponibilidade** do CRM ("Boa noite, Andreza. Sim, esse item ainda está disponível.") não é digitada se já houver texto no campo da conversa no Facebook (alguém digitando): o CRM cancela. Confira se o cartão da extensão mostra "1.9.7". Sem permissão nova.
 5. **Versão 1.9.5 (23/10/2026):** envia também **fotos e PDF** que o corretor anexa no Chat Marketplace do CRM — um arquivo por vez, na ordem em que ele colocou (o texto digitado sai antes). Enquanto o PC estiver numa versão anterior, os arquivos ficam esperando na fila do CRM (os textos seguem saindo). Confira se o cartão da extensão mostra "1.9.5". Sem permissão nova.
 6. **Versão 1.9.4:** confira se o cartão da extensão mostra "1.9.4" e, no CRM, Chat Marketplace mostra "Extensão 1.9.4: última leitura…". A partir dela a extensão trabalha numa **janela pequena só dela** (veja "Janela de trabalho" abaixo) e não abre mais abas na sua janela.
@@ -33,11 +34,14 @@ Extensão pessoal do Matheus Machado Corretor de Imóveis. Pega no CRM **só os 
 Pedido do dono em 22/10/2026: "ela fica a todo momento abrindo novas guias".
 
 - A extensão abre **uma janela pequena só dela** (cerca de 520 × 760), com **uma aba do Facebook** que é reaproveitada sempre: leitura e resposta do Chat, publicação de anúncio, diagnóstico e o "Manter acordado". Ela **nunca** abre aba na janela em que você trabalha e **nunca** puxa o foco. Se você fechar essa janela, ela reabre sozinha (sem foco) na próxima rodada.
-- No popup: **"Abrir janela de trabalho"** traz a janela para a frente, e a linha **"Janela de trabalho"** diz se a extensão consegue trabalhar agora (visível / oculta / minimizada).
-- **Minimizada não trabalha.** O Chrome para de desenhar a janela minimizada e o Facebook não abre conversa. A extensão espera e tenta de novo quando a janela voltar.
-- **Atrás de outras janelas trabalha**, desde que o Chrome seja aberto pelo atalho abaixo. Sem ele, o Windows avisa o Chrome que a janela está coberta e o Chrome a trata como minimizada. Com o atalho ela também continua com a tela apagada ou bloqueada.
+- No popup: **"Abrir janela de trabalho"** traz a janela para a frente, e a linha **"Janela de trabalho"** diz se a extensão consegue trabalhar agora (visível / atrás de outra janela / minimizada).
+- **Atrás de outras janelas trabalha (1.9.8), inclusive atrás de uma janela em tela cheia, sem atalho especial.** Coberta, o Chrome trata a página do Facebook como oculta (para de desenhar e o Facebook não abre a conversa). Durante cada ação — ler a caixa, abrir/ler uma conversa, enviar uma resposta, publicar, diagnóstico — a extensão liga o modo depurador na aba de trabalho e faz a página se comportar como **visível e com foco** (emulação de foco do Chrome). **Nunca traz a janela para a frente** e não mexe na sua tela. Testado num Chrome de teste com uma página que só reage visível e com foco: sem o recurso o clique não abria; com ele, abria.
+- **Efeito visual:** enquanto a ação acontece aparece no alto das janelas a faixa **"Publicador Marketplace começou a depurar este navegador"**; ela some cerca de 5 s depois que a ação termina (ações seguidas a mantêm). Entre as rodadas (a cada ~2 min) a faixa não fica. Para nunca ver a faixa, use o atalho abaixo só com `--silent-debugger-extension-api` (opcional). **Não clique em "Cancelar"** na faixa: a extensão perde o modo naquela ação e a conversa pode não abrir (ela tenta de novo na próxima rodada e o CRM vê o motivo).
+- **Minimizada pode não trabalhar.** Prefira deixar a janela atrás das outras. Se a página continuar oculta mesmo com o recurso (janela minimizada, DevTools aberto na aba), a extensão não tenta abrir a conversa e avisa o CRM com o motivo.
 
-### Atalho do Chrome (uma vez só)
+### Atalho do Chrome (opcional desde a 1.9.8)
+
+Não é mais necessário para trabalhar atrás de outra janela. Continua útil para **esconder a faixa** do depurador (`--silent-debugger-extension-api`) e para a tela apagada/bloqueada.
 
 1. Feche o Chrome por completo: todas as janelas e, se houver o ícone do Chrome perto do relógio, botão direito › **Sair**.
 2. Botão direito no atalho do Chrome que você usa (área de trabalho; na barra de tarefas: botão direito no Chrome › botão direito em "Google Chrome") › **Propriedades**.
@@ -67,7 +71,7 @@ Gerar uma chave nova no CRM desliga a anterior — cole a nova nas Opções.
 
 ## Faixa "está depurando este navegador" (normal)
 
-Durante cada publicação o Chrome mostra no alto da aba a faixa **"Publicador Marketplace começou a depurar este navegador"**. É normal: a extensão usa esse modo para clicar e digitar como uma pessoa (o campo de localização do Facebook ignora cliques automáticos comuns). A faixa some quando a publicação termina e a aba fecha. **Não clique em "Cancelar"** na faixa durante a publicação (a extensão volta para o modo comum e a localização pode falhar).
+Desde a 1.9.8 a faixa aparece durante cada ação no Facebook (publicação, leitura da caixa, de uma conversa ou envio de resposta) e some ~5 s depois. Durante cada publicação o Chrome mostra no alto da aba a faixa **"Publicador Marketplace começou a depurar este navegador"**. É normal: a extensão usa esse modo para clicar e digitar como uma pessoa (o campo de localização do Facebook ignora cliques automáticos comuns). A faixa some quando a publicação termina e a aba fecha. **Não clique em "Cancelar"** na faixa durante a publicação (a extensão volta para o modo comum e a localização pode falhar).
 
 ## Chat do Marketplace (versão 1.6.0)
 
