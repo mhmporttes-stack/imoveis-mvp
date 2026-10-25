@@ -691,6 +691,14 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-25 — Transferido vai para "Tentando contato" + etiqueta do status anterior (CLI-7c) — branch `feat/transferido-tentando-contato`, NÃO publicado
+- **Data:** 2026-10-25
+- **Área:** Clientes/funil, roleta, fila de reativação (FUN-15l), exclusão de usuário, Prospecção, Marketplace
+- **Alteração:** [REGRA OFICIAL DE NEGÓCIO — dono, 2026-10-25] "Os clientes transferidos devem ir com status de tentando contato. E deve ser criada uma tag com o status anterior." Ponto único novo `applyTransferStatusRule` (`lib/transfer-status.js`; regras puras `lib/transfer-status-core.mjs`) chamado por todos os caminhos de transferência: `updateSimulationRegistration` (ficha, Chat, REDISTRIBUIÇÃO, Fluxos, Marketplace), fila de espera, ROL-4a, `moveClientToRoulette` (Devolver para a roleta, cliente frio, devolução ao dono), entrega da fila de reativação, Marketplace manual, reatribuição de contato da Prospecção e exclusão de usuário. Grava status `awaiting_return`, `client_status_history` com `source = transfer_auto` (acrescentado a `AUTOMATIC_STATUS_SOURCES`), etiqueta do sistema "Status anterior: <rótulo>" (uma por cliente) e `status_reason` na linha do tempo. Rotina dos atuais `runTransferStatusBackfill` + rota `GET/POST /api/admin/transfer-status/backfill` (`requireRealGeneralAdminApi`; GET só conta).
+- **Arquivos:** `lib/transfer-status-core.mjs` (novo), `lib/transfer-status.js` (novo), `app/api/admin/transfer-status/backfill/route.js` (novo), `lib/simulation-registrations.js`, `lib/lead-distribution.js`, `lib/cooled-clients-reactivation.js`, `lib/marketplace-chat.js`, `lib/prospecting.js`, `lib/admin-profiles.js`, `lib/client-attendance-core.mjs`, `tests/transfer-status.test.mjs` (novo); docs `BUSINESS_RULES.md` CLI-7c, rule `crm-clientes-funil.md`.
+- **Validação:** `node --test tests/transfer-status.test.mjs` + testes da área; `pnpm build`. Nada rodado contra produção.
+- **Risco/observação:** **A CONFIRMAR com o dono:** etapas preservadas (negativos, aprovado em diante, lead não atendido — este por causa da roleta), efeitos de "Tentando contato" já existentes (aba Prospecção, Lista fria PRO-16, trava PRO-9, opt-out PRO-8, regra `status_changed` sem status). Sem migration.
+
 ### 2026-10-24 — Henry: resumo de desempenho só com o que foi bom — branch `feat/henry-resumo-positivo`, NÃO publicado
 - **Data:** 2026-10-24
 - **Área:** Henry (HENRY-1 "Resumo positivo", bom dia, relatorio_periodo, consultar_corretor, consultar_crm, relatorio_do_dia)
