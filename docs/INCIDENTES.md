@@ -40,6 +40,17 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-25 — Henry: "onde a gente perde o cliente" vira promessa, resumo troca o mês por "hoje", "pode, mas … mais animado" toca a sugestão
+- **Data:** 2026-10-25
+- **Sintoma:** Treino 12 (21:57Z, automático): "Eu não perguntei isso… Quero saber onde a gente perde o cliente" → "Foi mal… Me deixa conferir isso" sem ferramenta; depois "mesma coisa de novo" → "Você queria o quê…?"; "resume, tá longo" → "Vendas? Hoje tem três…" (eram do mês); bom dia "Pode, mas … um sertanejo mais animado" → tocou "Pense em Mim" e o relatório não disse o que tocou.
+- **Área:** Henry (voz/IA) / Treino
+- **Impacto:** só o dono; resposta errada/repetida.
+- **Causa raiz:** diagnóstico só no gerúndio ("perdendo"); releitura da 2ª reclamação só depois da pergunta genérica; resumo sem trava de período; qualificador e "mas" tratados como enfeite do gênero.
+- **Correção:** `DIAGNOSIS` com presente, `henryDiagnosisDeepenRequest`, `henryComplaintFallbackRequest` ampliada, `henryShortenedReply`, `mood`/`change` em `classifyMorningMusicReply` + `morningGenreTarget`, `morningMusicChangeLine`. Detalhe: `docs/CHANGELOG_AI.md` 2026-10-25 (Treino 12).
+- **Arquivos/commit:** branch `fix/henry-achados-treino-12`.
+- **Prevenção/teste:** `tests/henry-achados-treino-12.test.mjs` (falas reais).
+- **Status:** Resolvido (aguarda publicação; rodar o Treino de novo depois)
+
 ### 2026-10-25 — Henry: piada vira "Abra a tela correspondente", "Bom descanso" no bom dia, "mesma coisa de novo" vira pergunta genérica
 - **Data:** 2026-10-25
 - **Sintoma:** Treino 11 (21:36Z, automático): "bora de piada rapidinho?" → "Não posso falar isso por voz. Abra a tela correspondente no CRM."; bom dia com "pode ser sertanejo mesmo" → "TOOOCA, MIROSMAR! … Bom descanso, e amanhã a gente segue"; "você tá falando a mesma coisa de novo" depois do gargalo → "Você queria o quê: vendas, funil ou ranking?"; "me mostra o WhatsApp também" → "Quer que eu abra o Chat agora?"; "como que foi teu dia?" 9,6 s.

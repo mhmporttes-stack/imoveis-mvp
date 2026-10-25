@@ -78,7 +78,7 @@ test("2: \"pode ser um <gênero> mesmo, tanto faz o cantor\" = o gênero (a suge
   // Rock nacional sugerido, "um rock" pedido = rock clássico (o gênero mais específico decide).
   assert.equal(morningGenreOf("um rock nacional das antigas rock nacional anos 80").id, "rock-nacional");
   assert.equal(morningSuggestionMatchesGenre({ say: "um rock nacional das antigas", target: { query: "rock nacional anos 80" } }, classifyMorningMusicReply("um rock").genre), false);
-  assert.match(lib, /answer === "genre" && morningSuggestionMatchesGenre\(todays, reply\.genre\)/);
+  assert.match(lib, /answer === "genre" && !reply\.mood && !reply\.change && morningSuggestionMatchesGenre\(todays, reply\.genre\)/);
   // O relatório do Treino guarda a música tocada (antes sumia e parecia "não tocou").
   const { round } = appendTrainingScenario([], { roundId: "c329d7d9-1074-4e4d-b65b-e8394d15533e", scenarioLabel: "Dia inteiro", exchanges: [{ owner: "Pode ser um sertanejo mesmo", reply: "Já tô com o dia na mão.", mode: "report", music: "sertanejo raiz" }] });
   assert.equal(round.exchanges[0].music, "sertanejo raiz");
