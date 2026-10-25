@@ -42,9 +42,10 @@ test("1: meta do dia da equipe SEMPRE consulta a Meta Diária da equipe (rota di
   assert.equal(route("Quem bateu a meta hoje?"), null);
   assert.equal(route("E a meta da Carol hoje?"), null);
   // servidor: a ferramenta roda antes do modelo; frase pronta do catálogo = resposta sem rodada do modelo
-  assert.match(lib, /const direct = withTools && !image && !accepted && !locked \? henryDirectRoute\(text, \{ turns: previous, today: saoPauloDateKey\(\) \}\) : null;/);
-  assert.match(lib, /if \(direct\) \{\n\s+const block = \{ type: "tool_use"[\s\S]*?const content = await runTool\(block\.name, block\.input, auth, context\);/);
-  assert.match(lib, /messages\.push\(\{ role: "user", content: \[\{ type: "tool_result", tool_use_id: block\.id, content \}\] \}\);/);
+  // (Treino 4: período herdado lido na conversa do dia inteira; música + pergunta rodam as duas ferramentas juntas)
+  assert.match(lib, /const direct = withTools && !image && !accepted && !locked \? henryDirectRoute\(text, \{ turns: memoryTurns\.length \? memoryTurns : previous, today: saoPauloDateKey\(\) \}\) : null;/);
+  assert.match(lib, /if \(direct\) \{\n[\s\S]*?const contents = await Promise\.all\(blocks\.map\(\(block\) => runTool\(block\.name, block\.input, auth, context\)\)\);/);
+  assert.match(lib, /messages\.push\(\{ role: "user", content: blocks\.map\(\(block, index\) => \(\{ type: "tool_result", tool_use_id: block\.id, content: contents\[index\] \}\)\) \}\);/);
   // a rodada extra da pergunta ignorada agora OBRIGA uma ferramenta (o modelo recusou de novo na rodada extra)
   assert.match(lib, /content: henryUnansweredRetry\(questionPart\) \}\);\n[\s\S]{0,300}forceTool = !context\.musicPlayed;/);
   assert.match(lib, /\.\.\.\(tools && toolChoice \? \{ tool_choice: toolChoice \} : \{\}\)/);
@@ -77,9 +78,9 @@ test("2: diagnóstico vai direto ao funil; promessa sem ação vira rodada com f
 
 // 3. Lentidão: rota direta poupa a 1ª rodada do modelo; frase pronta poupa a 2ª; o Treino guarda onde foi o tempo.
 test("3: rota direta sem rodada do modelo quando a ferramenta já traz a frase; Treino guarda os tempos", () => {
-  assert.match(lib, /if \(spoken \|\| \(direct\.name === "spotify" && \(context\.musicPlayed \|\| context\.spotify\)\)\) \{\n\s+skipModel = true;/);
+  assert.match(lib, /if \(parts\.every\(\(part\) => part !== null\)\) \{\n\s+skipModel = true;/);
   assert.match(lib, /for \(; !skipModel && rounds <= MAX_TOOL_ROUNDS; rounds \+= 1\)/);
-  assert.match(lib, /const spoken = direct\.speak && !complaint && !context\.providerFailed \? henryDirectSpeech\(content\) : "";/);
+  assert.match(lib, /const spoken = step\.speak && !complaint && !context\.providerFailed \? henryDirectSpeech\(contents\[index\], \{ any: step\.speak === "always" \}\) : "";/);
   assert.match(lib, /if \(timing\.rounds\) logModelUsage\(auth, feature, usage\);/);
   assert.match(lib, /timing\.toolNames = context\.tools\.map\(\(tool\) => tool\.name\);/);
   assert.match(training, /toolNames: Array\.isArray\(answer\.timing\?\.toolNames\)/);
@@ -100,7 +101,8 @@ test("4: clientes novos = um caminho só, a contagem do Início (leads = cliente
   }
   assert.equal(route("quantos clientes novos entraram ontem?")?.input.periodo, "ontem");
   assert.equal(route("Quantos clientes novos a Carol recebeu hoje?"), null); // de um corretor: o modelo decide
-  assert.equal(route("quais clientes novos entraram hoje?"), null); // lista de nomes: catálogo pelo modelo
+  // lista de nomes (Treino 4): a MESMA leitura do Início, com os nomes quando são poucos
+  assert.deepEqual(route("quais clientes novos entraram hoje?"), { name: "consultar_crm", input: { assunto: "clientes_novos", formato: "lista", periodo: "hoje" }, topic: "clientes_novos", speak: "always" });
   const today = resolveHenryPeriod({ periodo: "hoje" }, TODAY);
   assert.equal(buildHenryNewClientsAnswer({ range: today, leads: { total: 2, ad: 1, marketplace: 0, other: 1 } }), "Hoje entraram 2 clientes novos, 1 de anúncio.");
   assert.equal(buildHenryNewClientsAnswer({ range: today, leads: { total: 1, ad: 0, marketplace: 0, other: 1 } }), "Hoje entrou 1 cliente novo.");
@@ -132,7 +134,7 @@ test("6: pergunta pessoal ao Henry é papo — sem ferramentas e sem número do 
   assert.equal(isPersonalQuestion("E aí, Henry, como é que tá o movimento hoje?"), false);
   assert.deepEqual(route("E aí, Henry, como é que tá o movimento hoje?"), { name: "relatorio_do_dia", input: {}, topic: "movimento" });
   assert.equal(isPersonalQuestion("como você tá e como tá a meta?"), false);
-  assert.match(lib, /const personal = !image && !greeting && !accepted && isPersonalQuestion\(text\);/);
+  assert.match(lib, /const personal = !image && !greeting && !accepted && \(isPersonalQuestion\(text\) \|\| isCasualRequest\(text\)/);
   assert.match(lib, /const withTools = Boolean\(image\) \|\| \(!greeting && !personal && \(/);
   assert.match(buildHenryStaticPrompt(), /Pergunta sobre VOCÊ \("como foi o teu dia\?"/);
 });
@@ -142,11 +144,16 @@ test("7: estilo pedido toca direto e só confirma (nunca pede o artista)", () =>
   assert.equal(musicQueryFromText("Põe um rock aí, Henry."), "rock");
   assert.deepEqual(route("Põe um rock aí, Henry."), { name: "spotify", input: { acao: "tocar", busca: "rock" }, topic: "musica" });
   assert.deepEqual(route("Henry, toca Legião Urbana"), { name: "spotify", input: { acao: "tocar", busca: "Legião Urbana" }, topic: "musica" });
-  // volume, aparelho, "bota uma aí" e pedido composto ficam com o modelo
-  assert.equal(route("Baixa um pouco o som aí, Henry."), null);
+  // Treino 4: volume e pedido composto (música + pergunta clara) também vão direto; "bota uma aí" e pedido estranho ficam com o modelo
+  assert.deepEqual(route("Baixa um pouco o som aí, Henry."), { name: "spotify", input: { acao: "volume", ajuste: "mais_baixo" }, topic: "musica" });
   assert.equal(route("Henry, transfere essa ligação pra Alexa."), null);
   assert.equal(route("Valeu, Henry. Bota uma aí."), null);
-  assert.equal(route("Ei Henry, coloca uma coisa mais tranquila aí e depois me diz quantos clientes novos apareceram hoje."), null);
+  assert.deepEqual(route("Ei Henry, coloca uma coisa mais tranquila aí e depois me diz quantos clientes novos apareceram hoje."), {
+    name: "spotify",
+    input: { acao: "tocar", busca: "música tranquila" },
+    topic: "musica",
+    also: { name: "consultar_crm", input: { assunto: "clientes_novos", periodo: "hoje" }, topic: "clientes_novos", speak: true }
+  });
   assert.match(buildHenryStaticPrompt(), /estilo ou clima \("um rock", "algo tranquilo"\) já basta para tocar — toque e só confirme, nunca peça o artista/);
 });
 

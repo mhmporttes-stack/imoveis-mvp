@@ -234,7 +234,7 @@ test("velocidade: cache curto de leitura (mesma chave = uma leitura; falha sai d
 test("velocidade: resposta sem esperar gravações e sem confirmação; relatório e Início juntos", () => {
   const lib = readFileSync(new URL("../lib/henry-voice.js", import.meta.url), "utf8");
   assert.doesNotMatch(lib, /await recordAiUsage/);
-  assert.match(lib, /getPainelInicioDono\(auth, inicioPromise\)/);
+  assert.match(lib, /getPainelInicioDono\(auth, inicioPromise, \{ loadMeta: \(\) => loadHenryOwnerMetaToday\(auth\) \}\)/);
   assert.match(lib, /withTimeout\(buildCompliment\(auth, image, style\), COMPLIMENT_TIMEOUT_MS\)/);
   const route = readFileSync(new URL("../app/api/admin/henry/route.js", import.meta.url), "utf8");
   assert.match(route, /mode === "warm"/);

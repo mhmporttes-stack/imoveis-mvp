@@ -175,7 +175,7 @@ test("consultar_crm no Henry: frase do catálogo (compartilhada com a Alexa) fil
   assert.equal(hasPositiveContent("Bom dia, Matheus. Hoje entraram 3 leads."), true);
   assert.equal(greetingOf("Bom dia, Matheus. Nenhum lead novo hoje ainda."), "Bom dia, Matheus.");
   assert.deepEqual(prunePositiveFacts({ a: 0, b: 3, agora: { aguardando_resposta: 9 }, c: "indisponível", d: "sem meta no período", e: { x: 0 } }), { b: 3, c: "indisponível" });
-  assert.match(lib, /return positiveCatalogAnswer\(text, query, context\)/);
+  assert.match(lib, /return positiveCatalogAnswer\(note \? `\$\{answer\.text\} \$\{note\}` : answer\.text, query, context\)/);
   assert.match(lib, /const POSITIVE_CATALOG_TOPICS = new Set\(\["resumo", "desempenho", "equipe_resumo", "corretor_resumo", "funil"\]\)/);
   // A Alexa não muda: o filtro mora só no Henry.
   const alexa = readFileSync(new URL("../lib/alexa-v2/catalog-corretor.mjs", import.meta.url), "utf8");

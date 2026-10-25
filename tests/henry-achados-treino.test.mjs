@@ -47,7 +47,8 @@ test("2: ranking de um período sai do mesmo overview do Desempenho, com número
   const range = resolveHenryPeriod({ periodo: "esta_semana" }, "2026-10-25");
   const overview = { ranking: [{ name: "Carol Souza", points: 120 }, { name: "Gabriel Lima", points: 90 }, { name: "Ketlin", points: 70 }, { name: "Zé", points: 0 }] };
   const report = buildHenryRankingReport({ range, overview });
-  assert.equal(report.spoken, "Nesta semana, quem lidera o ranking é Carol, com 120 pontos; depois vêm Gabriel, com 90 e Ketlin, com 70.");
+  // Treino 4 (2026-10-25): fala de gente ("o Gabriel lidera, com a Bruna em segundo"); sem gênero, só o nome.
+  assert.equal(report.spoken, "Nesta semana, Carol lidera o ranking, com 120 pontos; Gabriel vem em segundo, com 90, e Ketlin em terceiro, com 70.");
   assert.deepEqual(report.facts.ranking.map((row) => row.nome), ["Carol", "Gabriel", "Ketlin"]);
   assert.equal(report.detail.sections[0].rows.length, 3);
   assert.equal(buildHenryRankingReport({ range, overview: { ranking: [] } }).spoken, "Ninguém pontuou nesta semana.");
