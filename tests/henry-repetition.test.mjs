@@ -64,7 +64,7 @@ test("abertura do modelo: 'vou olhar' e abertura parecida com uma de hoje saem; 
 test("servidor: a mesma regra na 1ª frase antecipada e na resposta final; repertório sem o que é parecido", () => {
   assert.match(lib, /const usedOpeningSentences = greeting \? null : openingSentencesFrom\(memoryTurns\)/);
   assert.match(lib, /const first = trimOpening\(match\[1\]\.trim\(\), \{ allowEmpty: true \}\)/);
-  assert.match(lib, /replyText = trimOpening\(replyText\);\n(?: {2}\/\/.*\n)* {2}replyText = trimRepeatedClosing\(replyText, promptExtras\.usedClosings\);\n {2}const musicOnly/);
+  assert.match(lib, /replyText = stripSpeechLabel\(trimOpening\(replyText\)\);\n(?: {2}\/\/.*\n)* {2}replyText = trimRepeatedClosing\(replyText, promptExtras\.usedClosings\);\n {2}const musicOnly/);
   assert.match(lib, /saidOpenings: openingSentencesFrom\(turns\)/);
 });
 

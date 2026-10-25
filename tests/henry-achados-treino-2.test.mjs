@@ -136,7 +136,7 @@ test("6: reclamação nunca recebe a mesma resposta: reconhece e pergunta o que 
   assert.ok(HENRY_COMPLAINT_REPLIES.includes(replacement));
   assert.notEqual(replacement, "Foi mal, entendi errado. O que você queria saber?");
   assert.match(henryTurnHint({ text: "não foi isso que eu perguntei", lastAssistant: "Foram 3 vendas.", turns: [{ role: "user", text: "Quantas vendas a gente fez esse mês?" }, { role: "assistant", text: "Foram 3 vendas." }] }), /NÃO era o que ele perguntou[\s\S]*Quantas vendas/);
-  assert.match(lib, /if \(complaint && henryRepeatedAfterComplaint\(replyText, lastAssistant\)\) \{\n\s+replyText = pickComplaintReply\(/);
+  assert.match(lib, /if \(complaint && !direct && henryRepeatedAfterComplaint\(replyText, lastAssistant\)\) \{\n\s+replyText = pickComplaintReply\(/); // Treino 5: rota direta = pergunta nova
 });
 
 // 7. "como tá o funil desse mês?" → "só consigo ver de hoje ou de ontem por voz".

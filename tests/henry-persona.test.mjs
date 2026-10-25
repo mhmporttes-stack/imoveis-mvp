@@ -127,7 +127,7 @@ test("relatório no jeito de amigo: todo número vem dos dados; número inventad
   assert.match(prompt, /Não comece com nada parecido com: "Olha só"/);
   // Fluxo do servidor: modelo → trava de números → barreira da fala; falhou → reserva com abertura sorteada.
   assert.match(lib, /if \(!text \|\| !reportNumbersMatch\(factual, text\)\)/);
-  assert.match(lib, /const reply = rewritten \|\| \(fallback !== HENRY_FALLBACK_REPLY \? fallback : factual\)/);
+  assert.match(lib, /const composed = rewritten \|\| \(fallback !== HENRY_FALLBACK_REPLY \? fallback : factual\)/);
   assert.match(lib, /positiveText\(pick\("intro", HENRY_REPORT_INTROS\)\)/);
 });
 

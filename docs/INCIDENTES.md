@@ -40,6 +40,17 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-25 — Henry diz "só consigo ver de hoje e de ontem", não sabe o tamanho da meta, "aquele cliente" vira clientes novos
+- **Data:** 2026-10-25
+- **Sintoma:** Treino 5 (18:02Z, automático): "quanto a equipe precisa fechar por dia pra bater a meta?" → "Não tenho esse número fixo aqui… Quer que eu abra a tela?"; "quanto falta pra fechar essas vendas" e "e os vinte esperando?" → "só consigo ver de hoje e de ontem"; "aquele cliente, como é que tá?" → `relatorio_do_dia` (4,8 s) e clientes novos; volume com 2 rodadas; "Feito: são 3 vendas…"; "é só pedir" repetido; bom dia no Treino sem sinal da música e com "Boa tarde" de novo.
+- **Área:** Henry (voz/IA) / Treino
+- **Impacto:** só o dono; resposta sem número ou limitação falsa.
+- **Causa raiz:** o catálogo da Alexa recusa período ≠ hoje/ontem com "Isso eu só sei para hoje e ontem." e essa frase ia ao modelo, que a repetia — inclusive para etapa (fotografia de agora) chamada com `periodo: este_mes`; nenhuma ferramenta lia o TAMANHO da Meta Diária (`atividadesTotal`), só o percentual; não há meta de vendas no CRM e nada dizia isso ao modelo; "aquele cliente" ligava `isCrmQuestion`; `VOLUME_DOWN` não tinha o infinitivo; nenhuma trava de rótulo nem de bordão em variante. Bom dia: não era bug do servidor — o Treino repassa o passo pendente igual ao app; só não registrava a música tocada.
+- **Correção:** instrução das ferramentas de período no lugar da recusa, etapa = agora, `detalhe: "tamanho"` + `buildHenryTeamGoalSizeSpeech`, rota de falta de vendas com `HENRY_NO_SALES_GOAL`, lista da etapa (`loadHenryStageClients`), `isVagueClientReference`, volume no infinitivo, `stripSpeechLabel`, `isOfferClosing`, `dropReportGreeting`, `music` na troca do Treino, achado `limitacao_periodo`. Detalhe: `docs/CHANGELOG_AI.md` 2026-10-25 (Treino 5).
+- **Arquivos/commit:** branch `fix/henry-achados-treino-5`.
+- **Prevenção/teste:** `tests/henry-achados-treino-5.test.mjs` (falas reais).
+- **Status:** Monitorando (rodar o Treino de novo depois da publicação)
+
 ### 2026-10-25 — Henry fala "Última atualização há 28 minutos" duas vezes, ranking no período errado, piada vira CRM, "aquela parada" vira clientes novos, repete após reclamação, não fala os nomes
 - **Data:** 2026-10-25
 - **Sintoma:** Treino 4 (17:27Z, já com `1e18d9c`): meta da equipe = "Última atualização há 28 minutos. A meta da equipe está em 0 por cento. Última atualização há 28 minutos. Ninguém bateu a meta ainda."; "me fala do ranking primeiro" (depois de "ranking dessa semana") → "Ranking hoje: 1º Gabriel e 2º Bruna."; piada → `relatorio_do_dia` 11,3 s; "aquela parada que você tava falando" → "Hoje entraram 2 clientes novos."; "não era isso" → "São 3 vendas…" de novo; "atendimentos de hoje" → oferta; "o nome deles" → "estão na tela"; volume com 2 rodadas e frase longa; ranking_periodo/relatorio_do_dia 6,4–7,5 s.
