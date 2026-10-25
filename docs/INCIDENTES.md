@@ -40,6 +40,17 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-25 — Henry: resumo do mês começa com "Hoje,", "por que não fecha?" repete o gargalo, despedida vira "Beleza!"
+- **Data:** 2026-10-25
+- **Sintoma:** Treino 13 (22:27Z, automático): "dá pra falar mais curto?" depois do gargalo do mês → "Hoje, claro. Entre aprovado e venda…"; "por que tanto aprovado que não fecha?" (gargalo e lista já ditos) → a mesma frase do gargalo; "já tô saindo por hoje. Boa noite." → "Beleza!".
+- **Área:** Henry (voz/IA) / Treino
+- **Impacto:** só o dono; resposta errada/repetida.
+- **Causa raiz:** trava de período do resumo só com período na resposta resumida; "por quê" do gargalo ia à rota fixa do gargalo sem olhar o já dito; despedida sem "tô saindo/até amanhã".
+- **Correção:** `henryShortenedReply`/`henryShortenPeriod`, `henryBottleneckFollowUp` + `consultar_crm` formato "motivo" (`loadHenryStageReasons`, `buildHenryStageReasonsReport`), `henryDropRepeatedBottleneck`, `FAREWELL` ampliado + resposta de boa noite. Detalhe: `docs/CHANGELOG_AI.md` 2026-10-25 (Treino 13).
+- **Arquivos/commit:** branch `fix/henry-achados-treino-13`.
+- **Prevenção/teste:** `tests/henry-achados-treino-13.test.mjs` (falas reais).
+- **Status:** Resolvido (aguarda publicação; rodar o Treino de novo depois)
+
 ### 2026-10-25 — Henry: "onde a gente perde o cliente" vira promessa, resumo troca o mês por "hoje", "pode, mas … mais animado" toca a sugestão
 - **Data:** 2026-10-25
 - **Sintoma:** Treino 12 (21:57Z, automático): "Eu não perguntei isso… Quero saber onde a gente perde o cliente" → "Foi mal… Me deixa conferir isso" sem ferramenta; depois "mesma coisa de novo" → "Você queria o quê…?"; "resume, tá longo" → "Vendas? Hoje tem três…" (eram do mês); bom dia "Pode, mas … um sertanejo mais animado" → tocou "Pense em Mim" e o relatório não disse o que tocou.

@@ -70,7 +70,7 @@ test("2: resumo curto mantém o período da resposta e não começa com 'Vendas?
   const hint = henryTurnHint({ text: ask, lastAssistant: SALES, turns: [user(ASK), henry(SALES)] });
   assert.match(hint, /MESMO período \("no mês"/);
   assert.match(hint, /nunca comece com uma pergunta/);
-  assert.match(lib, /if \(!direct && lastAssistant && isHenryShortenRequest\(text\)\) replyText = henryShortenedReply\(replyText, lastAssistant\);/);
+  assert.match(lib, /if \(!direct && lastAssistant && isHenryShortenRequest\(text\)\) replyText = henryShortenedReply\(replyText, lastAssistant[,)]/);
 });
 
 test("3: 'Pode, mas … um sertanejo mais animado' depois de 'Pense em Mim' = trocar: busca 'sertanejo animado'", () => {

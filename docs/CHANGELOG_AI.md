@@ -68,6 +68,15 @@ Copie o modelo abaixo (uma entrada por bloco):
 ```
 
 
+### 2026-10-25 — Henry: achados do Treino 13 ("Hoje, claro." no resumo do mês, "por que tanto aprovado que não fecha?" repetiu o gargalo, "tô saindo… boa noite" virou "Beleza!") — branch `fix/henry-achados-treino-13`, NÃO publicado
+- **Data:** 2026-10-25
+- **Área:** Henry (voz/IA) / Treino do Henry
+- **Alteração:** (1) **Resumo:** depois do gargalo do MÊS ("O gargalo tá entre aprovação e venda: de 20 aprovados…", sem período falado), "Henry, dá pra falar mais curto? Tô sem tempo." → "Hoje, claro. Entre aprovado e venda…". Causa: `henryShortenedReply` só corrigia quando a resposta resumida tinha período falado; sem nenhum, o "Hoje," do modelo passava. Agora o período vem da pergunta que ela respondeu (`henryShortenPeriod`, também na dica), período estranho no começo seguido de vírgula sai e o certo entra depois da interjeição ("Claro. No mês, entre…"). (2) **"Ah, e por que tanto aprovado que não fecha?"** (gargalo e lista já ditos) → a frase do gargalo de novo. Causa: `WHY_NOT_CLOSING` é diagnóstico → rota fixa do gargalo, sem olhar o que já foi dito. Agora "por quê" com o gargalo dito hoje = `consultar_crm` etapa formato "motivo" (`henryBottleneckFollowUp`): "O motivo de não fechar não fica registrado no CRM." + os 3 mais antigos parados (dias, próxima atividade; última movimentação na tela — `loadHenryStageReasons`, mesma leitura de `buscar_clientes`) + a 1ª ação do plano (`buildHenryStageReasonsReport`). Reclamação + diagnóstico depois da lista já dita também vai ao motivo. Trava geral: a mesma frase do gargalo (etapas + queda) nunca sai duas vezes no dia (`henryDropRepeatedBottleneck`). (3) **"Beleza, Henry, já tô saindo por hoje. Boa noite."** → "Beleza!". Causa: `FAREWELL` não tinha "tô saindo"/"até amanhã", então a concordância respondia. Agora é despedida, e com "boa noite" a resposta é "Boa noite, Matheus! Bom descanso.".
+- **Motivo:** rodada automática do Treino de 2026-10-25T22:27:56Z (crm_settings `henry_training_reports`, id `bb866de9-c86e-4a94-a595-c4b92da7c949`).
+- **Arquivos afetados:** `lib/henry-voice-turn.mjs`, `lib/henry-voice.js`, `lib/henry-reports.js`, `lib/henry-reports-core.mjs`; `tests/henry-achados-treino-13.test.mjs` (novo, falas reais); trava de fonte em `tests/henry-achados-treino-12.test.mjs` aceita o 3º argumento.
+- **Risco/observação:** diagnóstico sem "por quê" ("não fecha", Treino 7) continua o mesmo gargalo do período herdado, mas a frase repetida vira "É aquele mesmo gargalo que te falei…". O motivo faz uma leitura a mais (3 clientes, linha do tempo/agenda) só nessa pergunta. Sem migration. Validado: `node --test tests/henry*.test.mjs tests/alexa*.test.mjs tests/crm-metrics*.test.mjs` e `next build`.
+- **Autor:** crm-editor (Claude Code)
+
 ### 2026-10-25 — Henry: achados do Treino 12 (reclamação "onde a gente perde o cliente" virou promessa, 2ª reclamação virou pergunta genérica, resumo trocou o período, "pode, mas … sertanejo mais animado" tocou a sugestão) — branch `fix/henry-achados-treino-12`, NÃO publicado
 - **Data:** 2026-10-25
 - **Área:** Henry (voz/IA) / Treino do Henry
