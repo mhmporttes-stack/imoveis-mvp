@@ -727,6 +727,15 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-25 — Henry: boom do bom dia vira "Pó de luz"
+- **Data:** 2026-10-25
+- **Área:** Henry (cena de abertura do ▶)
+- **Alteração:** o boom aos 4,4 s deixou de ser clarão + faíscas e passou a ser o "Boom 3 · Pó de luz" do protótipo: ~640 pontos de luz (420 no celular) sobre a circunferência do anel se espalham devagar (0–1,2 s), voltam (até 2,5 s) e somem; o fundo da cena vai sumindo de 1,5 s a 2,5 s depois do boom (anel real aparece por baixo); aos 2,2 s o anel acorda (`onBoom`, pulso de fala curto) e entra "BOM DIA, MATHEUS" + data, que agora sai com fade antes dos 8,6 s (antes a cena cortava a mensagem). Brilho do centro antes do boom a 30% e sem tom dourado. Resto da cena (feixe, voltas, som aos 3,8 s, pular, movimento reduzido) intacto; "Henry pensando" não mexido.
+- **Motivo:** escolha do dono entre as 4 variações do protótipo.
+- **Arquivos afetados:** `components/henry/HenryOpeningScene.jsx`, `components/henry/HenryOpeningScene.module.css`
+- **Risco/observação:** só apresentação; `node --test tests/henry*.test.mjs` e `pnpm build` ok. Não foi possível renderizar no navegador neste container (sem Chromium) — conferir visualmente no computador e no celular antes de publicar. `docs/BUSINESS_RULES.md` HENRY-1 "Bom dia novo" ainda descreve o boom antigo (clarão/faíscas) — ajustar ao publicar.
+- **Autor:** Claude Code
+
 ### 2026-10-25 — Extensões Marketplace 1.9.8 e Seguidor Instagram 1.1.6: trabalham com a janela de trabalho atrás de outra em tela cheia; Marketplace nunca mais em silêncio — branch `fix/extensoes-aba-atras`, NÃO publicado
 - **Data:** 2026-10-25
 - **Área:** `ferramentas/marketplace-publicador`, `ferramentas/instagram-seguidor`, sinal da extensão (MKT-2g) no CRM, Chat Marketplace.
