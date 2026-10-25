@@ -90,17 +90,18 @@ test("3: os aprovados esperando = lista da etapa agora (quantos, mais antigos na
     { full_name: "Davi", since: "2026-10-25T10:00:00Z" }
   ];
   const report = buildHenryStageWaitingReport({ etapa: "aprovados", total: 20, rows, today: TODAY, stageLabel: "aprovados" });
-  assert.equal(report.spoken, "São 20 clientes aprovados esperando; os mais antigos na etapa são Ana há 34 dias, Bruno há 20 dias e Carla há 1 dia.");
+  assert.equal(report.spoken, "Hoje 20 clientes continuam na etapa aprovado, esperando; os mais antigos na etapa são Ana há 34 dias, Bruno há 20 dias e Carla há 1 dia.");
   assert.equal(report.detail.sections[0].rows.length, 5);
-  assert.equal(buildHenryStageWaitingReport({ etapa: "aprovados", total: 0, rows: [] }).spoken, "Nenhum cliente aprovado esperando agora.");
-  assert.equal(buildHenryStageWaitingReport({ etapa: "aprovados", total: 1, rows: [rows[2]], today: TODAY }).spoken, "Tem 1 cliente aprovado esperando; é Bruno há 20 dias.");
+  assert.equal(buildHenryStageWaitingReport({ etapa: "aprovados", total: 0, rows: [] }).spoken, "Hoje nenhum cliente continua na etapa aprovado esperando.");
+  assert.equal(buildHenryStageWaitingReport({ etapa: "aprovados", total: 1, rows: [rows[2]], today: TODAY }).spoken, "Hoje 1 cliente continua na etapa aprovado, esperando; é Bruno há 20 dias.");
   assert.equal(buildHenryStageWaitingReport({ etapa: "aprovados", total: null }), null); // leitura falhou
   // Leitura: mesmos status da etapa (ETAPA_STATUSES), escopo, sem Particular, mais antigos na etapa primeiro.
   assert.match(reports, /export async function loadHenryStageClients\(auth, etapa\)/);
   assert.match(reports, /\.order\("last_status_change_at", \{ ascending: true, nullsFirst: false \}\)/);
   assert.match(reports, /applyResponsibleUserScope\(supabase\.from\("simulation_registrations"\)\.select\("id", \{ count: "exact", head: true \}\)\.in\("status", statuses\)\.is\("private_contact_at", null\), auth\)/);
   // Etapa com período longo vira AGORA (nunca a recusa "só sei para hoje e ontem").
-  assert.match(lib, /query\.assunto === "etapa" && query\.periodo && query\.periodo !== "hoje" && query\.periodo !== "ontem"\) query = \{ \.\.\.query, periodo: "hoje" \}/);
+  // (Treino 6: a mesma regra vale para todo assunto da situação de AGORA — NOW_CATALOG_TOPICS, que inclui "etapa".)
+  assert.match(lib, /NOW_CATALOG_TOPICS\.has\(query\.assunto\) && query\.periodo && query\.periodo !== "hoje" && query\.periodo !== "ontem"\) query = \{ \.\.\.query, periodo: "hoje" \}/);
 });
 
 // 4. "só consigo ver de hoje e de ontem" não pode mais aparecer.

@@ -51,6 +51,17 @@ Copie o modelo abaixo (uma entrada por bloco):
 - **Prevenção/teste:** `tests/henry-comparar-corretores.test.mjs` (falas do dono, números batem com o individual); achado do Treino `comparacao_sem_resposta` + cenário "comparacao".
 - **Status:** Resolvido (aguarda publicação)
 
+### 2026-10-25 — Henry diz que "parados" não está disponível, "Já abaixei o volume" sem abaixar, perde a música do pedido composto, diz que errou os aprovados
+- **Data:** 2026-10-25
+- **Sintoma:** Treino 6 (18:26Z, automático): "quem tá parado há mais tempo no CRM?" → "o assunto de clientes parados não tá disponível por essa via" (antes funcionava); "Baixa um pouco aí, tá muito alto" → "Já abaixei o volume." sem ferramenta; "põe uma coisa mais de boa aí e depois me diz quantos clientes novos" → só os clientes novos; funil do mês "20 aprovados" e etapa "9 aprovados" → "eu tinha errado o número"; "começa pela Jeniffer" → "Achei duas Jenifferes (uma arquivada)"; bom dia "Hoje tá de pagode mesmo" → não tocou; "dá uma olhada no WhatsApp" → perguntou o quê; "Tens razão".
+- **Área:** Henry (voz/IA) / Treino
+- **Impacto:** só o dono; resposta errada, ação não feita dita como feita.
+- **Causa raiz:** regressão do Treino 5 — a recusa de período do catálogo virou instrução das ferramentas de período, mas `sem_contato` (só hoje) com período longo caía nela e nenhuma ferramenta de período tem "parados"; rota de volume exigia "som/volume"; nada conferia ação afirmada x ferramenta; "Cara," no começo e "de boa" fora de `MUSIC_MOOD` → pedido de música não reconhecido e a rota direta pegava só a parte do CRM; nada dizia que funil do período ≠ etapa agora; `pickClientMatches` sem contexto da conversa; `classifyMorningMusicReply` sem "tá/mesmo/nessa" nos enfeites; "Beleza, …" virava concordância (sem ferramentas).
+- **Correção:** `NOW_CATALOG_TOPICS` (período longo → hoje), volume curto + `henryClaimedActionWithoutTool` (rodada obrigatória e troca), vocativo/clima na música e guarda do pedido composto, `HENRY_STAGE_NOW_NOTE`/`HENRY_FUNNEL_PERIOD_NOTE` + fala "continuam na etapa", `clientFromConversation`, enfeites do bom dia, rota `conversas_aguardando`, "Tem razão". Detalhe: `docs/CHANGELOG_AI.md` 2026-10-25 (Treino 6).
+- **Arquivos/commit:** branch `fix/henry-achados-treino-6`.
+- **Prevenção/teste:** `tests/henry-achados-treino-6.test.mjs` (falas reais); achados `acao_sem_ferramenta` e `tom_portugal` no Treino.
+- **Status:** Monitorando (rodar o Treino de novo depois da publicação)
+
 ### 2026-10-25 — Henry diz "só consigo ver de hoje e de ontem", não sabe o tamanho da meta, "aquele cliente" vira clientes novos
 - **Data:** 2026-10-25
 - **Sintoma:** Treino 5 (18:02Z, automático): "quanto a equipe precisa fechar por dia pra bater a meta?" → "Não tenho esse número fixo aqui… Quer que eu abra a tela?"; "quanto falta pra fechar essas vendas" e "e os vinte esperando?" → "só consigo ver de hoje e de ontem"; "aquele cliente, como é que tá?" → `relatorio_do_dia` (4,8 s) e clientes novos; volume com 2 rodadas; "Feito: são 3 vendas…"; "é só pedir" repetido; bom dia no Treino sem sinal da música e com "Boa tarde" de novo.
