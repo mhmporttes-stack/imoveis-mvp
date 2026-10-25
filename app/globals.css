@@ -63,15 +63,18 @@ body.admin-scroll-fix {
    de dentro (menus, confirmações e folhas do Chat) — no iPhone isso prende o "fixo" à caixa do Chat.
    Sem o prefixo body.admin-scroll-fix: o app "Chat" (/chat-app) fica fora de /admin e não tem essa classe. */
 :root {
-  /* Durações triplicadas duas vezes a pedido do dono (2026-10-12: "muito rápidas, triplique o tempo" e, depois, "ainda muito rápido, triplique novamente"). */
+  /* Histórico das durações: triplicadas duas vezes a pedido do dono (2026-10-12: "muito rápidas, triplique o tempo" e, depois,
+     "ainda muito rápido, triplique novamente"). REVERTIDO em 2026-10-25 só para Sheets, menu de ações e mensagem nova do Chat:
+     o dono aprovou explicitamente voltar o movimento para 0,4–0,6 s ("As sugestões de animações você pode aplicar de 1 até 8").
+     Troca de tela, abas, voltar e indicador da navegação seguem como estavam. */
   --mm-motion-ease: cubic-bezier(0.22, 1, 0.36, 1);
   --mm-motion-screen: 1000ms;   /* abrir conversa, troca de tela (AdminMenu lê esta variável) */
   --mm-motion-back: 2700ms;     /* fechar conversa / voltar à lista */
   --mm-motion-tab: 2340ms;      /* troca de abas */
-  --mm-motion-message: 2340ms;  /* mensagem nova */
-  --mm-motion-menu: 1980ms;     /* menu de ações da mensagem */
-  --mm-motion-sheet: 2700ms;    /* Sheets (folha de baixo / lateral) */
-  --mm-motion-backdrop: 2160ms; /* fundo escuro dos Sheets — sem uso desde 2026-10-22 (é só opacidade: usa --mm-motion-fade) */
+  --mm-motion-message: 450ms;   /* mensagem nova (era 2340 ms até 2026-10-25) */
+  --mm-motion-menu: 400ms;      /* menu de ações da mensagem (era 1980 ms até 2026-10-25) */
+  --mm-motion-sheet: 500ms;     /* Sheets (folha de baixo / lateral); saída 180 ms (data-closing, abaixo) — era 2700 ms até 2026-10-25 */
+  --mm-motion-backdrop: 400ms;  /* fundo escuro dos Sheets — sem uso desde 2026-10-22 (é só opacidade: usa --mm-motion-fade) */
   --mm-motion-nav: 2340ms;      /* indicador ativo da navegação */
   /* Decisão B do dono (2026-10-22, etapa 2 de velocidade): o MOVIMENTO mantém as durações acima, mas a OPACIDADE
      (legibilidade) chega em 0,4 s — cada cena usa duas animações: a de transform (duração longa) + o fade (esta). */
@@ -745,6 +748,52 @@ html.ui-sheet-open {
   }
 }
 
+/* Saída dos Sheets (dono, 2026-10-25): Sheet.jsx põe data-closing e só fecha o <dialog> quando a animação acaba.
+   Sai ≈ 40% mais rápido que entra (180 ms), na direção de onde veio; modal centrado encolhe e some. Com movimento
+   reduzido o Sheet fecha na hora (nunca recebe data-closing). Fica depois das variantes para ganhar da entrada. */
+@keyframes ui-sheet-down {
+  from { transform: translateY(0); }
+  to { transform: translateY(100%); }
+}
+
+@keyframes ui-sheet-right-out {
+  from { transform: translateX(0); }
+  to { transform: translateX(100%); }
+}
+
+@keyframes ui-pop-out {
+  from { opacity: 1; transform: scale(1); }
+  to { opacity: 0; transform: scale(0.97); }
+}
+
+@keyframes ui-fade-out {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+
+.ui-sheet[data-closing] {
+  animation: ui-sheet-down 180ms cubic-bezier(0.32, 0.72, 0, 1) forwards;
+}
+
+.ui-sheet-right[data-closing] {
+  animation-name: ui-sheet-right-out;
+}
+
+.ui-sheet[data-closing]::backdrop {
+  animation: ui-fade-out 180ms cubic-bezier(0.32, 0.72, 0, 1) forwards;
+}
+
+@media (min-width: 768px) {
+  .ui-sheet-auto[data-closing] {
+    animation-name: ui-sheet-right-out;
+  }
+
+  .ui-sheet-modal.ui-sheet-auto[data-closing] {
+    animation-name: ui-pop-out;
+    animation-duration: 160ms;
+  }
+}
+
 /* Barra de "atualizando" (recarga de lista sem tirar o conteúdo da tela). */
 .ui-progress {
   overflow: hidden;
@@ -941,6 +990,45 @@ body:has([data-home-hero]) .site-header {
 
 .admin-sidebar-panel {
   background: #ffffff;
+}
+
+/* Menu lateral recolhível (components/AdminMenu.jsx). Pedido do dono, 2026-10-25: expandir sem animar `width`.
+   A gaveta tem sempre 260 px; fechada, o clip-path deixa visível só a coluna de --mm-shell-sidebar (e só ela recebe
+   o mouse); o fundo/borda deslizam por translateX e a sombra aparece por opacity. Nada muda de layout durante a cena. */
+.admin-sidebar-nav {
+  clip-path: inset(0 calc(100% - var(--mm-shell-sidebar, 76px)) 0 0);
+  transition: clip-path 200ms cubic-bezier(0.2, 0, 0, 1);
+}
+
+.admin-sidebar-nav[data-open="true"] {
+  clip-path: inset(0 0 0 0);
+}
+
+.admin-sidebar-bg,
+.admin-sidebar-shadow {
+  transform: translateX(calc(var(--mm-shell-sidebar, 76px) - 260px));
+  transition: transform 200ms cubic-bezier(0.2, 0, 0, 1), opacity 200ms cubic-bezier(0.2, 0, 0, 1);
+}
+
+.admin-sidebar-bg[data-open="true"],
+.admin-sidebar-shadow[data-open="true"] {
+  transform: none;
+}
+
+.admin-sidebar-shadow {
+  opacity: 0;
+}
+
+.admin-sidebar-shadow[data-open="true"] {
+  opacity: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .admin-sidebar-nav,
+  .admin-sidebar-bg,
+  .admin-sidebar-shadow {
+    transition: none;
+  }
 }
 html.mm-dark .admin-sidebar-panel {
   background: #0a1626;

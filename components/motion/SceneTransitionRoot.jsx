@@ -51,7 +51,8 @@ export default function SceneTransitionRoot({ children }) {
       block.style.transform = `translateX(${fromX})`;
     }
 
-    const controls = animate(blocks, { x: 0, opacity: 1 }, { duration, delay: (i) => i * STAGGER_GAP, ease: [0.16, 1, 0.3, 1] });
+    // Transform em texto = WAAPI no compositor (não engasga enquanto a tela nova hidrata). Ver SceneTransitionLink.
+    const controls = animate(blocks, { transform: [`translateX(${fromX})`, "translateX(0%)"], opacity: [0, 1] }, { duration, delay: (i) => i * STAGGER_GAP, ease: [0.16, 1, 0.3, 1] });
     const finish = () => {
       markSceneDone();
       releaseSceneReady();

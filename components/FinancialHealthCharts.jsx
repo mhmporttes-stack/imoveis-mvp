@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { tabClasses } from "@/components/ui/Tabs";
 
 // Gráficos da aba Saúde — SVG/CSS puro (sem dependência nova), responsivos e
@@ -45,9 +45,17 @@ export function niceThousandMax(maxValue) {
   return Math.max(1000, Math.ceil(v / 1000) * 1000);
 }
 
-function useCountUpOnView(signature, { duration = 1100 } = {}) {
+// Cena de entrada do gráfico de colunas (dono, 2026-10-25: transform + sem re-render por quadro). Dispara 1 vez
+// quando o gráfico entra na tela (e de novo se os dados mudarem). Quem anima:
+//  - coluna: scaleY 0→1 com origem embaixo (WAAPI, vai para o compositor);
+//  - valor em R$ e "$": translateY acompanhando o topo da coluna (WAAPI);
+//  - número: escrito direto no nó de texto por requestAnimationFrame — o React não renderiza a cada quadro.
+// Sem animação (movimento reduzido) o gráfico nasce no valor final. Conteúdo final é o estado padrão do DOM.
+const GROW_MS = 1100;
+const GROW_EASE = "cubic-bezier(0.215, 0.61, 0.355, 1)"; // easeOutCubic
+
+function useChartSeen() {
   const ref = useRef(null);
-  const [progress, setProgress] = useState(0);
   const [seen, setSeen] = useState(false);
 
   useEffect(() => {
@@ -61,23 +69,57 @@ function useCountUpOnView(signature, { duration = 1100 } = {}) {
     return () => observer.disconnect();
   }, []);
 
-  useEffect(() => {
-    if (!seen) return undefined;
-    const reduced = typeof window !== "undefined" && window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
-    if (reduced) { setProgress(1); return undefined; }
+  return [ref, seen];
+}
+
+function useColumnGrow(ref, seen, signature) {
+  useLayoutEffect(() => {
+    const root = ref.current;
+    if (!root || !seen) return undefined;
+    const reduced = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+    if (reduced || typeof root.animate !== "function") return undefined;
+
+    const animations = [];
+    const labels = [];
+    root.querySelectorAll("[data-col-row]").forEach((row) => {
+      const finalHeight = Number(row.dataset.final) || 0;
+      const value = Number(row.dataset.value) || 0;
+      const label = row.querySelector("[data-col-label]");
+      if (label?.firstChild) {
+        label.firstChild.nodeValue = formatMoney(0);
+        labels.push({ node: label.firstChild, value });
+        if (finalHeight > 0) animations.push(label.animate([{ transform: `translateY(${finalHeight}px)` }, { transform: "translateY(0)" }], { duration: GROW_MS, easing: GROW_EASE, fill: "backwards" }));
+      }
+      const bar = row.querySelector("[data-col-bar]");
+      if (bar) animations.push(bar.animate([{ transform: "scaleY(0)" }, { transform: "scaleY(1)" }], { duration: GROW_MS, easing: GROW_EASE, fill: "backwards" }));
+      const sign = row.querySelector("[data-col-sign]");
+      if (sign && finalHeight > 0) {
+        const from = Math.min(0.95, 30 / finalHeight); // o "$" só aparece quando a coluna já tem altura para ele
+        animations.push(sign.animate([
+          { transform: `translateY(${finalHeight}px)`, opacity: 0, offset: 0 },
+          { opacity: 0, offset: from },
+          { opacity: 1, offset: Math.min(1, from + 0.08) },
+          { transform: "translateY(0)", opacity: 1, offset: 1 }
+        ], { duration: GROW_MS, easing: GROW_EASE, fill: "backwards" }));
+      }
+    });
+
     let frame = 0;
     const start = performance.now();
-    setProgress(0);
     const tick = (now) => {
-      const t = Math.min(1, (now - start) / duration);
-      setProgress(1 - Math.pow(1 - t, 3)); // easeOutCubic: suave, sem exagero
+      const t = Math.min(1, (now - start) / GROW_MS);
+      const eased = 1 - Math.pow(1 - t, 3);
+      for (const item of labels) item.node.nodeValue = formatMoney(item.value * eased);
       if (t < 1) frame = requestAnimationFrame(tick);
     };
     frame = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(frame);
-  }, [seen, signature, duration]);
 
-  return [ref, progress];
+    return () => {
+      cancelAnimationFrame(frame);
+      animations.forEach((animation) => animation.cancel());
+      for (const item of labels) item.node.nodeValue = formatMoney(item.value);
+    };
+  }, [ref, seen, signature]);
 }
 
 export function BrokerResultChart({ rows = [] }) {
@@ -85,7 +127,8 @@ export function BrokerResultChart({ rows = [] }) {
   const maxValue = Math.max(...rows.map((r) => r.agencyResult), 0);
   const scaleMax = niceThousandMax(maxValue);
   const signature = rows.map((r) => `${r.key}:${r.agencyResult}`).join("|");
-  const [ref, progress] = useCountUpOnView(signature);
+  const [ref, seen] = useChartSeen();
+  useColumnGrow(ref, seen, signature);
 
   if (!rows.length) return <div ref={ref}><EmptyChart text="Nenhum corretor encontrado para o período selecionado." /></div>;
 
@@ -115,8 +158,6 @@ export function BrokerResultChart({ rows = [] }) {
 
             {rows.map((row) => {
               const finalHeight = (row.agencyResult / scaleMax) * COLUMN_PLOT_HEIGHT;
-              const height = finalHeight * progress;
-              const shown = row.agencyResult * progress;
               const open = active === row.key;
               return (
                 <button
@@ -130,24 +171,39 @@ export function BrokerResultChart({ rows = [] }) {
                   aria-label={`${row.name}: ${formatMoney(row.agencyResult)}`}
                   className="relative z-10 flex min-w-0 flex-1 flex-col items-center focus:outline-none"
                   style={{ minWidth: COLUMN_SLOT_MIN }}
+                  data-col-row=""
+                  data-final={finalHeight}
+                  data-value={row.agencyResult}
                 >
                   <div className="relative w-full" style={{ height: COLUMN_PLOT_HEIGHT + COLUMN_TOP_ROOM }}>
-                    {/* valor em R$ — FORA, acima da coluna, centralizado nela */}
-                    <span
-                      className={`absolute left-1/2 -translate-x-1/2 whitespace-nowrap text-[13px] font-black tabular-nums ${row.agencyResult > 0 ? "text-navy" : "text-muted"}`}
-                      style={{ bottom: height + 6 }}
-                    >
-                      {formatMoney(shown)}
-                    </span>
-                    {/* coluna: só existe altura se houver resultado (R$ 0 não ganha altura) */}
-                    {finalHeight > 0 && (
-                      <div
-                        className={`absolute bottom-0 left-1/2 w-11 -translate-x-1/2 overflow-hidden rounded-t-xl bg-gradient-to-t from-navy to-brand shadow-[0_4px_10px_-6px_rgba(13,59,102,0.55)] transition-[filter] ${open ? "brightness-110" : ""}`}
-                        style={{ height }}
+                    {/* valor em R$ — FORA, acima da coluna, centralizado nela. Fica na posição final; durante a cena sobe por translateY e o
+                        número é escrito direto no nó de texto (sem re-render por quadro). Antes de o gráfico aparecer, vale R$ 0. */}
+                    <div className="absolute inset-x-0 flex justify-center" style={{ bottom: finalHeight + 6 }}>
+                      <span
+                        data-col-label=""
+                        className={`whitespace-nowrap text-[13px] font-black tabular-nums ${row.agencyResult > 0 ? "text-navy" : "text-muted"}`}
                       >
-                        {/* "$" branco dentro da coluna, perto do topo interno; some se a coluna for baixa demais */}
-                        {height >= 30 && (
-                          <span className="absolute left-0 right-0 top-1.5 text-center text-base font-black leading-none text-white" aria-hidden="true">$</span>
+                        {formatMoney(seen ? row.agencyResult : 0)}
+                      </span>
+                    </div>
+                    {/* coluna: só existe altura se houver resultado (R$ 0 não ganha altura). Altura final fixa; cresce por scaleY (origem embaixo). */}
+                    {finalHeight > 0 && (
+                      <div className="absolute inset-x-0 bottom-0 flex justify-center" style={{ height: finalHeight }}>
+                        <div
+                          data-col-bar=""
+                          className={`h-full w-11 origin-bottom rounded-t-xl bg-gradient-to-t from-navy to-brand shadow-[0_4px_10px_-6px_rgba(13,59,102,0.55)] transition-[filter] ${open ? "brightness-110" : ""}`}
+                          style={seen ? undefined : { transform: "scaleY(0)" }}
+                        />
+                        {/* "$" branco dentro da coluna, perto do topo interno; some se a coluna for baixa demais. Fora do scaleY para não achatar. */}
+                        {finalHeight >= 30 && (
+                          <div
+                            data-col-sign=""
+                            className="pointer-events-none absolute inset-x-0 top-1.5 text-center text-base font-black leading-none text-white"
+                            style={seen ? undefined : { opacity: 0 }}
+                            aria-hidden="true"
+                          >
+                            $
+                          </div>
                         )}
                       </div>
                     )}

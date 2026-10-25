@@ -45,7 +45,9 @@ export default function SceneTransitionLink({ href, direction = "forward", class
 
     const exitX = direction === "forward" ? "-15%" : "15%";
     const duration = direction === "forward" ? EXIT_DURATION : REVERSE_DURATION;
-    const controls = animate(blocks, { x: exitX, opacity: 0 }, { duration, delay: (i) => i * STAGGER_GAP, ease: [0.4, 0, 0.2, 1] });
+    // `transform` como texto (e não o atalho `x` do motion): roda em WAAPI, no compositor, e continua suave mesmo com a
+    // tela de destino montando na thread principal (dono, 2026-10-25, item 6; medição no CHANGELOG_AI).
+    const controls = animate(blocks, { transform: ["translateX(0%)", `translateX(${exitX})`], opacity: [1, 0] }, { duration, delay: (i) => i * STAGGER_GAP, ease: [0.4, 0, 0.2, 1] });
 
     // A Cena 1 já pode ter terminado (ou sido pulada) antes da tela de
     // destino terminar de carregar — mostra um indicador nesse meio-tempo
