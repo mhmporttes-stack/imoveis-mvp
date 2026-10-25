@@ -40,6 +40,17 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-25 — Henry responde "Nenhuma delas", começa com "Suspense:", fala "a Sem" e recusa o ranking da semana
+- **Data:** 2026-10-25
+- **Sintoma:** no Treino do Henry: "e a meta do dia da equipe?" → "Nenhuma delas"; "tem conversa no WhatsApp esperando?" → "Suspense: são 116…"; "quem tá parado há mais tempo?" → "a Noemi, a Sem, a Leticia…"; "ranking da semana?" → "Então não dá pra trazer a semana por voz agora"; "é só chamar" em todo agradecimento; promessa de "deixar a agenda pronta".
+- **Área:** Henry (voz/IA), voz da Alexa (nome de cliente)
+- **Impacto:** só o dono; respostas erradas/estranhas, números da tela certos.
+- **Causa raiz:** (1) stream da IA aceito sem fim de mensagem (pedaço virava resposta) e nenhuma checagem de resposta cortada; (2) ranking do catálogo da Alexa só tem hoje/ontem e o Henry não tinha leitura de ranking por período; (3) o guia de estilo listava "Suspense curto + número." e o modelo copiou o rótulo; (4) `firstNameOf("Sem nome")` = "Sem" nos provedores da voz (`|| "Cliente"` nas pendências); (5) prompt sem proibição de oferecer ação; (6) closing só como pedido no prompt e "é só chamar" nos bancos de exemplo.
+- **Correção:** stream incompleto = erro com nova tentativa sem stream; rodada extra para resposta cortada; ferramenta `ranking_periodo`; guia sem rótulos; `clientFirstNameOf`; regra de oferta no prompt; `trimRepeatedClosing`; achados novos no relatório do Treino. Detalhe: `docs/CHANGELOG_AI.md` 2026-10-25.
+- **Arquivos/commit:** branch `fix/henry-achados-treino`.
+- **Prevenção/teste:** `tests/henry-achados-treino.test.mjs` (falas reais da rodada no relatório do Treino).
+- **Status:** Monitorando (rodar o Treino de novo depois da publicação)
+
 ### 2026-10-25 — Henry: "leads" e "clientes novos" como duas coisas, "201" falado estranho e aberturas repetidas ("Ok, vou dar uma olhada nos números")
 - **Data:** 2026-10-25
 - **Sintoma:** "Leads e clientes novos são a mesma coisa"; "o 201, quando ele fala, não fica natural"; "o início dele é muito repetitivo [...] muda uma palavra e fala a mesma frase".

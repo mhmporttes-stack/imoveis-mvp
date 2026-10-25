@@ -736,6 +736,15 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-25 — Henry: achados do Treino ("Nenhuma delas", "Suspense:", "a Sem", ranking da semana recusado, oferta de ação, "é só chamar")
+- **Data:** 2026-10-25
+- **Área:** Henry (voz/IA) / Treino do Henry / voz da Alexa (nome de cliente)
+- **Alteração:** (1) `streamAnthropic` passa a tratar stream sem `stop_reason` como erro (`stream_incomplete`); `callModel` tenta de novo sem stream se nada foi para a voz; resposta cortada (< 4 palavras, sem número, sem pontuação) a pergunta do CRM ganha UMA rodada extra (`isCutReply`/`isCrmQuestion`/`HENRY_CUT_REPLY_RETRY`, `lib/henry-voice-core.mjs`). (2) Ferramenta nova só de leitura `ranking_periodo` (mesmo `getPerformanceOverview` do relatório do período; montagem `buildHenryRankingReport`); `consultar_crm` de ranking fora de hoje/ontem vai para ela (antes: "Isso eu só sei para hoje ou ontem"); prompt: "então" só no meio da fala. (3) Guia de estilo trazia "Suspense curto + número." como rótulo — trocado por exemplos e proibição de rótulo com dois-pontos. (4) `clientFirstNameOf` (`lib/alexa-v2/text.mjs`, regra `isNamelessContactName` da Prospecção): cliente sem nome real não vira nome falado nos provedores da voz (`atendimento`, `funil`, pendências/sem contato da Meta) nem na ficha do Henry ("Cliente sem nome"); vale também para a Alexa. (5) Prompt: nunca oferecer ação que o Henry não faz. (6) `trimRepeatedClosing` (`lib/henry-repetition-core.mjs`, sinônimo `CHAMAR`): fechamento parecido com um de hoje sai do fim; "Imagina, é só chamar." saiu dos bancos; prompt desestimula o bordão. (7) Relatório do Treino ganha `fragmento`, `rotulo_inicio`, `nome_suspeito`, `oferta_indevida` (`analyzeHenryTraining`).
+- **Motivo:** rodada real do Treino do dono (crm_settings `henry_training_reports`, 2026-10-25) com essas falas e o relatório quase vazio.
+- **Arquivos afetados:** `lib/henry-voice.js`, `lib/henry-voice-core.mjs`, `lib/henry-voice-persona.mjs`, `lib/henry-voice-lexicon.mjs`, `lib/henry-voice-narration.mjs`, `lib/henry-repetition-core.mjs`, `lib/henry-reports-core.mjs`, `lib/henry-training-core.mjs`, `lib/alexa-v2/text.mjs`, `lib/alexa-v2/providers/{atendimento,funil}.js`, `lib/crm-metrics/team-goal{,-core}.{js,mjs}`, `tests/henry-achados-treino.test.mjs`, `tests/henry-repetition.test.mjs`, `docs/BUSINESS_RULES.md` (HENRY-1), `docs/INCIDENTES.md`, `.claude/rules/integracoes-externas.md`.
+- **Risco/observação:** causa exata do "Nenhuma delas" não reproduzida (875 ms, uma rodada, fragmento sem pontuação): as duas travas cobrem stream interrompido e fragmento do modelo. Lista de pendências/sem contato da voz agora pula clientes sem nome (a contagem continua a real). Cache das pendências (15 min) ainda pode trazer "Cliente" até a próxima atualização. Sem migration.
+- **Autor:** crm-editor (Claude Code)
+
 ### 2026-10-25 — Treino do Henry guarda as rodadas: seção "Treinos anteriores" — branch `fix/henry-treino-historico`, NÃO publicado
 - **Data:** 2026-10-25
 - **Área:** Henry, Modo treino (HENRY-1).
