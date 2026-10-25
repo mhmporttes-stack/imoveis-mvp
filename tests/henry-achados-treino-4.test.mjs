@@ -193,17 +193,17 @@ test("8: volume e aparelho pela rota direta, com fala fixa curta", () => {
 });
 
 // 9. Bom dia: "Vai um sertanejo raiz…? Ou tá na vibe de outro estilo, rock, sertanejo, pagode…"
-test("9: bom dia não repete na lista o estilo que ele mesmo sugeriu", () => {
-  const sertanejo = MORNING_SUGGESTIONS.find((entry) => entry.id === "estilo-sertanejo-raiz");
-  for (const tail of morningOpenChoices(sertanejo)) {
-    assert.doesNotMatch(tail, /sertanejo/, tail);
-    assert.match(tail, /rock[\s\S]*pagode[\s\S]*MPB/, tail);
+// Desde 2026-10-25 (dono: música de fundo no clima de Suits) a abertura não lista estilos: só "outro estilo ou cantor".
+test("9: bom dia não repete na abertura o estilo que ele mesmo sugeriu", () => {
+  const offer = MORNING_SUGGESTIONS[0];
+  for (const tail of morningOpenChoices(offer)) {
+    assert.doesNotMatch(tail, /suits/i, tail);
+    assert.match(tail, /estilo[\s\S]*cantor/, tail);
   }
   for (const r of [0, 0.5, 0.99]) {
-    const line = morningSuggestionLine(sertanejo, "Matheus", { random: () => r });
-    assert.equal((line.match(/sertanejo/g) || []).length, 1, line);
+    const line = morningSuggestionLine(offer, "Matheus", { random: () => r });
+    assert.equal((line.match(/Suits/g) || []).length, 1, line);
   }
-  assert.match(morningOpenChoices(null)[0], /rock, sertanejo ou pagode/);
 });
 
 // 10. Lentidão: ranking_periodo 6,5 s e relatorio_do_dia 6,4–7,5 s recalculando o que o pré-cálculo já tinha.
