@@ -213,7 +213,7 @@ test("10: pré-cálculo até 1 hora nas leituras do Henry; meta do dia do resumo
   assert.match(reports, /export async function loadHenryOwnerMetaToday\(auth\)/);
   assert.match(inicioDono, /typeof loadMeta === "function" \? loadMeta\(\) : getOwnerTeamDailyOverview\(\{ period: "today" \}, auth\)/);
   assert.match(lib, /getPainelInicioDono\(auth, inicioPromise, \{ loadMeta: \(\) => loadHenryOwnerMetaToday\(auth\) \}\)/);
-  assert.match(lib, /const contents = await Promise\.all\(blocks\.map/);
+  assert.match(lib, /else contents\.push\(\.\.\.\(await Promise\.all\(blocks\.map/);
 });
 
 // 11. Detector do Treino.

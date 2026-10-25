@@ -40,6 +40,17 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-25 — Henry demora 9 s num corretor, muda o gargalo a cada resposta, fala números no "boa tarde", não toca o "pagode antes" e diz que não trocou a música de aparelho
+- **Data:** 2026-10-25
+- **Sintoma:** Treino 7 (18:49Z, automático): "quantas simulações o Eduardo rodou nos últimos trinta dias?" 11,9 s (9,3 s de ferramenta); gargalo "entre aprovação e venda" → "entre enviados e aprovados" → "na documentação"; bom dia "Pode ser sim, mas coloca um pagode antes" → relatório sem música; "E aí, Henry, boa tarde!" → "…a equipe já fez 4 atendimentos"; "voltando pro assunto do cliente" → "989 clientes novos"; "troca essa música aí e coloca na Alexa" → "Não consegui trocar"; "Beleza, pode abrir." → "Pode ficar tranquilo."; "conversas no WhatsApp esperando resposta?" 3 rodadas.
+- **Área:** Henry (voz/IA) / Treino
+- **Impacto:** só o dono; resposta lenta, incoerente ou errada.
+- **Causa raiz:** `consultar_corretor` esperava a meta de 30 dias calculada na hora (não usada na pergunta de métrica) e "últimos 30 dias" não tinha pré-cálculo; gargalo escolhido pelo modelo; "mas … antes" fora dos enfeites → virava busca de cantor; memória do dia com números e só a dica contra; `henryResumeTopic` casava qualquer fala com "clien"; simulação do Treino da troca de aparelho devolvia texto e evento de falha; "pode abrir" tratado como concordância; sem rota direta para "esperando resposta".
+- **Correção:** meta só quando usada + pré-cálculo `overview:ultimos_30_dias`; `henryFunnelBottleneck` (fato `gargalo`); enfeites "mas/antes/primeiro"; `henryGreetingReply`; `needsName` no `henryResumeTopic`; `simulatedSpotifyDeviceTool` + rota `proxima` + aparelho em sequência; `henryAlreadyOpenReply`; `WHATSAPP_AWAIT`. Detalhe: `docs/CHANGELOG_AI.md` 2026-10-25 (Treino 7).
+- **Arquivos/commit:** branch `fix/henry-achados-treino-7`.
+- **Prevenção/teste:** `tests/henry-achados-treino-7.test.mjs` (falas reais).
+- **Status:** Resolvido (aguarda publicação; rodar o Treino de novo depois)
+
 ### 2026-10-25 — Henry não diz qual corretor mais fez simulações
 - **Data:** 2026-10-25
 - **Sintoma:** "quantas simulações o Eduardo fez nos últimos 30 dias?" → respondeu; "qual corretor mais realizou simulações?" e "olha as simulações dos corretores um por um e me diz quem mais realizou" → não conseguiu.

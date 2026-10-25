@@ -186,7 +186,8 @@ test("narração e cena das ferramentas novas; prompt sem 'não tenho acesso'", 
 test("modo treino: ferramentas com efeito ficam simuladas; o treino automático usa o mesmo caminho", () => {
   const lib = read("../lib/henry-voice.js");
   assert.match(lib, /trainingStore\.getStore\(\) \? trainingSpotifyTool\(input\)/);
-  assert.match(lib, /const result = trainingStore\.getStore\(\)\n\s+\? \{ text: "Modo treino: o aparelho não foi trocado de verdade/);
+  // Treino 7: troca de aparelho simulada com sucesso coerente (simulatedSpotifyDeviceTool, sem chamar o Spotify).
+  assert.match(lib, /const result = trainingStore\.getStore\(\)\n\s+\? simulatedSpotifyDeviceTool\(input \|\| \{\}\)/);
   // Toda gravação no banco do lib da voz é o upsert de writeSettingRow (isolada no treino); .delete( aqui é só de Map/cache.
   assert.equal((lib.match(/\.(insert|update|upsert|rpc)\(/g) || []).length, 1);
   const runner = read("../lib/henry-training.js");
