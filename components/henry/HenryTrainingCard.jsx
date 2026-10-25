@@ -237,7 +237,10 @@ function TrainingHistory({ history, historyError, openId, openRound, openError, 
             return (
               <li key={round.id} className="rounded-card border border-line">
                 <button type="button" onClick={() => onOpen(round.id)} aria-expanded={open} className="flex w-full flex-col gap-1 p-3 text-left text-sm sm:flex-row sm:items-center sm:justify-between">
-                  <span className="font-bold text-ink">{when(round.startedAt)} · {round.exchanges} trocas · {usd(round.costUsd)}</span>
+                  <span className="font-bold text-ink">
+                    {when(round.startedAt)} · {round.exchanges} trocas · {usd(round.costUsd)}
+                    {round.auto ? <span className="ml-2 rounded-full bg-navy/10 px-2 py-0.5 text-xs font-bold text-navy">automático</span> : null}
+                  </span>
                   <span className={round.issues ? "text-xs font-bold text-danger" : "text-xs font-bold text-muted"}>
                     {round.issues ? `${round.issues} ponto(s)` : "Nenhum ponto"} · {open ? "fechar" : "abrir"}
                   </span>
