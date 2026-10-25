@@ -244,6 +244,24 @@ Copie o modelo abaixo (uma entrada por bloco):
 - **Risco/observação:** quando, quem recebe e contagem não mudaram. Fora do escopo (pedido): Informativos da Central (cards laterais; com o Henry ativo já vão para a voz) e toasts de canto (`components/ui/Toast.jsx`), notificações do sistema operacional/push. Fica de fora também a caixa nativa "Nova versão X pronta — Reiniciar agora/Depois" do app de desktop (`desktop-app/src/updater.js`, processo principal do Electron, fora da página): segurá-la exigiria mudar o app e publicar nova versão — decisão do dono. `OfficePresenceNotice` é faixa no fluxo da página (não fixa) e não vale para o dono.
 - **Autor:** Claude Code (crm-editor)
 
+### 2026-10-24 — Seguidor Instagram 1.1.5: DM com resposta HTML é reagendada, não perdida
+- **Data:** 2026-10-24
+- **Área:** Ferramenta pessoal fora do CRM (`ferramentas/instagram-seguidor/`)
+- **Alteração:** HTML na API de DM (broadcast/text, get_by_participants e broadcast por conversa) vira tipo `nao_enviada` em vez de cair em "incerto". `processarDm` reagenda (+30 min, depois +2 h); na 3ª falha desiste com alerta `tipo: 'dm'` no popup ("DM de boas-vindas não pôde ser enviada para @x") e notificação. JSON sem confirmação continua "incerto" (nunca reenvia). A DM sai pelo mesmo executor com os cabeçalhos da página (1.1.4). Nenhum envio por digitação na tela da DM (decisão do dono se quiser).
+- **Motivo:** boas-vindas se perdia em silêncio (`dmIncerta`) com a API devolvendo HTML 200.
+- **Arquivos afetados:** `ferramentas/instagram-seguidor/{manifest.json,instagram-api.js,background.js,README.md,tests/ajuda/simulador.mjs,tests/dm-html.test.mjs (novo)}`, `ferramentas/instagram-seguidor.zip`, `docs/INCIDENTES.md`.
+- **Risco/observação:** premissa de que HTML = não enviado (o Instagram devolve a página sem processar); se um dia o envio sair E a resposta vier HTML, a pessoa pode receber a boas-vindas repetida (até 3x). Não testado contra o Instagram real. `node --test tests/*.test.mjs`: 74/74.
+- **Autor:** Claude Code (crm-editor)
+
+### 2026-10-24 — Seguidor Instagram 1.1.4: checagem de amizade sem quebrar com HTML na API
+- **Data:** 2026-10-24
+- **Área:** Ferramenta pessoal fora do CRM (`ferramentas/instagram-seguidor/`)
+- **Alteração:** chamadas à API levam os cabeçalhos tirados da página aberta do Instagram (app-id, asbd, `x-instagram-ajax`, csrf, claim; os fixos viram reserva) e o diagnóstico mostra quais vieram da página. HTML numa resposta da API de checagem (show_many/show) vira tipo `indisponivel`: não pausa, não vira "sem sessão", não gera alerta, não marca perfil da fila nem gasta o limite (o perfil volta para a fila). Plano B: leitura do botão do perfil sem clicar (`lerEstadoNaPagina`/`lerPerfilNaAba`), até 5 perfis por varredura de 30 min com 6–16 s entre eles. Com o estado lido só pelo botão "Seguindo"/"Solicitado" (não diz se segue de volta), deixar de seguir fica adiado. Alerta antigo de show_many some quando a checagem volta.
+- **Motivo:** erro visto pelo dono na 1.1.3: show_many respondeu HTTP 200 com a página HTML do Instagram.
+- **Arquivos afetados:** `ferramentas/instagram-seguidor/{manifest.json,instagram-api.js,background.js,README.md,tests/ajuda/simulador.mjs,tests/checagem-html.test.mjs (novo)}`, `ferramentas/instagram-seguidor.zip`, `docs/INCIDENTES.md`.
+- **Risco/observação:** não testado contra o Instagram real (só simulador e fixtures). Se os cabeçalhos da página não resolverem, cada seguir passa a abrir o perfil 2–3 vezes (checar, clicar, confirmar) — mesmo ritmo de ações, só mais visitas de página. Com o friendships/show em HTML, o deixar de seguir fica parado (seguro, mas a lista de seguidos cresce) até a API voltar — decisão do dono se quiser outro critério. `node --test tests/*.test.mjs`: 70/70.
+- **Autor:** Claude Code (crm-editor)
+
 ### 2026-10-23 — Henry: leitura ampla do CRM (vários clientes, Chat, financeiro, presença), continua só leitura
 - **Data:** 2026-10-23
 - **Área:** Henry (voz) / Clientes (linha do tempo)

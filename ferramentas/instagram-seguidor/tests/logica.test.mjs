@@ -229,6 +229,9 @@ test('classificarErro reconhece limite, bloqueio, sessão e mudança de API', ()
   assert.equal(classificarErro({ status: 200, corpo: '<!DOCTYPE html>' }), 'mudanca_api');
   assert.equal(classificarErro({ status: 404, corpo: '{"message":"User not found"}' }), 'nao_encontrado');
   assert.equal(classificarErro({ status: 500, corpo: '' }), 'outro');
+  // 1.1.2 (caso real 23/10): 404 HTML "Page Not Found" do endpoint legado com "not-logged-in" no HTML NÃO é sessão.
+  assert.equal(classificarErro({ status: 404, corpo: '<!DOCTYPE html><html class="not-logged-in"><title>Page Not Found &bull; Instagram</title>' }), 'mudanca_api');
+  assert.equal(classificarErro({ status: 401, corpo: '<html>' }), 'sessao');
 });
 
 test('pausa automática de 24 h por limite e pausa sem sessão', () => {

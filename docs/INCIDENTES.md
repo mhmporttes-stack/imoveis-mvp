@@ -192,6 +192,28 @@ Copie o modelo abaixo (uma entrada por bloco):
 - **Prevenção/teste:** `tests/page-visibility.test.mjs`, `desktop-app/tests/core.test.js` (`isWindowHidden`, lista da ponte), `tests/henry-voice-conversation.test.mjs` (30/15 fps e camada do brilho). Risco residual: outros ~30 pontos com `document.hidden` direto não pausam no app minimizado.
 - **Status:** Monitorando (medir CPU no PC do dono com GPU)
 
+### 2026-10-24 — Seguidor Instagram: DM de boas-vindas some em silêncio quando a API responde HTML
+- **Data:** 2026-10-24
+- **Sintoma:** pessoa seguiu de volta, mas a boas-vindas nunca chega e o popup não avisa nada (histórico: "resultado incerto, não será repetida").
+- **Área:** Ferramenta pessoal fora do CRM (`ferramentas/instagram-seguidor/`)
+- **Impacto:** toda DM de boas-vindas perdida enquanto a API privada de mensagens devolver a página HTML (mesma causa do show_many/seguir).
+- **Causa raiz:** HTML 200 em `direct_v2/threads/broadcast/text/` virava `mudanca_api` com status 200; em `processarDm` isso não é bloqueante nem 4xx, então caía no ramo "incerto" (`dmIncerta`, nunca reenviada). Mas HTML significa que o Instagram devolveu a página e não processou o envio.
+- **Correção (1.1.5):** `enviarDm` converte HTML (inclusive na alternativa por conversa) em `nao_enviada`; `processarDm` reagenda (+30 min, +2 h) e na 3ª falha desiste com alerta no popup "DM de boas-vindas não pôde ser enviada para @x" + notificação. A DM já usa os cabeçalhos da página (1.1.4). Sem envio por digitação na tela da DM.
+- **Arquivos/commit:** `ferramentas/instagram-seguidor/{instagram-api.js,background.js}` — branch `fix/instagram-seguidor-1.1.1`
+- **Prevenção/teste:** `ferramentas/instagram-seguidor/tests/dm-html.test.mjs` (fixture HTML na DM, 3 tentativas espaçadas + alerta, volta ao normal envia uma única vez).
+- **Status:** Monitorando
+
+### 2026-10-24 — Seguidor Instagram: "O endpoint friendships/show_many respondeu de forma inesperada (HTTP 200) … Resposta: HTML (título: Instagram)"
+- **Data:** 2026-10-24
+- **Sintoma:** popup da extensão Seguidor Instagram 1.1.3 mostrando o alerta de mudança de API no show_many (POST `/api/v1/friendships/show_many/` → HTTP 200 `text/html`).
+- **Área:** Ferramenta pessoal fora do CRM (`ferramentas/instagram-seguidor/`)
+- **Impacto:** checagem de follow-back em lote parada (aceite de solicitação de perfil privado e follow-back não detectados pela varredura); alerta assustador no popup. Mesmo padrão do seguir na 1.1.3.
+- **Causa raiz:** a API privada do Instagram responde a página HTML do site (HTTP 200) quando a chamada não parece vir do próprio app web; a extensão mandava cabeçalhos fixos (app-id/asbd embutidos no código) e nenhum da versão atual da página (`x-instagram-ajax`), e tratava HTML como "mudança de API" sem plano B na checagem. Não foi possível confirmar contra o Instagram real qual cabeçalho falta (sem ação real a partir do ambiente).
+- **Correção (1.1.4):** (a) as chamadas levam os cabeçalhos tirados da página aberta (app-id, asbd, `x-instagram-ajax`, csrf, claim — o diagnóstico mostra só os nomes); (b) HTML na API vira `indisponivel` (nunca sessão, pausa, alerta, perfil gasto ou limite do dia) e a checagem passa a ler o botão do perfil (Seguir / Seguir de volta / Seguindo / Solicitado) sem clicar, até 5 perfis por varredura de 30 min com intervalo humano; o friendships/show com HTML também cai na leitura do botão; (c) sem como saber se quem está "Seguindo" segue de volta, o deixar de seguir fica adiado.
+- **Arquivos/commit:** `ferramentas/instagram-seguidor/{instagram-api.js,background.js}` — branch `fix/instagram-seguidor-1.1.1`
+- **Prevenção/teste:** `ferramentas/instagram-seguidor/tests/checagem-html.test.mjs` (fixtures HTML/JSON do show_many e show, cabeçalhos da página, simulação com HTML e sem leitura). Risco residual: se o Instagram mudar o texto/estrutura do botão do perfil, a checagem fica "indisponível" (sem dano à conta).
+- **Status:** Monitorando (confirmar no Chrome do dono se o show_many volta a responder JSON com os cabeçalhos da página)
+
 ### 2026-10-23 — Henry repete muito a mesma frase de espera ("Tô passando os olhos nos números")
 - **Data:** 2026-10-23
 - **Sintoma:** "o Henry repete muito 'Tô passando os olhos nos números'" (frase `w18`), mesmo depois da confirmação de escuta.
