@@ -7,7 +7,8 @@ import { marketplaceChatErrorResponse } from "../../../errors";
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
-// Resposta do corretor: entra na fila; a extensão no PC do dono envia pelo Facebook (atraso de ~1–2 min).
+// Resposta do corretor: entra na fila; a extensão no PC do dono envia pelo Facebook (atraso de ~1–2 min). Conversa do
+// Messenger oficial da Página (MSG-1) sai na hora pela Send API, só dentro da janela da Meta (lib/marketplace-chat.js).
 export async function POST(request, { params }) {
   const auth = await requireAdminApi(request);
   if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status });
