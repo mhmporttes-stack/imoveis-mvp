@@ -746,6 +746,12 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-25 — Henry manda recado à equipe pela mensagem da Supervisão (HENRY-1, 2ª escrita)
+- **Pedido do dono:** "Quero que o Henry também possa enviar alertas (mensagens fixadas na tela dos corretores)… ele escreve e envia aquela mesma mensagem que eu envio pela Meta Diária." Depois: "Sem sim, ele apenas envia, não preciso confirmar nada."
+- **O que mudou:** ferramenta `enviar_alerta_corretor` (`escrita_interna_direta`) em `lib/henry-voice.js`; regras puras `lib/henry-team-alert-core.mjs` (destinatário ativo por `brokerKeys`, ambíguo/inexistente não envia, texto até 500, falas e tela); servidor `lib/henry-team-alert.js` reaproveita `sendSupervisionMessage` (mesma tabela `supervision_messages`, balão fixo, push) — nenhum caminho novo; Treino simula; 2ª trava do dono (`isHenryEligible`). Gatilho `isTeamAlertRequest` fora da rota direta (`lib/henry-voice-turn.mjs`) e como dica; prompt fixo abre a exceção; `isHenryToolLocked` fecha a nova classe com a tela bloqueada.
+- **Docs:** `docs/BUSINESS_RULES.md` HENRY-1 "Recado à equipe"; `.claude/rules/integracoes-externas.md`. Testes: `tests/henry-team-alert.test.mjs`, `tests/henry-tools-readonly.test.mjs`, `tests/henry-lock.test.mjs`.
+- **Risco/observação:** a mensagem grava `origin = "crm"` (a função da Supervisão não recebe origem); não há marca de "via Henry" na linha. Sem migration.
+
 ### 2026-10-25 — Henry: achados do Treino 2 (música "rock." no fim, pedido composto, cumprimento + pergunta, imóveis, meta, "não foi isso", funil do mês, "voltar pro funil") — branch `fix/henry-achados-treino-2`, NÃO publicado
 - **Data:** 2026-10-25
 - **Área:** Henry (voz/IA) / Treino do Henry

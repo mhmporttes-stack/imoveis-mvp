@@ -38,8 +38,10 @@ test("toda ferramenta do Henry está na lista de acesso e nenhuma escreve no CRM
   for (const name of names) assert.ok(HENRY_TOOL_ACCESS[name], `ferramenta sem classificação: ${name}`);
   assert.deepEqual([...names].sort(), Object.keys(HENRY_TOOL_ACCESS).sort());
   // Exceção NOMEADA (dono, 2026-10-24, HENRY-1 "Aniversariante"): avisar_corretor_aniversario = escrita interna confirmada.
-  // Qualquer outra ferramenta continua só leitura/navegação/música; uma segunda escrita quebra este teste de propósito.
-  const WRITE_EXCEPTIONS = { avisar_corretor_aniversario: "escrita_interna_confirmada" };
+  // Qualquer outra ferramenta continua só leitura/navegação/música; uma terceira escrita quebra este teste de propósito.
+  // 2ª exceção NOMEADA (dono, 2026-10-25, HENRY-1 "Recado à equipe" — "Sem sim, ele apenas envia"): enviar_alerta_corretor
+  // = escrita interna direta pela mensagem da Supervisão (tests/henry-team-alert.test.mjs).
+  const WRITE_EXCEPTIONS = { avisar_corretor_aniversario: "escrita_interna_confirmada", enviar_alerta_corretor: "escrita_interna_direta" };
   for (const [name, access] of Object.entries(HENRY_TOOL_ACCESS)) {
     if (WRITE_EXCEPTIONS[name]) assert.equal(access, WRITE_EXCEPTIONS[name], name);
     else assert.ok(["leitura", "navegacao", "musica"].includes(access), `${name}: ${access}`);
