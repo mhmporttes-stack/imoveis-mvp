@@ -4,6 +4,10 @@
 > Manual dos agentes: [`../AGENTS.md`](../AGENTS.md) · Contexto: [`CRM_CONTEXT.md`](CRM_CONTEXT.md) · Regras: [`BUSINESS_RULES.md`](BUSINESS_RULES.md) · Arquitetura: [`SYSTEM_ARCHITECTURE.md`](SYSTEM_ARCHITECTURE.md).
 
 
+
+## 2026-10-25 — Henry: comparação só entre corretores
+Dono: "Sim, apenas os corretores". `buildHenryBrokerComparison` filtra `role = broker` (pontos: ranking filtrado pelos ids dos corretores). Teste em `tests/henry-comparar-corretores.test.mjs`.
+
 ## 2026-10-25 — Henry compara corretores ("qual corretor mais fez simulações?")
 Bug do dono: o Henry respondeu as simulações do Eduardo em 30 dias, mas não "qual corretor mais realizou simulações" nem "olha um por um e me diz quem mais". Causa: só havia ferramenta de UM corretor (`consultar_corretor`) e o ranking de pontos (`ranking_periodo`); nenhuma comparava por métrica. Correção: ferramenta só de leitura `comparar_corretores` (`lib/henry-voice.js` `runBrokerComparison`, `HENRY_TOOL_ACCESS` leitura, narração "Comparando os corretores…", persona) sobre o mesmo overview do Desempenho por corretor (`buildHenryBrokerComparison`, `lib/henry-reports-core.mjs`; pontos = ranking); rota direta `henryComparisonRequest` (`lib/henry-voice-turn.mjs`) herdando métrica/período da conversa; Treino ganha o cenário "comparacao" (teto 40 → 42 trocas, `HENRY_TRAINING_MAX_EXCHANGES`) e o achado `comparacao_sem_resposta`. Sem migration, sem rota nova. Testes `tests/henry-comparar-corretores.test.mjs`. Regra: `docs/BUSINESS_RULES.md` HENRY-1 (Comparação entre corretores).
 

@@ -23,10 +23,10 @@ const turnsAfterFirst = [
 // slimOverview fictício: as MESMAS linhas do Desempenho por corretor (team) e o ranking.
 const overview = {
   team: [
-    { id: "e", name: "Eduardo", fullName: "Eduardo Lima", gender: "male", simulation: 12, sale: 1, service: 30, points: 80 },
-    { id: "c", name: "Carol", fullName: "Carol Souza", gender: "female", simulation: 15, sale: 2, service: 25, points: 95 },
-    { id: "g", name: "Gabriel", fullName: "Gabriel Reis", gender: "male", simulation: 9, sale: 0, service: 40, points: 60 },
-    { id: "b", name: "Bruna", fullName: "Bruna Alves", gender: "female", simulation: 4, sale: 0, service: 10, points: 20 },
+    { id: "e", name: "Eduardo", fullName: "Eduardo Lima", gender: "male", role: "broker", simulation: 12, sale: 1, service: 30, points: 80 },
+    { id: "c", name: "Carol", fullName: "Carol Souza", gender: "female", role: "broker", simulation: 15, sale: 2, service: 25, points: 95 },
+    { id: "g", name: "Gabriel", fullName: "Gabriel Reis", gender: "male", role: "broker", simulation: 9, sale: 0, service: 40, points: 60 },
+    { id: "b", name: "Bruna", fullName: "Bruna Alves", gender: "female", role: "broker", simulation: 4, sale: 0, service: 10, points: 20 },
     { id: "m", name: "Lucas", fullName: "Lucas Gestor", gender: "male", role: "manager", simulation: 0, sale: 0, service: 0, points: 0 }
   ],
   ranking: [
@@ -71,14 +71,14 @@ test("não é comparação: 'quem mais' sem métrica, conversa, presença, meta 
 test("montagem: mesma fonte do consultar_corretor, ordenada, 1º e os 2 seguintes com números, tabela completa na tela", () => {
   const report = buildHenryBrokerComparison({ range: range30, overview, metric: "simulacoes" });
   assert.equal(report.spoken, "Nos últimos 30 dias, quem teve mais simulações foi a Carol, com 15; depois vêm o Eduardo, com 12, e o Gabriel, com 9.");
-  assert.deepEqual(report.detail.sections[0].rows.map((row) => row.value), ["15", "12", "9", "4", "0"]);
+  assert.deepEqual(report.detail.sections[0].rows.map((row) => row.value), ["15", "12", "9", "4"]);
   assert.equal(report.detail.sections[0].rows[0].label, "1º Carol Souza");
   // Os números batem com a pergunta individual (consultar_corretor, mesma linha do Desempenho).
   const eduardo = buildHenryBrokerReport({ broker: { id: "e", name: "Eduardo" }, range: range30, overview, metric: "simulacoes" });
   assert.equal(eduardo.facts.simulacoes, report.facts.corretores.find((row) => row.nome === "Eduardo").simulacoes);
   // Menos: do menor para o maior, zero dito como "nenhuma".
   const fewest = buildHenryBrokerComparison({ range: range30, overview, metric: "simulacoes", order: "menos" });
-  assert.match(fewest.spoken, /^Nos últimos 30 dias, quem teve menos simulações foi o Lucas, com nenhuma; depois vêm a Bruna, com 4, e o Gabriel, com 9\.$/);
+  assert.match(fewest.spoken, /^Nos últimos 30 dias, quem teve menos simulações foi a Bruna, com 4; depois vêm o Gabriel, com 9, e o Eduardo, com 12\.$/);
   // Empate na frente; seguidores com zero ficam fora da fala em "mais".
   const tie = buildHenryBrokerComparison({ range: range30, overview, metric: "vendas" });
   assert.equal(tie.spoken, "Nos últimos 30 dias, quem teve mais vendas foi a Carol, com 2; depois vem o Eduardo, com 1.");
@@ -108,4 +108,12 @@ test("Treino: achado comparacao_sem_resposta", () => {
   assert.ok(kinds([{ owner: "Qual corretor mais realizou simulações?", reply: "Não consigo comparar os corretores por aqui." }]).includes("comparacao_sem_resposta"));
   assert.ok(kinds([{ owner: "E quem mais fez?", reply: "Boa pergunta, vou dar uma olhada." }]).includes("comparacao_sem_resposta"));
   assert.ok(!kinds([{ owner: "E quem mais fez?", reply: "Nos últimos 30 dias, quem teve mais simulações foi a Carol, com 15." }]).includes("comparacao_sem_resposta"));
+});
+
+test("só corretores (dono, 2026-10-25): gestor fica fora, inclusive em 'quem menos' e em pontos", () => {
+  const fewest = buildHenryBrokerComparison({ range: range30, overview, metric: "simulacoes", order: "menos" });
+  assert.ok(!fewest.spoken.includes("Lucas"));
+  const withManagerInRanking = { ...overview, ranking: [{ id: "m", name: "Lucas", gender: "male", points: 999 }, ...overview.ranking] };
+  const points = buildHenryBrokerComparison({ range: range30, overview: withManagerInRanking, metric: "pontos" });
+  assert.ok(!points.spoken.includes("Lucas"));
 });
