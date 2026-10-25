@@ -983,7 +983,7 @@ function WhatsappAccessControl({ brokerId, blocked, readOnly, onChanged }) {
             onClick={toggle}
             className={`relative h-6 w-11 shrink-0 rounded-full transition disabled:opacity-60 ${blocked ? "bg-red-400" : "bg-emerald-500"}`}
           >
-            <span className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-all ${blocked ? "left-0.5" : "left-[22px]"}`} />
+            <span className={`absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform duration-150 ease-out-ui motion-reduce:transition-none ${blocked ? "translate-x-0" : "translate-x-5"}`} />
           </button>
         )}
       </div>

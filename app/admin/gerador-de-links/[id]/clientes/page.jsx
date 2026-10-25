@@ -80,7 +80,7 @@ export default async function CampaignClientsPage({ params }) {
               <Link
                 key={client.originId}
                 href={`/admin/cadastros/${client.id}`}
-                className="flex flex-col gap-2 rounded-panel border border-line bg-white p-5 shadow-soft transition hover:-translate-y-0.5 hover:border-brand hover:shadow-lg sm:flex-row sm:items-center sm:justify-between"
+                className="flex flex-col gap-2 rounded-panel border border-line bg-white p-5 shadow-soft transition hover:border-brand hover:shadow-lg sm:flex-row sm:items-center sm:justify-between"
               >
                 <div className="min-w-0">
                   <h3 className="truncate text-xl font-black text-navy">{client.fullName || "Sem nome"}</h3>

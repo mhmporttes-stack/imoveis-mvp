@@ -61,7 +61,7 @@ export default function AnimatedRing({
         cx="50" cy="50" r={radius} fill="none"
         strokeWidth={strokeWidth} strokeLinecap="round"
         strokeDasharray={circumference}
-        style={{ stroke: colorStops ? stroke : color, strokeDashoffset: dashOffset, willChange: "stroke-dashoffset" }}
+        style={{ stroke: colorStops ? stroke : color, strokeDashoffset: dashOffset }}
       />
     </svg>
   );

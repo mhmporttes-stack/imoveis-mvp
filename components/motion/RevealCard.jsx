@@ -26,7 +26,6 @@ export default function RevealCard({ children, className = "", delay = 0, as = "
           ? { duration: 0.15, ease: "linear" }
           : { type: "spring", stiffness: 260, damping: 26, mass: 0.9, delay }
       }
-      style={{ willChange: "transform, opacity" }}
       {...rest}
     >
       {children}

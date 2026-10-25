@@ -271,7 +271,7 @@ function TriggersSection({ triggers, setTriggers, templates, onTest, adminName }
                     onClick={() => updateDraft(trigger.key, { enabled: !draft.enabled })}
                     className={`relative h-7 w-12 shrink-0 rounded-full transition ${draft.enabled ? "bg-brand" : "bg-slate-300"}`}
                   >
-                    <span className={`absolute top-1 h-5 w-5 rounded-full bg-white transition ${draft.enabled ? "left-6" : "left-1"}`} />
+                    <span className={`absolute left-1 top-1 h-5 w-5 rounded-full bg-white transition-transform duration-150 ease-out-ui motion-reduce:transition-none ${draft.enabled ? "translate-x-5" : "translate-x-0"}`} />
                   </button>
                 </div>
               </div>
@@ -532,7 +532,7 @@ function MessagesSection({ triggers, templates, setTemplates, onTest, adminName 
                           disabled={busyId === template.id}
                           className={`relative h-6 w-11 shrink-0 rounded-full transition ${template.active ? "bg-brand" : "bg-slate-300"}`}
                         >
-                          <span className={`absolute top-0.5 h-5 w-5 rounded-full bg-white transition ${template.active ? "left-5" : "left-0.5"}`} />
+                          <span className={`absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-white transition-transform duration-150 ease-out-ui motion-reduce:transition-none ${template.active ? "translate-x-[18px]" : "translate-x-0"}`} />
                         </button>
                         <button
                           type="button"

@@ -348,7 +348,7 @@ export default function DailyReportDashboard({
                   </div>
                   <div className="h-3 overflow-hidden rounded-full bg-blue-50">
                     <div
-                      className="h-full rounded-full bg-gradient-to-r from-navy to-brand transition-all"
+                      className="h-full rounded-full bg-gradient-to-r from-navy to-brand transition-[width] motion-reduce:transition-none"
                       style={{ width: `${Math.max(6, (item.value / max) * 100)}%` }}
                     />
                   </div>

@@ -448,7 +448,6 @@ main.bg-mist.py-14 > section.container-page.mb-8 h1 + p {
 
 .simulation-prompt {
   animation: simulation-prompt-in 420ms ease-out both, simulation-prompt-float 3.8s ease-in-out 900ms infinite;
-  will-change: transform, opacity;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -1064,5 +1063,20 @@ html.mm-dark .mm-champion-weekly .mm-scan {
   .mm-float,
   .mm-crown {
     animation: none;
+  }
+}
+
+/* Rede de segurança de "reduzir movimento" para as animações prontas do Tailwind (revisão de animações, 2026-10-25).
+   Pulsar/quicar/ping são só enfeite: param. O giro (animate-spin) é indicador de "carregando" e precisa continuar
+   legível: fica mais lento e suave em vez de sumir. Quem já usa motion-reduce:animate-none não muda. */
+@media (prefers-reduced-motion: reduce) {
+  .animate-pulse,
+  .animate-bounce,
+  .animate-ping {
+    animation: none;
+  }
+
+  .animate-spin {
+    animation-duration: 2.4s;
   }
 }

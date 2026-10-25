@@ -45,7 +45,6 @@ export function StaggerItem({ children, className = "", as = "div", ...rest }) {
           transition: reducedMotion ? { duration: 0.15, ease: "linear" } : { type: "spring", stiffness: 280, damping: 26 }
         }
       }}
-      style={{ willChange: "transform, opacity" }}
       {...rest}
     >
       {children}

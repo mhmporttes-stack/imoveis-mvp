@@ -20,7 +20,7 @@ export default function Switch({ checked, onChange, label, disabled = false, cla
     >
       <span
         aria-hidden="true"
-        className={cx("absolute top-1 h-5 w-5 rounded-full bg-white transition-all duration-150 ease-out-ui", checked ? "left-6" : "left-1")}
+        className={cx("absolute left-1 top-1 h-5 w-5 rounded-full bg-white transition-transform duration-150 ease-out-ui motion-reduce:transition-none", checked ? "translate-x-5" : "translate-x-0")}
       />
     </button>
   );
