@@ -691,6 +691,14 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-25 — CLI-7c ajustada: transferido vai para o status novo "Aguardando contato"; clique no WhatsApp leva a "Tentando contato" — branch `feat/transferido-tentando-contato`, NÃO publicado
+- **Data:** 2026-10-25
+- **Área:** Clientes/funil (status novo), transferências, Chat, clique no WhatsApp
+- **Alteração:** [REGRA OFICIAL DE NEGÓCIO — dono, 2026-10-25] substitui o destino "Tentando contato" da entrada anterior: "Depois que ele é transferido, ele vai para o status ... AGUARDANDO CONTATO ... depois que o corretor clicar no WhatsApp, ele muda para TENTANDO CONTATO." Status novo `awaiting_contact` (`lib/client-status.js`: opções, meta laranja, ativos, aba Atendimento; `pendingReferenceAt` e filtro "pendentes" contam os 3 dias da transferência; Alexa "atendimento"; tom; rótulo do histórico; só como valor atual na lista de etapas). Clique no WhatsApp (`markSimulationRegistrationWhatsAppContact` → `markTransferredContactAttempt`) e mensagem humana no Chat (`nextClientStatusOnChatEvent`) passam `awaiting_contact` → `awaiting_return`. Decisões do dono: lead não atendido fora; aprovação não negativa entra (Aprovado em diante e negativos fora). Rotina dos atuais: "Aguardando contato" + etiqueta; em "Tentando contato", só a etiqueta.
+- **Arquivos:** `supabase/migrations/20261025120000_client_status_awaiting_contact.sql` (novo — CHECK de `simulation_registrations.status` e de `client_status_history`, texto da Minha Jornada), `lib/client-status.js`, `lib/transfer-status{-core.mjs,.js}`, `lib/whatsapp-client-status-core.mjs`, `lib/simulation-registrations.js`, `lib/simulation-list-query.js`, `lib/client-status-history.js`, `lib/alexa-v2/providers/funil.js`, `components/ui/status-tone.js`, `components/clients/StatusOptions.jsx`, `tests/transfer-status.test.mjs`; docs `BUSINESS_RULES.md` CLI-7c, `METRICAS_FUNIL.md`, rule `crm-clientes-funil.md`.
+- **Validação:** `node --test tests/transfer-status.test.mjs` (13/13); suíte completa sem falha nova (15 que já falhavam antes da mudança); `pnpm build`.
+- **Risco/observação:** **aplicar a migration ANTES de publicar** — sem ela a transferência funciona, mas a troca de status falha (erro 23514 no log). Cliente que responde enquanto está em "Aguardando contato" não muda sozinho.
+
 ### 2026-10-25 — Transferido vai para "Tentando contato" + etiqueta do status anterior (CLI-7c) — branch `feat/transferido-tentando-contato`, NÃO publicado
 - **Data:** 2026-10-25
 - **Área:** Clientes/funil, roleta, fila de reativação (FUN-15l), exclusão de usuário, Prospecção, Marketplace

@@ -26,6 +26,8 @@ export default function StatusOptions({ current = "", hasRealSimulation = true, 
     <>
       {/* "Simulação automática" é só do site (SIM-AUTO): aparece só como valor atual, nunca como escolha manual. */}
       {current === CLIENT_STATUS.AUTO_SIMULATION ? <option value={current} disabled>{CLIENT_STATUS_META[current].label}</option> : null}
+      {/* "Aguardando contato" é só da transferência (CLI-7c): aparece só como valor atual, nunca como escolha manual. */}
+      {current === CLIENT_STATUS.AWAITING_CONTACT ? <option value={current} disabled>{CLIENT_STATUS_META[current].label}</option> : null}
       {SELECTABLE_STATUS_VALUES.map((value) => value === CLIENT_STATUS.COMPLETED && simulationBlocked
         ? <option key={value} value={value} disabled>{CLIENT_STATUS_META[value].label} (gere a simulação primeiro)</option>
         : <option key={value} value={value}>{CLIENT_STATUS_META[value].label}</option>)}
