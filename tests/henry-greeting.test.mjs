@@ -31,7 +31,7 @@ test("saudação pura não toca frase de espera nem confirmação de escuta", ()
 test("servidor e tela: saudação pura nunca liga ferramentas nem narração", () => {
   const server = readFileSync(new URL("../lib/henry-voice.js", import.meta.url), "utf8");
   assert.match(server, /const greeting = !image && isHenryGreeting\(text\);/);
-  assert.match(server, /const withTools = Boolean\(image\) \|\| \(!greeting && \(/);
+  assert.match(server, /const withTools = Boolean\(image\) \|\| \(!greeting && !personal && \(/);
   const screen = readFileSync(new URL("../components/henry/HenryVoiceAssistant.jsx", import.meta.url), "utf8");
   assert.match(screen, /quiet: mode === "question" && isHenryGreeting\(question\)/);
   assert.match(screen, /quiet: wait\.quiet/);

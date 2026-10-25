@@ -40,6 +40,17 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-25 — Henry não busca a meta da equipe (3ª vez), promete "vou puxar" e não puxa, responde 8–11 s, diz 12 e 2 clientes novos no mesmo dia, ranking no período errado, puxa CRM em "como foi teu dia?"
+- **Data:** 2026-10-25
+- **Sintoma:** Treino 3 (16:42Z, já com `206958b`): "como tá a meta do dia pra equipe?" → "Ainda não tenho o número… Pergunta de novo que eu busco agora."; "quero saber onde a gente tá errando" → "Se quiser, eu puxo o funil…" e depois "Vou puxar o funil deste mês agora…" sem número; clientes novos/movimento/funil 8,5–11 s; "12 clientes novos" (16:11Z) × "2" (15:22Z/16:42Z); "me fala do ranking primeiro" (depois de "ranking dessa semana") → o mês; "como foi teu dia?" → "Entraram 2 clientes novos"; "Põe um rock aí" → "Me diz o artista…".
+- **Área:** Henry (voz/IA)
+- **Impacto:** só o dono; resposta sem número/errada ou lenta.
+- **Causa raiz:** a escolha da ferramenta era 100% do modelo — ele respondeu sem ferramenta (meta, música, promessa) e a rodada extra só pedia de novo (o modelo recusou outra vez); "clientes novos" tinha caminhos diferentes (o modelo escolhia o assunto; o Início = 2); período do ranking escolhido pelo modelo pelo último período qualquer; prompt mandava "como tá o dia" para `relatorio_do_dia` sem separar "o TEU dia". Lentidão: `relatorio_do_dia` espera o resumo do dono (Meta do dia = 9,0 s medidos em `crm_metric_cache.compute_ms` de `meta:hoje`) e o funil do mês recalcula o Desempenho (7,0 s, `overview:este_mes`) quando o pré-cálculo passa de 45 min, + 2 rodadas do modelo.
+- **Correção:** rota direta antes do modelo, rodada com `tool_choice: any` para promessa/pergunta ignorada, clientes novos sempre pela contagem do Início, período do mesmo assunto, pergunta pessoal sem ferramentas, achados `promessa_sem_acao`/`resposta_lenta` no Treino. Detalhe: `docs/CHANGELOG_AI.md` 2026-10-25 (Treino 3).
+- **Arquivos/commit:** branch `fix/henry-achados-treino-3`.
+- **Prevenção/teste:** `tests/henry-achados-treino-3.test.mjs` (falas reais).
+- **Status:** Monitorando (rodar o Treino de novo depois da publicação; ver tempos por troca no relatório)
+
 ### 2026-10-25 — Henry ignora a pergunta (música composta, "e aí, beleza? como tá o movimento?"), diz "não tenho acesso aos imóveis", repete a resposta depois de "não foi isso" e recusa o funil do mês
 - **Data:** 2026-10-25
 - **Sintoma:** Treino 2: "Coloca um rock aí" → "Prontinho, já começou! rock."; "bota alguma coisa mais tranquila aí e depois me diz quantos cliente novo entrou hoje" → só a música; "E aí, Henry, beleza? Como é que tá o movimento hoje?" → "Fala, chefe! Tô bem, e você?"; imóvel → "Não tenho acesso aos imóveis pela voz"; meta da equipe → "Quer que eu traga o número exato?"; "não foi isso que eu perguntei" → "Foram 3 vendas" de novo; "funil desse mês" → "só hoje ou ontem"; "Bora voltar pro funil" → falou da tela de Clientes.

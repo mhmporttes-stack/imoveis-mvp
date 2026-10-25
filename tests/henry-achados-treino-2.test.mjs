@@ -172,7 +172,7 @@ test("8: 'voltar pro funil' retoma o assunto e a pergunta dele de antes", () => 
   assert.equal(henryResumeTopic("volta pro computador", turns), null);
   assert.equal(henryResumeTopic("volta a tocar", turns), null);
   assert.match(henryTurnHint({ text: "Bora voltar pro funil, Henry.", turns }), /VOLTAR ao assunto "funil"[\s\S]*Me fala do funil do mês[\s\S]*não abra tela/);
-  assert.match(lib, /const turnHint = greeting \|\| accepted \? "" : henryTurnHint\(\{ text, lastAssistant, turns: previous \}\);/);
+  assert.match(lib, /const turnHint = greeting \|\| accepted \? "" : henryTurnHint\(\{ text, lastAssistant, turns: previous, direct \}\);/);
 });
 
 // 9. Detector do Treino: pergunta ignorada e resposta repetida depois da reclamação.
