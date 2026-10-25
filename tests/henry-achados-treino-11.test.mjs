@@ -50,24 +50,26 @@ test("1b: a dica da piada avisa as palavras que a voz barra", () => {
   assert.match(hint, /financiamento, renda, salário, saldo, FGTS, cartão e senha/);
 });
 
-test("2: bom dia — 'pode ser sertanejo mesmo' depois de 'Pense em Mim' toca a sugestão (sem MIROSMAR do Zezé)", () => {
-  const suggestion = MORNING_SUGGESTIONS.find((item) => item.id === "musica-pense-em-mim");
+// Desde 2026-10-25 a oferta é sempre "um som no clima de Suits" (sem "Pense em Mim"); a regra do achado continua:
+// o gênero pedido igual ao do item oferecido toca a sugestão, pelo gênero guardado (o texto não tem a palavra).
+test("2: bom dia — gênero pedido = o da sugestão toca a sugestão (sem MIROSMAR do Zezé)", () => {
+  const suggestion = MORNING_SUGGESTIONS[0];
   const stored = rememberMorningSuggestion(null, suggestion, TODAY);
-  const reply = classifyMorningMusicReply("Bora, pode ser sertanejo mesmo.");
+  const reply = classifyMorningMusicReply("Bora, pode ser esse clima de Suits mesmo.");
   assert.equal(reply.kind, "genre");
   assert.equal(morningSuggestionMatchesGenre(todaysMorningSuggestion(stored, TODAY), reply.genre), true);
   // Registro antigo (sem o gênero guardado) → o gênero do banco pelo id.
-  assert.equal(morningSuggestionMatchesGenre({ id: "musica-pense-em-mim", say: "Pense em Mim, do Leandro e Leonardo", target: {} }, reply.genre), true);
+  assert.equal(morningSuggestionMatchesGenre({ id: "estilo-suits", say: "um som", target: {} }, reply.genre), true);
   // Gênero diferente continua tocando o gênero pedido.
   assert.equal(morningSuggestionMatchesGenre(stored.recent[0], classifyMorningMusicReply("bota um rock").genre), false);
+  assert.equal(morningSuggestionMatchesGenre(stored.recent[0], classifyMorningMusicReply("Bora, pode ser sertanejo mesmo.").genre), false);
   // Sugestão sem gênero de MIROSMAR (choice vazio) → sem "TOOOCA, MIROSMAR!".
   assert.equal(suggestion.choice, "");
   // Rock nacional sugerido + "rock" pedido = rock clássico (regra do Treino 10 mantida); "rock nacional" pedido = a sugestão.
-  const legiao = MORNING_SUGGESTIONS.find((item) => item.id === "artista-legiao");
+  const legiao = { id: "x", say: "um rock nacional", genre: "rock-nacional", target: {} };
   assert.equal(morningSuggestionMatchesGenre(legiao, classifyMorningMusicReply("pode ser rock").genre), false);
   assert.equal(morningSuggestionMatchesGenre(legiao, classifyMorningMusicReply("pode ser um rock nacional").genre), true);
-  // Todo item de artista/música/estilo tem gênero (menos o acústico, que não é gênero da lista).
-  for (const item of MORNING_SUGGESTIONS) if (item.id !== "estilo-acustico") assert.ok(item.genre, item.id);
+  for (const item of MORNING_SUGGESTIONS) assert.ok(item.genre, item.id);
 });
 
 test("2b: relatório do bom dia sem fechamento de fim de dia, a qualquer hora", () => {

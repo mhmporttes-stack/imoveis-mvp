@@ -73,8 +73,10 @@ test("2: resumo curto mantém o período da resposta e não começa com 'Vendas?
   assert.match(lib, /if \(!direct && lastAssistant && isHenryShortenRequest\(text\)\) replyText = henryShortenedReply\(replyText, lastAssistant\);/);
 });
 
-test("3: 'Pode, mas … um sertanejo mais animado' depois de 'Pense em Mim' = trocar: busca 'sertanejo animado'", () => {
-  const suggestion = MORNING_SUGGESTIONS.find((item) => item.id === "musica-pense-em-mim");
+test("3: 'Pode, mas … um sertanejo mais animado' depois de uma sugestão sertaneja = trocar: busca 'sertanejo animado'", () => {
+  // Desde 2026-10-25 a oferta é o clima de Suits; o caso do achado ("Pense em Mim", sertanejo) segue com um registro equivalente.
+  const suggestion = { id: "musica-pense-em-mim", kind: "track", say: "Pense em Mim, do Leandro e Leonardo", genre: "sertanejo", target: { query: "Pense em Mim Leandro & Leonardo", type: "track" } };
+  assert.ok(MORNING_SUGGESTIONS.length);
   const reply = classifyMorningMusicReply("Pode, mas hoje tô na vibe de um sertanejo mais animado.");
   assert.equal(reply.kind, "genre");
   assert.equal(reply.genre.id, "sertanejo");
@@ -97,6 +99,7 @@ test("4: pediu outra música → confirma curto o que vai tocar antes do relató
   assert.equal(morningMusicChangeLine({ genre: classifyMorningMusicReply("bota uma MPB").genre }), "Lá vai uma MPB.");
   assert.equal(morningMusicChangeLine({ artist: "Henrique e Juliano" }), "Lá vai Henrique e Juliano.");
   assert.equal(morningMusicChangeLine({}), "");
-  assert.match(lib, /const changeLine = !suggested && music\.ok \? morningMusicChangeLine/);
+  // Desde 2026-10-25 o aceite da sugestão também confirma curto ("Lá vai um som no clima de Suits de fundo.").
+  assert.match(lib, /const changeLine = !music\.ok \? "" : suggested \? morningStyleAcceptLine\(suggested\) : morningMusicChangeLine/);
   assert.match(lib, /\[changeLine, morningMusicPrefix\(choice, music\)\]\.filter\(Boolean\)\.join\(" "\)/);
 });

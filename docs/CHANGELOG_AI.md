@@ -6,6 +6,9 @@
 
 
 
+## 2026-10-25 — Henry: bom dia oferece música de fundo no clima de Suits
+Dono: "quando iniciar o dia, o Henry sugira … 'Matheus, enquanto passo as informações, gostaria que eu tocasse alguma música de fundo?' … se eu falar ok, ele toca músicas nesse estilo" + "as da série Suits" + "Eu não quero uma playlist da trilha sonora de Suits … senão vai tocar a música de abertura" + "Não exatamente as mesmas músicas, eu quero aquele estilo." `lib/henry-morning-music-core.mjs`: o banco de faixas/artistas/estilos variados (e as sugestões do gosto do Spotify na abertura) saiu; oferta fixa "um som no clima de Suits" de fundo, frase variada; "ok" = playlist de ESTILO com termo sorteado (`SUITS_STYLE_QUERIES`, nunca o de ontem), reserva outro termo → artista do estilo (`morningStyleFallbacks`); busca nunca com "Suits/Ima Robot/Greenback" e resultado com elas descartado (novo `exclude` em `pickSpotifySearchResult`, `lib/henry-spotify-core.mjs`, passado por `startHenryMorningMusic`); confirmação "Lá vai um som no clima de Suits de fundo." (`morningStyleAcceptLine`). Gênero `suits` em `MORNING_GENRES` (busca "indie rock groove"). Outro estilo/cantor e "não" seguem como antes. Testes atualizados: `henry-morning-music`, `henry-morning-music-style`, `henry-morning`, treinos 4/11/12; roteiro "Dia inteiro" do Treino. Regra: `docs/BUSINESS_RULES.md` HENRY-1.
+
 ## 2026-10-25 — Referências de design: Emil Kowalski e Impeccable
 Dono: "Baixe as skills de designer de Emil Kowalski e Impeccable". Após auditoria do Scout (`docs/scout/skills-emil-impeccable.md`): copiados, em commit fixo e sem alteração, 3 SKILL.md do Emil (MIT) para `.claude/design/ref-emil/` e o SKILL.md + 6 referências do Impeccable (Apache-2.0) para `.claude/design/ref-impeccable/`, com LICENSE. Só markdown; o plugin do Impeccable (hooks, binário, telemetria) NÃO foi instalado e seus comandos `scripts/impeccable` não devem ser rodados. Índice em `.claude/design/README.md`.
 
