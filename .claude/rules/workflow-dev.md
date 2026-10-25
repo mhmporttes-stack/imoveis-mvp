@@ -27,7 +27,7 @@ Formato de nome e fluxo real de aplicação (não é `supabase db push`): `.clau
 
 ## Deploy
 
-Vercel, projeto `imoveis-mvp`. **`git push` para `main` = deploy automático em produção** — exceto commit que só muda `docs/`, `.claude/`, `tests/`, `whatsapp-individual-service/`, `desktop-app/`, `scratch/` ou `*.md`: o `ignoreCommand` do `vercel.json` (`scripts/vercel-ignore-build.sh`; sem como comparar, publica) pula o build (cada deploy faz o app instalado recarregar ao voltar para ele — 22 deploys de documentação em 1 h em 2026-10-11). Publicação manual: `pnpm dlx vercel --prod --yes`. Build local bem-sucedido não significa que já está no ar — confirme o deploy. O microsserviço `whatsapp-individual-service/` é publicado à parte (Railway), não pela Vercel.
+Vercel, projeto `imoveis-mvp`. **`git push` para `main` = deploy automático em produção** — exceto commit que só muda `docs/`, `.claude/`, `tests/`, `whatsapp-individual-service/`, `whatsapp-dispatch-service/`, `desktop-app/`, `scratch/` ou `*.md`: o `ignoreCommand` do `vercel.json` (`scripts/vercel-ignore-build.sh`; sem como comparar, publica) pula o build (cada deploy faz o app instalado recarregar ao voltar para ele — 22 deploys de documentação em 1 h em 2026-10-11). Publicação manual: `pnpm dlx vercel --prod --yes`. Build local bem-sucedido não significa que já está no ar — confirme o deploy. O microsserviço `whatsapp-individual-service/` é publicado à parte (Railway), não pela Vercel.
 
 ## Antes de considerar uma tarefa concluída
 
