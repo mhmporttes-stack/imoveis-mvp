@@ -756,6 +756,15 @@ Copie o modelo abaixo (uma entrada por bloco):
 - **Docs:** `docs/BUSINESS_RULES.md` HENRY-1 "Recado à equipe"; `.claude/rules/integracoes-externas.md`. Testes: `tests/henry-team-alert.test.mjs`, `tests/henry-tools-readonly.test.mjs`, `tests/henry-lock.test.mjs`.
 - **Risco/observação:** a mensagem grava `origin = "crm"` (a função da Supervisão não recebe origem); não há marca de "via Henry" na linha. Sem migration.
 
+### 2026-10-25 — Henry: treino automático (`/api/cron/henry-treino`) com teto de R$ 10 — branch `feat/henry-treino-automatico`, NÃO publicado
+- **Data:** 2026-10-25
+- **Área:** Henry (voz/IA) / Treino do Henry / cron
+- **Alteração:** rota de cron nova `GET /api/cron/henry-treino` (autenticação igual às demais rotas de cron) que responde 202 `{ ok, roundId }` e roda depois (`after()`) uma rodada completa do Treino (8 cenários, dono simulado) no contexto do dono, pelo mesmo `runHenryTrainingScenario` (somente leitura). Rodada marcada `auto: true` e selo "automático" em "Treinos anteriores". Teto: gasto `henry_training` em `ai_usage_log` desde 2026-10-25 17:30 UTC + estimativa ≤ `HENRY_AUTO_TRAINING_BUDGET_USD` (padrão 1,8 ≈ R$ 10), senão 409; trava `crm_settings` `henry_auto_training_lock` (10 min, atômica). Docs: `BUSINESS_RULES.md` HENRY-1 "Modo treino", `PERMISSIONS.md` §crons, `.claude/rules/integracoes-externas.md`.
+- **Motivo:** pedido do dono: "Tem como você executar esses testes sozinho e já ir corrigindo? Gaste até 10,00" (reais).
+- **Arquivos afetados:** `app/api/cron/henry-treino/route.js` (novo), `lib/henry-training.js`, `lib/henry-training-core.mjs`, `components/henry/HenryTrainingCard.jsx`, `tests/henry-training-auto.test.mjs` (novo), `tests/henry-tools-readonly.test.mjs`.
+- **Risco/observação:** sem migration; não agendado no `pg_cron` (acionamento manual). Variável nova opcional `HENRY_AUTO_TRAINING_BUDGET_USD` (padrão no código). Rodada da tela e automática gravam o mesmo `henry_training_reports` por ler-e-gravar — rodar as duas ao mesmo tempo pode perder um cenário do histórico (o gasto continua no `ai_usage_log`). A rodada pode passar um pouco do teto se o custo real superar a estimativa do último cenário. A CONFIRMAR em produção: duração real da rodada cheia dentro de 300 s.
+- **Autor:** crm-editor (Claude Code)
+
 ### 2026-10-25 — Henry: achados do Treino 2 (música "rock." no fim, pedido composto, cumprimento + pergunta, imóveis, meta, "não foi isso", funil do mês, "voltar pro funil") — branch `fix/henry-achados-treino-2`, NÃO publicado
 - **Data:** 2026-10-25
 - **Área:** Henry (voz/IA) / Treino do Henry

@@ -180,3 +180,16 @@ test("narração e cena das ferramentas novas; prompt sem 'não tenho acesso'", 
   assert.match(prompt, /buscar_clientes com TODOS os nomes numa chamada só/);
   assert.doesNotMatch(prompt, /use só contagens e primeiros nomes/);
 });
+
+// Treino (tela e automático, 2026-10-25): dentro de withHenryTraining nada tem efeito real — Spotify/aparelho simulados,
+// memória isolada, aviso de aniversário só prepara a confirmação (nunca envia), abrir_tela/abrir_cliente só marcam o contexto.
+test("modo treino: ferramentas com efeito ficam simuladas; o treino automático usa o mesmo caminho", () => {
+  const lib = read("../lib/henry-voice.js");
+  assert.match(lib, /trainingStore\.getStore\(\) \? trainingSpotifyTool\(input\)/);
+  assert.match(lib, /const result = trainingStore\.getStore\(\)\n\s+\? \{ text: "Modo treino: o aparelho não foi trocado de verdade/);
+  // Toda gravação no banco do lib da voz é o upsert de writeSettingRow (isolada no treino); .delete( aqui é só de Map/cache.
+  assert.equal((lib.match(/\.(insert|update|upsert|rpc)\(/g) || []).length, 1);
+  const runner = read("../lib/henry-training.js");
+  assert.match(runner, /withHenryTraining\(sandbox,/);
+  assert.doesNotMatch(runner, /sendHenryBirthdayNotices|runHenrySpotify|startHenryMorningMusic/);
+});
