@@ -244,6 +244,15 @@ Copie o modelo abaixo (uma entrada por bloco):
 - **Risco/observação:** regra de automação com ação "mudar status para Pago" passa a falhar (log), por decisão da regra. O resultado líquido, caixa e ponto de equilíbrio da Saúde sobem nas vendas do dono (a parte do corretor deixa de sair). PENDENTE: parceiro externo cadastrado como "corretor da venda" (não como despesa) não é distinguível. A CONFIRMAR: ACA-11 também suspende prazo mudado à mão enquanto parcial; menu "Formações" do aluno não alterado; hoje nenhuma venda tem gestor (tela do gestor vazia). PDF avulso continua só admin/gestor. Testes: 0 falha nova (as falhas da suíte completa são as mesmas da `origin/main`).
 - **Autor:** Claude Code (crm-editor)
 
+### 2026-10-24 — Agentes com modelo e esforço definidos (economia de tokens, medida 1)
+- **Data:** 2026-10-24
+- **Área:** Infra
+- **Alteração:** `model:`/`effort:` no frontmatter dos 18 agentes: crm-editor opus; auditor-crm, analista-documental, designer-crm sonnet+high; tratamento-imagem e especialista-atendimento-web haiku+low (teste); demais sonnet. Nota no MAPA (auditoria de auth/banco/RLS: `model: opus` na chamada).
+- **Motivo:** pedido do dono (aplicar a medida 1 de `docs/scout/economia-tokens-2026-10-24.md`); antes todos herdavam o modelo da sessão.
+- **Arquivos afetados:** `.claude/agents/*.md`, `.claude/despachante/MAPA-AGENTES.md`
+- **Risco/observação:** qualidade dos dois agentes em haiku a reavaliar em 1 semana. Sem deploy (só `.claude`/`docs`).
+- **Autor:** Claude Code
+
 ### 2026-10-23 — Avisos fixos esperam a tela cheia do Henry fechar
 - **Data:** 2026-10-23
 - **Área:** Henry (voz) / Central de Alertas / Notificações / PWA
