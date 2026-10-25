@@ -389,6 +389,10 @@ Conversas do Facebook Marketplace ficam em tabelas próprias (`marketplace_conve
 
 **Arquivos na resposta (MKT-2k/WA-36, 2026-10-23):** foto/PDF até 4 MB, vários por envio; cada arquivo vira um item da fila de saída (`POST /api/admin/marketplace-chat/conversations/[id]/media`), o texto sai antes. A fila respeita a ordem por conversa (`pickOutboxCandidate`) e só entrega arquivo à extensão 1.9.5+ (`X-Extension-Version`).
 
+## 13-B. Messenger oficial da Página do Facebook (MSG-1, 2026-10-25) — fora do WhatsApp
+
+Canal novo, separado do WhatsApp e da extensão do Marketplace. Webhook próprio `app/api/webhooks/messenger` (assinatura `x-hub-signature-256` com `MESSENGER_APP_SECRET`, falha fechado), conversas no **Chat Marketplace** com `thread_key = messenger:<PSID>` (nunca em `whatsapp_conversations`: nenhum Fluxo, lembrete, resposta automática ou envio do WhatsApp é acionado por elas). Envio na hora pela Send API, só na janela de 24 h (7 dias se veio de anúncio), sem tag; fora dela bloqueia. Variáveis `MESSENGER_PAGE_ID`, `MESSENGER_PAGE_ACCESS_TOKEN`, `MESSENGER_APP_SECRET`, `MESSENGER_VERIFY_TOKEN` (opcional `MESSENGER_GRAPH_API_VERSION`). Detalhes: `docs/BUSINESS_RULES.md` MSG-1, guia `docs/MESSENGER.md`.
+
 ## 14. Riscos conhecidos e pontos a confirmar
 
 Detalhes e impacto em [`SYSTEM_ARCHITECTURE.md`](SYSTEM_ARCHITECTURE.md) §Problemas. Resumo:
