@@ -3,6 +3,10 @@
 > Este arquivo registra **alterações importantes futuras** feitas por agentes de IA (e por pessoas que usem agentes) neste projeto. **Não contém histórico anterior**: o histórico de código está no Git e o das regras de negócio em `.claude/rules/*.md` e `docs/`.
 > Manual dos agentes: [`../AGENTS.md`](../AGENTS.md) · Contexto: [`CRM_CONTEXT.md`](CRM_CONTEXT.md) · Regras: [`BUSINESS_RULES.md`](BUSINESS_RULES.md) · Arquitetura: [`SYSTEM_ARCHITECTURE.md`](SYSTEM_ARCHITECTURE.md).
 
+
+## 2026-10-25 — Recado do Henry marcado "Enviada pelo Henry"
+Dono: "Sim pode avisar que foi enviado pelo Henry". `sendSupervisionMessage` aceita `origin` (`crm`|`henry`); o Henry grava `origin = 'henry'`; o balão do corretor mostra "Enviada pelo Henry" e o push ganha "(enviada pelo Henry)". `toSupervisionMessage` expõe `origin`. Sem migration (coluna já existia, texto livre).
+
 ## Quando registrar
 
 Registre uma entrada **sempre que a sua alteração**:

@@ -308,7 +308,7 @@ function SupervisionCard({ ref, message, position, total, done, nudge, reduced, 
           <Avatar name={sender.name} photoUrl={sender.photoUrl} size={44} />
           <div className="min-w-0 flex-1">
             <h2 id="supervision-message-title" className={`truncate text-[15px] font-extrabold ${scene.title}`}>{sender.name || "Supervisão"}</h2>
-            <p className={`truncate ${scene.note}`}>Mensagem da supervisão · {formatSupervisionTime(message.createdAt)}</p>
+            <p className={`truncate ${scene.note}`}>{message.origin === "henry" ? "Enviada pelo Henry" : "Mensagem da supervisão"} · {formatSupervisionTime(message.createdAt)}</p>
           </div>
           {total > 1 ? (
             <span className={`shrink-0 tabular-nums ${scene.counter}`} aria-label={`Mensagem ${position} de ${total}`}>
