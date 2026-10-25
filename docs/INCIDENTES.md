@@ -40,6 +40,17 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-25 — Henry não diz qual corretor mais fez simulações
+- **Data:** 2026-10-25
+- **Sintoma:** "quantas simulações o Eduardo fez nos últimos 30 dias?" → respondeu; "qual corretor mais realizou simulações?" e "olha as simulações dos corretores um por um e me diz quem mais realizou" → não conseguiu.
+- **Área:** Henry (voz/IA)
+- **Impacto:** só o dono; pergunta de comparação sem resposta.
+- **Causa raiz:** não existia ferramenta de comparação por métrica: `consultar_corretor` lê UM corretor e `ranking_periodo` só ordena pontos; o modelo não tinha como montar "quem mais" de outra métrica.
+- **Correção:** ferramenta só de leitura `comparar_corretores` sobre o mesmo overview do Desempenho por corretor (números iguais aos do `consultar_corretor`) + rota direta "quem/qual corretor mais|menos <métrica> <período>" herdando métrica e período da conversa. Detalhe: `docs/CHANGELOG_AI.md` 2026-10-25.
+- **Arquivos/commit:** `lib/henry-reports-core.mjs`, `lib/henry-voice.js`, `lib/henry-voice-turn.mjs`, `lib/henry-training-core.mjs` — branch `fix/henry-comparar-corretores`.
+- **Prevenção/teste:** `tests/henry-comparar-corretores.test.mjs` (falas do dono, números batem com o individual); achado do Treino `comparacao_sem_resposta` + cenário "comparacao".
+- **Status:** Resolvido (aguarda publicação)
+
 ### 2026-10-25 — Henry diz "só consigo ver de hoje e de ontem", não sabe o tamanho da meta, "aquele cliente" vira clientes novos
 - **Data:** 2026-10-25
 - **Sintoma:** Treino 5 (18:02Z, automático): "quanto a equipe precisa fechar por dia pra bater a meta?" → "Não tenho esse número fixo aqui… Quer que eu abra a tela?"; "quanto falta pra fechar essas vendas" e "e os vinte esperando?" → "só consigo ver de hoje e de ontem"; "aquele cliente, como é que tá?" → `relatorio_do_dia` (4,8 s) e clientes novos; volume com 2 rodadas; "Feito: são 3 vendas…"; "é só pedir" repetido; bom dia no Treino sem sinal da música e com "Boa tarde" de novo.

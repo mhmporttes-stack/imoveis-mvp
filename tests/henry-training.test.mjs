@@ -30,9 +30,9 @@ const card = readFileSync(new URL("../components/henry/HenryTrainingCard.jsx", i
 const kinds = (report) => report.issues.map((issue) => issue.kind);
 
 // --- Roteiro e teto -----------------------------------------------------------------------------------------------------
-test("roteiro: os cenários pedidos pelo dono, todos cabendo no teto de 40 trocas", () => {
+test("roteiro: os cenários pedidos pelo dono, todos cabendo no teto de trocas", () => {
   const ids = HENRY_TRAINING_SCENARIOS.map((scenario) => scenario.id);
-  for (const id of ["cumprimentos", "papo", "crm", "musica", "ambiguos", "frustracao", "interrupcoes", "dia"]) assert.ok(ids.includes(id), id);
+  for (const id of ["cumprimentos", "papo", "crm", "comparacao", "musica", "ambiguos", "frustracao", "interrupcoes", "dia"]) assert.ok(ids.includes(id), id);
   assert.equal(new Set(ids).size, ids.length);
   assert.ok(henryTrainingTotalSteps() <= HENRY_TRAINING_MAX_EXCHANGES);
   for (const scenario of HENRY_TRAINING_SCENARIOS) for (const step of scenario.steps) assert.ok(step.say && step.say.length <= 200, scenario.id);
@@ -48,9 +48,9 @@ test("teto: um cenário só roda se couber nas trocas restantes da rodada", () =
 
 test("custo estimado: cresce com as trocas, sem dono simulado é mais barato, rodada cheia fica abaixo de 10 centavos de dólar", () => {
   assert.equal(estimateHenryTrainingCostUsd(0), 0);
-  const full = estimateHenryTrainingCostUsd(40);
+  const full = estimateHenryTrainingCostUsd(HENRY_TRAINING_MAX_EXCHANGES);
   assert.ok(full > estimateHenryTrainingCostUsd(10));
-  assert.ok(estimateHenryTrainingCostUsd(40, { simulateOwner: false }) < full);
+  assert.ok(estimateHenryTrainingCostUsd(HENRY_TRAINING_MAX_EXCHANGES, { simulateOwner: false }) < full);
   assert.ok(full > 0 && full < 0.1, String(full));
   assert.equal(estimateHenryTrainingCostUsd(500), full, "o teto vale também na estimativa");
 });

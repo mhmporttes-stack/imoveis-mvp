@@ -4,7 +4,7 @@ import { prepareHenryAutoTraining, runHenryAutoTrainingRound } from "@/lib/henry
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-export const maxDuration = 300; // uma rodada completa (8 cenários, até 40 trocas) continua depois do 202 (after)
+export const maxDuration = 300; // uma rodada completa (9 cenários, até 42 trocas) continua depois do 202 (after)
 
 // Treino automático do Henry (dono, 2026-10-25 — docs/BUSINESS_RULES.md HENRY-1 "Modo treino"). Mesma autenticação das
 // rotas de cron (CRON_SECRET ou hash do token do vault; falha fechada). Responde 202 { ok, roundId } logo e roda a rodada
