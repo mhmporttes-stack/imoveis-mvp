@@ -292,7 +292,7 @@ export default function PropertyCaptureForm() {
         <span>{progress}%</span>
       </div>
       <div className="mt-4 h-2 overflow-hidden rounded-full bg-[#D9E9FA]">
-        <div className="h-full rounded-full bg-brand transition-all duration-300" style={{ width: `${progress}%` }} />
+        <div className="h-full rounded-full bg-brand transition-[width] duration-300 motion-reduce:transition-none" style={{ width: `${progress}%` }} />
       </div>
 
       <div className="mt-9">

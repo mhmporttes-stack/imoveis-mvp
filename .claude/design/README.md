@@ -9,7 +9,7 @@ Agente: `.claude/agents/designer-crm.md` (ponto de entrada das tarefas de design
 | `PRODUCT-UX.md` | UX, arquitetura de informação, fluxos/formulários, psicologia de uso, estados, mobile, perfis | 1,6k |
 | `VISUAL.md` | Hierarquia, tipografia, grid, Gestalt, cor, composição, superfícies | 1,5k |
 | `ACCESSIBILITY.md` | WCAG 2.2 AA aplicado ao projeto (nativo primeiro, foco, contraste, toque) | 0,9k |
-| `MOTION.md` | Movimento e interação com propósito, performance, reduced-motion | 0,8k |
+| `MOTION.md` | Movimento e interação com propósito, frequência, easing, performance, reduced-motion, precedência das decisões do dono | 2,7k |
 | `ref-emil/` | Referência externa (MIT): Emil Kowalski — polimento, animação, performance de animação. Ler só o arquivo da tarefa | ~14k |
 | `ref-impeccable/` | Referência externa (Apache-2.0): Impeccable — tipografia, layout, polish, crítica, auditoria, animação. SOMENTE princípios; plugin/scripts NÃO instalados (ver README da pasta) | ~25k |
 | `IMPLEMENTATION.md` | Handoff design→código (design-bridge), pipeline, especificação, estados, vitrine | 1,1k |

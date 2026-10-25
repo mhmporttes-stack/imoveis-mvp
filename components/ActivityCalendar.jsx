@@ -255,7 +255,7 @@ export default function ActivityCalendar({ pendingOnly = false, viewerKey = "" }
                       isSelected
                         ? "border-brand bg-brand/10 shadow-soft"
                         : dayActivities.length
-                          ? "border-brand/20 bg-white hover:-translate-y-0.5 hover:border-brand hover:shadow-soft"
+                          ? "border-brand/20 bg-white hover:border-brand hover:shadow-soft"
                           : "border-line bg-[#f8fbff] hover:border-brand/30"
                     }`}
                     onClick={() => setSelectedDate(key)}
@@ -312,7 +312,7 @@ export default function ActivityCalendar({ pendingOnly = false, viewerKey = "" }
                       return (
                         <div
                           key={activity.id}
-                          className={`rounded-2xl border bg-white p-4 text-left transition hover:-translate-y-0.5 hover:shadow-soft ${
+                          className={`rounded-2xl border bg-white p-4 text-left transition hover:shadow-soft ${
                             state === "completed"
                               ? "border-emerald-200 bg-emerald-50/70"
                               : state === "rescheduled"

@@ -88,7 +88,7 @@ function RegistrationCard({ registration, removeRegistration, isOwner }) {
   const filled = hasSimulationData(registration);
 
   return (
-    <article className="rounded-panel border border-line bg-white p-6 shadow-soft transition duration-300 hover:-translate-y-0.5 hover:shadow-[0_20px_55px_rgba(13,59,102,0.12)]">
+    <article className="rounded-panel border border-line bg-white p-6 shadow-soft transition duration-300 hover:shadow-[0_20px_55px_rgba(13,59,102,0.12)]">
       <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
         <div className="min-w-0">
           {filled ? (

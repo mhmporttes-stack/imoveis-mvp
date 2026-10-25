@@ -125,7 +125,7 @@ export default function TestimonialsSection({ testimonials = [] }) {
                 <button
                   key={testimonial.id}
                   aria-label={`Mostrar depoimento ${index + 1}`}
-                  className={`h-2.5 rounded-full transition-all duration-300 ${index === activeIndex ? "w-8 bg-brand" : "w-2.5 bg-navy/18 hover:bg-navy/32"}`}
+                  className={`h-2.5 rounded-full transition-[width,background-color] duration-300 motion-reduce:transition-none ${index === activeIndex ? "w-8 bg-brand" : "w-2.5 bg-navy/18 hover:bg-navy/32"}`}
                   onClick={() => setActiveIndex(index)}
                   type="button"
                 />

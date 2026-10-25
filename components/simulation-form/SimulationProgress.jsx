@@ -9,7 +9,7 @@ export default function SimulationProgress({ currentStep, totalSteps }) {
       </div>
       <div className="h-2 overflow-hidden rounded-full bg-blue-100">
         <div
-          className="h-full rounded-full bg-gradient-to-r from-[#0D3B66] to-[#2F80ED] transition-all duration-500 ease-out"
+          className="h-full rounded-full bg-gradient-to-r from-[#0D3B66] to-[#2F80ED] transition-[width] duration-500 ease-out motion-reduce:transition-none"
           style={{ width: `${progress}%` }}
         />
       </div>

@@ -1282,7 +1282,7 @@ export default function SimulationGenerator({ properties = [], initialSimulation
             {filteredProperties.slice(0, 10).map((property) => (
               <button
                 key={property.id}
-                className="grid gap-4 rounded-2xl border border-line bg-white p-3 text-left transition hover:-translate-y-0.5 hover:border-brand hover:shadow-soft sm:grid-cols-[92px_1fr_auto] sm:items-center"
+                className="grid gap-4 rounded-2xl border border-line bg-white p-3 text-left transition hover:border-brand hover:shadow-soft sm:grid-cols-[92px_1fr_auto] sm:items-center"
                 onClick={() => addProperty(property)}
                 type="button"
               >
