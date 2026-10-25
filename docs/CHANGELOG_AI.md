@@ -727,6 +727,14 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-25 — Treino do Henry guarda as rodadas: seção "Treinos anteriores" — branch `fix/henry-treino-historico`, NÃO publicado
+- **Data:** 2026-10-25
+- **Área:** Henry, Modo treino (HENRY-1).
+- **Alteração:** dono: "Eu não encontro onde fica o resultado do treinamento. Lá só tem a opção de fazer outro treinamento." Causa: o relatório só existia na tela durante a rodada (nada guardado; `ai_usage_log` só tem custo) — a rodada de 24/10 ~10:59 se perdeu e não há como recuperar. Agora cada cenário rodado é anexado no servidor à rodada (`roundId` gerado no 1º POST e reenviado pelo navegador) em `crm_settings` `henry_training_reports` (`{ rounds }`, últimas 20, só texto: cenários, trocas dono↔Henry, contagem dos achados por tipo, custo, datas; resposta cortada em 1.500 caracteres). Grava fora da memória isolada do treino (`withHenryTraining`); falha ao guardar não descarta a rodada e aparece em vermelho na tela. `GET /api/admin/henry/treino` devolve também `history` (resumo); `GET ?round=<id>` devolve a rodada completa — mesmo guard `requireHenryOwner`. Cartão: "Treinos anteriores" (data SP, trocas, custo, pontos por tipo; abrir mostra cenários, trocas e achados destacados, recalculados por `analyzeHenryTraining`); a rodada nova entra na lista a cada cenário.
+- **Arquivos:** `lib/henry-training-core.mjs` (`appendTrainingScenario`, `parseTrainingRounds`, `summarizeTrainingRound`, `countTrainingIssues`), `lib/henry-training.js`, `app/api/admin/henry/treino/route.js`, `components/henry/HenryTrainingCard.jsx`, `tests/henry-training.test.mjs`; docs `BUSINESS_RULES.md` HENRY-1 "Modo treino".
+- **Validação:** `node --test tests/henry*.test.mjs` verdes; `pnpm build`.
+- **Risco/observação:** sem migration (pior caso ~1 MB de JSON numa linha; típico bem menos). Leitura-modifica-grava a cada cenário — só o dono roda, em sequência.
+
 ### 2026-10-25 — Extensões Marketplace 1.9.8 e Seguidor Instagram 1.1.6: trabalham com a janela de trabalho atrás de outra em tela cheia; Marketplace nunca mais em silêncio — branch `fix/extensoes-aba-atras`, NÃO publicado
 - **Data:** 2026-10-25
 - **Área:** `ferramentas/marketplace-publicador`, `ferramentas/instagram-seguidor`, sinal da extensão (MKT-2g) no CRM, Chat Marketplace.
