@@ -10,6 +10,8 @@ Agente: `.claude/agents/designer-crm.md` (ponto de entrada das tarefas de design
 | `VISUAL.md` | Hierarquia, tipografia, grid, Gestalt, cor, composição, superfícies | 1,5k |
 | `ACCESSIBILITY.md` | WCAG 2.2 AA aplicado ao projeto (nativo primeiro, foco, contraste, toque) | 0,9k |
 | `MOTION.md` | Movimento e interação com propósito, performance, reduced-motion | 0,8k |
+| `ref-emil/` | Referência externa (MIT): Emil Kowalski — polimento, animação, performance de animação. Ler só o arquivo da tarefa | ~14k |
+| `ref-impeccable/` | Referência externa (Apache-2.0): Impeccable — tipografia, layout, polish, crítica, auditoria, animação. SOMENTE princípios; plugin/scripts NÃO instalados (ver README da pasta) | ~25k |
 | `IMPLEMENTATION.md` | Handoff design→código (design-bridge), pipeline, especificação, estados, vitrine | 1,1k |
 | `REVIEW.md` | Design review, Visual QA (UI/PDF/imagem), perguntas de originalidade, brief do `design-critic` | 1,5k |
 | `EDITORIAL.md` | Páginas, grid editorial, tipografia, tabelas e informação financeira, PDF | 1,4k |

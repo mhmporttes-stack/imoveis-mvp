@@ -5,6 +5,10 @@
 
 
 
+
+## 2026-10-25 — Referências de design: Emil Kowalski e Impeccable
+Dono: "Baixe as skills de designer de Emil Kowalski e Impeccable". Após auditoria do Scout (`docs/scout/skills-emil-impeccable.md`): copiados, em commit fixo e sem alteração, 3 SKILL.md do Emil (MIT) para `.claude/design/ref-emil/` e o SKILL.md + 6 referências do Impeccable (Apache-2.0) para `.claude/design/ref-impeccable/`, com LICENSE. Só markdown; o plugin do Impeccable (hooks, binário, telemetria) NÃO foi instalado e seus comandos `scripts/impeccable` não devem ser rodados. Índice em `.claude/design/README.md`.
+
 ## 2026-10-25 — Henry: comparação só entre corretores
 Dono: "Sim, apenas os corretores". `buildHenryBrokerComparison` filtra `role = broker` (pontos: ranking filtrado pelos ids dos corretores). Teste em `tests/henry-comparar-corretores.test.mjs`.
 

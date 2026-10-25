@@ -1,0 +1,5 @@
+# Referência: Impeccable (Paul Bakaus) — princípios de frontend design
+
+Fonte: https://github.com/pbakaus/impeccable (Apache-2.0, ver `LICENSE`), commit fixo `3671d50f0ac9a662ce0615e85a256110c9cd720b`, pasta `plugin/skills/impeccable/`. Copiados sem alteração: `SKILL.md` e `reference/` `typeset`, `layout`, `polish`, `critique`, `audit`, `animate`. Auditoria: `docs/scout/skills-emil-impeccable.md`. Baixado a pedido do dono em 2026-10-25.
+
+**SOMENTE LEITURA — o plugin NÃO foi instalado.** Os comandos `scripts/impeccable …` (detector, live-server, critique-storage, hooks, pin, doctor) citados nesses arquivos **não existem neste projeto e não devem ser instalados nem executados**: o plugin traz hooks do Claude Code, baixa binário nativo e tem telemetria (veredito do Scout). Use só os princípios e checklists, com palavras próprias. Nunca use os modos `craft`, `overdrive`, `bolder`, `colorize` nem redesign: o visual atual e a marca (regra 10 do `CLAUDE.md`) são a referência, não "anti-referência". Em conflito, mandam o código e `.claude/design/`.
