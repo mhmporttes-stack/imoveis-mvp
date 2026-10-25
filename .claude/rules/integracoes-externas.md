@@ -24,6 +24,7 @@ paths:
   - "app/api/google-contacts/**"
   - "app/api/analyze/**"
   - "whatsapp-individual-service/**"
+  - "whatsapp-dispatch-service/**"
   - ".env.example"
   - "lib/alexa*"
   - "lib/primeiro-acesso*"
@@ -52,6 +53,7 @@ paths:
 
 - **WhatsApp Master** (`lib/whatsapp-master.js`, tabela `whatsapp_master_events`): integração de mensageria em geral via WhatsApp Cloud API (Meta Graph API) — recebe webhook (`app/api/webhooks/whatsapp-master`, valida `x-hub-signature-256` via HMAC contra `WHATSAPP_APP_SECRET`, rejeita 401 sem assinatura válida e falha fechado se o secret não estiver configurado), sincroniza status de mensagens de campanhas de Disparo pelo mesmo webhook (correlaciona por `whatsapp_message_id`).
 - **WhatsApp Disparo/Broadcast** (`lib/whatsapp-broadcasts.js`, tabelas `whatsapp_broadcasts`/`whatsapp_broadcast_messages`/`whatsapp_templates`): campanhas de envio em massa usando templates aprovados pela Meta. Disparo efetivo roda via `/api/cron/whatsapp-broadcast-dispatch`.
+- **[COMPORTAMENTO ATUAL DA IMPLEMENTAÇÃO — 2026-10-25, pedido do dono] Microsserviço de envio `whatsapp-dispatch-service/` — canal NOVO, AINDA NÃO LIGADO AO CRM.** Projeto separado (Express + BullMQ/Redis + Postgres schema `wa_dispatch`, porta 3031; adaptador Cloud API oficial + opcional `crm_individual` pelas rotas existentes do `whatsapp-individual-service`). Nenhuma rota/lib do CRM o chama; ligar é decisão do dono. Consentimento lido do próprio CRM (somente leitura); sem credencial nada sai. Detalhe: `whatsapp-dispatch-service/README.md`.
 
 Variáveis: `WHATSAPP_ACCESS_TOKEN`, `WHATSAPP_APP_SECRET`, `WHATSAPP_BUSINESS_ACCOUNT_ID`, `WHATSAPP_PHONE_NUMBER_ID`, `WHATSAPP_DISPLAY_PHONE_NUMBER`, `WHATSAPP_GRAPH_API_VERSION`, `WHATSAPP_WEBHOOK_VERIFY_TOKEN`, `WHATSAPP_REMINDER_TEMPLATE_NAME`/`_LANGUAGE`.
 
