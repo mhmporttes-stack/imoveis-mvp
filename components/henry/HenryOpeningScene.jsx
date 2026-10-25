@@ -9,9 +9,11 @@ import styles from "./HenryOpeningScene.module.css";
 // abertura futurística anterior). Por cima da tela cheia do Henry, no mesmo centro e raio do anel:
 //   0–1,3 s um feixe embaraçado (30 fios + cabeça de luz) sai do meio da lateral esquerda e sobe em curva até o meio do
 //   topo · 1,3–3,4 s 3 voltas em torno do centro, acelerando · 3,4–4,4 s giro muito rápido fechando no raio do anel, com o
-//   centro brilhando · 4,4 s BOOM (clarão e faíscas, sem anéis): o anel de verdade acorda com um pulso de fala curto
-//   (onBoom) e aparece "BOM DIA, MATHEUS" + data no meio dele (tamanho pelo raio), saindo em ~3,4 s · 8,6 s onDone.
-// Antes do boom o fundo cobre o anel (ele ainda "não acordou"); depois o fundo some e o anel real aparece. O som de
+//   centro brilhando · 4,4 s BOOM "Pó de luz" (dono, 2026-10-25, "Boom 3" do protótipo): ~640 pontos de luz (420 no celular)
+//   sobre a circunferência do anel se espalham devagar (1,2 s), voltam (até 2,5 s) e somem; o anel de verdade vai
+//   aparecendo por baixo a partir de 1,5 s depois do boom; aos 2,2 s ele acorda com um pulso de fala curto (onBoom) e
+//   aparece "BOM DIA, MATHEUS" + data no meio dele (tamanho pelo raio), saindo antes do fim · 8,6 s onDone.
+// Antes disso o fundo cobre o anel (ele ainda "não acordou"); o fundo vai sumindo e o anel real aparece. O som de
 // abertura (playHenryOpeningSound) é agendado por quem abre a cena para tocar aos 3,8 s. Toque/clique/Esc pula.
 // prefers-reduced-motion: sem feixe nem boom — só a mensagem no anel, parada, por ~2,6 s.
 
@@ -75,14 +77,28 @@ export function playHenryOpeningSound(context, delay = 0) {
 
 // Mesmos fios do anel (sementes do HenryOrb) para o feixe embaraçado: até 16 fios × 200 pontos (fluidez, v28).
 const WAKE_POINTS = 200;
+// Pó de luz (boom): tempos depois do boom, em segundos. O anel real começa a aparecer em DUST_REVEAL_S (o fundo some), o
+// pulso/mensagem vêm em DUST_AWAKE_S e a poeira some até DUST_END_S.
+export const DUST_REVEAL_S = 1.5;
+export const DUST_AWAKE_S = 2.2;
+const DUST_END_S = 2.8;
+const DUST_COLORS = ["#FFFFFF", "#BFF1FF", "#4FC3E0", "#1E9BFF"]; // topo branco → laterais ciano → base azul, como os fios
+const easeOut = (x) => 1 - (1 - Math.max(0, Math.min(1, x))) ** 3;
+const easeInOut = (x) => {
+  const y = Math.max(0, Math.min(1, x));
+  return y < 0.5 ? 4 * y * y * y : 1 - (-2 * y + 2) ** 3 / 2;
+};
+
 const WAKE_SEEDS = Array.from({ length: 16 }, (_, index) => {
   const i = (index * 7) % 52;
   return { a: i * 2.399963 + 0.3, b: i * 1.618 + 1.1, k: 0.65 + (((i * 37) % 100) / 100) * 0.7 };
 });
 
-function useWakeCanvas(canvasRef, { enabled, geometryRef, onBoom }) {
+function useWakeCanvas(canvasRef, { enabled, geometryRef, onReveal, onBoom }) {
   const boomRef = useRef(onBoom);
   boomRef.current = onBoom;
+  const revealRef = useRef(onReveal);
+  revealRef.current = onReveal;
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!enabled || !canvas) return undefined;
@@ -101,16 +117,14 @@ function useWakeCanvas(canvasRef, { enabled, geometryRef, onBoom }) {
     resize();
     window.addEventListener("resize", resize);
     const started = performance.now();
-    let last = started;
-    let boomed = false;
-    const parts = [];
+    let revealed = false;
+    let awoke = false;
+    let dust = null;
     let frame = 0;
     const stops = orbStops(0);
     const lut = { key: "", length: null }; // distância ao longo do caminho (wakePathLength), refeita só se a tela mudar
     const draw = (now) => {
       const time = (now - started) / 1000;
-      const dt = Math.min(0.05, (now - last) / 1000);
-      last = now;
       const { cx, cy, R } = geometryRef.current(W, H);
       ctx.clearRect(0, 0, W, H);
       if (time < HENRY_WAKE.boom + 0.05) {
@@ -232,7 +246,8 @@ function useWakeCanvas(canvasRef, { enabled, geometryRef, onBoom }) {
         const pre = wakeSmooth(HENRY_WAKE.boom - 0.8, HENRY_WAKE.boom, time); // centro brilhando antes do boom
         if (pre > 0.01) {
           const glow = ctx.createRadialGradient(cx, cy, 0, cx, cy, R * 1.4);
-          glow.addColorStop(0, `rgba(255,246,221,${0.5 * pre})`);
+          glow.addColorStop(0, `rgba(225,250,255,${0.15 * pre})`); // Pó de luz: brilho discreto (30% do clarão antigo)
+          glow.addColorStop(0.5, `rgba(120,110,255,${0.036 * pre})`);
           glow.addColorStop(1, "rgba(79,195,224,0)");
           ctx.globalAlpha = 1;
           ctx.fillStyle = glow;
@@ -240,51 +255,56 @@ function useWakeCanvas(canvasRef, { enabled, geometryRef, onBoom }) {
         }
         ctx.restore();
       }
-      if (time >= HENRY_WAKE.boom && !boomed) {
-        boomed = true;
-        for (let i = 0; i < 90; i += 1) {
-          const a = Math.random() * Math.PI * 2;
-          const v = 300 + Math.random() * 900;
-          parts.push({ x: cx + Math.cos(a) * R, y: cy + Math.sin(a) * R, vx: Math.cos(a) * v, vy: Math.sin(a) * v, life: 0.6 + Math.random() * 0.6, age: 0 });
+      const bt = time - HENRY_WAKE.boom;
+      if (bt >= 0 && bt < DUST_END_S) {
+        if (!dust) {
+          // pontos sobre a circunferência do anel (±3,5% do raio), cada um com a direção e a distância em que se espalha
+          dust = [];
+          const count = W < 820 ? 420 : 640;
+          for (let i = 0; i < count; i += 1) {
+            const th = Math.random() * Math.PI * 2;
+            const dir = th + (Math.random() - 0.5) * 1.4;
+            const dist = R * (0.18 + Math.random() * 0.5);
+            dust.push({
+              th,
+              rr: R * (1 + (Math.random() - 0.5) * 0.07),
+              dx: Math.cos(dir) * dist,
+              dy: Math.sin(dir) * dist,
+              sz: 0.7 + Math.random() * 0.9,
+              ph: Math.random() * 6.28,
+              c: Math.min(3, Math.floor(((Math.sin(th) + 1) / 2) * 3.2 + Math.random() * 0.8))
+            });
+          }
         }
-        boomRef.current?.();
-      }
-      if (boomed) {
-        const bt = time - HENRY_WAKE.boom;
+        // espalha devagar (0–1,2 s) e volta (1,2–2,5 s) girando um tico; some entre 1,9 e 2,7 s
+        const f = bt < 1.2 ? easeOut(bt / 1.2) : 1 - easeInOut((bt - 1.2) / 1.3);
+        const fade = 1 - wakeSmooth(1.9, 2.7, bt);
+        const rot = 0.18 * bt;
+        const paths = DUST_COLORS.map(() => new Path2D());
+        for (const d of dust) {
+          const a = d.th + rot;
+          const wob = 4 * f * Math.sin(bt * 1.7 + d.ph);
+          const x = cx + Math.cos(a) * d.rr + d.dx * f + wob;
+          const y = cy + Math.sin(a) * d.rr + d.dy * f + wob * 0.6;
+          paths[d.c].moveTo(x + d.sz, y);
+          paths[d.c].arc(x, y, d.sz, 0, Math.PI * 2);
+        }
         ctx.save();
         ctx.globalCompositeOperation = "lighter";
-        if (bt < 0.6) {
-          const f = 1 - bt / 0.6;
-          const flash = ctx.createRadialGradient(cx, cy, 0, cx, cy, Math.max(W, H) * 0.6);
-          flash.addColorStop(0, `rgba(255,255,255,${0.85 * f})`);
-          flash.addColorStop(0.25, `rgba(191,241,255,${0.35 * f})`);
-          flash.addColorStop(1, "rgba(79,195,224,0)");
-          ctx.fillStyle = flash;
-          ctx.fillRect(0, 0, W, H);
-        }
-        // Sem anéis no boom (dono, 24/10: "o anel dourado não me agradou"); só clarão e faíscas até a nova ideia.
-        for (let i = parts.length - 1; i >= 0; i -= 1) {
-          const p = parts[i];
-          p.age += dt;
-          if (p.age >= p.life) {
-            parts.splice(i, 1);
-            continue;
-          }
-          const px = p.x;
-          const py = p.y;
-          p.x += p.vx * dt;
-          p.y += p.vy * dt;
-          p.vx *= 0.96;
-          p.vy *= 0.96;
-          ctx.strokeStyle = "#BFF1FF";
-          ctx.globalAlpha = 1 - p.age / p.life;
-          ctx.lineWidth = 1.3;
-          ctx.beginPath();
-          ctx.moveTo(px, py);
-          ctx.lineTo(p.x, p.y);
-          ctx.stroke();
-        }
+        ctx.globalAlpha = 0.85 * fade;
+        paths.forEach((path, index) => {
+          ctx.fillStyle = DUST_COLORS[index];
+          ctx.fill(path);
+        });
         ctx.restore();
+      }
+      if (bt >= DUST_REVEAL_S && !revealed) {
+        revealed = true;
+        revealRef.current?.();
+      }
+      if (bt >= DUST_AWAKE_S && !awoke) {
+        awoke = true;
+        boomRef.current?.();
       }
       if (time < HENRY_WAKE.end) frame = requestAnimationFrame(draw);
     };
@@ -302,6 +322,7 @@ export default function HenryOpeningScene({ name = "Matheus", mobile = false, or
   const [still, setStill] = useState(false);
   const [ready, setReady] = useState(false);
   const [awake, setAwake] = useState(false);
+  const [reveal, setReveal] = useState(false);
   const [date, setDate] = useState("");
   // Mesmo centro e raio do anel da tela cheia (HenryVoiceView: celular 14vh acima do meio; anel ≈ 0,32 × tamanho).
   const geometryRef = useRef(() => ({ cx: 0, cy: 0, R: 0 }));
@@ -339,6 +360,7 @@ export default function HenryOpeningScene({ name = "Matheus", mobile = false, or
   useWakeCanvas(canvasRef, {
     enabled: ready && !still,
     geometryRef,
+    onReveal: () => setReveal(true),
     onBoom: () => {
       setAwake(true);
       onBoom?.();
@@ -348,7 +370,7 @@ export default function HenryOpeningScene({ name = "Matheus", mobile = false, or
 
   return (
     <div
-      className={`${styles.scene} ${awake ? styles.awake : ""} ${still ? styles.still : ""} ${mobile ? styles.mobile : ""}`}
+      className={`${styles.scene} ${awake ? styles.awake : ""} ${reveal ? styles.reveal : ""} ${still ? styles.still : ""} ${mobile ? styles.mobile : ""}`}
       onPointerDown={(event) => event.stopPropagation()}
       onClick={(event) => {
         event.stopPropagation();
