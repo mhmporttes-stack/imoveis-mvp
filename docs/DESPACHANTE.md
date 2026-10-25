@@ -43,6 +43,7 @@ Aviso: `git push` para `main` já estava liberado (= deploy). Continua valendo a
 
 ## 5. Política de autonomia (vale para todos os agentes)
 - **Sem perguntar:** ler, editar, criar arquivo, testes, build, lint, consulta somente leitura, diagnóstico, deploy/commit/push que a tarefa pediu, rotina necessária.
+- **Publicar sempre [REGRA OFICIAL DE NEGÓCIO — dono, 2026-10-25]:** "Para de pedir para eu pedir para publicar, faça e publique sempre." Mudança pronta e validada (testes da área + `pnpm build`) é publicada em `main` sem pedir "Publique". Continua valendo a pergunta só para os casos abaixo (decisão de produto, dado real destrutivo).
 - **Pergunta ao dono (e só nestes casos):** (1) decisão de produto/negócio com mais de um caminho correto; (2) ação irreversível/destrutiva em dado real.
 - **Forma da pergunta:** português simples, sem SQL/comando; opções com consequência; impacto concreto (“apagará definitivamente N mensagens de M clientes”). O dono decide o impacto, o agente decide a técnica. Quando for possível, o agente **conta** o que será afetado com consulta somente leitura antes de perguntar.
 - **Em segundo plano** o agente não pergunta: termina com `DECISÃO NECESSÁRIA` (formato em `.claude/agents/despachante.md`); o Despachante traduz, pergunta e retoma com `SendMessage`.
