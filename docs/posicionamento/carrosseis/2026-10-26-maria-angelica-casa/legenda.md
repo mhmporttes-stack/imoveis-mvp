@@ -6,7 +6,11 @@ Dados enviados pelo dono: bairro Maria Angélica; 2 quartos; sala com ambientes 
 
 ## Site / CRM
 
-Pendente.
+**No site desde 2026-10-26:** `properties` id `86d38706-b05d-4bdd-bc87-1d3f005e5bde`, publicado, contato Tiago Fassina salvo. Fotos no GitHub (commit b315040). Página: https://www.matheusmachadoimoveis.com.br/empreendimentos/86d38706-b05d-4bdd-bc87-1d3f005e5bde
+
+**Marketplace:** na fila, aprovado (id 0c54266e).
+
+**Instagram:** publicado e confirmado em 2026-10-26 (media 18121206787985738).
 
 ## Legenda
 
