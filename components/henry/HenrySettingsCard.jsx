@@ -259,8 +259,8 @@ export default function HenrySettingsCard() {
   );
 }
 
-const STYLE_FIELDS = ["voice", "elevenVoice", "tone", "speed", "endWait", "listenAck", "details", "address", "rockMusic", "sertanejoMusic"];
-const TEXT_FIELDS = ["details", "address", "rockMusic", "sertanejoMusic"];
+const STYLE_FIELDS = ["voice", "elevenVoice", "tone", "speed", "endWait", "listenAck", "details", "address", "rockMusic", "sertanejoMusic", "morningPlaylist"];
+const TEXT_FIELDS = ["details", "address", "rockMusic", "sertanejoMusic", "morningPlaylist"];
 
 // Só o que mudou em relação ao salvo (a voz padrão do servidor pode não estar na lista e não é reenviada).
 function changedFields(form, saved) {
@@ -597,6 +597,9 @@ function HenryVoiceStyleSection({ saved, options, serverVoice, provider = "brows
             maxLength={options.detailsMax}
             rows={2}
           />
+        </Field>
+        <Field label="Playlist do bom dia" hint="Tocada (em ordem aleatória) quando você deixa o Henry escolher. Nome de uma playlist sua ou link do Spotify. Em branco = Rock Blues Animadas.">
+          <input className={inputClasses} value={form.morningPlaylist || ""} onChange={update("morningPlaylist")} maxLength={options.musicMax} placeholder={options.defaultMorningPlaylist} />
         </Field>
         <Field label="Bom dia: música do rock (opcional)" hint="Nome da playlist ou link do Spotify. Em branco = playlist de rock clássico.">
           <input className={inputClasses} value={form.rockMusic || ""} onChange={update("rockMusic")} maxLength={options.musicMax} placeholder={options.defaultRockMusic} />

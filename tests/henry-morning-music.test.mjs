@@ -181,9 +181,10 @@ test("frase: 'Que tal uma música de fundo? Posso escolher ou você tem alguma d
   const again = morningSuggestionLine(offer, "Matheus", { now: TUESDAY, random: () => 0, said: [first], avoid: [first.split(/\s+/).slice(0, 4).join(" ").replace(/[.,!?]+$/, "")] });
   assert.notEqual(again.split(" ").slice(0, 2).join(" "), first.split(" ").slice(0, 2).join(" "), again);
   assert.ok(again.endsWith(MORNING_MUSIC_OFFER), again);
-  // Aceite: confirma curto, sem Suits (inclusive registro antigo do mesmo dia).
-  assert.equal(morningStyleAcceptLine(offer), "Lá vai um rock blues animado de fundo.");
-  assert.equal(morningStyleAcceptLine({ kind: "style", genre: "suits", say: "um som no clima de Suits" }), "Lá vai um rock blues animado de fundo.");
+  // Aceite: a fala literal do dono (2026-10-26), sem Suits (inclusive registro antigo do mesmo dia).
+  const accept = "Já estou escolhendo uma música para iniciarmos o dia, em seguida já te atualizo do que aconteceu enquanto você estava fora.";
+  assert.equal(morningStyleAcceptLine(offer), accept);
+  assert.equal(morningStyleAcceptLine({ kind: "style", genre: "suits", say: "um som no clima de Suits" }), accept);
   assert.equal(morningStyleAcceptLine({ kind: "track", say: "Pense em Mim" }), "");
 });
 
