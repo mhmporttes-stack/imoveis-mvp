@@ -40,6 +40,13 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-26 — app recarrega tudo ao sair e voltar (iPhone e computador)
+- **Data:** 2026-10-26
+- **Área:** PWA / atualização de versão
+- **Sintoma:** "Quando eu saio do app por um tempo e volto, ele tem que carregar tudo de novo."
+- **Causa raiz:** cada publicação muda `public/sw.js`; o service worker novo assume (`skipWaiting`) e `components/PwaLifecycle.jsx` recarregava a página quando o app ia para segundo plano ou logo ao voltar (regra de 2026-10-09). Com ~25 publicações/dia, quase toda volta caía numa recarga completa. Parte residual: o iOS descarta o app da memória em segundo plano (abertura do zero, fora do nosso controle).
+- **Correção:** sair/voltar nunca recarrega; a versão nova entra na próxima troca de tela (`components/pwa-update-policy.mjs`). Ver `docs/CHANGELOG_AI.md` 2026-10-26.
+
 ### 2026-10-25 — Henry: resumo do mês começa com "Hoje,", "por que não fecha?" repete o gargalo, despedida vira "Beleza!"
 - **Data:** 2026-10-25
 - **Sintoma:** Treino 13 (22:27Z, automático): "dá pra falar mais curto?" depois do gargalo do mês → "Hoje, claro. Entre aprovado e venda…"; "por que tanto aprovado que não fecha?" (gargalo e lista já ditos) → a mesma frase do gargalo; "já tô saindo por hoje. Boa noite." → "Beleza!".

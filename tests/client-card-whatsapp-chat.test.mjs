@@ -96,12 +96,15 @@ test("card e ficha (mobile/desktop) só têm o caminho do Chat — nenhum deep l
   assert.doesNotMatch(body, /location\.(assign|href|replace)|<a /, "sem navegar para URL externa; janela externa só via decisão pelo estado (decision.url)");
 });
 
-test("app instalado procura versão nova ao voltar e a cada 10 min, sem recarregar no meio da digitação", () => {
+test("app instalado procura versão nova ao voltar e a cada 10 min, sem recarregar ao sair/voltar nem digitando", () => {
   const pwa = source("components/PwaLifecycle.jsx");
-  assert.match(pwa, /document\.addEventListener\("visibilitychange", checkForNewVersion\)/);
+  assert.match(pwa, /document\.addEventListener\("visibilitychange", handleVisibility\)/);
+  assert.match(pwa, /setTimeout\(checkForNewVersion, RETURN_CHECK_DELAY_MS\)/);
   assert.match(pwa, /UPDATE_CHECK_INTERVAL_MS = 10 \* 60 \* 1000/);
   assert.match(pwa, /updateRegistration\?\.update\(\)/);
-  // 2026-10-09: nunca recarrega na frente de quem usa — só com o app/aba oculto (ou logo ao voltar), e nunca digitando.
-  assert.match(pwa, /if \(document\.visibilityState !== "hidden" \|\| userIsTyping\(\)\) return;\s*\n\s*refreshing = true;\s*\n\s*window\.location\.reload\(\);/);
-  assert.match(pwa, /function handleControllerChange\(\) \{\s*\n\s*if \(refreshing\) return;\s*\n\s*reloadPending = true;\s*\n\s*reloadIfAway\(\);/);
+  // 2026-10-26 (dono: "quando eu saio do app e volto, ele tem que carregar tudo de novo"): a versão nova só fica
+  // pendente; entra na próxima troca de tela (link ou rota), nunca ao sair/voltar. Regra pura: tests/pwa-update-policy.test.mjs.
+  assert.match(pwa, /function handleControllerChange\(\) \{[\s\S]*?updatePending = true;/);
+  assert.match(pwa, /trigger: "route-change", typing: userIsTyping\(\)/);
+  assert.doesNotMatch(pwa, /reloadIfAway|reloadOnReturn/);
 });

@@ -13,7 +13,7 @@ O painel administrativo pode ser instalado no iPhone pelo Safari usando **Compar
 - Service worker em `public/sw.js`.
 - Página offline segura em `public/offline.html`.
 - Botão de instalar o app para corretores acessando pelo navegador do celular: no Android/Chrome captura o evento `beforeinstallprompt` e mostra um botão real ("Instalar app") que dispara a instalação nativa; no iPhone/Safari (que não dispara esse evento) mantém a orientação manual de Compartilhar > Adicionar à Tela de Início, com a mesma apresentação visual.
-- Detecção de atualização disponível.
+- Detecção de atualização disponível (aplicada na próxima troca de tela, nunca ao sair/voltar — ver "Versão nova sem recarregar ao voltar").
 - Renovação periódica da sessão administrativa via `/api/admin/session`.
 - Navegação de app no celular (< 768px): barra inferior fixa `components/AdminBottomNav.jsx` (4 destinos por perfil + Chat Marketplace ao lado do Chat desde 2026-10-21 + "Mais"), respeitando a área segura do iPhone; o menu do topo só aparece do tablet para cima. Detalhes: `.claude/skills/design-crm/references/sistema-visual.md` §4.1.
 
@@ -34,6 +34,16 @@ Somente recursos estáticos seguros são armazenados, como:
 - página offline sem dados privados.
 
 Desde 2026-10-22 (velocidade, etapa 2), os arquivos de `/_next/static/*` (hash do conteúdo no nome) ficam no cache sem versão `painel-matheus-next-static` (máx. 600 entradas, os mais antigos saem), que sobrevive às publicações; os demais ficam em `painel-matheus-v4-<build>-static`, apagado a cada deploy. Trava: `tests/sw-next-static-cache.test.mjs`.
+
+## Versão nova sem recarregar ao voltar (2026-10-26)
+
+Dono: "Quando eu saio do app por um tempo e volto, ele tem que carregar tudo de novo." Cada publicação muda `public/sw.js`; antes o `PwaLifecycle` recarregava a página ao sair do app (ou logo ao voltar) quando havia versão nova — com dezenas de publicações por dia, quase toda volta recarregava. Agora (`components/PwaLifecycle.jsx` + regra pura `components/pwa-update-policy.mjs`, testes `tests/pwa-update-policy.test.mjs`):
+
+- Sair/voltar **nunca** recarrega: a tela continua onde estava. A busca por versão nova ao voltar espera 4 s (não disputa a rede com a tela) e segue a cada 10 min.
+- A versão nova fica pendente e entra no **próximo toque num link do painel** (abre a tela pedida por completo, já na versão nova) ou, se a troca de tela veio de `router.push`, logo depois dela (nunca com campo sendo digitado). Link com `data-no-hard-nav` (ou um ancestral) fica fora. Abrir o app do zero já usa a versão nova.
+- Primeira instalação do service worker não conta como versão nova. A pendência fica no módulo (sobrevive à remontagem do `PwaLifecycle` entre painel/Academia/`/chat-app`).
+- Aviso pequeno no canto: "Nova versão: entra ao trocar de tela" (sem botão, decisão do dono de 2026-10-14).
+- **Limite do iPhone:** se o iOS descartar o app da memória em segundo plano (comum depois de um bom tempo ou com pouca memória), a volta é uma abertura do zero — o painel é baixado de novo (páginas e APIs são privadas, nunca guardadas no service worker). Os arquivos estáticos (`/_next/static`, fontes, ícones) já vêm do cache. O cache de dados das telas (`components/chat-view-cache.js`) é só memória por decisão de privacidade ("nada vai para o disco"); guardar no aparelho é decisão do dono.
 
 ## Velocidade, etapa 3 (2026-10-22)
 

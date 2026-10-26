@@ -1,17 +1,35 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { usePathname } from "next/navigation";
 import { RefreshCw, WifiOff, X } from "lucide-react";
 import { useHenryFullscreen } from "@/components/henry/useHenryFullscreen";
+import { decideUpdateAction, hardNavigationTarget, isRealUpdate, UPDATE_ACTIONS } from "@/components/pwa-update-policy.mjs";
 
 const UPDATE_CHECK_INTERVAL_MS = 10 * 60 * 1000;
+const RETURN_CHECK_DELAY_MS = 4000;
+
+// Fora do componente: o PwaLifecycle é montado em ramos diferentes do AppChrome (painel, Academia, /chat-app) e remonta
+// ao trocar de ramo — a versão pendente não pode se perder nisso.
+let updatePending = false;
+let updateReloading = false;
+
+function userIsTyping() {
+  const element = document.activeElement;
+  if (!element) return false;
+  const isField = element.tagName === "TEXTAREA"
+    || (element.tagName === "INPUT" && !["button", "checkbox", "radio", "submit", "range", "file"].includes(element.type))
+    || element.isContentEditable;
+  return Boolean(isField && String(element.value ?? element.textContent ?? "").length > 0);
+}
 
 export default function PwaLifecycle() {
-  const [updateWorker, setUpdateWorker] = useState(null);
+  const [updateReady, setUpdateReady] = useState(() => updatePending);
+  const pathname = usePathname();
   const [offline, setOffline] = useState(false);
   const [dismissed, setDismissed] = useState(false);
   // Tela cheia do Henry aberta (dono, 2026-10-23): os avisos de nova versão/sem conexão esperam ela fechar (a troca
-  // automática de versão ao sair/voltar continua igual).
+  // automática de versão na próxima troca de tela continua igual).
   const henryOpen = useHenryFullscreen();
 
   useEffect(() => {
@@ -39,62 +57,64 @@ export default function PwaLifecycle() {
   useEffect(() => {
     if (typeof window === "undefined" || !("serviceWorker" in navigator)) return undefined;
 
-    let refreshing = false;
-
-    // Versão nova publicada: o app NÃO recarrega na frente de quem está usando (reclamação real, 2026-10-09: num
-    // dia com dezenas de publicações a tela da Carol recarregava toda hora). A troca acontece quando a pessoa SAI do
-    // app/aba (fica oculto) — e, se o celular não executar nada em segundo plano, ao voltar ela já abre na versão nova.
-    // Nunca no meio de um campo sendo digitado.
-    function userIsTyping() {
-      const element = document.activeElement;
-      if (!element) return false;
-      const isField = element.tagName === "TEXTAREA"
-        || (element.tagName === "INPUT" && !["button", "checkbox", "radio", "submit", "range", "file"].includes(element.type))
-        || element.isContentEditable;
-      return Boolean(isField && String(element.value ?? element.textContent ?? "").length > 0);
-    }
-
-    let reloadPending = false;
-    function reloadIfAway() {
-      if (!reloadPending || refreshing) return;
-      if (document.visibilityState !== "hidden" || userIsTyping()) return;
-      refreshing = true;
-      window.location.reload();
-    }
+    // Primeira instalação também dispara controllerchange (clients.claim) — não é versão nova.
+    const hadControllerAtStart = Boolean(navigator.serviceWorker.controller);
 
     function handleControllerChange() {
-      if (refreshing) return;
-      reloadPending = true;
-      reloadIfAway();
+      if (updateReloading || !isRealUpdate({ hadControllerAtStart })) return;
+      // Versão nova (dono, 2026-10-26: "quando eu saio do app e volto, ele tem que carregar tudo de novo"): só marca como
+      // pendente. Sair/voltar NUNCA recarrega; ela entra na próxima troca de tela (components/pwa-update-policy.mjs).
+      updatePending = true;
+      setUpdateReady(true);
     }
-    // Ao voltar para o app com uma versão nova pendente que não pôde ser aplicada em segundo plano: recarrega antes de
-    // a pessoa começar a usar (é o momento em que a tela acabou de aparecer).
-    function reloadOnReturn() {
-      if (!reloadPending || refreshing || document.visibilityState !== "visible" || userIsTyping()) return;
-      refreshing = true;
-      window.location.reload();
+
+    // Toque num link do painel com versão nova pendente: abre a tela pedida por completo (já na versão nova), em vez da
+    // troca rápida do Next — é o momento em que a pessoa já espera carregar. Captura na janela: roda antes do onClick do Link do Next.
+    function handleLinkClick(event) {
+      if (updateReloading || event.defaultPrevented) return;
+      if (decideUpdateAction({ pending: updatePending, trigger: "link-click" }) !== UPDATE_ACTIONS.HARD_NAVIGATE) return;
+      const anchor = event.target instanceof Element ? event.target.closest("a[href]") : null;
+      if (!anchor) return;
+      const url = hardNavigationTarget({
+        href: anchor.getAttribute("href"),
+        origin: window.location.origin,
+        currentHref: window.location.href,
+        button: event.button,
+        metaKey: event.metaKey,
+        ctrlKey: event.ctrlKey,
+        shiftKey: event.shiftKey,
+        altKey: event.altKey,
+        target: anchor.getAttribute("target") || "",
+        download: anchor.hasAttribute("download"),
+        optOut: anchor.closest("[data-no-hard-nav]") !== null
+      });
+      if (!url) return;
+      event.preventDefault();
+      event.stopPropagation();
+      updateReloading = true;
+      window.location.assign(url);
     }
-    function handleVisibilityForReload() {
-      if (document.visibilityState === "hidden") reloadIfAway();
-      else reloadOnReturn();
-    }
-    document.addEventListener("visibilitychange", handleVisibilityForReload);
+    window.addEventListener("click", handleLinkClick, true);
 
     // App instalado (PWA) fica ABERTO por dias sem nenhuma navegação de página, e o
     // navegador só procura service worker novo em navegação (ou no máx. a cada 24 h por
     // push): o app seguia rodando o JavaScript de versões antigas — foi o que fez o botão
     // "WhatsApp" do card abrir o WhatsApp externo (código antigo) depois de a regra mudar
-    // (2026-10-02). Procura versão nova ao voltar para o app e a cada 10 min com ele
-    // aberto; o service worker novo assume sozinho (skipWaiting + controllerchange abaixo
-    // recarrega) e o app passa a rodar o código atual.
+    // (2026-10-02). Procura versão nova ao voltar para o app (alguns segundos depois, para não disputar a rede com a
+    // tela) e a cada 10 min com ele aberto; a versão encontrada entra na próxima troca de tela (acima/abaixo).
     let updateRegistration = null;
+    let returnTimer = null;
     function checkForNewVersion() {
       if (document.visibilityState !== "visible") return;
       updateRegistration?.update().catch(() => {
         // Sem rede: tenta de novo na próxima volta ao app.
       });
     }
-    document.addEventListener("visibilitychange", checkForNewVersion);
+    function handleVisibility() {
+      window.clearTimeout(returnTimer);
+      if (document.visibilityState === "visible") returnTimer = window.setTimeout(checkForNewVersion, RETURN_CHECK_DELAY_MS);
+    }
+    document.addEventListener("visibilitychange", handleVisibility);
     const updateTimer = window.setInterval(checkForNewVersion, UPDATE_CHECK_INTERVAL_MS);
 
     function registerServiceWorker() {
@@ -109,7 +129,7 @@ export default function PwaLifecycle() {
 
             worker.addEventListener("statechange", () => {
               if (worker.state === "installed" && navigator.serviceWorker.controller) {
-                setUpdateWorker(worker);
+                setUpdateReady(true);
               }
             });
           });
@@ -129,28 +149,42 @@ export default function PwaLifecycle() {
 
     return () => {
       navigator.serviceWorker.removeEventListener("controllerchange", handleControllerChange);
-      document.removeEventListener("visibilitychange", handleVisibilityForReload);
+      window.removeEventListener("click", handleLinkClick, true);
+      document.removeEventListener("visibilitychange", handleVisibility);
       window.removeEventListener("load", registerServiceWorker);
-      document.removeEventListener("visibilitychange", checkForNewVersion);
+      window.clearTimeout(returnTimer);
       window.clearInterval(updateTimer);
     };
   }, []);
 
-  if (dismissed || henryOpen || (!updateWorker && !offline)) return null;
+  // Troca de tela que não veio de um link (ex.: busca do cabeçalho, botão que chama router.push): com versão nova
+  // pendente, recarrega logo depois — nunca com campo sendo digitado.
+  const firstPath = useRef(true);
+  useEffect(() => {
+    if (firstPath.current) {
+      firstPath.current = false;
+      return;
+    }
+    if (updateReloading) return;
+    if (decideUpdateAction({ pending: updatePending, trigger: "route-change", typing: userIsTyping() }) === UPDATE_ACTIONS.RELOAD) {
+      updateReloading = true;
+      window.location.reload();
+    }
+  }, [pathname]);
+
+  if (dismissed || henryOpen || (!updateReady && !offline)) return null;
 
   // Versão nova (dono, 2026-10-14): sem botão "Atualizar" (recarregar na hora demorava e interrompia o trabalho) —
-  // só um aviso pequeno no canto. A pessoa termina o que está fazendo e atualiza quando quiser; a troca automática
-  // ao sair/voltar para o app (acima) continua valendo.
+  // só um aviso pequeno no canto. Desde 2026-10-26 a versão nova entra sozinha na próxima troca de tela (nunca ao
+  // sair/voltar para o app).
   if (!offline) {
-    // App instalado (sem botão de recarregar do navegador): atualiza sozinho ao sair e voltar.
-    const installedApp = typeof window !== "undefined" && (window.navigator.standalone === true || window.matchMedia?.("(display-mode: standalone)").matches);
     return (
       <div
         role="status"
         className="fixed right-3 top-[calc(0.5rem+env(safe-area-inset-top))] z-[140] flex items-center gap-1.5 rounded-full border border-line bg-white/95 py-1 pl-2.5 pr-1 text-[11px] font-semibold text-navy shadow-float backdrop-blur"
       >
         <RefreshCw className="h-3.5 w-3.5 shrink-0 text-brand" aria-hidden="true" />
-        <span>{installedApp ? "Nova versão: saia e volte ao app" : "Nova versão: atualize a página"}</span>
+        <span>Nova versão: entra ao trocar de tela</span>
         <button
           aria-label="Fechar aviso de nova versão"
           className="grid h-6 w-6 place-items-center rounded-full text-muted transition hover:bg-mist hover:text-navy"
