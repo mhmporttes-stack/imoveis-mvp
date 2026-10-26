@@ -50,6 +50,7 @@ Copie o modelo abaixo (uma entrada por bloco):
 - **Arquivos/commit:** `components/WhatsappChat.jsx`, `components/cooled/CooledChatHistory.jsx`, `lib/whatsapp-chat-scope.mjs` — branch `fix/historico-conversa-transferido`.
 - **Prevenção/teste:** `tests/cooled-transfer-chat-history.test.mjs`.
 - **Status:** Resolvido na branch (não publicado).
+
 ### 2026-10-26 — "Alerta de que já enviei várias mensagens" e o cliente da roleta vai para outro corretor
 - **Data:** 2026-10-26
 - **Sintoma:** corretor recebe "Muitas mensagens enviadas na última hora. Aguarde um pouco para continuar (proteção do seu número)." ao mandar a 1ª mensagem pelo Chat; manda pelo celular/outro WhatsApp, o CRM não vê e o cliente da fila de reativação/roleta vence o prazo e sai dele.
