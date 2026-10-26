@@ -152,7 +152,8 @@ export function registrarFollowBack(registro, agora, cfg, rand = Math.random) {
     registro.status = STATUS.SEGUIU_DE_VOLTA;
     mudou = true;
   }
-  if (!registro.dmAgendadaPara && !registro.dmEnviadaEm && !registro.dmTentativaEm) {
+  // 1.1.8: dmCoberta = a pessoa já tem boas-vindas pelo registro de "novo seguidor" (nunca 2 DMs para o mesmo id).
+  if (!registro.dmAgendadaPara && !registro.dmEnviadaEm && !registro.dmTentativaEm && !registro.dmCoberta) {
     registro.dmAgendadaPara = ajustarParaJanela(agora + atrasoDmMs(rand), agora, cfg, rand);
     mudou = true;
   }
@@ -175,6 +176,94 @@ export function dmPronta(registro, agora, cfg) {
   if (registro.dmDesistiu) return false;
   if (agora < registro.dmAgendadaPara) return false;
   return dentroDaJanela(agora, cfg);
+}
+
+// ---------------------------------------------------------------- 1.1.8: boas-vindas para TODO seguidor novo
+
+/** Teto diário padrão de DMs de boas-vindas (follow-back + novos seguidores); o excedente fica para o dia seguinte. */
+export const LIMITE_DM_DIARIO_PADRAO = 30;
+
+/** Este registro (de `seguidos` ou de `novosSeguidores`) já tem boas-vindas agendada, tentada, enviada ou encerrada? */
+export function temBoasVindas(r) {
+  return Boolean(r && (r.dmAgendadaPara || r.dmEnviadaEm || r.dmTentativaEm || r.dmDesistiu || r.dmIncerta || r.dmCoberta));
+}
+
+/**
+ * Dedupe persistente por id (nunca 2 DMs para a mesma pessoa): true se a pessoa já recebeu, vai receber ou teve a
+ * boas-vindas encerrada — como follow-back (`seguidos`) ou como novo seguidor (`novosSeguidores`).
+ */
+export function jaTemBoasVindas(e, id) {
+  const k = String(id);
+  return Boolean((e.novosSeguidores && e.novosSeguidores[k]) || temBoasVindas(e.seguidos && e.seguidos[k]));
+}
+
+/**
+ * Quem é seguidor NOVO numa leitura da lista dos MEUS seguidores (mais recentes primeiro, páginas em ordem).
+ * - Sem linha de base (1ª leitura depois de atualizar): todos os lidos viram "já conhecidos", SEM DM.
+ * - Com linha de base: novos = os que aparecem ANTES do 1º já conhecido (os de baixo são mais antigos: viram
+ *   conhecidos sem DM, mesmo que nunca tenham sido lidos — nunca DM em lote para seguidor antigo).
+ * - Nenhum conhecido na leitura (mais gente nova do que o lido, lista fora de ordem, conta trocada): por segurança
+ *   ninguém recebe DM; todos viram conhecidos (`anomalia`).
+ * Retorna { linhaDeBase, anomalia, novos: [usuarios], conhecer: [ids] }. Não muda nada (quem chama grava).
+ */
+export function detectarNovosSeguidores(usuarios, { conhecidos = {}, linhaDeBaseEm = null, meuId = null } = {}) {
+  const vistos = new Set();
+  const lista = [];
+  for (const u of usuarios || []) {
+    const id = String(u.pk ?? u.id ?? u.pk_id ?? '');
+    if (!id || vistos.has(id) || (meuId && id === String(meuId))) continue;
+    vistos.add(id);
+    lista.push({ ...u, id });
+  }
+  const conhecer = lista.map((u) => u.id);
+  if (!linhaDeBaseEm) return { linhaDeBase: true, anomalia: false, novos: [], conhecer };
+  const corte = lista.findIndex((u) => conhecidos[u.id]);
+  if (corte === -1) return { linhaDeBase: false, anomalia: lista.length > 0, novos: [], conhecer };
+  return { linhaDeBase: false, anomalia: false, novos: lista.slice(0, corte), conhecer };
+}
+
+/** Novo registro de boas-vindas para um seguidor novo (não seguido pela extensão). DM em 1–3 min, dentro da janela. */
+export function novoRegistroSeguidor(u, agora, cfg, rand = Math.random) {
+  return {
+    id: String(u.id ?? u.pk),
+    username: u.username || '',
+    origem: 'novo seguidor',
+    detectadoEm: agora,
+    dmAgendadaPara: ajustarParaJanela(agora + atrasoDmMs(rand), agora, cfg, rand),
+  };
+}
+
+/** Já atingiu o teto diário de DMs? (enviadas + incertas hoje; as incertas podem ter saído) */
+export function tetoDmAtingido(contadores, cfg) {
+  const teto = Number(cfg && cfg.limiteDmDiario) || LIMITE_DM_DIARIO_PADRAO;
+  return (contadores.dms || 0) + (contadores.dmsIncertas || 0) >= teto;
+}
+
+/** Desistiu da DM por resposta HTML da API? (1.1.8 grava `dmDesistiuPor`; antes, só o histórico dizia) */
+export function desistiuPorHtml(r, historico = []) {
+  if (!r || !r.dmDesistiu || r.dmEnviadaEm || r.dmIncerta) return false;
+  if (r.dmDesistiuPor) return r.dmDesistiuPor === 'html';
+  if (!r.dmFalhas) return false; // DM desligada no painel: não é falha
+  return historico.some((h) => h.acao === 'DM' && h.username === r.username && /resposta HTML/.test(h.resultado || ''));
+}
+
+/**
+ * 1.1.8 (decisão do dono, 26/10): as boas-vindas que desistiram por HTML na API (antes de existir o envio por
+ * digitação) ganham UMA nova tentativa — agora com a digitação na tela da DM como plano B. Só quem nunca passou pela
+ * digitação; marca `dmReabilitadaEm` (nunca de novo). Retorna os registros reabilitados.
+ */
+export function reabilitarDesistidasPorHtml(registros, historico, agora, cfg, maxTentativas = 3, rand = Math.random) {
+  const feitos = [];
+  for (const r of registros) {
+    if (r.dmReabilitadaEm || r.dmDigitacaoTentadaEm || !desistiuPorHtml(r, historico)) continue;
+    r.dmDesistiu = false;
+    r.dmDesistiuPor = null;
+    r.dmFalhas = Math.max(0, maxTentativas - 1); // uma única tentativa nova
+    r.dmReabilitadaEm = agora;
+    r.dmAgendadaPara = ajustarParaJanela(agora + atrasoDmMs(rand), agora, cfg, rand);
+    feitos.push(r);
+  }
+  return feitos;
 }
 
 /**

@@ -22,6 +22,13 @@ import {
   statusAposSeguir,
   atualizarSolicitacao,
   rotuloDeixar,
+  LIMITE_DM_DIARIO_PADRAO,
+  jaTemBoasVindas,
+  temBoasVindas,
+  detectarNovosSeguidores,
+  novoRegistroSeguidor,
+  tetoDmAtingido,
+  reabilitarDesistidasPorHtml,
 } from './lib/regras.js';
 import { normalizarEstado, virarDiaSeNecessario, registrarHistorico, resumoBusca } from './lib/estado.js';
 
@@ -43,6 +50,12 @@ const DM_MAX_TENTATIVAS_HTML = 3;
 const HORA_DM = 60 * MINUTO;
 const INTERVALO_MIN_ENTRE_DMS = 60 * 1000;
 const INTERVALO_REABASTECER_MS = 20 * MINUTO;
+// 1.1.8: boas-vindas para TODO seguidor novo. Se a 1ª página dos meus seguidores não tiver nenhum já conhecido, lê
+// mais páginas (até este total) procurando o ponto em que começam os antigos; sem achar, ninguém recebe DM.
+const PAGINAS_MAX_NOVOS_SEGUIDORES = 8;
+
+/** 1.1.8: todos os registros com DM de boas-vindas: follow-back (`seguidos`) e novos seguidores. */
+const registrosDm = (e) => [...Object.values(e.seguidos), ...Object.values(e.novosSeguidores || {})];
 
 // ---------------------------------------------------------------- utilidades
 
@@ -254,7 +267,7 @@ function replanejarSeAtrasado(e, chave, agora) {
 async function processarDm(e, agora) {
   const cfg = e.config;
   // Envio que ficou "pela metade" (service worker morreu no meio): nunca reenviar.
-  for (const r of Object.values(e.seguidos)) {
+  for (const r of registrosDm(e)) {
     if (r.dmTentativaEm && !r.dmEnviadaEm && !r.dmIncerta && agora - r.dmTentativaEm > 5 * MINUTO) {
       r.dmIncerta = true;
       log(e, { username: r.username, acao: 'DM', resultado: 'envio interrompido — não será repetido (confira no Instagram)', origem: r.origem });
@@ -262,8 +275,18 @@ async function processarDm(e, agora) {
     }
   }
   if (!cfg.dmAtiva) return 'ok';
-  const prontas = Object.values(e.seguidos).filter((r) => dmPronta(r, agora, cfg)).sort((a, b) => a.dmAgendadaPara - b.dmAgendadaPara);
+  const prontas = registrosDm(e).filter((r) => dmPronta(r, agora, cfg)).sort((a, b) => a.dmAgendadaPara - b.dmAgendadaPara);
   if (!prontas.length) return 'ok';
+  if (tetoDmAtingido(e.contadores, cfg)) {
+    // 1.1.8: teto diário de boas-vindas atingido — o excedente fica para o dia seguinte (espaçado, 1–3 min + 1 min).
+    const amanha = proximaAbertura(janelaDoDia(agora, cfg).fim, cfg);
+    prontas.forEach((r, i) => { r.dmAgendadaPara = amanha + atrasoDmMs() + i * (INTERVALO_MIN_ENTRE_DMS + atrasoDmMs() / 2); });
+    if (e.avisoTetoDm !== diaSP(agora)) {
+      e.avisoTetoDm = diaSP(agora);
+      log(e, { acao: 'DM', resultado: `teto diário de ${cfg.limiteDmDiario || LIMITE_DM_DIARIO_PADRAO} boas-vindas atingido — ${prontas.length} ficam para amanhã a partir de ${formatarSP(prontas[0].dmAgendadaPara)}` });
+    }
+    return 'ok';
+  }
   if (e.ultimaDmEm && agora - e.ultimaDmEm < INTERVALO_MIN_ENTRE_DMS) {
     for (const r of prontas) r.dmAgendadaPara = e.ultimaDmEm + INTERVALO_MIN_ENTRE_DMS + atrasoHumanoMs() * 10;
     return 'ok';
@@ -276,8 +299,9 @@ async function processarDm(e, agora) {
   await salvar(e); // marca ANTES de enviar: garante "uma única vez"
   await pausaHumana();
   try {
-    const res = await api.enviarDm(r.id, cfg.mensagem);
+    const res = await api.enviarDm(r.id, cfg.mensagem, { username: r.username });
     r.dmEnviadaEm = Date.now();
+    if (res.digitacao) { r.dmDigitacaoTentadaEm = r.dmEnviadaEm; r.dmVia = 'digitacao'; }
     e.ultimaDmEm = r.dmEnviadaEm;
     e.contadores.dms += 1;
     log(e, { username: r.username, acao: 'DM', resultado: `boas-vindas enviada (${res.modo})`, origem: r.origem });
@@ -285,6 +309,7 @@ async function processarDm(e, agora) {
   } catch (err) {
     const status = err && err.status;
     const tipo = err instanceof ErroInstagram ? err.tipo : 'outro';
+    if (err && err.digitacao) r.dmDigitacaoTentadaEm = Date.now(); // 1.1.8: já passou pela digitação na tela da DM
     if (bloqueante(tipo)) {
       // O Instagram recusou: não saiu. Reagenda para depois da pausa.
       r.dmTentativaEm = null;
@@ -296,13 +321,15 @@ async function processarDm(e, agora) {
     }
     if (tipo === 'nao_enviada') {
       // 1.1.5: a API de DM devolveu a página HTML — certamente não saiu. Reagenda (30 min, depois 2 h); na 3ª
-      // falha desiste COM alerta no popup (nunca em silêncio). Não há envio por digitação na tela da DM.
+      // falha desiste COM alerta no popup (nunca em silêncio). 1.1.8: antes de contar a falha, a extensão já tentou
+      // digitar na tela da DM (instagram-api.js) — 'nao_enviada' aqui = a digitação também não chegou ao Enter.
       r.dmTentativaEm = null;
       r.dmFalhas = (r.dmFalhas || 0) + 1;
-      erroBoasVindas(e, `DM para @${r.username} não enviada (tentativa ${r.dmFalhas} de ${DM_MAX_TENTATIVAS_HTML}): o Instagram respondeu a página HTML`);
+      erroBoasVindas(e, `DM para @${r.username} não enviada (tentativa ${r.dmFalhas} de ${DM_MAX_TENTATIVAS_HTML}): ${err.digitacao ? `API respondeu HTML e a digitação não enviou — ${String(err.message).split('. DM não enviada')[0]}` : 'o Instagram respondeu a página HTML'}`);
       if (r.dmFalhas >= DM_MAX_TENTATIVAS_HTML) {
         r.dmDesistiu = true;
-        const texto = `DM de boas-vindas não pôde ser enviada para @${r.username}: o Instagram respondeu a página HTML em vez de processar a mensagem (${r.dmFalhas} tentativas). Envie manualmente pelo Instagram, se quiser.`;
+        r.dmDesistiuPor = 'html';
+        const texto = `DM de boas-vindas não pôde ser enviada para @${r.username}: o Instagram respondeu a página HTML em vez de processar a mensagem${err.digitacao ? ' e a digitação na tela da DM também não conseguiu enviar' : ''} (${r.dmFalhas} tentativas). Envie manualmente pelo Instagram, se quiser.`;
         e.alerta = { tipo: 'dm', em: Date.now(), texto };
         log(e, { username: r.username, acao: 'DM', resultado: `não enviada após ${r.dmFalhas} tentativas (resposta HTML) — desistindo, alerta no popup`, origem: r.origem });
         notificar('Instagram: DM não enviada', texto.slice(0, 200));
@@ -329,6 +356,7 @@ async function processarDm(e, agora) {
     }
     // Não dá para saber se saiu: nunca reenviar.
     r.dmIncerta = true;
+    e.contadores.dmsIncertas = (e.contadores.dmsIncertas || 0) + 1; // 1.1.8: conta no teto diário (pode ter saído)
     log(e, { username: r.username, acao: 'DM', resultado: `resultado incerto, não será repetida: ${err.message || err}`, origem: r.origem });
     erroBoasVindas(e, `DM para @${r.username} com resultado incerto (não será repetida — confira no Instagram): ${err.message || err}`);
     return tipo;
@@ -417,8 +445,10 @@ async function processarSeguir(e, agora) {
 
 function marcarFollowBack(e, r, agora) {
   const ja = Boolean(r.followBackEm);
+  // 1.1.8: já tem boas-vindas como "novo seguidor" (ex.: seguido depois de ter me seguido) → nunca uma 2ª DM.
+  if (!temBoasVindas(r) && e.novosSeguidores && e.novosSeguidores[String(r.id)]) r.dmCoberta = true;
   registrarFollowBack(r, agora, e.config);
-  if (!ja && !e.config.dmAtiva && !r.dmEnviadaEm) {
+  if (!ja && !e.config.dmAtiva && !r.dmEnviadaEm && !r.dmCoberta) {
     // DM desligada no painel: esta pessoa não recebe mensagem depois, nem se religar.
     r.dmAgendadaPara = null;
     r.dmDesistiu = true;
@@ -428,7 +458,7 @@ function marcarFollowBack(e, r, agora) {
     log(e, {
       username: r.username,
       acao: 'follow-back',
-      resultado: e.config.dmAtiva ? `seguiu de volta — DM agendada para ${formatarSP(r.dmAgendadaPara)}` : 'seguiu de volta',
+      resultado: r.dmCoberta ? 'seguiu de volta — boas-vindas já cuidada como novo seguidor (sem 2ª DM)' : e.config.dmAtiva ? `seguiu de volta — DM agendada para ${formatarSP(r.dmAgendadaPara)}` : 'seguiu de volta',
       origem: r.origem,
     });
   }
@@ -533,14 +563,22 @@ async function paginaMeusSeguidores(e, cursor, modo) {
  */
 async function verificarFollowBacks(e, agora, { forcarCompleta = false } = {}) {
   const ids = new Set(idsParaVerificarFollowBack(e.seguidos));
-  if (!ids.size || !e.meuId) return 'ok';
+  if (!e.meuId) return 'ok';
   const completa = forcarCompleta || !e.ultimaVarreduraEm || agora - e.ultimaVarreduraEm >= VARREDURA_COMPLETA_MS;
   if (completa) e.ultimaVarreduraEm = agora;
 
   // 1) Meus seguidores mais recentes: pega follow-back em poucos minutos (e, na conferência completa, mais páginas).
+  // 1.1.8: a mesma leitura acha os seguidores NOVOS (boas-vindas para todos): lê até achar um já conhecido.
+  const ms = e.meusSeguidores;
+  const lidos = [];
+  let achouConhecido = false;
+  let terminou = false; // leu até o fim da lista ou até o limite de páginas, sem erro
   let cursor = null;
   let modo = null;
-  for (let p = 0; p < (completa ? PAGINAS_MEUS_SEGUIDORES : 1) && ids.size; p += 1) {
+  for (let p = 0; p < PAGINAS_MAX_NOVOS_SEGUIDORES; p += 1) {
+    const paraFollowBack = p < (completa ? PAGINAS_MEUS_SEGUIDORES : 1) && ids.size;
+    const paraNovos = ms.linhaDeBaseEm && !achouConhecido;
+    if (p > 0 && !paraFollowBack && !paraNovos) break;
     await pausaHumana();
     let pagina;
     try {
@@ -555,11 +593,15 @@ async function verificarFollowBacks(e, agora, { forcarCompleta = false } = {}) {
     e.boasVindas = { ...(e.boasVindas || {}), ultimaChecagemEm: Date.now(), via: modo };
     for (const u of pagina.usuarios) {
       const id = String(u.pk ?? u.id ?? u.pk_id ?? '');
+      lidos.push(u);
+      if (ms.conhecidos[id]) achouConhecido = true;
       if (ids.has(id)) { marcarFollowBack(e, e.seguidos[id], Date.now()); ids.delete(id); }
     }
-    if (!pagina.proximo || !pagina.usuarios.length) break;
+    if (!pagina.proximo || !pagina.usuarios.length) { terminou = true; break; }
+    if (p === PAGINAS_MAX_NOVOS_SEGUIDORES - 1) terminou = true;
     cursor = pagina.proximo;
   }
+  if (lidos.length && (!ms.linhaDeBaseEm || achouConhecido || terminou)) registrarNovosSeguidores(e, lidos, Date.now());
 
   // 2) Conferência completa por show_many para quem não apareceu nas páginas (ex.: solicitação aceita).
   if (completa && ids.size) {
@@ -592,6 +634,44 @@ async function verificarFollowBacks(e, agora, { forcarCompleta = false } = {}) {
     }
   }
   return 'ok';
+}
+
+/**
+ * 1.1.8 (decisão do dono, 26/10): boas-vindas para TODO seguidor novo, uma única vez por pessoa. A 1ª leitura depois
+ * de atualizar só grava a linha de base (todos = já conhecidos, sem DM). Depois, novo = quem aparece acima do 1º já
+ * conhecido na lista (mais recentes primeiro). Quem foi seguido pela extensão segue pelo follow-back (marcarFollowBack).
+ */
+function registrarNovosSeguidores(e, usuarios, agora) {
+  const ms = e.meusSeguidores;
+  const r = detectarNovosSeguidores(usuarios, { conhecidos: ms.conhecidos, linhaDeBaseEm: ms.linhaDeBaseEm, meuId: e.meuId });
+  for (const id of r.conhecer) if (!ms.conhecidos[id]) ms.conhecidos[id] = agora;
+  if (r.linhaDeBase) {
+    ms.linhaDeBaseEm = agora;
+    log(e, { acao: 'novos seguidores', resultado: `linha de base gravada: ${r.conhecer.length} seguidores atuais marcados como já conhecidos (nenhuma DM para eles)` });
+    return;
+  }
+  if (r.anomalia) {
+    log(e, { acao: 'novos seguidores', resultado: `${r.conhecer.length} seguidores lidos sem nenhum já conhecido entre eles — por segurança nenhuma DM (nunca DM em lote); marcados como conhecidos` });
+    erroBoasVindas(e, `${r.conhecer.length} seguidores novos de uma vez sem ponto de referência — sem DM para eles (proteção contra envio em lote)`);
+    return;
+  }
+  // Do mais antigo para o mais recente: a fila de DMs sai na ordem em que as pessoas seguiram.
+  for (const u of [...r.novos].reverse()) {
+    const seguido = e.seguidos[u.id];
+    if (seguido && (seguido.followBackEm || seguido.status === STATUS.SEGUINDO || seguido.status === STATUS.SOLICITADO)) continue; // follow-back: marcarFollowBack cuida
+    e.contadores.novosSeguidores = (e.contadores.novosSeguidores || 0) + 1;
+    if (jaTemBoasVindas(e, u.id)) {
+      log(e, { username: u.username, acao: 'novo seguidor', resultado: 'já recebeu (ou vai receber) boas-vindas — sem 2ª DM', origem: 'novo seguidor' });
+      continue;
+    }
+    if (!e.config.dmAtiva) {
+      log(e, { username: u.username, acao: 'novo seguidor', resultado: 'passou a me seguir (DM desligada no painel — sem mensagem)', origem: 'novo seguidor' });
+      continue;
+    }
+    const reg = novoRegistroSeguidor(u, agora, e.config);
+    e.novosSeguidores[reg.id] = reg;
+    log(e, { username: reg.username, acao: 'novo seguidor', resultado: `passou a me seguir — DM de boas-vindas agendada para ${formatarSP(reg.dmAgendadaPara)}`, origem: reg.origem });
+  }
 }
 
 /** O alerta antigo de "show_many respondeu de forma inesperada" some quando a checagem volta a funcionar. */
@@ -653,7 +733,7 @@ async function agendarProximo(e, c) {
     if (e.agenda.follows[0]) opcoes.push({ acao: 'Seguir', em: e.agenda.follows[0] });
     if (e.agenda.unfollows[0]) opcoes.push({ acao: 'Deixar de seguir (se houver alguém com 3 dias)', em: e.agenda.unfollows[0] });
     if (cfg.dmAtiva) {
-      for (const r of Object.values(e.seguidos)) {
+      for (const r of registrosDm(e)) {
         if (r.dmAgendadaPara && !r.dmEnviadaEm && !r.dmTentativaEm && !r.dmDesistiu) opcoes.push({ acao: `DM de boas-vindas para @${r.username}`, em: r.dmAgendadaPara });
       }
     }
@@ -668,6 +748,20 @@ async function agendarProximo(e, c) {
 }
 
 // ---------------------------------------------------------------- ciclos
+
+/**
+ * 1.1.8 (uma vez, na atualização): as boas-vindas que desistiram por HTML na API, antes de existir a digitação na tela
+ * da DM, ganham UMA nova tentativa (que já usa a digitação se a API continuar em HTML).
+ */
+function reabilitarDmsHtml(e, agora) {
+  if (e.reabilitacaoDmHtml) return;
+  e.reabilitacaoDmHtml = agora;
+  const feitos = reabilitarDesistidasPorHtml(registrosDm(e), e.historico, agora, e.config, DM_MAX_TENTATIVAS_HTML);
+  for (const r of feitos) {
+    log(e, { username: r.username, acao: 'DM', resultado: `versão 1.1.8: nova tentativa (uma vez) da boas-vindas que não saiu por HTML — agora com digitação na tela da DM, às ${formatarSP(r.dmAgendadaPara)}`, origem: r.origem });
+  }
+  if (feitos.length && e.alerta && e.alerta.tipo === 'dm') e.alerta = null;
+}
 
 async function ciclo() {
   const e = await carregar();
@@ -685,6 +779,7 @@ async function ciclo() {
     log(e, { acao: 'pausa', resultado: 'pausa automática de 24 h encerrada — retomando' });
   }
   await checarSessao(e);
+  reabilitarDmsHtml(e, agora);
 
   if (estaAtiva(e, c, agora) && dentroDaJanela(agora, e.config) && (await checarJanela(e))) {
     let r = await processarDm(e, agora);
@@ -693,7 +788,7 @@ async function ciclo() {
     if (!bloqueante(r)) await reabastecerFila(e, Date.now());
   } else if (!dentroDaJanela(agora, e.config)) {
     // Fora da janela: DMs pendentes vão para a próxima abertura + 1–3 min.
-    for (const r of Object.values(e.seguidos)) {
+    for (const r of registrosDm(e)) {
       if (r.dmAgendadaPara && !r.dmEnviadaEm && !r.dmTentativaEm && !dentroDaJanela(r.dmAgendadaPara, e.config)) {
         r.dmAgendadaPara = ajustarParaJanela(r.dmAgendadaPara, agora, e.config);
       }
@@ -718,10 +813,12 @@ async function cicloVerificar({ manual = false } = {}) {
     return resposta(false, `Fora da janela de trabalho (${d2(e.config.inicioHora)}:00–${d2(e.config.fimHora)}:00): a conferência fica para a abertura.`);
   }
   if (!estaAtiva(e, c, agora)) return resposta(false, 'Extensão pausada ou esperando o Instagram — retome para conferir.');
+  virarDiaSeNecessario(e, agora); // 1.1.8: o contador de seguidores novos do dia pode ser tocado aqui
   if (!(await checarSessao(e))) { await agendarProximo(e, c); await salvar(e); return resposta(false, 'Sem sessão do Instagram neste Chrome — entre no instagram.com.'); }
   if (!(await checarJanela(e))) { await salvar(e); return resposta(false, 'Nenhuma janela do Chrome aberta — abra uma para conferir.'); }
   const comFollowBack = () => Object.values(e.seguidos).filter((r) => r.followBackEm).length;
   const antes = comFollowBack();
+  const novosAntes = Object.keys(e.novosSeguidores).length;
   const erroAntes = e.boasVindas && e.boasVindas.ultimoErro;
   const forcar = manual && (!e.ultimaVarreduraEm || agora - e.ultimaVarreduraEm >= 2 * MINUTO);
   const r = await verificarFollowBacks(e, agora, { forcarCompleta: forcar });
@@ -730,7 +827,9 @@ async function cicloVerificar({ manual = false } = {}) {
   if (!manual) return undefined;
   const novos = comFollowBack() - antes;
   const erroNovo = e.boasVindas.ultimoErro && e.boasVindas.ultimoErro !== erroAntes ? ` Erro: ${e.boasVindas.ultimoErro.texto}` : '';
-  const achados = novos ? `${novos} ${novos === 1 ? 'novo follow-back' : 'novos follow-backs'} — DM agendada (sai em 1 a 3 min)` : 'nenhum follow-back novo';
+  const novosSeg = Object.keys(e.novosSeguidores).length - novosAntes;
+  const achados = (novos ? `${novos} ${novos === 1 ? 'novo follow-back' : 'novos follow-backs'} — DM agendada (sai em 1 a 3 min)` : 'nenhum follow-back novo')
+    + (novosSeg ? `; ${novosSeg} ${novosSeg === 1 ? 'seguidor novo' : 'seguidores novos'} com boas-vindas agendada` : '');
   const parou = r !== 'ok' ? ` O Instagram pediu para parar (${r}).` : '';
   return resposta(true, `Conferido às ${formatarSP(Date.now()).slice(11, 16)}: ${achados}.${parou}${erroNovo}`, novos);
 }
@@ -913,6 +1012,7 @@ function validarConfig(atual, nova) {
   if ('pularPrivados' in nova) n.pularPrivados = Boolean(nova.pularPrivados);
   if ('pularSemFoto' in nova) n.pularSemFoto = Boolean(nova.pularSemFoto);
   if ('dmAtiva' in nova) n.dmAtiva = Boolean(nova.dmAtiva);
+  if ('limiteDmDiario' in nova) n.limiteDmDiario = inteiro(nova.limiteDmDiario, 1, 100, atual.limiteDmDiario);
   if ('mensagem' in nova && String(nova.mensagem).trim()) n.mensagem = String(nova.mensagem);
   return n;
 }
@@ -999,7 +1099,7 @@ chrome.runtime.onMessage.addListener((msg, _remetente, responder) => {
           const e = await carregar();
           e.config = validarConfig(e.config, msg.config || {});
           e.agenda.limite = null; // força replanejar o restante do dia com os novos limites
-          log(e, { acao: 'configuração', resultado: `limite ${e.config.limiteDiario}/dia, deixar de seguir ${e.config.limiteUnfollowDiario}/dia, privados ${e.config.pularPrivados ? 'pulados' : 'aceitos (Solicitado)'}` });
+          log(e, { acao: 'configuração', resultado: `limite ${e.config.limiteDiario}/dia, deixar de seguir ${e.config.limiteUnfollowDiario}/dia, boas-vindas até ${e.config.limiteDmDiario}/dia, privados ${e.config.pularPrivados ? 'pulados' : 'aceitos (Solicitado)'}` });
           await salvar(e);
           await ciclo();
         });

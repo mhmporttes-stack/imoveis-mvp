@@ -44,6 +44,9 @@ export function criarInstagramFalso({ meuId = '999', referencia = 'perfilref', t
     meusSeguidoresGraphqlFalha: false, // 1.1.7: o GraphQL dos MEUS seguidores também não responde dados
     voltaSe,
     atrasoVolta,
+    // 1.1.8: tela da DM (digitação). abre: o botão "Enviar mensagem" aparece; envia: o Enter manda a mensagem;
+    // aparece: a mensagem enviada aparece na conversa (confirmação).
+    dmTela: { abre: true, envia: true, aparece: true },
   };
   for (const id of ig.jaMeSeguiam) ig.meSeguem.set(id, 0);
   // 1.1.7: outras pessoas (fora da extensão) que passam a me seguir — empurram os follow-backs para fora da 1ª página.
@@ -62,6 +65,40 @@ export function criarInstagramFalso({ meuId = '999', referencia = 'perfilref', t
       if (u && ig.voltaSe(u.n) && agora - desde >= ig.atrasoVolta && !ig.meSeguem.has(id)) ig.meSeguem.set(id, desde + ig.atrasoVolta);
     }
   }
+
+  // 1.1.8: tela da conversa simulada (as funções ...NaPagina de instagram-api.js).
+  const tela = { conversa: null, caixa: '' };
+  const normT = (t) => String(t || '').replace(/\s+/g, ' ').trim().toLowerCase();
+  const naConversa = (trecho) => ig.dms.filter((d) => d.id === tela.conversa && normT(d.texto).includes(normT(trecho))).length;
+  ig.telaDm = (nome, args, url) => {
+    ig.chamadas.push({ em: Date.now(), metodo: 'DM-TELA', caminho: nome });
+    if (nome === 'abrirConversaNaPagina') {
+      const usuario = decodeURIComponent((String(url || '').match(/instagram\.com\/([^/?#]+)\/?/) || [])[1] || '');
+      const u = usuarios.find((x) => x.username === usuario);
+      const pk = u ? u.pk : usuario.startsWith('x') && ig.meSeguem.has(usuario.slice(1)) ? usuario.slice(1) : null;
+      if (!ig.dmTela.abre || !pk) return { ok: false, erro: 'botão "Enviar mensagem" não apareceu no perfil' };
+      tela.conversa = pk;
+      tela.caixa = '';
+      return { ok: true };
+    }
+    if (!tela.conversa) return { ok: false, erro: 'caixa de mensagem sumiu' };
+    if (nome === 'prepararCaixaNaPagina') { tela.caixa = ''; return { ok: true, contagem: naConversa(args[0]) }; }
+    if (nome === 'escreverNaPagina') { for (const p of args[0]) tela.caixa += p.quebra ? '\n' : p.texto || ''; return { ok: true }; }
+    if (nome === 'conferirCaixaNaPagina') {
+      if (normT(tela.caixa) === normT(args[0])) return { ok: true };
+      tela.caixa = '';
+      return { ok: false, erro: 'o texto digitado não conferiu' };
+    }
+    if (nome === 'apertarEnterNaPagina') {
+      if (ig.dmTela.envia && tela.caixa) { ig.dms.push({ id: tela.conversa, texto: tela.caixa, em: Date.now(), via: 'digitacao', visivel: ig.dmTela.aparece }); tela.caixa = ''; }
+      return { ok: true };
+    }
+    if (nome === 'confirmarDmNaPagina') {
+      const vistas = ig.dms.filter((d) => d.id === tela.conversa && d.visivel !== false && normT(d.texto).includes(normT(args[0]))).length;
+      return vistas > args[1] ? { ok: true, confirmado: true } : { ok: false, confirmado: false, erro: 'a mensagem não apareceu na conversa em 12 s' };
+    }
+    return { ok: false, erro: `função desconhecida ${nome}` };
+  };
 
   ig.responder = ({ url, metodo, corpo }) => {
     const agora = Date.now();
@@ -234,6 +271,9 @@ export function criarChromeFalso(ig, { logado = true, semJanelas = false } = {})
         if (!alvo) throw new Error(`No tab with id: ${target.tabId}`);
         registro.execucoes = (registro.execucoes || 0) + 1;
         if (alvo.w.id === 1) throw new Error('usou aba da janela do dono');
+        if (func && /NaPagina$/.test(func.name) && func.name !== 'lerEstadoNaPagina' && func.name !== 'clicarNaPagina' && func.name !== 'requisicaoNaPagina') {
+          return [{ result: ig.telaDm(func.name, args, alvo.t.url) }]; // 1.1.8: tela da DM
+        }
         if (func && func.name === 'lerEstadoNaPagina') {
           // 1.1.4: leitura do botão do perfil (sem clicar). O site web não mostra "Segue você" no simulador.
           const usuario = decodeURIComponent((String(alvo.t.url || '').match(/instagram\.com\/([^/?#]+)\/?/) || [])[1] || '');

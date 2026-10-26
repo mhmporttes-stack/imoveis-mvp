@@ -1,6 +1,6 @@
 // Formato do estado persistido em chrome.storage.local e utilitários puros sobre ele.
 
-import { MENSAGEM_PADRAO } from './regras.js';
+import { MENSAGEM_PADRAO, LIMITE_DM_DIARIO_PADRAO } from './regras.js';
 import { diaSP, formatarSP } from './tempo.js';
 
 export const LIMITE_HISTORICO = 3000;
@@ -22,6 +22,7 @@ export function configPadrao() {
     verificarACadaMin: 2, // checagem de follow-back
     mensagem: MENSAGEM_PADRAO,
     dmAtiva: true,
+    limiteDmDiario: LIMITE_DM_DIARIO_PADRAO, // 1.1.8: teto de DMs de boas-vindas por dia (excedente: dia seguinte)
   };
 }
 
@@ -35,7 +36,7 @@ export function estadoInicial() {
     vistos: {}, // { id: motivo } — já avaliados (seguidos ou pulados), nunca voltam à fila
     seguidos: {}, // { id: registro } — SOMENTE perfis seguidos pela extensão
     agenda: { dia: null, follows: [], unfollows: [], limite: null, limiteUnfollow: null },
-    contadores: { dia: null, seguidos: 0, deixados: 0, followBacks: 0, dms: 0 },
+    contadores: { dia: null, seguidos: 0, deixados: 0, followBacks: 0, dms: 0, dmsIncertas: 0, novosSeguidores: 0 },
     historico: [], // [{ em, username, acao, resultado, origem }]
     pausaAte: null, // pausa automática de 24 h (limite/bloqueio)
     esfriarAte: null, // espera curta (15 min) após "aguarde" do Instagram
@@ -48,6 +49,10 @@ export function estadoInicial() {
     ultimaDmEm: null,
     // 1.1.7: visibilidade das boas-vindas no popup (última leitura dos meus seguidores e último erro de checagem/DM).
     boasVindas: { ultimaChecagemEm: null, via: null, ultimoErro: null },
+    // 1.1.8: boas-vindas para TODO seguidor novo. `conhecidos` = ids já vistos na lista dos meus seguidores (a 1ª
+    // leitura grava a linha de base, sem DM); `novosSeguidores` = registros de DM de quem não foi seguido pela extensão.
+    meusSeguidores: { linhaDeBaseEm: null, conhecidos: {} },
+    novosSeguidores: {}, // { id: { id, username, origem, detectadoEm, dmAgendadaPara, dmEnviadaEm, ... } }
   };
 }
 
@@ -59,8 +64,10 @@ export function normalizarEstado(bruto) {
   e.agenda = { ...base.agenda, ...((bruto && bruto.agenda) || {}) };
   e.contadores = { ...base.contadores, ...((bruto && bruto.contadores) || {}) };
   e.boasVindas = { ...base.boasVindas, ...((bruto && bruto.boasVindas) || {}) };
+  e.meusSeguidores = { ...base.meusSeguidores, ...((bruto && bruto.meusSeguidores) || {}) };
+  if (!e.meusSeguidores.conhecidos || typeof e.meusSeguidores.conhecidos !== 'object') e.meusSeguidores.conhecidos = {};
   for (const k of ['fila', 'historico']) if (!Array.isArray(e[k])) e[k] = [];
-  for (const k of ['vistos', 'seguidos']) if (!e[k] || typeof e[k] !== 'object') e[k] = {};
+  for (const k of ['vistos', 'seguidos', 'novosSeguidores']) if (!e[k] || typeof e[k] !== 'object') e[k] = {};
   migrarEstado(e, bruto);
   return e;
 }
@@ -87,7 +94,7 @@ export function migrarEstado(e, bruto) {
 export function virarDiaSeNecessario(estado, agora) {
   const hoje = diaSP(agora);
   if (estado.contadores.dia === hoje) return false;
-  estado.contadores = { dia: hoje, seguidos: 0, deixados: 0, followBacks: 0, dms: 0 };
+  estado.contadores = { dia: hoje, seguidos: 0, deixados: 0, followBacks: 0, dms: 0, dmsIncertas: 0, novosSeguidores: 0 };
   return true;
 }
 
@@ -144,16 +151,24 @@ function horaSP(ts) {
 
 /**
  * 1.1.7: linha de situação das boas-vindas para o popup/painel:
- * "Boas-vindas: X enviadas hoje, Y pendentes, última checagem de seguidores às HH:MM, último erro: …".
- * Pendente = seguiu de volta e a DM ainda vai sair (agendada ou em nova tentativa).
- * Sem envio = seguiu de volta e a extensão desistiu (3 falhas, DM desligada) ou o envio ficou incerto.
+ * "Boas-vindas: X enviadas hoje (teto N/dia), Y pendentes, última checagem de seguidores às HH:MM, último erro: …".
+ * Pendente = a DM ainda vai sair (agendada ou em nova tentativa) — follow-back (`seguidos`) ou, desde a 1.1.8,
+ * qualquer seguidor novo (`novosSeguidores`).
+ * Sem envio = a extensão desistiu (3 falhas, DM desligada) ou o envio ficou incerto.
  */
 export function resumoBoasVindas(e, agora = Date.now()) {
-  const enviadasHoje = e.contadores && e.contadores.dia === diaSP(agora) ? e.contadores.dms || 0 : 0;
+  const hoje = e.contadores && e.contadores.dia === diaSP(agora);
+  const enviadasHoje = hoje ? e.contadores.dms || 0 : 0;
+  const novosHoje = hoje ? e.contadores.novosSeguidores || 0 : 0;
+  const teto = (e.config && e.config.limiteDmDiario) || LIMITE_DM_DIARIO_PADRAO;
   let pendentes = 0;
   let semEnvio = 0;
-  for (const r of Object.values(e.seguidos || {})) {
-    if (!r.followBackEm || r.dmEnviadaEm) continue;
+  const regs = [
+    ...Object.values(e.seguidos || {}).filter((r) => r.followBackEm && !r.dmCoberta),
+    ...Object.values(e.novosSeguidores || {}),
+  ];
+  for (const r of regs) {
+    if (r.dmEnviadaEm) continue;
     if (r.dmDesistiu || r.dmIncerta) semEnvio += 1;
     else if (r.dmAgendadaPara || r.dmTentativaEm) pendentes += 1;
   }
@@ -162,8 +177,11 @@ export function resumoBoasVindas(e, agora = Date.now()) {
   const erro = bv.ultimoErro && bv.ultimoErro.texto
     ? ` (${horaSP(bv.ultimoErro.em)}): ${String(bv.ultimoErro.texto).slice(0, 180)}`
     : ': nenhum';
-  let texto = `Boas-vindas: ${enviadasHoje} enviada${enviadasHoje === 1 ? '' : 's'} hoje, ${pendentes} pendente${pendentes === 1 ? '' : 's'}, última checagem de seguidores${checagem}, último erro${erro}`;
+  let texto = `Boas-vindas: ${enviadasHoje} enviada${enviadasHoje === 1 ? '' : 's'} hoje (teto ${teto}/dia), ${pendentes} pendente${pendentes === 1 ? '' : 's'}, última checagem de seguidores${checagem}, último erro${erro}`;
   if (semEnvio) texto += ` · ${semEnvio} ${semEnvio === 1 ? 'não pôde ser enviada' : 'não puderam ser enviadas'} (veja o histórico)`;
+  if (novosHoje) texto += ` · ${novosHoje} seguidor${novosHoje === 1 ? '' : 'es'} novo${novosHoje === 1 ? '' : 's'} hoje`;
+  const ms = e.meusSeguidores || {};
+  if (!ms.linhaDeBaseEm) texto += ' · linha de base dos seguidores ainda não lida (a 1ª leitura não manda DM)';
   if (e.config && e.config.dmAtiva === false) texto = `DM desligada no painel — ${texto}`;
-  return { enviadasHoje, pendentes, semEnvio, ultimaChecagemEm: bv.ultimaChecagemEm || null, ultimoErro: bv.ultimoErro || null, texto };
+  return { enviadasHoje, pendentes, semEnvio, teto, novosHoje, ultimaChecagemEm: bv.ultimaChecagemEm || null, ultimoErro: bv.ultimoErro || null, texto };
 }
