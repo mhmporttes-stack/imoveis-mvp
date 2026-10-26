@@ -1676,7 +1676,7 @@ export default function HenryVoiceAssistant() {
     if (morning && morning.step !== "birthday" && morning.step !== "birthday_alert") mode = "report";
     // Bom dia (relatório ou passo do bom dia): abre/segue a sessão sem avisos. Outra pergunta fora do bom dia: ela termina
     // quando a resposta acabar de tocar.
-    if (mode === "report" || morning) {
+    if (mode === "report" || (morning && morning.step !== "birthday_alert")) {
       if (!morningSessionRef.current?.active) beginMorningSession();
     } else morningSessionRef.current = morningSessionFinishing(morningSessionRef.current);
     abortRequest();
