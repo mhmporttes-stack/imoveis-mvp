@@ -107,15 +107,27 @@ test("servidor: aguardando aprovação não recebe automática nem roleta; aprov
   assert.match(read("supabase/migrations/20261026120000_marketplace_owner_approval.sql"), /add column if not exists awaiting_owner_approval_at timestamptz/);
 });
 
-test("bom dia de segunda: janela sábado 13:00 → segunda 08:00 (São Paulo); só segunda", () => {
-  const window = henryAwayWindow(new Date("2026-10-26T11:30:00Z")); // segunda 08:30 em SP
-  assert.deepEqual(window, { startIso: "2026-10-24T16:00:00.000Z", endIso: "2026-10-26T11:00:00.000Z" });
-  assert.equal(isInHenryAwayWindow("2026-10-24T15:59:00Z", window), false, "sábado 12:59 fora");
-  assert.equal(isInHenryAwayWindow("2026-10-24T16:00:00Z", window), true, "sábado 13:00 dentro");
-  assert.equal(isInHenryAwayWindow("2026-10-26T10:59:00Z", window), true, "segunda 07:59 dentro");
-  assert.equal(isInHenryAwayWindow("2026-10-26T11:00:00Z", window), false, "segunda 08:00 fora");
-  assert.equal(henryAwayWindow(new Date("2026-10-27T11:30:00Z")), null, "terça: sem a frase");
-  assert.equal(henryAwayWindow(new Date("2026-10-25T13:00:00Z")), null, "domingo: sem a frase");
+test("janela fora do expediente: todo dia; segunda desde sábado 13:00; limites", () => {
+  // Segunda 08:30 em SP: sábado 13:00 → segunda 08:00 (domingo inteiro dentro).
+  const monday = henryAwayWindow(new Date("2026-10-26T11:30:00Z"));
+  assert.deepEqual(monday, { startIso: "2026-10-24T16:00:00.000Z", endIso: "2026-10-26T11:00:00.000Z" });
+  assert.equal(isInHenryAwayWindow("2026-10-24T15:59:00Z", monday), false, "sábado 12:59 fora");
+  assert.equal(isInHenryAwayWindow("2026-10-24T16:00:00Z", monday), true, "sábado 13:00 dentro");
+  assert.equal(isInHenryAwayWindow("2026-10-25T15:00:00Z", monday), true, "domingo dentro");
+  assert.equal(isInHenryAwayWindow("2026-10-26T10:59:00Z", monday), true, "segunda 07:59 dentro");
+  assert.equal(isInHenryAwayWindow("2026-10-26T11:00:00Z", monday), false, "segunda 08:00 fora");
+  // Terça 08:30: segunda 19:00 → terça 08:00 (expediente da WA-31).
+  const tuesday = henryAwayWindow(new Date("2026-10-27T11:30:00Z"));
+  assert.deepEqual(tuesday, { startIso: "2026-10-26T22:00:00.000Z", endIso: "2026-10-27T11:00:00.000Z" });
+  assert.equal(isInHenryAwayWindow("2026-10-26T21:59:00Z", tuesday), false, "segunda 18:59 fora");
+  assert.equal(isInHenryAwayWindow("2026-10-26T22:00:00Z", tuesday), true, "segunda 19:00 dentro");
+  assert.equal(isInHenryAwayWindow("2026-10-27T11:00:00Z", tuesday), false, "terça 08:00 fora");
+  // Sábado 07:30: sexta 19:00 → sábado 08:00.
+  assert.deepEqual(henryAwayWindow(new Date("2026-10-31T10:30:00Z")), { startIso: "2026-10-30T22:00:00.000Z", endIso: "2026-10-31T11:00:00.000Z" });
+  // Domingo: sábado 13:00 → agora.
+  assert.deepEqual(henryAwayWindow(new Date("2026-10-25T13:00:00Z")), { startIso: "2026-10-24T16:00:00.000Z", endIso: "2026-10-25T13:00:00.000Z" });
+  // Nada entrou na janela → sem a frase.
+  assert.equal(buildHenryAwaySentence(summarizeHenryAway({ clients: [], awaiting: [] })), "");
 });
 
 test("frase do bom dia: total de clientes novos (sem origem), com a equipe e aguardando aprovação", () => {
@@ -126,11 +138,16 @@ test("frase do bom dia: total de clientes novos (sem origem), com a equipe e agu
   const summary = summarizeHenryAway({ clients, awaiting: [{ id: "c1" }, { id: "c2" }], ownerId: owner });
   assert.deepEqual(summary, { total: 10, withTeam: 8, inQueue: 0, withOwner: 0, awaitingApproval: 2 });
   const sentence = buildHenryAwaySentence(summary);
-  assert.equal(sentence, "Enquanto você estava fora entraram 10 clientes novos; 8 já estão em atendimento com a equipe e 2 estão aguardando sua aprovação para atender. É só dizer \"pode atender\" que eu libero.");
+  assert.equal(sentence, "Enquanto você estava fora entraram 10 clientes novos. 8 eu já iniciei o atendimento e depois transferi para seus associados, e 2 estão aguardando sua aprovação para atender.");
   assert.doesNotMatch(sentence, /marketplace|messenger|whatsapp|site|anúncio/i);
   assert.ok(isSafeToSpeak(sentence));
+  // Concordância e partes com zero (dono): 1 → "1 cliente novo"/"1 está"; X = 0 ou Y = 0 → a parte some.
+  assert.equal(buildHenryAwaySentence({ total: 1, withTeam: 1 }), "Enquanto você estava fora entrou 1 cliente novo. 1 eu já iniciei o atendimento e depois transferi para seus associados.");
+  assert.equal(buildHenryAwaySentence({ total: 3, withTeam: 0, awaitingApproval: 1 }), "Enquanto você estava fora entraram 3 clientes novos. 1 está aguardando sua aprovação para atender.");
+  assert.equal(buildHenryAwaySentence({ total: 4, withTeam: 2, awaitingApproval: 1 }), "Enquanto você estava fora entraram 4 clientes novos. 2 eu já iniciei o atendimento e depois transferi para seus associados, e 1 está aguardando sua aprovação para atender.");
   const mixed = summarizeHenryAway({ clients: [{ responsible_user_id: owner }, { responsible_user_id: null, pending_distribution_at: "x" }, { responsible_user_id: "u1" }], ownerId: owner });
-  assert.equal(buildHenryAwaySentence(mixed), "Enquanto você estava fora entraram 3 clientes novos; um já está em atendimento com a equipe, um está na fila da roleta e um ficou com você.");
+  assert.deepEqual(mixed, { total: 3, withTeam: 1, inQueue: 1, withOwner: 1, awaitingApproval: 0 });
+  assert.equal(buildHenryAwaySentence({ total: 2, withTeam: 0, awaitingApproval: 0 }), "Enquanto você estava fora entraram 2 clientes novos.");
   assert.equal(buildHenryAwaySentence({ total: 0 }), "");
   assert.equal(buildHenryAwaySentence(null), "");
   // O "desde ontem" não se repete quando a frase do fim de semana existe.
