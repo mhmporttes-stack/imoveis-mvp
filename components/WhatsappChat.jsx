@@ -62,7 +62,8 @@ import WhatsappIndividualStatus from "@/components/WhatsappIndividualStatus";
 import StatusReasonDialog from "@/components/clients/StatusReasonDialog";
 import { EmojiPicker, MessageActionsMenu, useMessageActionTrigger } from "@/components/WhatsappMessageActions";
 import { useWhatsappChatSummary } from "@/components/useWhatsappChatSummary";
-import { forgetChatDetail, readChatView, saveChatDetail, saveChatView } from "@/components/chat-view-cache";
+import { forgetChatDetail, readChatView, restoreChatView, saveChatDetail, saveChatView } from "@/components/chat-view-cache";
+import DeviceCacheRefreshing from "@/components/DeviceCacheRefreshing";
 import { CLIENT_STATUS, CLIENT_STATUS_OPTIONS } from "@/lib/client-status";
 import { chatDocumentProgress } from "@/lib/chat-document-progress.mjs";
 import { parseWhatsappText, stripWhatsappFormatting } from "@/lib/whatsapp-format.mjs";
@@ -273,6 +274,12 @@ export default function WhatsappChat({ canManage = false, canEditRules = false, 
   const conversationsRef = useRef(conversations);
   conversationsRef.current = conversations;
   const [listLoading, setListLoading] = useState(!view);
+  // Lista guardada NO APARELHO (app aberto do zero, dono 2026-10-26 — components/device-view-cache.js): mostrada logo
+  // depois da montagem, com "Atualizando…", até a resposta do servidor; não é guardada de novo nem abre conversa sozinha.
+  const [deviceRestored, setDeviceRestored] = useState(false);
+  const deviceRestoredRef = useRef(false);
+  deviceRestoredRef.current = deviceRestored;
+  const listAnsweredRef = useRef(false);
   const [listError, setListError] = useState("");
   const [selectedId, setSelectedId] = useState(restoredId);
   const [detail, setDetail] = useState(() => (restoredId ? cached.details.get(restoredId) : null));
@@ -360,24 +367,29 @@ export default function WhatsappChat({ canManage = false, canEditRules = false, 
       const response = await fetch(`/api/admin/whatsapp-chat/conversations?${params.toString()}`, { cache: "no-store" });
       const data = await response.json().catch(() => ({}));
       if (requestId !== listRequestRef.current) return;
+      listAnsweredRef.current = true;
       if (!response.ok) throw new Error(data.error || "Não foi possível carregar as conversas.");
       // Particular só aparece na própria aba (ou na busca) — nunca misturada com os clientes.
       const privateTab = isPrivateFilter(filterRef.current) || Boolean(searchRef.current);
       const fresh = (data.conversations || []).filter((item) => privateTab || !item.private);
       // Atualização silenciosa (tempo real) não descarta as páginas antigas já carregadas por "Carregar mais".
+      const replaceAll = !silent || deviceRestoredRef.current; // a cópia do aparelho nunca se mistura com a resposta nova
       setConversations((current) => {
-        if (!silent) return fresh;
+        if (replaceAll) return fresh;
         // WA-34: o cliente nos dois números é uma linha só (groupIds) — a linha antiga dele não fica repetida.
         const ids = new Set(fresh.flatMap(conversationIdsOf));
         const oldest = fresh.at(-1)?.lastMessageAt || "";
         return [...fresh, ...current.filter((item) => !conversationIdsOf(item).some((itemId) => ids.has(itemId)) && oldest && item.lastMessageAt && item.lastMessageAt < oldest)];
       });
-      if (!silent) setListHasMore(listPageIsFull(fresh.length, filterRef.current));
+      if (replaceAll) setListHasMore(listPageIsFull(fresh.length, filterRef.current));
       setListError("");
     } catch (error) {
       if (requestId === listRequestRef.current) setListError(error.message);
     } finally {
-      if (requestId === listRequestRef.current) setListLoading(false);
+      if (requestId === listRequestRef.current) {
+        setListLoading(false);
+        setDeviceRestored(false);
+      }
     }
   }, []);
 
@@ -468,6 +480,27 @@ export default function WhatsappChat({ canManage = false, canEditRules = false, 
     loadList({ silent });
   }, [filter, search, scopedBroker, clientStatus, loadList]);
 
+  // Sem nada na memória (app aberto do zero): lista desta conta guardada no aparelho, só se o servidor ainda não respondeu
+  // e os filtros guardados são os mesmos da abertura. As últimas conversas abertas voltam para abrir na hora ao tocar.
+  useEffect(() => {
+    if (view || !viewerKey) return undefined;
+    let alive = true;
+    restoreChatView(viewerKey).then((restored) => {
+      const saved = restored?.view;
+      if (!alive || !saved || !Array.isArray(saved.conversations) || listAnsweredRef.current || initialClientId) return;
+      const sameFilters = (saved.filter || "all") === filterRef.current && (saved.clientStatus || "") === clientStatusRef.current
+        && (saved.search || "") === searchRef.current && !saved.scopedBroker && !scopedBrokerRef.current;
+      if (!sameFilters) return;
+      setConversations(saved.conversations);
+      setListHasMore(Boolean(saved.listHasMore));
+      setBrokers((currentBrokers) => (currentBrokers.length ? currentBrokers : saved.brokers || []));
+      setDeviceRestored(true);
+      setListLoading(false);
+    });
+    return () => { alive = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // Conversa que estava aberta: aparece já com as mensagens guardadas e é relida agora (marca vista/lida como sempre).
   useEffect(() => {
     if (restoredId) loadDetail(restoredId);
@@ -476,9 +509,9 @@ export default function WhatsappChat({ canManage = false, canEditRules = false, 
 
   // Guarda o que está na tela (só no navegador, por conta). Durante a troca de aba/filtro a lista ainda é a anterior: não guarda.
   useEffect(() => {
-    if (listLoading) return;
+    if (listLoading || deviceRestored) return;
     saveChatView(viewerKey, { tab, filter, clientStatus, search, searchInput, scopedBroker, conversations, listHasMore, selectedId, brokers, mySlots });
-  }, [viewerKey, listLoading, tab, filter, clientStatus, search, searchInput, scopedBroker, conversations, listHasMore, selectedId, brokers, mySlots]);
+  }, [viewerKey, listLoading, deviceRestored, tab, filter, clientStatus, search, searchInput, scopedBroker, conversations, listHasMore, selectedId, brokers, mySlots]);
   useEffect(() => {
     if (detail?.conversation?.id && !detail.empty) saveChatDetail(viewerKey, detail.conversation.id, detail);
   }, [viewerKey, detail]);
@@ -571,6 +604,7 @@ export default function WhatsappChat({ canManage = false, canEditRules = false, 
 
   return (
     <section className={`container-page scroll-mt-[72px] ${appMode ? "chat-app-root" : ""}`} ref={sectionRef}>
+      <DeviceCacheRefreshing show={deviceRestored} />
       {openError ? <p className="mb-3 max-md:mx-3 rounded-2xl border border-red-100 bg-red-50 px-4 py-3 text-sm font-bold text-red-700">{openError}</p> : null}
       {contactWarning ? (
         <p role="status" className="mb-3 max-md:mx-3 flex items-start justify-between gap-3 rounded-2xl border border-amber-100 bg-amber-50 px-4 py-2.5 text-xs font-bold text-amber-800">

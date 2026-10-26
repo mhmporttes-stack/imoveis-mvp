@@ -29,7 +29,7 @@ export default function AdminLogoutButton() {
       // Sem push/SW: segue o logout normalmente.
     }
     await fetch("/api/admin/session", { method: "DELETE" });
-    clearChatCache(); // conversas guardadas na memória do Chat não sobrevivem à saída da conta
+    await clearChatCache(); // memória das telas E o que estava guardado no aparelho não sobrevivem à saída da conta
     // Biblioteca do Supabase baixada só ao sair (desempenho, 2026-10-12): não pesa no carregamento de toda tela.
     const { getSupabaseBrowserClient } = await import("@/lib/supabase-browser");
     await getSupabaseBrowserClient()?.auth.signOut();

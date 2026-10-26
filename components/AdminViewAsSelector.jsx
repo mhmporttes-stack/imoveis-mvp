@@ -30,7 +30,7 @@ export default function AdminViewAsSelector({ users }) {
       return;
     }
 
-    clearChatCache(); // Chat guardado na memória é da conta anterior
+    clearChatCache(); // memória e aparelho: "Alterar conta" nunca mostra dado de outra conta
     router.replace(payload.redirectTo || "/admin/simulacoes");
     router.refresh();
   }

@@ -9,13 +9,14 @@ import { tabClasses } from "@/components/ui/Tabs";
 import Sheet from "@/components/ui/Sheet";
 import Button, { buttonClasses } from "@/components/ui/Button";
 import Badge from "@/components/ui/Badge";
-import { readViewerData, saveViewerData } from "@/components/chat-view-cache";
+import { readViewerData, restoreViewerData, saveViewerData } from "@/components/chat-view-cache";
+import DeviceCacheRefreshing from "@/components/DeviceCacheRefreshing";
 import { CALENDAR_CACHE_PREFIX, calendarMonthQuery } from "@/components/panel-cache-names";
 
 const WEEK_DAYS = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
 
 // viewerKey (conta real + efetiva): o mês já visto/pré-carregado (AdminWarmup) aparece na hora e atualiza em seguida
-// (components/chat-view-cache.js — só memória, limpa ao sair e em "Alterar conta"). Lista de pendentes não usa cache.
+// (components/chat-view-cache.js — memória + aparelho por 24 h desde 2026-10-26, limpo ao sair e em "Alterar conta"). Lista de pendentes não usa cache.
 export default function ActivityCalendar({ pendingOnly = false, viewerKey = "" }) {
   const today = useMemo(() => new Date(), []);
   const [visibleMonth, setVisibleMonth] = useState(new Date(today.getFullYear(), today.getMonth(), 1));
@@ -26,6 +27,9 @@ export default function ActivityCalendar({ pendingOnly = false, viewerKey = "" }
   const [selectedActivity, setSelectedActivity] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  // Mês guardado NO APARELHO (app aberto do zero, dono 2026-10-26 — components/device-view-cache.js): aparece com
+  // "Atualizando…" até a resposta do servidor.
+  const [deviceRestored, setDeviceRestored] = useState(false);
   const [completeLoadingId, setCompleteLoadingId] = useState("");
   const [completeError, setCompleteError] = useState("");
   const [activeLateActivityId, setActiveLateActivityId] = useState("");
@@ -61,12 +65,27 @@ export default function ActivityCalendar({ pendingOnly = false, viewerKey = "" }
         setCanViewTeam(Boolean(cached.canViewTeam));
       }
       setLoading(!cached);
+      setDeviceRestored(false);
       setError("");
+      let answered = false;
+      if (cacheName && !cached && !reloading && viewerKey) {
+        restoreViewerData(viewerKey, cacheName).then((restored) => {
+          const saved = restored?.value;
+          if (ignore || answered || !saved || !Array.isArray(saved.activities)) return;
+          setActivities(saved.activities);
+          setClients(saved.clients || []);
+          setUsers(saved.users || []);
+          setCanViewTeam(Boolean(saved.canViewTeam));
+          setDeviceRestored(true);
+          setLoading(false);
+        });
+      }
       try {
         const response = await fetch(pendingOnly ? `/api/calendar-activities?pending=1${scopeParam}` : `/api/calendar-activities?${monthQuery}`, {
           cache: "no-store"
         });
         const payload = await response.json();
+        answered = true;
         if (!response.ok) throw new Error(payload?.error || "Não foi possível carregar o calendário.");
         if (cacheName) saveViewerData(viewerKey, cacheName, payload);
         if (!ignore) {
@@ -78,7 +97,11 @@ export default function ActivityCalendar({ pendingOnly = false, viewerKey = "" }
       } catch (loadError) {
         if (!ignore) setError(loadError.message || "Não foi possível carregar o calendário.");
       } finally {
-        if (!ignore) setLoading(false);
+        answered = true;
+        if (!ignore) {
+          setLoading(false);
+          setDeviceRestored(false);
+        }
       }
     }
 
@@ -202,6 +225,7 @@ export default function ActivityCalendar({ pendingOnly = false, viewerKey = "" }
 
   return (
     <section className="container-page pb-14">
+      <DeviceCacheRefreshing show={deviceRestored} />
       <div className="rounded-panel border border-line bg-white p-5 shadow-soft md:p-8">
         <div className="flex flex-col gap-4 border-b border-line pb-5 md:flex-row md:items-center md:justify-between">
           <div>

@@ -12,7 +12,7 @@ export default function AdminViewAsBanner({ name, category }) {
     setLeaving(true);
     const response = await fetch("/api/admin/view-as", { method: "DELETE" });
     if (response.ok) {
-      clearChatCache(); // Chat guardado na memória é da conta emulada
+      clearChatCache(); // memória e aparelho: "Alterar conta" nunca mostra dado de outra conta
       router.replace("/admin/corretores?tab=account");
       router.refresh();
       return;

@@ -25,7 +25,7 @@ import {
 //    menu lateral/"Mais"; só o que o perfil já vê).
 // Cuidados: um item por vez, quando o navegador está ocioso e o app visível; nada de consulta nova (só as que a tela faria
 // ao abrir); dados só se ainda não estão na memória; Meta Diária nunca é montada (MD-16); economia de dados/2G = só as
-// rotas da barra, sem dados. Memória por conta real + efetiva (chat-view-cache), limpa ao sair e em "Alterar conta"
+// rotas da barra, sem dados. Memória por conta real + efetiva (chat-view-cache; também no aparelho desde 2026-10-26), limpa ao sair e em "Alterar conta"
 // (router.refresh() também descarta as telas guardadas pelo Next).
 const START_DELAY_MS = 2000; // deixa a tela atual terminar de carregar
 const AFTER_NAV_DELAY_MS = 1500;

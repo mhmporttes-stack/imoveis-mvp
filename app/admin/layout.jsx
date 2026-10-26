@@ -3,6 +3,7 @@ import AdminMenu from "@/components/AdminMenu";
 import AdminTopBar from "@/components/AdminTopBar";
 import AdminScrollReveal from "@/components/motion/AdminScrollReveal";
 import AdminWarmup from "@/components/AdminWarmup";
+import { ViewerKeyProvider } from "@/components/DeviceCacheRefreshing";
 import HenryVoiceAssistant from "@/components/henry/HenryVoiceAssistant";
 import { chatViewerKey } from "@/lib/chat-viewer-key.mjs";
 import AdminLogoutButton from "@/components/AdminLogoutButton";
@@ -129,7 +130,10 @@ export default async function AdminLayout({ children }) {
           <HenryVoiceAssistant />
         </HideInFinanceiroApp>
       ) : null}
-      <SceneTransitionRoot>{children}</SceneTransitionRoot>
+      {/* Conta que está olhando (cache das telas no aparelho, 2026-10-26): o carregamento do Início mostra o que esta conta guardou. */}
+      <ViewerKeyProvider viewerKey={auth.ok ? chatViewerKey(auth) : ""}>
+        <SceneTransitionRoot>{children}</SceneTransitionRoot>
+      </ViewerKeyProvider>
       {/* Indicador "carregando" da transição de cena (SceneSkipCatcher) removido a pedido do dono (2026-10-12): ficava
           girando parado sobre a Meta Diária. A tela de baixo já fica interativa; nada mais depende dele. */}
       {/* Navegação principal no celular (< md); do tablet para cima é o menu lateral (AdminMenu). Mesmos flags de perfil. */}

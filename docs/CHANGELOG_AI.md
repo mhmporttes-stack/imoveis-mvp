@@ -6,6 +6,14 @@
 
 
 
+## 2026-10-26 — Telas guardadas no aparelho (crm-editor)
+Dono (REGRA OFICIAL, PWA-CACHE-1): "Sim, quero que guarde" — substitui o "nada vai para o disco" de 2026-10-12. Branch `feat/pwa-cache-no-aparelho`, NÃO publicada.
+- **Novo:** `components/device-view-cache-core.mjs` (chave por conta, validade 24 h, versão, filtro de campos sensíveis, limites) + `components/device-view-cache.js` (IndexedDB, gravação agrupada e na ida para o fundo, apagar). `components/chat-view-cache.js` passa a guardar data por item, agenda a cópia no aparelho e ganha `restoreChatView`/`restoreViewerData`; `clearChatCache` apaga também o aparelho.
+- **Telas:** Clientes (`useClientList`/`ClientWorkspace`), Chat (`WhatsappChat`), Marketplace, Desempenho, Agenda e Início (`app/admin/inicio/loading.jsx` → `InicioDeviceCache`, salvadores na página; `ViewerKeyProvider` no `app/admin/layout.jsx`). Selo "Atualizando…" (`DeviceCacheRefreshing`). Meta Diária sem mudança (servidor, MD-16).
+- **Segurança:** só a conta própria (real = efetivo; "Alterar conta" só memória); registro de outro usuário apagado na abertura; limpeza no Sair (aguarda), sessão caída, tela de login (`DeviceCacheWipe`) e "Alterar conta". Sem CPF/PIS/nascimento/tokens/documentos/arquivos/mídia (só rota `/api/...` do CRM). SW intocado. "Abrir simulação" de cliente sem simulação espera a lista do servidor (rascunho nunca vem da cópia).
+- **Verificação:** `tests/device-view-cache.test.mjs` (8); demais testes sem falha nova (as falhas conhecidas são as mesmas da `origin/main`); `pnpm build` ok; Playwright numa página temporária de dev (apagada): guardar → recarregar mostra na hora sem CPF; "Alterar conta" não vê; outra pessoa apaga; nova aba vê; Sair apaga.
+- **Risco/limite:** a 1ª pintura continua a do servidor (o guardado entra logo depois, assíncrono); páginas montadas só no servidor (Meta Diária, partes do Início fora do carregamento) dependem do servidor; ficha aberta da cópia mostra campos sensíveis vazios até a lista nova chegar.
+
 ## 2026-10-26 — App não recarrega mais ao sair e voltar (crm-editor)
 Dono: "Quando eu saio do app por um tempo e volto, ele tem que carregar tudo de novo. Tem como deixar em cache ou algo onde ele já fique pré-carregado?" (PWA no iPhone e site no computador). Branch `fix/pwa-voltar-sem-recarregar`, NÃO publicada.
 - **Causa raiz:** cada deploy muda `public/sw.js` → ao voltar, `PwaLifecycle` achava a versão nova e recarregava a página ao sair do app (ou logo ao voltar). ~25 deploys/dia = recarga em quase toda volta.

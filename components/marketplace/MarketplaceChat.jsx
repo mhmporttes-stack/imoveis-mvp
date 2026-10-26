@@ -10,7 +10,8 @@ import { inputClasses } from "@/components/ui/Field";
 import MessengerBadge from "@/components/marketplace/MessengerBadge";
 import { useChatAppMode } from "@/components/useChatAppMode";
 import { useChatRowCascade } from "@/components/useChatRowCascade";
-import { readViewerData, saveViewerData } from "@/components/chat-view-cache";
+import { readViewerData, restoreViewerData, saveViewerData } from "@/components/chat-view-cache";
+import DeviceCacheRefreshing from "@/components/DeviceCacheRefreshing";
 import { MARKETPLACE_LIST_CACHE_PREFIX, MARKETPLACE_THREADS_CACHE_NAME } from "@/components/panel-cache-names";
 import { ManageShortcuts } from "@/components/WhatsappChatShortcuts";
 import { MARKETPLACE_MEDIA_ACCEPT, MARKETPLACE_MEDIA_MAX_BYTES, MARKETPLACE_MEDIA_MIN_VERSION, MAX_INTERNAL_LENGTH, MAX_OUTBOUND_LENGTH, fillMarketplaceShortcut, marketplaceOfficialWhatsappText, supportsMarketplaceMedia } from "@/lib/marketplace-chat-core.mjs";
@@ -311,6 +312,10 @@ function ClientWhatsappBar({ client, onSaved, onError }) {
 
 export default function MarketplaceChat({ canEditSettings = false, canAssign = false, canManageShortcuts = false, viewerName = "", team = [], viewerKey = "", initialConversationId = "" }) {
   const [list, setList] = useState(() => readViewerData(viewerKey, `${MARKETPLACE_LIST_CACHE_PREFIX}${listQuery("all", "")}`)?.data || { ready: true, conversations: [], filters: [] });
+  // Lista guardada NO APARELHO (app aberto do zero, dono 2026-10-26 — components/device-view-cache.js): aparece logo depois
+  // da montagem com "Atualizando…" até a resposta do servidor. As últimas conversas abertas voltam para a memória.
+  const [deviceRestored, setDeviceRestored] = useState(false);
+  const listAnsweredRef = useRef(false);
   const [view, setView] = useState("all");
   const [brokerId, setBrokerId] = useState("");
   const [selectedId, setSelectedId] = useState(initialConversationId || "");
@@ -337,6 +342,8 @@ export default function MarketplaceChat({ canEditSettings = false, canAssign = f
   const internal = internalMode && Boolean(thread?.conversation?.canInternal);
   const slashQuery = !internal && text.startsWith("/") && !text.includes("\n") ? text.slice(1) : null;
   const selectedRef = useRef("");
+  const viewKeyRef = useRef("");
+  viewKeyRef.current = `${view}:${brokerId}`;
   const sectionRef = useRef(null);
   // Tela cheia como o Chat do WhatsApp (dono, 2026-10-22: "Remova a opção Sair embaixo, deixe como o Chat: a rolagem
   // deve rolar apenas as conversas"): sem rodapé, altura da janela e só a lista / as mensagens rolam.
@@ -355,11 +362,30 @@ export default function MarketplaceChat({ canEditSettings = false, canAssign = f
     const query = listQuery(view, brokerId);
     callApi(`/api/admin/marketplace-chat/conversations?${query}`)
       .then((data) => {
+        listAnsweredRef.current = true;
         setList(data);
+        setDeviceRestored(false);
         saveViewerData(viewerKey, `${MARKETPLACE_LIST_CACHE_PREFIX}${query}`, { at: Date.now(), data });
       })
-      .catch((loadError) => setError(loadError.message));
+      .catch((loadError) => {
+        setDeviceRestored(false);
+        setError(loadError.message);
+      });
   }, [view, brokerId, viewerKey]);
+  useEffect(() => {
+    const defaultName = `${MARKETPLACE_LIST_CACHE_PREFIX}${listQuery("all", "")}`;
+    if (!viewerKey || readViewerData(viewerKey, defaultName)) return undefined;
+    let alive = true;
+    restoreViewerData(viewerKey, MARKETPLACE_THREADS_CACHE_NAME);
+    restoreViewerData(viewerKey, defaultName).then((restored) => {
+      const saved = restored?.value?.data;
+      if (!alive || !saved || !Array.isArray(saved.conversations) || listAnsweredRef.current || viewKeyRef.current !== "all:") return;
+      setList((currentList) => (currentList.conversations.length ? currentList : saved));
+      setDeviceRestored(true);
+    });
+    return () => { alive = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const loadThread = useCallback((id) => {
     if (!id) return;
     callApi(`/api/admin/marketplace-chat/conversations/${id}`)
@@ -724,6 +750,7 @@ export default function MarketplaceChat({ canEditSettings = false, canAssign = f
       </div>
       {managingShortcuts ? <ManageShortcuts onClose={() => { setManagingShortcuts(false); setShortcuts(null); }} /> : null}
     </section>
+    <DeviceCacheRefreshing show={deviceRestored} />
     </>
   );
 }

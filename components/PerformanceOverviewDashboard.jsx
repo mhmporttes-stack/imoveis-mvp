@@ -17,7 +17,8 @@ import {
   Users
 } from "lucide-react";
 import Avatar from "@/components/Avatar";
-import { readViewerData, saveViewerData } from "@/components/chat-view-cache";
+import { readViewerData, restoreViewerData, saveViewerData } from "@/components/chat-view-cache";
+import DeviceCacheRefreshing from "@/components/DeviceCacheRefreshing";
 import { PERFORMANCE_CACHE_NAME } from "@/components/panel-cache-names";
 import scene from "@/components/scenes/scenes.module.css";
 import SceneCount from "@/components/scenes/SceneCount";
@@ -84,6 +85,10 @@ export default function PerformanceOverviewDashboard({ initialOverview, initialE
   const [overview, setOverview] = useState(startOverview);
   const [error, setError] = useState(initialError);
   const [loading, setLoading] = useState(false);
+  // Números guardados NO APARELHO (app aberto do zero, dono 2026-10-26 — components/device-view-cache.js): aparecem logo
+  // depois da montagem com "Atualizando…" até a resposta do servidor; não são guardados de novo.
+  const [deviceRestored, setDeviceRestored] = useState(false);
+  const overviewAnsweredRef = useRef(false);
   const [expandedBrokerId, setExpandedBrokerId] = useState("");
 
   // Filtro exclusivo do bloco "Funil comercial": Todos os corretores (padrão,
@@ -110,8 +115,20 @@ export default function PerformanceOverviewDashboard({ initialOverview, initialE
   const isFirstOverviewRender = useRef(true);
   // Guarda os números do período padrão para a próxima vez (mesma memória por conta do Chat; some ao sair/trocar de conta).
   useEffect(() => {
-    if (overview && overview.range?.period === "month") saveViewerData(viewerKey, PERFORMANCE_CACHE_NAME, overview);
-  }, [viewerKey, overview]);
+    if (overview && !deviceRestored && overview.range?.period === "month") saveViewerData(viewerKey, PERFORMANCE_CACHE_NAME, overview);
+  }, [viewerKey, overview, deviceRestored]);
+  useEffect(() => {
+    if (initialOverview || cachedOverview || !viewerKey) return undefined;
+    let alive = true;
+    restoreViewerData(viewerKey, PERFORMANCE_CACHE_NAME).then((restored) => {
+      if (!alive || !restored?.value || overviewAnsweredRef.current || restored.value.range?.period !== "month") return;
+      setOverview(restored.value);
+      setDeviceRestored(true);
+      setLoading(false);
+    });
+    return () => { alive = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   useEffect(() => {
     const controller = new AbortController();
     if (isFirstOverviewRender.current) {
@@ -173,6 +190,7 @@ export default function PerformanceOverviewDashboard({ initialOverview, initialE
       const response = await fetch(`/api/performance-overview?${params.toString()}`, { signal });
       const payload = await response.json();
       if (!response.ok) throw new Error(payload?.error || "Não foi possível carregar o painel.");
+      overviewAnsweredRef.current = true;
       setOverview(payload.overview);
     } catch (requestError) {
       if (requestError.name !== "AbortError" && !silent) {
@@ -180,6 +198,7 @@ export default function PerformanceOverviewDashboard({ initialOverview, initialE
       }
     } finally {
       if (!signal?.aborted && !silent) setLoading(false);
+      if (!signal?.aborted) setDeviceRestored(false);
     }
   }
 
@@ -229,6 +248,8 @@ export default function PerformanceOverviewDashboard({ initialOverview, initialE
 
 
   return (
+    <>
+    <DeviceCacheRefreshing show={deviceRestored} />
     <section className="container-page space-y-6">
       <div className="rounded-panel border border-navy/10 bg-white p-4 shadow-soft md:p-7">
         {/* Celular: título à esquerda e "Atualizar" à direita na mesma linha
@@ -450,6 +471,7 @@ export default function PerformanceOverviewDashboard({ initialOverview, initialE
         </div>
       </article>
     </section>
+    </>
   );
 }
 
