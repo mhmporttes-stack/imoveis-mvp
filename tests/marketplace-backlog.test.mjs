@@ -107,23 +107,23 @@ test("servidor: aguardando aprovação não recebe automática nem roleta; aprov
   assert.match(read("supabase/migrations/20261026120000_marketplace_owner_approval.sql"), /add column if not exists awaiting_owner_approval_at timestamptz/);
 });
 
-test("janela fora do expediente: todo dia; segunda desde sábado 13:00; limites", () => {
-  // Segunda 08:30 em SP: sábado 13:00 → segunda 08:00 (domingo inteiro dentro).
-  const monday = henryAwayWindow(new Date("2026-10-26T11:30:00Z"));
-  assert.deepEqual(monday, { startIso: "2026-10-24T16:00:00.000Z", endIso: "2026-10-26T11:00:00.000Z" });
+test("janela fora do expediente: todo dia; segunda desde sábado 13:00; termina na hora do play do bom dia", () => {
+  // Segunda 10:00 em SP (play do bom dia): sábado 13:00 → segunda 10:00 (domingo inteiro dentro).
+  const monday = henryAwayWindow(new Date("2026-10-26T13:00:00Z"));
+  assert.deepEqual(monday, { startIso: "2026-10-24T16:00:00.000Z", endIso: "2026-10-26T13:00:00.000Z" });
   assert.equal(isInHenryAwayWindow("2026-10-24T15:59:00Z", monday), false, "sábado 12:59 fora");
   assert.equal(isInHenryAwayWindow("2026-10-24T16:00:00Z", monday), true, "sábado 13:00 dentro");
   assert.equal(isInHenryAwayWindow("2026-10-25T15:00:00Z", monday), true, "domingo dentro");
-  assert.equal(isInHenryAwayWindow("2026-10-26T10:59:00Z", monday), true, "segunda 07:59 dentro");
-  assert.equal(isInHenryAwayWindow("2026-10-26T11:00:00Z", monday), false, "segunda 08:00 fora");
-  // Terça 08:30: segunda 19:00 → terça 08:00 (expediente da WA-31).
-  const tuesday = henryAwayWindow(new Date("2026-10-27T11:30:00Z"));
-  assert.deepEqual(tuesday, { startIso: "2026-10-26T22:00:00.000Z", endIso: "2026-10-27T11:00:00.000Z" });
+  assert.equal(isInHenryAwayWindow("2026-10-26T12:59:00Z", monday), true, "segunda 09:59 dentro (play às 10:00)");
+  assert.equal(isInHenryAwayWindow("2026-10-26T13:00:00Z", monday), false, "depois do play fora");
+  // Terça 10:00: segunda 19:00 → terça 10:00.
+  const tuesday = henryAwayWindow(new Date("2026-10-27T13:00:00Z"));
+  assert.deepEqual(tuesday, { startIso: "2026-10-26T22:00:00.000Z", endIso: "2026-10-27T13:00:00.000Z" });
   assert.equal(isInHenryAwayWindow("2026-10-26T21:59:00Z", tuesday), false, "segunda 18:59 fora");
   assert.equal(isInHenryAwayWindow("2026-10-26T22:00:00Z", tuesday), true, "segunda 19:00 dentro");
-  assert.equal(isInHenryAwayWindow("2026-10-27T11:00:00Z", tuesday), false, "terça 08:00 fora");
-  // Sábado 07:30: sexta 19:00 → sábado 08:00.
-  assert.deepEqual(henryAwayWindow(new Date("2026-10-31T10:30:00Z")), { startIso: "2026-10-30T22:00:00.000Z", endIso: "2026-10-31T11:00:00.000Z" });
+  assert.equal(isInHenryAwayWindow("2026-10-27T12:00:00Z", tuesday), true, "terça 09:00 dentro");
+  // Sábado 07:30: sexta 19:00 → agora.
+  assert.deepEqual(henryAwayWindow(new Date("2026-10-31T10:30:00Z")), { startIso: "2026-10-30T22:00:00.000Z", endIso: "2026-10-31T10:30:00.000Z" });
   // Domingo: sábado 13:00 → agora.
   assert.deepEqual(henryAwayWindow(new Date("2026-10-25T13:00:00Z")), { startIso: "2026-10-24T16:00:00.000Z", endIso: "2026-10-25T13:00:00.000Z" });
   // Nada entrou na janela → sem a frase.

@@ -6,6 +6,10 @@
 
 
 
+
+## 2026-10-26 — "Enquanto você estava fora" conta até a hora do bom dia
+Dono: "ele tem que contar até a hora que eu der play no bom dia; se eu fizer isso 10 da manhã ele conta todos os clientes até as 10". `henryAwayWindow` (`lib/henry-away-core.mjs`): fim = agora (antes 08:00); início igual (ter–sáb ontem 19:00; seg sáb 13:00). Teste `tests/marketplace-backlog.test.mjs`.
+
 ## 2026-10-26 — Henry: etapa e sub-status por corretor com os números da tela Clientes (crm-editor)
 Bug real (dono, prints): "Quantos clientes o corretor Gabriel tem com status simulação enviada" / "Simulação realizada, me expressei mal" → "nenhum cliente na etapa de simulação"; tela Clientes (Corretor: Gabriel Ribeiro) com aba Simulação 5 e "Simulação realizada" 2. Branch `fix/henry-etapa-por-corretor`, NÃO publicada.
 - **Causa raiz:** `consultar_crm` etapa ia ao catálogo da Alexa (`etapaProvider` + cache `funil:corretores`), onde `simulacao` = só "Aguardando simulação" (`ETAPA_STATUSES`); a aba da tela soma aguardando + automática + realizada + enviada. Sem noção de sub-status, "simulação enviada/realizada" virava a etapa inteira = aguardando = 0. Descartadas: corretor errado (o matcher acha "Gabriel" por nome único), cache vazio (devolve "Não consegui…", não zero), escopo (dono = admin geral).
