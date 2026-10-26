@@ -60,6 +60,7 @@ import { CONTACT_WARNING_EVENT, contactWarningMessage, takeContactNotSavedWarnin
 import { BrokerChip, ClientStatusBadge, ClientStatusDot, WaitingBadge } from "@/components/WhatsappChatBadges";
 import WhatsappIndividualStatus from "@/components/WhatsappIndividualStatus";
 import StatusReasonDialog from "@/components/clients/StatusReasonDialog";
+import CooledChatHistory from "@/components/cooled/CooledChatHistory";
 import { EmojiPicker, MessageActionsMenu, useMessageActionTrigger } from "@/components/WhatsappMessageActions";
 import { useWhatsappChatSummary } from "@/components/useWhatsappChatSummary";
 import { forgetChatDetail, readChatView, restoreChatView, saveChatDetail, saveChatView } from "@/components/chat-view-cache";
@@ -1562,6 +1563,11 @@ function Thread({ canManage, canEditRules, currentUserId, mySlots = [], onOpenCl
 
       <div ref={scrollRef} data-chat-wallpaper className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 pb-4 pt-2 sm:px-[6%]" style={CHAT_WALLPAPER_STYLE}>
         {reactionError ? <p role="alert" className="mt-2 rounded-xl bg-red-50 p-2 text-xs font-bold text-red-700">{reactionError}</p> : null}
+        {/* FUN-15o (dono, 2026-10-26): cliente transferido — conversa anterior (oficial e números do corretor anterior)
+            no topo, SOMENTE LEITURA. Quem vê e o corte: servidor (getCooledChatHistory); a conversa aberta não se repete. */}
+        {conversation.client?.id && !conversation.isGroup && !conversation.privateLocked && !conversation.archivedReadOnly ? (
+          <CooledChatHistory key={conversation.id} clientId={conversation.client.id} openConversationId={conversation.id} className="mx-auto mt-2 max-w-xl" />
+        ) : null}
         {/* 2026-10-12: antes, conversa com mais de 100 mensagens só mostrava "Mostrando as últimas mensagens" e escondia o
             botão do celular. Agora: "Ver mensagens anteriores" (já gravadas no CRM) + botão do celular sempre que houver
             mensagem do WhatsApp pessoal. */}

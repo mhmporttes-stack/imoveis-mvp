@@ -40,6 +40,17 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-26 — "Não está indo mais as conversas antigas" do cliente transferido
+- **Data:** 2026-10-26
+- **Sintoma:** corretor que recebe cliente transferido (fila de clientes frios) não vê o que já foi conversado com o corretor anterior.
+- **Área:** WhatsApp / Clientes (FUN-15g/h)
+- **Impacto:** todos os corretores que recebem transferência; ~1 em 4 entregas tinha histórico para mostrar.
+- **Causa raiz:** não era regressão: o histórico somente leitura existia só na ficha do cliente (recolhido); o Chat, onde o corretor abre o cliente, nunca o mostrava. Nas demais entregas não há conversa anterior gravada no CRM (corretor anterior sem conversa no Chat, ou conversa excluída).
+- **Correção:** mesmo bloco no topo da conversa aberta no Chat (FUN-15o). Detalhe no CHANGELOG_AI.
+- **Arquivos/commit:** `components/WhatsappChat.jsx`, `components/cooled/CooledChatHistory.jsx`, `lib/whatsapp-chat-scope.mjs` — branch `fix/historico-conversa-transferido`.
+- **Prevenção/teste:** `tests/cooled-transfer-chat-history.test.mjs`.
+- **Status:** Resolvido na branch (não publicado).
+
 ### 2026-10-26 — Seguidor Instagram: "não foi enviada nenhuma" DM de boas-vindas
 - **Data:** 2026-10-26
 - **Sintoma:** extensão 1.1.6 segue gente todo dia, mas nenhuma boas-vindas sai e o popup não diz por quê (contador "seguiram de volta" parado).

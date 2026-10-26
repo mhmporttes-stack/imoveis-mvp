@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { OFFICIAL_SESSION_KEY, TRANSFER_HISTORY_JOURNEY_TYPES, TRANSFER_HISTORY_RELEASE_SOURCE, lastResponsibleTransferCut, latestTransferHistoryCut, transferHistoryConversationAllowed, transferHistoryMessageAllowed } from "../lib/whatsapp-chat-scope.mjs";
+import { OFFICIAL_SESSION_KEY, TRANSFER_HISTORY_JOURNEY_TYPES, TRANSFER_HISTORY_RELEASE_SOURCE, lastResponsibleTransferCut, latestTransferHistoryCut, transferHistoryOutsideConversation, transferHistoryConversationAllowed, transferHistoryMessageAllowed } from "../lib/whatsapp-chat-scope.mjs";
 import { transferHistoryDivider, transferHistoryNumberLabel } from "../lib/cooled-clients-core.mjs";
 
 // FUN-15g (REGRA OFICIAL DE NEGÓCIO — dono, 2026-10-16): o corretor que recebe o cliente transferido lê, somente
@@ -203,4 +203,25 @@ test("casos confirmados pelo dono continuam: fila → à mão = vem do dono; man
     cooled: [{ broker_id: OTHER, decided_at: "2026-10-10T10:00:00Z" }],
     journey: [{ occurred_at: "2026-10-16T10:00:00Z", details: { fromId: JENNYFER, toId: GABRIEL, transferType: "manual" } }]
   }), { previousUserId: JENNYFER, at: "2026-10-16T10:00:00Z", source: "journey:manual" });
+});
+
+// FUN-15o (REGRA OFICIAL DE NEGÓCIO — dono, 2026-10-26): "o histórico deve aparecer ali só com visualização" — o mesmo
+// bloco da ficha aparece no Chat, na conversa aberta do novo responsável, sem repetir a conversa aberta.
+test("Chat: a conversa aberta sai do histórico; sem outra conversa, nada aparece", () => {
+  const history = { previousBrokerName: "Jennyfer", conversations: [{ id: "a", messages: [{ id: "m1" }] }, { id: "b", messages: [{ id: "m2" }] }] };
+  assert.deepEqual(transferHistoryOutsideConversation(history, "a").conversations.map((c) => c.id), ["b"]);
+  assert.equal(transferHistoryOutsideConversation(history, "a").previousBrokerName, "Jennyfer");
+  assert.equal(transferHistoryOutsideConversation({ conversations: [{ id: "a", messages: [] }] }, "a"), null);
+  assert.equal(transferHistoryOutsideConversation(null, "a"), null);
+  assert.equal(transferHistoryOutsideConversation(history, "").conversations.length, 2);
+});
+
+test("Chat mostra a conversa anterior pela MESMA leitura, só leitura, fora de Particular/grupo/arquivado", () => {
+  const chat = read("components/WhatsappChat.jsx");
+  assert.match(chat, /import CooledChatHistory from "@\/components\/cooled\/CooledChatHistory"/);
+  assert.match(chat, /conversation\.client\?\.id && !conversation\.isGroup && !conversation\.privateLocked && !conversation\.archivedReadOnly \? \(\s*<CooledChatHistory key=\{conversation\.id\} clientId=\{conversation\.client\.id\} openConversationId=\{conversation\.id\}/);
+  const block = read("components/cooled/CooledChatHistory.jsx");
+  assert.match(block, /fetch\(`\/api\/admin\/cooled-clients\/handoff\/history\?clientId=/);
+  assert.doesNotMatch(block, /method:\s*"(POST|PATCH|PUT|DELETE)"/);
+  assert.doesNotMatch(block, /\/send|\/read|markRead|mark-read/);
 });

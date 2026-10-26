@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { ChevronDown, ChevronUp, History } from "lucide-react";
 import Button from "@/components/ui/Button";
 import { cx } from "@/components/ui/cx";
+import { transferHistoryOutsideConversation } from "@/lib/whatsapp-chat-scope.mjs";
 
 // FUN-15g (REGRA OFICIAL DE NEGÓCIO — dono, 2026-10-16): "o corretor que receber o cliente transferido recebe também o
 // histórico de conversas caso haja no chat ... e indica que dali para trás as conversas foram feitas pela Jennyfer e
@@ -11,6 +12,9 @@ import { cx } from "@/components/ui/cx";
 // no fim. Só lê (GET /api/admin/cooled-clients/handoff/history); nada aqui envia mensagem nem usa o número anterior.
 // Estendido pelo dono em 2026-10-16 ("Sim"): também na transferência manual de responsável e no "Devolver para a roleta"
 // fora do fluxo — o servidor escolhe o corte (loadTransferHistoryCut, lib/cooled-clients.js); este componente é o mesmo.
+// FUN-15o (REGRA OFICIAL DE NEGÓCIO — dono, 2026-10-26): "o histórico deve aparecer ali só com visualização" — o MESMO
+// bloco entra também no Chat, no topo da conversa aberta (`openConversationId`, que sai da lista para não repetir).
+// Só lê: nenhum envio, nenhum "marcar como lida" em outra conversa; o envio continua pela caixa da conversa aberta.
 
 const MEDIA_LABEL = { image: "Foto", audio: "Áudio", video: "Vídeo", document: "Documento", sticker: "Figurinha" };
 
@@ -36,7 +40,7 @@ function MessageMedia({ message }) {
   return <a href={media.url} target="_blank" rel="noreferrer" className="mt-1 block text-xs font-semibold text-brand underline">{media.name || label}</a>;
 }
 
-export default function CooledChatHistory({ clientId }) {
+export default function CooledChatHistory({ clientId, openConversationId = "", className = "" }) {
   const [state, setState] = useState({ loading: true, history: null });
   const [open, setOpen] = useState(false);
 
@@ -53,11 +57,11 @@ export default function CooledChatHistory({ clientId }) {
     return () => { alive = false; };
   }, [clientId]);
 
-  const { history } = state;
+  const history = openConversationId ? transferHistoryOutsideConversation(state.history, openConversationId) : state.history;
   if (state.loading || !history?.conversations?.length) return null;
 
   return (
-    <div className="rounded-card border border-line bg-white p-3" data-cooled-chat-history="true">
+    <div className={cx("rounded-card border border-line bg-white p-3", className)} data-cooled-chat-history="true">
       <Button size="sm" variant="ghost" className="w-full justify-between" onClick={() => setOpen((value) => !value)} aria-expanded={open}>
         <span className="flex items-center gap-1.5">
           <History className="h-4 w-4" aria-hidden="true" />
