@@ -1202,3 +1202,7 @@ Copie o modelo abaixo (uma entrada por bloco):
 - **Causa raiz:** busca do Spotify com `limit=1` só em faixa (pega o 1º resultado sem conferir) e a fala fixa da música substituía a resposta inteira do modelo, mesmo em pedido composto.
 - **Correção:** `pickSpotifySearchResult` (4 tipos, 10 de cada, escolha por correspondência; nada parecido = "É essa?"), `confirmPlaying` (confere o que tocou, 1 nova tentativa), fala fixa só em pedido só de música.
 
+
+
+## 2026-10-26 — Extensão do Marketplace sem sincronizar: "Failed to fetch" / "CRM indisponível"
+**Sintoma:** popup da extensão com "Chat — erro: Failed to fetch" e "CRM indisponível"; CRM com "última leitura há 47 h"; o endereço da API abria normal no mesmo Chrome. **Causa raiz:** o Chrome aplicou CORS aos pedidos da extensão (permissão de site não aplicada naquele PC) e o servidor não respondia o preflight com Access-Control-Allow-Origin. **Correção:** CORS só para `chrome-extension://` em `/api/marketplace/*` (`proxy.js` + `lib/extension-cors-core.mjs`). **Como diagnosticar de novo:** `chrome://extensions` › Erros da extensão / console do service worker.

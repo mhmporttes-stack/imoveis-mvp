@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { extensionCorsHeaders } from "./lib/extension-cors-core.mjs";
 
 const ADMIN_ACCESS_COOKIE = "mm_admin_access_token";
 const ADMIN_REFRESH_COOKIE = "mm_admin_refresh_token";
@@ -13,6 +14,15 @@ const PRESENTATION_TOKEN_PATH = /^\/s\/(?=[A-Za-z0-9]*[A-Z])(?=[A-Za-z0-9]*[a-z]
 
 export function proxy(request) {
   const { pathname } = request.nextUrl;
+
+  // CORS da extensão do Marketplace (lib/extension-cors-core.mjs).
+  const headers = extensionCorsHeaders(pathname, request.headers.get("origin"));
+  if (headers) {
+    if (request.method === "OPTIONS") return new NextResponse(null, { status: 204, headers: { ...headers, "Cache-Control": "no-store, max-age=0" } });
+    const response = noStoreResponse(NextResponse.next());
+    for (const [key, value] of Object.entries(headers)) response.headers.set(key, value);
+    return response;
+  }
 
   const presentationMatch = PRESENTATION_TOKEN_PATH.exec(pathname);
   if (presentationMatch) {
