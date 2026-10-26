@@ -47,11 +47,11 @@ test("só cliente recebido pela distribuição, ainda com o corretor e fora da f
   assert.match(lockFn, /heldByOwner/);
 });
 
-test("não retroativa (marca gravada ao aplicar, sem sobrescrever) e com teto de 24 h", () => {
+test("não retroativa (marca gravada ao aplicar, sem sobrescrever) e com teto de 10 min", () => {
   assert.match(sql, /insert into public\.crm_settings \(id, setting_value\)\s+values \('roulette_contact_lock', jsonb_build_object\('since', now\(\)\)\)\s+on conflict \(id\) do nothing/);
   assert.match(sql, /'infinity'::timestamptz/);
   assert.match(lockFn, /rc\.received_at >= public\.roulette_contact_lock_since\(\)/);
-  assert.match(sql, /interval '24 hours'/);
+  assert.match(sql, /interval '10 minutes'/);
 });
 
 test("JS: quem escolhe corretor fora do SQL (fila de clientes frios, contagem da fila de espera) usa a mesma trava", () => {

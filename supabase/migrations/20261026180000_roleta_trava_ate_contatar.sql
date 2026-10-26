@@ -16,7 +16,7 @@
 --       auto_transferred, sem toWaitingQueue/heldByOwner) é para ele e é da mesma troca de responsável (até 5 min do
 --       responsible_changed_at) — transferência manual depois disso não trava;
 --   (3) foi recebido depois que esta regra entrou (crm_settings roulette_contact_lock.since, gravado ao aplicar: não
---       retroativo) e há menos de roulette_contact_lock_max_age() (rede de segurança, 24 h — A CONFIRMAR com o dono);
+--       retroativo) e há menos de roulette_contact_lock_max_age() (10 min — decidido pelo dono em 2026-10-26: a trava sai aos 10 min mesmo sem redistribuição);
 --   (4) não está em status fora da roleta (negativos + venda concluída/paga = ROULETTE_INELIGIBLE_STATUSES,
 --       lib/client-distribution-core.mjs; trava tests/roleta-trava-ate-contatar.test.mjs);
 --   (5) não teve CONTATO desde o recebimento. Contato = a mesma régua do prazo da roleta/fila de reativação: mensagem
@@ -24,7 +24,7 @@
 --       isHumanContactMessage — clique no botão do WhatsApp NÃO conta) ou, no Marketplace/Messenger, resposta humana
 --       (marketplace_conversations.last_human_reply_at ou saída com sender_user_id, MKT-2e).
 -- Sai sozinha quando o cliente é contatado, redistribuído (muda de responsável), vai para a fila de espera, muda para
--- status fora da roleta ou passa de 24 h.
+-- status fora da roleta ou passa de 10 min.
 --
 -- NÃO aplicada automaticamente (DECISÃO NECESSÁRIA). Sem ela, o código JS segue como antes (RPC ausente = sem trava).
 -- Idempotente; o único dado gravado é a marca de início (crm_settings), sem sobrescrever.
@@ -50,7 +50,7 @@ returns interval
 language sql
 immutable
 as $function$
-  select interval '24 hours';
+  select interval '10 minutes';
 $function$;
 
 -- Corretor liberado pela trava (nenhum cliente da distribuição sem contato com ele).
