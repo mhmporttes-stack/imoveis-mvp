@@ -87,7 +87,9 @@ test("agenda só conversa nova, sem saída nossa, 1ª mensagem = pergunta padrã
   assert.equal(planAvailabilityAutoReply({ settings: { availabilityAutoReply: false }, firstContent: true, messages, greeting: "Bom dia", now }).skip, AUTO_REPLY_CANCEL.DISABLED);
   assert.equal(planAvailabilityAutoReply({ settings, firstContent: true, messages: [...messages, { direction: "outbound", body: "Oi" }], greeting: "Bom dia", now }).skip, AUTO_REPLY_CANCEL.HUMAN_REPLIED);
   assert.equal(planAvailabilityAutoReply({ settings, firstContent: true, messages: [{ direction: "inbound", body: "Qual condomínio?", at: "2026-10-24T03:52:00Z" }, messages[0]], greeting: "Bom dia", now }).skip, "nao_e_pergunta_padrao");
-  assert.equal(planAvailabilityAutoReply({ settings, firstContent: true, messages: [{ ...messages[0], at: "2026-10-22T03:52:00Z" }], greeting: "Bom dia", now }).skip, "mensagem_antiga");
+  assert.equal(planAvailabilityAutoReply({ settings, firstContent: true, messages: [{ ...messages[0], at: "2026-10-16T03:52:00Z" }], greeting: "Bom dia", now }).skip, "mensagem_antiga");
+  // Acumulado da extensão desligada (MKT-2m, dono 2026-10-26): até 7 dias ainda recebe.
+  assert.ok(planAvailabilityAutoReply({ settings, firstContent: true, messages: [{ ...messages[0], at: "2026-10-22T03:52:00Z" }], greeting: "Bom dia", now }).body);
 });
 
 test("cancela na reserva: desligada, equipe respondeu (CRM ou Facebook), Não contactar, tempo demais na fila", () => {
@@ -99,7 +101,10 @@ test("cancela na reserva: desligada, equipe respondeu (CRM ou Facebook), Não co
   assert.equal(autoReplyCancelReason(row, { ...ok, messages: [row, { id: "r1", direction: "outbound" }] }), AUTO_REPLY_CANCEL.HUMAN_REPLIED);
   assert.equal(autoReplyCancelReason(row, { ...ok, conversation: { last_human_reply_at: "2026-10-24T10:01:00Z" } }), AUTO_REPLY_CANCEL.HUMAN_REPLIED);
   assert.equal(autoReplyCancelReason(row, { ...ok, doNotContactReason: "do_not_contact" }), AUTO_REPLY_CANCEL.DO_NOT_CONTACT);
-  assert.equal(autoReplyCancelReason({ ...row, created_at: "2026-10-24T07:00:00Z" }, ok), AUTO_REPLY_CANCEL.EXPIRED);
+  // MKT-2m (2026-10-26): a automática espera a extensão voltar — 3 h na fila não cancela mais; 7 dias cancela.
+  assert.equal(autoReplyCancelReason({ ...row, created_at: "2026-10-24T07:00:00Z" }, ok), null);
+  assert.equal(autoReplyCancelReason({ ...row, created_at: "2026-10-16T07:00:00Z" }, ok), AUTO_REPLY_CANCEL.EXPIRED);
+  assert.equal(autoReplyCancelReason(row, { ...ok, privateContact: true }), AUTO_REPLY_CANCEL.PRIVATE);
   // Cancelada = "failed" com motivo (sem alerta, sem reenvio; o eco ainda confirma se tiver saído).
   assert.deepEqual(autoReplyCancelPatch(AUTO_REPLY_CANCEL.HUMAN_TYPING), { status: "failed", error: "[automática cancelada: equipe_digitando]" });
 });

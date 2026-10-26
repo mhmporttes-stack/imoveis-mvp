@@ -23,7 +23,7 @@ export default async function MarketplaceChatPage({ searchParams }) {
     <main className="bg-mist pt-3 md:pt-6">
       <AdminSectionNav active="marketplace-chat" />
       {/* viewerName = perfil efetivo (preenche [corretor] dos atalhos); gestão dos atalhos = admin/gestor (o servidor confere). */}
-      <MarketplaceChat canEditSettings={isAdmin} canAssign={canAssign} canManageShortcuts={canAssign} viewerName={auth.profile?.name || ""} team={team} viewerKey={chatViewerKey(auth)} initialConversationId={initialConversationId} />
+      <MarketplaceChat canEditSettings={isAdmin} canApprove={isAdmin} canAssign={canAssign} canManageShortcuts={canAssign} viewerName={auth.profile?.name || ""} team={team} viewerKey={chatViewerKey(auth)} initialConversationId={initialConversationId} />
     </main>
   );
 }
