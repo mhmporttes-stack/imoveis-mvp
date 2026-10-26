@@ -7,6 +7,14 @@
 
 
 
+## 2026-10-26 — Henry: bom dia "Que tal uma música de fundo?" e escolha rock/blues por artista (crm-editor)
+Dono (REGRA OFICIAL, HENRY-1): "Não é para o Henry dizer música no estilo de Suits. É para dizer: 'Que tal uma música de fundo? Posso escolher ou você tem alguma de preferência?' Com isso ele escolhe uma animada no estilo rock blues ou algo do tipo. Ele tocou uma música nada a ver, mexicana."
+- **Frase:** saudação + `MORNING_MUSIC_OFFER` (varia só a saudação; sem Suits/estilo/artista). Saem as ofertas/aberturas variadas (`OFFERS`, `MORNING_OPEN_CHOICES`/`morningOpenChoices`).
+- **Escolha:** `MORNING_SUGGESTIONS` = artistas de `MORNING_ROCK_BLUES_ARTISTS` (12), sorteio sem repetir o de ontem; alvo `{ type: "artist", strict: true, exclude: MORNING_MUSIC_EXCLUDED_WORDS }`. `runSpotifyCommand` com `strict` busca só artista e só aceita o nome exato (senão not_found, sem "É essa?"); reserva = 2 outros artistas da lista (`morningStyleFallbacks`). Saem `SUITS_STYLE_QUERIES`/`SUITS_STYLE_ARTISTS`/`SUITS_EXCLUDED_WORDS` (→ `MORNING_MUSIC_EXCLUDED_WORDS`, ampliado com latin/mexicana/regional/corridos/sertanejo/pagode…). Registro antigo "clima de Suits" do mesmo dia → artista da lista (`morningSuggestionTarget`).
+- **Respostas:** "pode escolher", "escolhe", "você que sabe", "você decide", "não tenho (preferência)" = aceite; "não tenho, toca X"/"tenho sim, X" = X; gênero novo `rock-blues` ("rock blues", "blues rock") e o antigo `suits` = a mesma lista. Aceite confirma "Lá vai um rock blues animado de fundo.".
+- **Treino:** cenário "dia inteiro" responde "Pode escolher".
+- **Testes:** `tests/henry-morning-music.test.mjs` reescrito (+strict com fetch mockado, descarte latino/mexicano, frase sem Suits, só artistas da lista); ajustes em `henry-morning-music-style`, `henry-achados-treino-4/11`, `henry-morning`. Incidente em `docs/INCIDENTES.md`.
+
 ## 2026-10-26 — Marketplace: rodada a cada 1 min (até 10 min), 40 envios/h, automáticas a cada 30 s — extensão 1.9.9 (crm-editor)
 Dono (REGRA OFICIAL, MKT-2n): "Diminua esse tempo para 1 minuto e deixe cada rodada durando até 10 minutos, caso haja necessidade. Se não, pode voltar e aguardar mais 1 minuto para a próxima rodada [...] Pode aumentar os envios por hora para 40. Eu quero que as respostas acumuladas saiam uma a cada 30 segundos."
 - **Extensão 1.9.9** (`ferramentas/marketplace-publicador/`): `CHAT_EVERY_MINUTES` 2 → 1 (alarme recriado no fim de cada rodada: próxima 1 min depois de terminar; alarme antigo de 2 min trocado ao atualizar; rodada em andamento = pula); `ROUND_BUDGET_MS` 4 → 10 min; `CHAT_LOCK_MAX_MS` 12 → 18 min (TTL 4 min mantido); `MAX_THREADS_PER_ROUND` 5 → 15 (nunca vistas continuam 5); `MAX_SENDS_PER_ROUND` 3 → 40; espera pela próxima automática até 60 s (`outboxWaitMs`). Pausa humana 4–10 s e timeouts de etapa inalterados. Textos do popup "2 min" → "1 min". Zip `ferramentas/marketplace-publicador.zip` regerado.

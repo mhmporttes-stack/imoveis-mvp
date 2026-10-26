@@ -130,7 +130,7 @@ test("bom dia: fluxo ligado no servidor e na tela (só o dono, somente leitura, 
   assert.match(voice, /morning: \{ step: "music" \}/);
   assert.match(voice, /morning: \{ step: "style" \}/);
   assert.match(voice, /step: "birthday"/);
-  assert.match(voice, /target = suggested\.genre === "suits" \? \{ \.\.\.suggested\.target, exclude: SUITS_EXCLUDED_WORDS \} : suggested\.target;/); // sugestão aceita toca ela (clima de Suits sempre com o filtro, 2026-10-25)
+  assert.match(voice, /target = morningSuggestionTarget\(suggested\);/); // sugestão aceita = artista rock/blues da lista, nome exato e filtro (2026-10-26)
   assert.match(voice, /morningGenreTarget\(reply\.genre, \{ style, taste, mood: reply\.mood \|\| "" \}\)/); // estilo = o configurado / playlist dele / padrão (2026-10-24)
   assert.match(voice, /morningArtistTarget\(reply\.query\)/); // cantor = busca o artista (2026-10-24)
   assert.match(voice, /todaysMorningSuggestion\(/);
