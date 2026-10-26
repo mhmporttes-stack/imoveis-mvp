@@ -12,10 +12,11 @@ test('lib/page-awake.js é cópia idêntica da do marketplace-publicador (uma re
 
 test('leitura do botão e cliques do perfil rodam com a página acordada; API não liga o depurador; nunca traz a janela para a frente', () => {
   const api = ler('../instagram-api.js');
-  const abrir = api.slice(api.indexOf('async function abrirPerfilEExecutar('), api.indexOf('/** 1.1.4: abre o perfil'));
-  assert.match(abrir, /paginaAcordada\.run\(tabId, async \(\) => \{\s*await chrome\.tabs\.update\(tabId/);
-  assert.match(api, /return abrirPerfilEExecutar\(username, lerEstadoNaPagina, \[TEXTOS_LEITURA\]\)/);
-  assert.match(api, /return abrirPerfilEExecutar\(username, clicarNaPagina, \[passos\]\)/);
+  // 1.1.12: abrirPerfilComRastro (com rastro + esqueleto para o diagnóstico) substituiu abrirPerfilEExecutar.
+  const abrir = api.slice(api.indexOf('async function abrirPerfilComRastro('), api.indexOf('/** 1.1.4: abre o perfil'));
+  assert.match(abrir, /paginaAcordada\.run\(tabId, async \(info\) => \{[\s\S]*?await chrome\.tabs\.update\(tabId/);
+  assert.match(api, /return abrirPerfilComRastro\(username, async \(\{ exec, rastro \}\) => \{\s*const r = await exec\(lerEstadoNaPagina, \[TEXTOS_LEITURA\]\)/);
+  assert.match(api, /const r = await exec\(clicarNaPagina, \[passos\]\)/);
   const executar = api.slice(api.indexOf('export async function executarNaAba('), api.indexOf('/** Lê a sessão do navegador'));
   assert.doesNotMatch(executar, /paginaAcordada|debugger/);
   assert.doesNotMatch(api, /bringToFront/);

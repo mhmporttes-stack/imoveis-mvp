@@ -54,6 +54,10 @@
       <button id="btnConferir" class="secundario">Conferir seguidores agora</button>
       <span class="suave" id="resultadoConferir" style="white-space:pre-line;word-break:break-word"></span>
     </div>
+    <div class="linha" style="margin-top:6px">
+      <button id="btnEnviarAgora" disabled>Enviar a próxima boas-vindas agora</button>
+      <span class="suave" id="resultadoEnviarAgora" style="white-space:pre-line;word-break:break-word"></span>
+    </div>
   </div>
 
   <div class="cartao">
@@ -85,6 +89,31 @@
         <button id="btnRestaurarMsg" class="secundario">Restaurar texto original</button>
         <span class="suave">Enviada uma única vez por pessoa, 1–3 min depois que ela passa a seguir você (quem já seguia antes da versão 1.1.8 não recebe).</span>
       </div>
+    </div>
+  </div>
+
+  <div class="colunas">
+    <div class="cartao">
+      <h2>Testes na hora (nada é enviado nem clicado)</h2>
+      <label class="campo"><span>@ do perfil para testar</span><input type="text" id="testeUsuario" placeholder="@perfil" autocomplete="off"></label>
+      <div class="linha" style="margin-top:6px">
+        <button id="btnTestarDm" class="secundario">Testar DM (sem enviar)</button>
+        <button id="btnTestarSeguir" class="secundario">Testar botão Seguir (sem clicar)</button>
+      </div>
+      <div class="suave" id="resultadoTeste" style="margin-top:6px;white-space:pre-line;word-break:break-word"></div>
+      <div class="suave" style="margin-top:6px">A DM a seco abre a conversa, cola a mensagem, confere o texto, acha o botão Enviar e PARA — depois apaga a caixa. O teste do Seguir só lê o botão do perfil.</div>
+    </div>
+    <div class="cartao">
+      <h2>Diagnóstico no CRM</h2>
+      <label class="campo"><span>URL do CRM</span><input type="text" id="crmUrl" placeholder="https://www.matheusmachadoimoveis.com.br" autocomplete="off"></label>
+      <label class="campo"><span>Chave do CRM (mkp_… — a mesma da extensão do Marketplace)</span><input type="password" id="crmChave" placeholder="mkp_…" autocomplete="off"></label>
+      <div class="linha" style="margin-top:6px">
+        <button id="btnSalvarCrm">Salvar</button>
+        <button id="btnTestarCrm" class="secundario">Testar conexão</button>
+      </div>
+      <div class="suave" id="resultadoCrm" style="margin-top:6px;white-space:pre-line;word-break:break-word"></div>
+      <div class="suave" id="ultimoEnvioCrm" style="margin-top:6px;white-space:pre-line;word-break:break-word"></div>
+      <div class="suave" style="margin-top:6px">A cada tentativa de seguir e de DM vai ao CRM um rastro dos passos e a estrutura da página (botões e caixa de texto), sem @, nomes ou mensagens.</div>
     </div>
   </div>
 

@@ -57,6 +57,18 @@ export const TEXTOS_LEITURA = {
   privado: ['esta conta é privada', 'this account is private'],
 };
 
+// 1.1.12: textos da INTERFACE que podem ir no esqueleto do diagnóstico (o resto vira «N caracteres»).
+export const TEXTOS_UI = [
+  'seguir', 'follow', 'seguir de volta', 'follow back', 'seguindo', 'following', 'solicitado', 'requested',
+  'mensagem', 'enviar mensagem', 'message', 'send message', 'enviar', 'send', 'agora não', 'not now', 'opções', 'options',
+  'mais', 'more', 'editar perfil', 'edit profile', 'publicações', 'posts', 'seguidores', 'followers', 'segue você', 'follows you',
+  'ocorreu um erro', 'tente novamente', 'algo deu errado', 'something went wrong', 'try again', 'deixar de seguir', 'unfollow',
+  'cancelar', 'cancel', 'fechar', 'close', 'voltar', 'back', 'ativar', 'turn on', 'notificações', 'notifications',
+  'sugestões para você', 'suggested for you', 'ver tudo', 'see all', 'esta conta é privada', 'this account is private',
+  'curtir', 'like', 'responder', 'reply', 'emoji', 'escolher emoji', 'mensagem de voz', 'voice clip', 'adicionar foto ou vídeo',
+  'galeria', 'figurinhas', 'stickers', 'gif', 'denunciar', 'report', 'bloquear', 'block', 'restringir', 'restrict',
+];
+
 // 1.1.8: envio da DM por digitação na tela da conversa (plano B quando a API de DM responde HTML).
 export const TEXTOS_DM = {
   mensagem: ['enviar mensagem', 'mensagem', 'message', 'send message'],
@@ -65,6 +77,9 @@ export const TEXTOS_DM = {
   // 1.1.11 (dono, 26/10): "clicou em enviar mensagem, ocorreu um erro, tente novamente, mas ele não clica de novo".
   erroAbrir: ['ocorreu um erro', 'tente novamente', 'algo deu errado', 'something went wrong', 'try again'],
 };
+
+// 1.1.12: o que o esqueleto do diagnóstico precisa saber (textos de interface, só).
+export const TEXTOS_ESQUELETO = { ui: TEXTOS_UI, enviar: TEXTOS_DM.enviar, erroAbrir: TEXTOS_DM.erroAbrir, segueVoce: TEXTOS_LEITURA.segueVoce };
 
 /** Trecho que identifica a mensagem na conversa: a linha mais longa, com espaços normalizados (até 80 caracteres). */
 export function trechoDaMensagem(texto) {
@@ -213,6 +228,7 @@ export function criarApiInstagram({ executar, obterCsrf = async () => '', clicar
     const corpo = form({ container_module: 'profile', nav_chain: '', user_id: String(id) });
     const falhas = [];
     const usadas = [];
+    let botaoAusente = false; // 1.1.12: o caminho do botão falhou por não achar o botão (não é bloqueio)
     for (const [rotulo, caminho, opcoes = {}] of tentativas) {
       if (opcoes.soSemClique && clicar) continue; // endpoint legado: só sem o clique no botão (testes/antigo)
       if (opcoes.clique && !clicar) continue;
@@ -231,7 +247,14 @@ export function criarApiInstagram({ executar, obterCsrf = async () => '', clicar
             // "Seguindo"/"Solicitado" na hora do clique: nada clicado. Se foi o pedido anterior (API) que seguiu, a
             // conferência abaixo confirma; senão segue para a próxima tentativa sem clicar.
             falha = `${rotulo}: o perfil já mostra "${r.botao === 'solicitado' ? 'Solicitado' : 'Seguindo'}" (nada clicado)`;
-          } else if (!r || !r.ok) throw new ErroInstagram('mudanca_api', `${rotulo}: ${r && r.erro ? r.erro : 'botão não encontrado na página do perfil'}`, { endpoint: rotulo });
+          } else if (!r || !r.ok) {
+            botaoAusente = true;
+            throw new ErroInstagram('mudanca_api', `${rotulo}: ${r && r.erro ? r.erro : 'botão não encontrado na página do perfil'}`, { endpoint: rotulo });
+          } else if (opcoes.seguir && (r.botaoDepois === 'seguindo' || r.botaoDepois === 'solicitado')) {
+            // 1.1.12: o próprio botão do perfil virou "Seguindo"/"Solicitado" depois do clique — confirmado na tela.
+            const st = { seguindo: r.botaoDepois === 'seguindo', meSegue: undefined, pedidoPendente: r.botaoDepois === 'solicitado', privado: r.botaoDepois === 'solicitado' };
+            if (confirmado(st)) return { ...st, via: `${rotulo} (confirmado no botão do perfil)` };
+          }
         } else {
           await chamar(rotulo, caminho, { metodo: 'POST', corpo, referer });
         }
@@ -249,7 +272,9 @@ export function criarApiInstagram({ executar, obterCsrf = async () => '', clicar
       if (confirmado(st)) return { ...st, via: rotulo };
       falhas.push(falha || `${rotulo} respondeu, mas o friendships/show não confirmou`);
     }
-    throw new ErroInstagram('mudanca_api', `Não consegui ${nome} (sem confirmação no friendships/show após ${usadas.join(' e ')}): ${falhas.join(' | ')}`, { endpoint: tentativas[0][0] });
+    const erroFinal = new ErroInstagram('mudanca_api', `Não consegui ${nome} (sem confirmação no friendships/show após ${usadas.join(' e ')}): ${falhas.join(' | ')}`, { endpoint: tentativas[0][0] });
+    erroFinal.semBotao = botaoAusente;
+    throw erroFinal;
   }
 
   /**
@@ -841,34 +866,48 @@ export async function clicarNaPagina(passos) {
 
 /**
  * 1.1.4 — roda NA PÁGINA do perfil, SEM clicar: espera (até 8 s) o botão principal do perfil e devolve
- * { ok, botao: 'seguir'|'seguir_de_volta'|'seguindo'|'solicitado', segueVoce, privado }. Procura no <header>
- * do perfil (as sugestões "Seguir" da página ficam fora dele). Texto exato, só botões visíveis.
+ * { ok, botao: 'seguir'|'seguir_de_volta'|'seguindo'|'solicitado', segueVoce, privado }.
+ * 1.1.12: mesmo localizador do seguirNaPagina (ver lá): texto do botão dentro de div/span aninhados, o mais alto da
+ * página fora de diálogo/menu lateral (as sugestões ficam abaixo do perfil) — não depende mais do 1º <header>.
  */
 export async function lerEstadoNaPagina(textos) {
   const norm = (t) => String(t || '').replace(/\s+/g, ' ').trim().toLowerCase();
   const visivel = (el) => { const r = el.getBoundingClientRect(); return r.width > 0 && r.height > 0; };
   const ordem = ['seguir_de_volta', 'seguindo', 'solicitado', 'seguir'];
-  const achar = () => {
-    const raiz = document.querySelector('header') || document;
-    for (const el of raiz.querySelectorAll('button, div[role="button"]')) {
-      if (!visivel(el)) continue;
-      const t = norm(el.innerText || el.textContent);
-      const tipo = ordem.find((k) => textos[k].includes(t));
-      if (tipo) return tipo;
-    }
+  const classificar = (t) => {
+    if (!t || t.length > 30) return null;
+    for (const k of ordem) for (const w of textos[k]) if (t === w || (t.startsWith(`${w} `) && !/[a-zà-ú]/i.test(t.slice(w.length + 1, w.length + 2)))) return k;
     return null;
   };
-  let botao = null;
-  for (let t = 0; t < 32 && !botao; t += 1) {
-    botao = achar();
-    if (!botao) await new Promise((r) => setTimeout(r, 250));
+  const achar = () => {
+    const vistos = new Set();
+    const lista = [];
+    for (const el of document.querySelectorAll('button, [role="button"], a, div, span')) {
+      const tipo = classificar(norm(el.innerText || el.textContent));
+      if (!tipo) continue;
+      if (el.querySelector && el.querySelector('button, [role="button"]')) continue; // invólucro: fica o botão de dentro
+      const alvo = (el.closest && el.closest('button, [role="button"], a[role="link"], [tabindex]')) || el;
+      if (vistos.has(alvo) || !visivel(alvo)) continue;
+      vistos.add(alvo);
+      if (alvo.closest && alvo.closest('[role="dialog"], aside, nav, footer')) continue;
+      lista.push({ tipo, alvo, topo: alvo.getBoundingClientRect().top });
+    }
+    lista.sort((a, b) => a.topo - b.topo);
+    return lista[0] || null;
+  };
+  let achado = null;
+  for (let t = 0; t < 32 && !achado; t += 1) {
+    achado = achar();
+    if (!achado) await new Promise((r) => setTimeout(r, 250));
   }
-  if (!botao) return { ok: false, erro: 'botão Seguir/Seguindo não apareceu', origem: location.origin };
-  const cab = norm((document.querySelector('header') || {}).innerText || '');
+  if (!achado) return { ok: false, erro: 'botão Seguir/Seguindo não apareceu', origem: location.origin };
+  let bloco = achado.alvo;
+  for (let i = 0; i < 6 && bloco.parentElement; i += 1) bloco = bloco.parentElement;
+  const cab = norm(bloco.innerText || '');
   const corpo = norm(document.body ? document.body.innerText : '');
   return {
     ok: true,
-    botao,
+    botao: achado.tipo,
     segueVoce: textos.segueVoce.some((x) => cab.includes(x)),
     privado: textos.privado.some((x) => corpo.includes(x)),
     origem: location.origin,
@@ -876,24 +915,39 @@ export async function lerEstadoNaPagina(textos) {
 }
 
 /**
- * 1.1.11 — NA PÁGINA do perfil: clica em "Seguir" SÓ se o botão principal do perfil (no <header>) for exatamente "Seguir"
- * e o perfil não mostrar "Segue você". "Seguir de volta"/"Segue você" (já me segue), "Seguindo" ou "Solicitado" (já
- * sigo / já pedi) = NÃO clica e devolve { ok: false, recusado: true, botao, segueVoce } (dono, 26/10: "Não deve seguir
- * quem já me segue. Ele acabou de abrir um perfil que eu estava seguindo."). Nunca clica nos "Seguir" das sugestões.
+ * 1.1.11/1.1.12 — NA PÁGINA do perfil: localiza o botão principal do perfil e, com `clicar`, clica nele SÓ se for
+ * "Seguir" e o perfil não mostrar "Segue você". "Seguir de volta"/"Segue você" (já me segue), "Seguindo" ou
+ * "Solicitado" (já sigo / já pedi) = NÃO clica: { ok: false, recusado: true, botao, segueVoce }.
+ * 1.1.12 (teste real do dono: "botão 'Seguir' não apareceu no perfil", mas o botão estava lá): a 1.1.11 só olhava o
+ * 1º <header> da página com texto exato. Agora acha o texto em qualquer div/span aninhado, sobe até o clicável
+ * (button / role=button / tabindex), ignora diálogo, menu lateral e rodapé, e escolhe o MAIS ALTO da página — o do
+ * perfil fica acima das sugestões ("Seguir" das sugestões nunca é o escolhido). Sem `clicar`, devolve o centro do botão
+ * (para o clique de mouse de verdade pelo depurador) e se o ponto está livre.
  */
-export async function seguirNaPagina(textos) {
+export async function seguirNaPagina(textos, clicar = true) {
   const norm = (t) => String(t || '').replace(/\s+/g, ' ').trim().toLowerCase();
   const visivel = (el) => { const r = el.getBoundingClientRect(); return r.width > 0 && r.height > 0; };
   const ordem = ['seguir_de_volta', 'seguindo', 'solicitado', 'seguir'];
-  const achar = () => {
-    const raiz = document.querySelector('header') || document;
-    for (const el of raiz.querySelectorAll('button, div[role="button"]')) {
-      if (!visivel(el)) continue;
-      const t = norm(el.innerText || el.textContent);
-      const tipo = ordem.find((k) => textos[k].includes(t));
-      if (tipo) return { tipo, el };
-    }
+  const classificar = (t) => {
+    if (!t || t.length > 30) return null;
+    for (const k of ordem) for (const w of textos[k]) if (t === w || (t.startsWith(`${w} `) && !/[a-zà-ú]/i.test(t.slice(w.length + 1, w.length + 2)))) return k;
     return null;
+  };
+  const achar = () => {
+    const vistos = new Set();
+    const lista = [];
+    for (const el of document.querySelectorAll('button, [role="button"], a, div, span')) {
+      const tipo = classificar(norm(el.innerText || el.textContent));
+      if (!tipo) continue;
+      if (el.querySelector && el.querySelector('button, [role="button"]')) continue; // invólucro: fica o botão de dentro
+      const alvo = (el.closest && el.closest('button, [role="button"], a[role="link"], [tabindex]')) || el;
+      if (vistos.has(alvo) || !visivel(alvo)) continue;
+      vistos.add(alvo);
+      if (alvo.closest && alvo.closest('[role="dialog"], aside, nav, footer')) continue;
+      lista.push({ tipo, alvo, topo: alvo.getBoundingClientRect().top });
+    }
+    lista.sort((a, b) => a.topo - b.topo);
+    return lista[0] || null;
   };
   let achado = null;
   for (let t = 0; t < 32 && !achado; t += 1) {
@@ -901,12 +955,94 @@ export async function seguirNaPagina(textos) {
     if (!achado) await new Promise((r) => setTimeout(r, 250));
   }
   if (!achado) return { ok: false, erro: 'botão "Seguir" não apareceu no perfil', origem: location.origin };
-  const cab = norm((document.querySelector('header') || {}).innerText || '');
-  const segueVoce = textos.segueVoce.some((x) => cab.includes(x));
+  let bloco = achado.alvo;
+  for (let i = 0; i < 6 && bloco.parentElement; i += 1) bloco = bloco.parentElement;
+  const segueVoce = textos.segueVoce.some((x) => norm(bloco.innerText || '').includes(x));
   if (achado.tipo !== 'seguir' || segueVoce) return { ok: false, recusado: true, botao: achado.tipo, segueVoce, origem: location.origin };
-  achado.el.click();
-  await new Promise((r) => setTimeout(r, 900 + Math.random() * 600));
-  return { ok: true, botao: 'seguir', origem: location.origin };
+  const alvo = achado.alvo;
+  if (alvo.scrollIntoView) alvo.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+  const r = alvo.getBoundingClientRect();
+  const x = Math.round(r.left + r.width / 2);
+  const y = Math.round(r.top + r.height / 2);
+  const noPonto = document.elementFromPoint ? document.elementFromPoint(x, y) : null;
+  const livre = Boolean(noPonto && (noPonto === alvo || alvo.contains(noPonto)));
+  if (!clicar) return { ok: true, botao: 'seguir', x, y, livre, clicou: false, origem: location.origin };
+  for (const tipo of ['pointerdown', 'mousedown', 'pointerup', 'mouseup']) alvo.dispatchEvent(new MouseEvent(tipo, { bubbles: true, cancelable: true, clientX: x, clientY: y, button: 0 }));
+  alvo.click();
+  await new Promise((res) => setTimeout(res, 900 + Math.random() * 600));
+  return { ok: true, botao: 'seguir', x, y, livre, clicou: true, origem: location.origin };
+}
+
+/**
+ * 1.1.12 — NA PÁGINA, sem mexer em nada: ESQUELETO anonimizado para o diagnóstico remoto (CRM). Só estrutura e textos
+ * da INTERFACE (lista `textos.ui`): botões do perfil, candidatos a Seguir, caixa da DM, candidatos a Enviar, avisos e
+ * diálogos. Texto que não é da interface vira «N caracteres»; o @ da pessoa vira "perfil"; URL sem o @; o texto da
+ * caixa da DM nunca vai (só o tamanho).
+ */
+export async function esqueletoNaPagina(username, textos) {
+  const norm = (t) => String(t || '').replace(/\s+/g, ' ').trim().toLowerCase();
+  const user = String(username || '').toLowerCase();
+  const tirarUser = (t) => (user.length >= 2 ? String(t).split(user).join('perfil') : String(t));
+  const visivel = (el) => { const r = el.getBoundingClientRect(); return r.width > 0 && r.height > 0; };
+  const ui = textos.ui || [];
+  const daInterface = (n) => ui.some((w) => n === w || n.startsWith(`${w} `) || n.startsWith(`${w}.`) || n.startsWith(`${w}!`) || n.startsWith(`${w},`));
+  const texto = (t) => { const n = norm(t); if (!n) return ''; return daInterface(n) ? tirarUser(n).slice(0, 60) : `«${n.length} caracteres»`; };
+  const aria = (el) => { const a = el.getAttribute && el.getAttribute('aria-label'); return a == null ? undefined : tirarUser(norm(a)).slice(0, 60); };
+  const caminho = (el) => { const c = []; for (let n = el.parentElement, i = 0; n && i < 6; n = n.parentElement, i += 1) c.push(`${n.tagName.toLowerCase()}${n.getAttribute('role') ? `[${n.getAttribute('role')}]` : ''}`); return c.join('<'); };
+  const desc = (el) => {
+    const r = el.getBoundingClientRect();
+    return {
+      tag: el.tagName.toLowerCase(),
+      role: el.getAttribute('role') || undefined,
+      aria: aria(el),
+      texto: texto(el.innerText || el.textContent),
+      tabindex: el.getAttribute('tabindex') || undefined,
+      visivel: visivel(el),
+      caixa: [Math.round(r.left), Math.round(r.top), Math.round(r.width), Math.round(r.height)],
+      dentro: caminho(el),
+    };
+  };
+  const reservados = ['explore', 'reels', 'direct', 'p', 'accounts', 'stories', 'reel', 'tv'];
+  const segs = location.pathname.split('/').filter(Boolean).map((s, i) => (i === 0 && !reservados.includes(s.toLowerCase()) ? ':perfil' : /^\d+$/.test(s) || s.length > 20 ? ':id' : s));
+  const todos = (sel, n = 40) => [...document.querySelectorAll(sel)].slice(0, n);
+  const seguirPalavras = ['seguir', 'follow', 'seguindo', 'following', 'solicitado', 'requested', 'seguir de volta', 'follow back'];
+  const candidatosSeguir = [];
+  for (const el of document.querySelectorAll('button, [role="button"], a, div, span')) {
+    const n = norm(el.innerText || el.textContent);
+    if (!n || n.length > 30 || !seguirPalavras.some((w) => n === w || n.startsWith(`${w} `))) continue;
+    if ([...(el.children || [])].some((f) => norm(f.innerText || f.textContent) === n)) continue; // só a folha
+    const clic = el.closest && el.closest('button, [role="button"], a[role="link"], [tabindex]');
+    candidatosSeguir.push({ ...desc(el), clicavel: clic ? desc(clic) : null, excluidoPor: clic && clic.closest('[role="dialog"], aside, nav, footer') ? 'dialogo/menu/rodape' : undefined });
+    if (candidatosSeguir.length >= 30) break;
+  }
+  const caixas = todos('[contenteditable], textarea, [role="textbox"]', 10).map((el) => ({
+    ...desc(el),
+    texto: undefined,
+    tamanhoTexto: norm(el.value ?? el.innerText).length,
+    contenteditable: el.getAttribute('contenteditable') || undefined,
+    placeholder: tirarUser(norm(el.getAttribute('aria-placeholder') || el.getAttribute('placeholder') || '')).slice(0, 60) || undefined,
+    lexical: el.getAttribute('data-lexical-editor') != null,
+  }));
+  const enviarPalavras = textos.enviar || [];
+  const candidatosEnviar = todos('button, [role="button"], svg[aria-label]', 3000)
+    .filter((el) => [el.getAttribute('aria-label'), el.tagName.toLowerCase() === 'svg' ? '' : el.innerText].some((t) => enviarPalavras.includes(norm(t))))
+    .slice(0, 20)
+    .map(desc);
+  const avisos = todos('[role="alert"], [role="dialog"], [aria-live], [role="status"]', 15).map(desc);
+  const corpo = norm(document.body ? document.body.innerText : '');
+  return {
+    url: `/${segs.join('/')}${segs.length ? '/' : ''}`,
+    visibilidade: document.visibilityState,
+    foco: typeof document.hasFocus === 'function' ? document.hasFocus() : undefined,
+    headers: todos('header', 10).map((h) => ({ visivel: visivel(h), botoes: h.querySelectorAll('button, [role="button"]').length, dentro: caminho(h) })),
+    botoesNoTopo: todos('button, [role="button"]', 400).filter((el) => visivel(el) && el.getBoundingClientRect().top < 700).slice(0, 40).map(desc),
+    candidatosSeguir,
+    caixas,
+    candidatosEnviar,
+    avisos,
+    errosVisiveis: (textos.erroAbrir || []).filter((x) => corpo.includes(x)),
+    segueVoce: (textos.segueVoce || []).filter((x) => corpo.includes(x)),
+  };
 }
 
 // --- Página acordada (1.1.6) ------------------------------------------------------------------------------------
@@ -932,31 +1068,119 @@ const paginaAcordada = createAwakeManager({
 // O dono clicou em "Cancelar" na faixa ou a aba fechou: o Chrome soltou o depurador.
 if (globalThis.chrome?.debugger?.onDetach) chrome.debugger.onDetach.addListener((origem) => origem?.tabId && paginaAcordada.forget(origem.tabId));
 
-async function abrirPerfilEExecutar(username, func, args) {
+// --- Diagnóstico da página (1.1.12) ----------------------------------------------------------------------------------
+// Cada visita da extensão a um perfil/conversa guarda aqui o RASTRO (passos) e o ESQUELETO anonimizado da página, por @.
+// O background tira com `tirarDiagnostico(@)` e manda ao CRM (lib/diagnostico.js). Nada disso decide nada.
+const diagnosticos = new Map(); // username → { rastro: [...], esqueleto }
+
+function novoRastro() {
+  const inicio = Date.now();
+  const passos = [];
+  return {
+    passos,
+    passo(nome, dados = {}) { passos.push({ passo: nome, ms: Date.now() - inicio, ...dados }); },
+  };
+}
+
+async function guardarDiagnostico(username, exec, rastro) {
+  let esqueleto = null;
+  try {
+    esqueleto = await exec(esqueletoNaPagina, [username, TEXTOS_ESQUELETO]);
+  } catch (err) {
+    esqueleto = { erro: `esqueleto não lido: ${err && err.message ? err.message : err}` };
+  }
+  const anterior = diagnosticos.get(username);
+  diagnosticos.delete(username);
+  diagnosticos.set(username, { rastro: [...((anterior && anterior.rastro) || []), ...rastro.passos].slice(-60), esqueleto });
+  // Visitas que ninguém mandou ao CRM (ex.: conferências de follow-back): guarda só as 30 mais recentes.
+  while (diagnosticos.size > 30) diagnosticos.delete(diagnosticos.keys().next().value);
+}
+
+/** 1.1.12: rastro + esqueleto da última visita a este @ (e apaga). null se a extensão não abriu a página. */
+export function tirarDiagnostico(username) {
+  const d = diagnosticos.get(username) || null;
+  diagnosticos.delete(username);
+  return d;
+}
+
+async function abrirPerfilComRastro(username, fn) {
   const tabId = await garantirAbaInstagram();
-  return paginaAcordada.run(tabId, async () => {
-    await chrome.tabs.update(tabId, { url: `${BASE}/${encodeURIComponent(username)}/` });
-    await new Promise((r) => setTimeout(r, 400));
-    await esperarCarregar(tabId);
-    const [res] = await chrome.scripting.executeScript({ target: { tabId }, world: 'MAIN', func, args });
-    return (res && res.result) || { ok: false, erro: 'a aba não respondeu' };
+  return paginaAcordada.run(tabId, async (info) => {
+    const rastro = novoRastro();
+    const exec = async (func, args) => {
+      const [res] = await chrome.scripting.executeScript({ target: { tabId }, world: 'MAIN', func, args });
+      return (res && res.result) || { ok: false, erro: 'a aba não respondeu' };
+    };
+    let r;
+    try {
+      await chrome.tabs.update(tabId, { url: `${BASE}/${encodeURIComponent(username)}/` });
+      await new Promise((ok) => setTimeout(ok, 400));
+      await esperarCarregar(tabId);
+      rastro.passo('perfil aberto', { depurador: Boolean(info.attached && paginaAcordada.isAttached(tabId)) });
+      r = await fn({ tabId, exec, rastro, comDepurador: Boolean(info.attached && paginaAcordada.isAttached(tabId)) });
+    } catch (err) {
+      rastro.passo('erro', { erro: err && err.message ? err.message : String(err) });
+      throw err;
+    } finally {
+      await guardarDiagnostico(username, exec, rastro).catch(() => {});
+    }
+    return r;
   });
 }
 
 /** 1.1.4: abre o perfil na janela de trabalho (sem foco) e LÊ o botão (não clica). 1.1.6: com a página acordada. */
 export async function lerPerfilNaAba({ username }) {
   if (!username) return { ok: false, erro: 'sem @ do perfil' };
-  return abrirPerfilEExecutar(username, lerEstadoNaPagina, [TEXTOS_LEITURA]);
+  return abrirPerfilComRastro(username, async ({ exec, rastro }) => {
+    const r = await exec(lerEstadoNaPagina, [TEXTOS_LEITURA]);
+    rastro.passo('ler botão do perfil', { ok: Boolean(r.ok), botao: r.botao, segueVoce: r.segueVoce, erro: r.erro });
+    return r;
+  });
 }
 
 /**
  * Abre o perfil na janela de trabalho (sem foco) e executa os cliques. 1.1.6: com a página acordada.
  * 1.1.11: `seguir: true` = clique de SEGUIR conferindo o botão do perfil na hora (seguirNaPagina).
+ * 1.1.12: o seguir localiza o botão, clica com o mouse de verdade (depurador) no centro dele — ou pela página, sem
+ * depurador ou com algo por cima — e relê o botão depois do clique (`botaoDepois`). `seco: true` = só localiza e
+ * relata (teste "Testar botão Seguir (sem clicar)"): nunca clica.
  */
-export async function clicarNaAba({ username, passos, seguir = false }) {
+export async function clicarNaAba({ username, passos, seguir = false, seco = false }) {
   if (!username) return { ok: false, erro: 'sem @ do perfil' };
-  if (seguir) return abrirPerfilEExecutar(username, seguirNaPagina, [TEXTOS_LEITURA]);
-  return abrirPerfilEExecutar(username, clicarNaPagina, [passos]);
+  if (!seguir) {
+    return abrirPerfilComRastro(username, async ({ exec, rastro }) => {
+      const r = await exec(clicarNaPagina, [passos]);
+      rastro.passo('cliques', { ok: Boolean(r.ok), erro: r.erro });
+      return r;
+    });
+  }
+  return abrirPerfilComRastro(username, async ({ tabId, exec, rastro, comDepurador }) => {
+    const achado = await exec(seguirNaPagina, [TEXTOS_LEITURA, false]);
+    rastro.passo('localizar botão Seguir', { ok: Boolean(achado.ok), botao: achado.botao, recusado: achado.recusado, segueVoce: achado.segueVoce, livre: achado.livre, erro: achado.erro });
+    if (!achado.ok || seco) return { ...achado, seco };
+    if (comDepurador && achado.livre) {
+      await cdp(tabId, 'Input.dispatchMouseEvent', { type: 'mouseMoved', x: achado.x, y: achado.y });
+      await cdp(tabId, 'Input.dispatchMouseEvent', { type: 'mousePressed', x: achado.x, y: achado.y, button: 'left', buttons: 1, clickCount: 1 });
+      await cdp(tabId, 'Input.dispatchMouseEvent', { type: 'mouseReleased', x: achado.x, y: achado.y, button: 'left', buttons: 0, clickCount: 1 });
+      rastro.passo('clique de mouse (depurador) no botão Seguir');
+    } else {
+      const c = await exec(seguirNaPagina, [TEXTOS_LEITURA, true]);
+      rastro.passo('clique pela página no botão Seguir', { ok: Boolean(c.ok), botao: c.botao, erro: c.erro });
+      if (!c.ok) return c;
+    }
+    await new Promise((ok) => setTimeout(ok, 1500 + Math.round(Math.random() * 1000)));
+    let depois = await exec(lerEstadoNaPagina, [TEXTOS_LEITURA]);
+    rastro.passo('botão depois do clique', { botao: depois.botao, erro: depois.erro });
+    if (comDepurador && achado.livre && depois.botao === 'seguir') {
+      // O clique de mouse não pegou (o botão continua "Seguir": nada mudou) — tenta UMA vez pela própria página.
+      const c = await exec(seguirNaPagina, [TEXTOS_LEITURA, true]);
+      rastro.passo('clique pela página (2ª tentativa)', { ok: Boolean(c.ok), botao: c.botao, erro: c.erro });
+      await new Promise((ok) => setTimeout(ok, 1500 + Math.round(Math.random() * 1000)));
+      depois = await exec(lerEstadoNaPagina, [TEXTOS_LEITURA]);
+      rastro.passo('botão depois do 2º clique', { botao: depois.botao, erro: depois.erro });
+    }
+    return { ok: true, botao: 'seguir', botaoDepois: depois.botao || null };
+  });
 }
 
 // --- DM por digitação (1.1.8) ------------------------------------------------------------------------------------
@@ -1228,8 +1452,11 @@ export function linhasDaMensagem(texto) {
  *  3) Envio: clique no botão Enviar (com depurador, clique de mouse de verdade no centro dele); Enter só se o botão não
  *     for achado ou se a mensagem continuar inteira na caixa depois do clique (certamente não saiu).
  *  4) Só conta como enviada se a mensagem aparecer na conversa; sem isso depois do clique = 'incerto' (nunca reenvia).
+ * 1.1.12: cada passo vai para o rastro do diagnóstico (+ esqueleto da conversa, ao fim). `seco: true` = teste a seco
+ * ("Testar DM (sem enviar)"): abre, cola, confere, localiza o Enviar e PARA — nenhuma tecla, nenhum clique em Enviar,
+ * nunca o Shift+Enter (que poderia enviar); apaga o texto da caixa no fim.
  */
-export async function digitarDmNaAba({ username, texto }) {
+export async function digitarDmNaAba({ username, texto, seco = false }) {
   if (!username) return { ok: false, apertouEnter: false, erro: 'sem @ do perfil' };
   let tabId;
   try {
@@ -1244,47 +1471,61 @@ export async function digitarDmNaAba({ username, texto }) {
   };
   const pausa = (min, max) => new Promise((r) => setTimeout(r, min + Math.round(Math.random() * (max - min))));
   const norm = (t) => String(t || '').replace(/\s+/g, ' ').trim();
+  const rastro = novoRastro();
   return paginaAcordada.run(tabId, async (info) => {
     let apertouEnter = false;
+    const fim = (r) => { rastro.passo('fim', { ok: Boolean(r.ok), confirmado: r.confirmado, apertouEnter: r.apertouEnter, erro: r.erro }); return r; };
     try {
       await chrome.tabs.update(tabId, { url: `${BASE}/${encodeURIComponent(username)}/` });
       await new Promise((r) => setTimeout(r, 400));
       await esperarCarregar(tabId);
+      const comDepurador = Boolean(info.attached && paginaAcordada.isAttached(tabId));
+      rastro.passo('perfil aberto', { depurador: comDepurador, seco });
       const aberta = await exec(abrirConversaNaPagina, [TEXTOS_DM]);
-      if (!aberta.ok) return { ok: false, apertouEnter, erro: aberta.erro };
+      rastro.passo('abrir conversa', { ok: Boolean(aberta.ok), cliques: aberta.cliques, errosVistos: aberta.errosVistos, erro: aberta.erro });
+      if (!aberta.ok) return fim({ ok: false, apertouEnter, erro: aberta.erro });
       const trecho = trechoDaMensagem(texto);
       const caixa = await exec(prepararCaixaNaPagina, [trecho]);
-      if (!caixa.ok) return { ok: false, apertouEnter, erro: caixa.erro };
-      if (caixa.contagem > 0) return { ok: true, jaEstava: true, apertouEnter };
+      rastro.passo('preparar caixa', { ok: Boolean(caixa.ok), jaNaConversa: caixa.contagem, erro: caixa.erro });
+      if (!caixa.ok) return fim({ ok: false, apertouEnter, erro: caixa.erro });
+      if (caixa.contagem > 0 && !seco) return fim({ ok: true, jaEstava: true, apertouEnter });
       await pausa(800, 2000);
-      const comDepurador = info.attached && paginaAcordada.isAttached(tabId);
 
       // 1) Escrita — a) colar a mensagem inteira.
       let como = 'colada';
-      await exec(colarNaPagina, [texto]);
+      const colada = await exec(colarNaPagina, [texto]);
       let conferida = await exec(conferirCaixaNaPagina, [texto]); // diferente: já esvazia a caixa
-      if (!conferida.ok) {
+      rastro.passo('colar mensagem inteira', { ok: Boolean(conferida.ok), caracteresNaCaixa: norm(colada.texto).length, esperado: norm(texto).length, erro: conferida.erro });
+      if (!conferida.ok && seco) {
+        // Teste a seco: só a digitação pela página (texto "\n" nas quebras) — nenhuma tecla.
+        como = 'digitada pela página';
+        const w = await exec(escreverNaPagina, [partesDaDigitacao(texto)]);
+        conferida = w.ok ? await exec(conferirCaixaNaPagina, [texto]) : w;
+        rastro.passo('digitar pela página (teste a seco)', { ok: Boolean(conferida.ok), erro: conferida.erro });
+      } else if (!conferida.ok) {
         // b) Plano B: digitar linha por linha.
         como = comDepurador ? 'digitada (Shift+Enter)' : 'digitada pela página';
         if (comDepurador) {
           const linhas = linhasDaMensagem(texto);
           const inicio = norm(linhas.find((l) => norm(l)) || '');
           const base = await exec(lerCaixaNaPagina, [inicio]);
-          if (!base.ok) return { ok: false, apertouEnter, erro: base.erro };
+          if (!base.ok) return fim({ ok: false, apertouEnter, erro: base.erro });
           let escrito = '';
           for (let i = 0; i < linhas.length; i += 1) {
             if (i > 0) {
               for (const tecla of SHIFT_ENTER) await cdp(tabId, 'Input.dispatchKeyEvent', tecla);
               await pausa(150, 350);
               const agora = await exec(lerCaixaNaPagina, [inicio]);
-              if (!agora.ok) return { ok: false, apertouEnter, erro: agora.erro };
+              if (!agora.ok) return fim({ ok: false, apertouEnter, erro: agora.erro });
               if (inicio && agora.conversa > base.conversa) {
                 // A quebra de linha mandou parte da mensagem: pode ter saído — nunca repetir.
-                return { ok: false, apertouEnter: true, erro: 'a quebra de linha (Shift+Enter) enviou parte da mensagem' };
+                rastro.passo('Shift+Enter', { linha: i, resultado: 'enviou parte' });
+                return fim({ ok: false, apertouEnter: true, erro: 'a quebra de linha (Shift+Enter) enviou parte da mensagem' });
               }
               if (agora.texto !== norm(escrito)) {
+                rastro.passo('Shift+Enter', { linha: i, resultado: 'apagou', caracteres: agora.texto.length, esperado: norm(escrito).length });
                 await exec(conferirCaixaNaPagina, [texto]); // esvazia (o texto não confere)
-                return { ok: false, apertouEnter, erro: `a quebra de linha apagou o texto da caixa (${agora.texto.length} de ${norm(escrito).length} caracteres)` };
+                return fim({ ok: false, apertouEnter, erro: `a quebra de linha apagou o texto da caixa (${agora.texto.length} de ${norm(escrito).length} caracteres)` });
               }
               escrito += '\n';
             }
@@ -1296,12 +1537,30 @@ export async function digitarDmNaAba({ username, texto }) {
           }
         } else {
           const w = await exec(escreverNaPagina, [partesDaDigitacao(texto)]);
-          if (!w.ok) return { ok: false, apertouEnter, erro: w.erro };
+          if (!w.ok) return fim({ ok: false, apertouEnter, erro: w.erro });
         }
         // 2) Conferência do texto exato.
         conferida = await exec(conferirCaixaNaPagina, [texto]);
-        if (!conferida.ok) return { ok: false, apertouEnter, erro: conferida.erro };
+        rastro.passo(`conferir texto (${como})`, { ok: Boolean(conferida.ok), erro: conferida.erro });
       }
+      if (seco) {
+        const enviarSeco = await exec(acharEnviarNaPagina, [TEXTOS_DM, false]); // nunca clica
+        rastro.passo('localizar botão Enviar (sem clicar)', { ok: Boolean(enviarSeco.ok), livre: enviarSeco.livre, erro: enviarSeco.erro });
+        const limpa = await exec(limparCaixaNaPagina, []);
+        rastro.passo('apagar texto da caixa', { ok: Boolean(limpa.ok), sobrou: limpa.sobrou });
+        return fim({
+          ok: Boolean(conferida.ok && enviarSeco.ok && limpa.ok),
+          seco: true,
+          apertouEnter: false,
+          como,
+          textoConferido: Boolean(conferida.ok),
+          botaoEnviar: Boolean(enviarSeco.ok),
+          caixaLimpa: Boolean(limpa.ok),
+          jaNaConversa: caixa.contagem,
+          erro: [conferida.ok ? '' : conferida.erro, enviarSeco.ok ? '' : enviarSeco.erro, limpa.ok ? '' : 'a caixa não ficou vazia'].filter(Boolean).join('; ') || undefined,
+        });
+      }
+      if (!conferida.ok) return fim({ ok: false, apertouEnter, erro: conferida.erro });
       await pausa(700, 1800);
 
       // 3) Envio: clique no botão Enviar.
@@ -1322,18 +1581,24 @@ export async function digitarDmNaAba({ username, texto }) {
         envio = 'Enter (botão Enviar não achado)';
         await apertarEnter(comDepurador);
       }
+      rastro.passo('enviar', { como: envio, botaoAchado: Boolean(enviar.ok), livre: enviar.livre, erro: enviar.erro });
       let conf = await exec(confirmarDmNaPagina, [trecho, caixa.contagem, enviar.ok ? 4000 : 12000]);
+      rastro.passo('confirmar na conversa', { confirmado: Boolean(conf.confirmado), mensagemAindaNaCaixa: conf.naCaixa });
       if (!conf.confirmado && enviar.ok && conf.naCaixa) {
         // A mensagem continua inteira na caixa: o clique não enviou (nada saiu). Plano B: Enter, uma vez.
         envio += ' + Enter (plano B)';
         await apertarEnter(comDepurador);
         conf = await exec(confirmarDmNaPagina, [trecho, caixa.contagem, 12000]);
+        rastro.passo('confirmar depois do Enter (plano B)', { confirmado: Boolean(conf.confirmado), mensagemAindaNaCaixa: conf.naCaixa });
       } else if (!conf.confirmado && enviar.ok) {
         conf = await exec(confirmarDmNaPagina, [trecho, caixa.contagem, 8000]);
+        rastro.passo('confirmar (mais 8 s)', { confirmado: Boolean(conf.confirmado) });
       }
-      return { ok: Boolean(conf.confirmado), confirmado: Boolean(conf.confirmado), apertouEnter, erro: conf.erro, viaDepurador: comDepurador, como, envio };
+      return fim({ ok: Boolean(conf.confirmado), confirmado: Boolean(conf.confirmado), apertouEnter, erro: conf.erro, viaDepurador: comDepurador, como, envio });
     } catch (err) {
-      return { ok: false, apertouEnter, erro: err && err.message ? err.message : String(err) };
+      return fim({ ok: false, apertouEnter, erro: err && err.message ? err.message : String(err) });
+    } finally {
+      await guardarDiagnostico(username, exec, rastro).catch(() => {});
     }
   });
 
@@ -1345,6 +1610,19 @@ export async function digitarDmNaAba({ username, texto }) {
       await exec(apertarEnterNaPagina, []);
     }
   }
+}
+
+/** 1.1.12 — NA PÁGINA (teste a seco): esvazia a caixa da conversa. */
+export async function limparCaixaNaPagina() {
+  const visivel = (el) => { const r = el.getBoundingClientRect(); return r.width > 0 && r.height > 0; };
+  const caixa = [...document.querySelectorAll('div[contenteditable="true"][role="textbox"], div[contenteditable="true"][aria-label], textarea')].filter(visivel).pop();
+  if (!caixa) return { ok: false, erro: 'caixa de mensagem sumiu' };
+  caixa.focus();
+  if (caixa.tagName === 'TEXTAREA') caixa.select(); else document.getSelection().selectAllChildren(caixa);
+  document.execCommand('delete');
+  await new Promise((r) => setTimeout(r, 200));
+  const sobrou = String(caixa.value ?? caixa.innerText).replace(/\s+/g, ' ').trim().length;
+  return { ok: sobrou === 0, sobrou };
 }
 
 /** API pronta para uso dentro da extensão. */

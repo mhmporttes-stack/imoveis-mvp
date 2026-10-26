@@ -11,6 +11,12 @@
 
 
 
+## 2026-10-26 — Instagram 1.1.12: diagnóstico remoto no CRM, testes a seco, "enviar agora", Seguir robusto — branch `fix/instagram-dm-envio-completo`
+- **Pedido:** teste real do dono com a 1.1.11 ("SEGUIR suspenso… botão 'Seguir' não apareceu no perfil" com o botão na tela; DM não saiu) + "a primeira tem que ser testada na hora".
+- **CRM (`lib/marketplace-chat.js`):** `DIAGNOSTIC_KINDS` aceita `ig_follow`, `ig_dm`, `ig_dryrun`, `ig_ping` na rota existente `POST /api/marketplace/diagnostic` (mesma chave `mkp_`, limite 600 kB, tabela `marketplace_diagnostics`; sem migration — `kind` ≤ 40). Precisa de deploy para a extensão gravar.
+- **Extensão:** `lib/diagnostico.js` (anonimiza o @, monta e envia; config `crm` fora do estado); `esqueletoNaPagina` (só textos de interface de `TEXTOS_UI`, resto «N caracteres», URL `/:perfil/`, caixa só com o tamanho); rastro por passo em `abrirPerfilComRastro`/`digitarDmNaAba` (`tirarDiagnostico`); `seguirNaPagina`/`lerEstadoNaPagina` acham o texto em span aninhado, sobem ao clicável, ignoram diálogo/aside/nav e escolhem o mais alto (o `<header>` estrito da 1.1.11 era a causa provável); clique de mouse CDP + releitura (`botaoDepois` confirma); `semBotao` não suspende até 3 perfis/dia (`LIMITE_FALHAS_BOTAO_SEGUIR`); mensagens `testarDm` (seco: nunca tecla nem clique em Enviar, apaga a caixa), `testarSeguir`, `enviarProximaDm` (`proximaBoasVindasPendente` + `enviarBoasVindas` extraído de `processarDm`), `salvarCrm`/`testarCrm`; host permission do domínio do CRM.
+- **Testes:** `tests/diagnostico.test.mjs` (novo, 12) + clique CDP do Seguir em `dm-envio-completo`; 151 passam; `pnpm build` do CRM ok. Nada real enviado; não testado contra o Instagram real (o diagnóstico existe para isso).
+
 ## 2026-10-26 — Instagram 1.1.11: DM inteira + clique em Enviar; não segue quem já me segue — branch `fix/instagram-dm-envio-completo`, NÃO publicado
 - **Sintomas (dono, olhando a tela):** DM escrita por trechos que se apagavam (sobrava a última linha); mensagem escrita e não enviada; "Ocorreu um erro, tente novamente" ao clicar em Mensagem sem novo clique; perfil já seguido aberto para seguir.
 - **Causa raiz:** `digitarDmNaAba` quebrava linha com `execCommand('insertLineBreak')`, que no editor da DM apagava o texto; envio só por Enter (não envia nesse popup); `abrirConversaNaPagina` clicava uma vez; o clique de seguir (`clicarNaPagina` com `TEXTOS_SEGUIR`, incl. "seguir de volta") procurava em toda a página e não conferia o botão do perfil; `filtrarCandidatos` só lia `friendship_status`.

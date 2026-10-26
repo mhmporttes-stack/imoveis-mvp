@@ -1,7 +1,8 @@
 // Service worker da extensão: agenda, fila, seguir / deixar de seguir, follow-back e DM.
 // Toda a comunicação com o Instagram passa por instagram-api.js.
 
-import { criarApiChrome, lerSessao, ErroInstagram, haJanelaParaTrabalhar, abrirJanelaTrabalho, situacaoJanelaTrabalho } from './instagram-api.js';
+import { criarApiChrome, lerSessao, ErroInstagram, haJanelaParaTrabalhar, abrirJanelaTrabalho, situacaoJanelaTrabalho, tirarDiagnostico, digitarDmNaAba, clicarNaAba } from './instagram-api.js';
+import { CHAVE_CRM, CHAVE_ULTIMO_ENVIO, montarDiagnostico, enviarDiagnosticoCrm, normalizarUrlCrm, CRM_URL_PADRAO } from './lib/diagnostico.js';
 import { MINUTO, diaSP, janelaDoDia, dentroDaJanela, proximaAbertura, formatarSP } from './lib/tempo.js';
 import { planejarHorarios, decidirHorario, atrasoHumanoMs, atrasoDmMs } from './lib/agenda.js';
 import {
@@ -29,6 +30,7 @@ import {
   novoRegistroSeguidor,
   tetoDmAtingido,
   reabilitarDesistidasPorHtml,
+  proximaBoasVindasPendente,
 } from './lib/regras.js';
 import { normalizarEstado, virarDiaSeNecessario, registrarHistorico, resumoBusca } from './lib/estado.js';
 import { CARGA_JANELA_MS, CARGA_PAGINAS_MAX, CARGA_TENTATIVAS_MAX, interpretarAtividade, separarCarga, registroDaCarga } from './lib/carga-tres-dias.js';
@@ -54,6 +56,8 @@ const INTERVALO_REABASTECER_MS = 20 * MINUTO;
 // 1.1.8: boas-vindas para TODO seguidor novo. Se a 1ª página dos meus seguidores não tiver nenhum já conhecido, lê
 // mais páginas (até este total) procurando o ponto em que começam os antigos; sem achar, ninguém recebe DM.
 const PAGINAS_MAX_NOVOS_SEGUIDORES = 8;
+// 1.1.12: perfis com o botão "Seguir" não localizado no mesmo dia antes de suspender o SEGUIR até amanhã.
+const LIMITE_FALHAS_BOTAO_SEGUIR = 3;
 
 /** 1.1.8: todos os registros com DM de boas-vindas: follow-back (`seguidos`) e novos seguidores. */
 const registrosDm = (e) => [...Object.values(e.seguidos), ...Object.values(e.novosSeguidores || {})];
@@ -92,6 +96,46 @@ function log(e, item) {
 /** 1.1.7: último erro das boas-vindas (checagem de seguidores ou DM), mostrado no popup. */
 function erroBoasVindas(e, texto) {
   e.boasVindas = { ...(e.boasVindas || {}), ultimoErro: { em: Date.now(), texto: String(texto || '').slice(0, 400) } };
+}
+
+// ---------------------------------------------------------------- 1.1.12: diagnóstico remoto (CRM)
+
+const versaoExtensao = () => { try { return chrome.runtime.getManifest().version; } catch { return ''; } };
+
+async function lerConfigCrm() {
+  const c = (await chrome.storage.local.get(CHAVE_CRM))[CHAVE_CRM] || {};
+  return { url: c.url || CRM_URL_PADRAO, chave: c.chave || '', versao: versaoExtensao() };
+}
+
+/**
+ * Manda ao CRM o rastro + esqueleto desta tentativa (anonimizados — lib/diagnostico.js). Nunca atrasa nem derruba a
+ * ação: roda em paralelo e só registra o resultado do envio (CHAVE_ULTIMO_ENVIO, mostrado no painel). Sem chave
+ * configurada, não faz nada.
+ */
+function diagnosticar(kind, { acao, username = '', resultado = '', rastro = [], extra = null }) {
+  const pagina = username ? tirarDiagnostico(username) : null;
+  return (async () => {
+    const crm = await lerConfigCrm();
+    if (!crm.chave) return { ok: false, erro: 'sem chave do CRM' };
+    const payload = montarDiagnostico({
+      versao: crm.versao,
+      acao,
+      resultado,
+      rastro: [...rastro, ...((pagina && pagina.rastro) || [])],
+      esqueleto: (pagina && pagina.esqueleto) || null,
+      extra,
+      usuarios: [username],
+    });
+    try {
+      const r = await enviarDiagnosticoCrm(crm, kind, payload);
+      await chrome.storage.local.set({ [CHAVE_ULTIMO_ENVIO]: { em: Date.now(), kind, ok: true, id: r.id } });
+      return { ok: true, id: r.id };
+    } catch (err) {
+      const erro = err && err.message ? err.message : String(err);
+      await chrome.storage.local.set({ [CHAVE_ULTIMO_ENVIO]: { em: Date.now(), kind, ok: false, erro } });
+      return { ok: false, erro };
+    }
+  })().catch((err) => ({ ok: false, erro: String(err) }));
 }
 
 function notificar(titulo, mensagem) {
@@ -296,9 +340,23 @@ async function processarDm(e, agora) {
   // Espaça as demais (nenhuma rajada de DMs).
   prontas.slice(1).forEach((o, i) => { o.dmAgendadaPara = Math.max(o.dmAgendadaPara, agora + (i + 1) * (INTERVALO_MIN_ENTRE_DMS + atrasoDmMs() / 2)); });
 
+  return (await enviarBoasVindas(e, r)).tipo;
+}
+
+/**
+ * Envia a boas-vindas para UM registro (marca a tentativa antes: "uma única vez"). 1.1.12: separado de processarDm para
+ * o botão "Enviar a próxima boas-vindas agora"; devolve { tipo, situacao: 'enviada'|'incerta'|'nao_enviada', texto } e
+ * manda o diagnóstico `ig_dm` ao CRM (rastro + esqueleto da conversa, se a extensão abriu a tela).
+ */
+async function enviarBoasVindas(e, r, { manual = false } = {}) {
+  const cfg = e.config;
+  const fimDm = (tipo, situacao, texto) => {
+    diagnosticar('ig_dm', { acao: manual ? 'DM (botão enviar agora)' : 'DM', username: r.username, resultado: `${situacao}: ${texto}`, rastro: [{ passo: 'boas-vindas', registro: r.followBackEm ? 'follow-back' : 'novo seguidor', tentativasAntes: r.dmFalhas || 0 }] });
+    return { tipo, situacao, texto };
+  };
   r.dmTentativaEm = Date.now();
   await salvar(e); // marca ANTES de enviar: garante "uma única vez"
-  await pausaHumana();
+  if (!manual) await pausaHumana();
   try {
     const res = await api.enviarDm(r.id, cfg.mensagem, { username: r.username });
     r.dmEnviadaEm = Date.now();
@@ -306,7 +364,7 @@ async function processarDm(e, agora) {
     e.ultimaDmEm = r.dmEnviadaEm;
     e.contadores.dms += 1;
     log(e, { username: r.username, acao: 'DM', resultado: `boas-vindas enviada (${res.modo})`, origem: r.origem });
-    return 'ok';
+    return fimDm('ok', 'enviada', `boas-vindas enviada (${res.modo})`);
   } catch (err) {
     const status = err && err.status;
     const tipo = err instanceof ErroInstagram ? err.tipo : 'outro';
@@ -318,7 +376,7 @@ async function processarDm(e, agora) {
       erroBoasVindas(e, `DM para @${r.username} adiada: ${err.message || err}`);
       const volta = Math.max(e.pausaAte || 0, e.esfriarAte || 0, Date.now());
       r.dmAgendadaPara = ajustarParaJanela(volta + atrasoDmMs(), volta, cfg);
-      return tipo;
+      return fimDm(tipo, 'nao_enviada', `adiada (${tipo}): ${err.message || err}`);
     }
     if (tipo === 'nao_enviada') {
       // 1.1.5: a API de DM devolveu a página HTML — certamente não saiu. Reagenda (30 min, depois 2 h); na 3ª
@@ -339,7 +397,7 @@ async function processarDm(e, agora) {
         r.dmAgendadaPara = ajustarParaJanela(Date.now() + espera, Date.now(), cfg);
         log(e, { username: r.username, acao: 'DM', resultado: `não enviada (Instagram respondeu HTML) — tentativa ${r.dmFalhas + 1} às ${formatarSP(r.dmAgendadaPara)}`, origem: r.origem });
       }
-      return tipo;
+      return fimDm(tipo, 'nao_enviada', `não enviada (nada saiu): ${err.message || err}`);
     }
     if (tipo !== 'incerto' && status >= 400 && status < 500) {
       r.dmTentativaEm = null;
@@ -353,14 +411,14 @@ async function processarDm(e, agora) {
         log(e, { username: r.username, acao: 'DM', resultado: `recusada (${err.message}) — nova tentativa às ${formatarSP(r.dmAgendadaPara)}`, origem: r.origem });
       }
       if (tipo === 'mudanca_api') e.alerta = { tipo, em: Date.now(), texto: err.message };
-      return tipo;
+      return fimDm(tipo, 'nao_enviada', `recusada: ${err.message || err}`);
     }
     // Não dá para saber se saiu: nunca reenviar.
     r.dmIncerta = true;
     e.contadores.dmsIncertas = (e.contadores.dmsIncertas || 0) + 1; // 1.1.8: conta no teto diário (pode ter saído)
     log(e, { username: r.username, acao: 'DM', resultado: `resultado incerto, não será repetida: ${err.message || err}`, origem: r.origem });
     erroBoasVindas(e, `DM para @${r.username} com resultado incerto (não será repetida — confira no Instagram): ${err.message || err}`);
-    return tipo;
+    return fimDm(tipo, 'incerta', `resultado incerto (não será repetida — confira no Instagram): ${err.message || err}`);
   }
 }
 
@@ -415,9 +473,12 @@ async function processarSeguir(e, agora) {
       e.vistos[cand.id] = `erro:${tipo}`;
       continue;
     }
+    const rastro = [{ passo: 'checar amizade', via: st.via || 'friendships/show', seguindo: st.seguindo, meSegue: st.meSegue, pedidoPendente: st.pedidoPendente, privado: st.privado }];
     if (st.meSegue || st.seguindo || st.pedidoPendente) {
       e.vistos[cand.id] = 'ja_relacionado';
-      log(e, { username: cand.username, acao: 'pulado', resultado: st.meSegue ? 'já me segue' : st.seguindo ? 'já sigo' : 'já Solicitado antes (pedido pendente)', origem: cand.origem });
+      const motivo = st.meSegue ? 'já me segue' : st.seguindo ? 'já sigo' : 'já Solicitado antes (pedido pendente)';
+      log(e, { username: cand.username, acao: 'pulado', resultado: motivo, origem: cand.origem });
+      diagnosticar('ig_follow', { acao: 'seguir', username: cand.username, resultado: `pulado: ${motivo}`, rastro });
       continue;
     }
     if (cfg.pularPrivados && st.privado) {
@@ -440,13 +501,29 @@ async function processarSeguir(e, agora) {
       };
       e.contadores.seguidos += 1;
       log(e, { username: cand.username, acao: 'seguir', resultado: `${rotuloSeguir(r)} — confirmado (${r.via})`, origem: cand.origem });
+      diagnosticar('ig_follow', { acao: 'seguir', username: cand.username, resultado: `seguido — confirmado (${r.via})`, rastro });
       return 'ok';
     } catch (err) {
+      const tipoErro = err instanceof ErroInstagram ? err.tipo : 'outro';
+      diagnosticar('ig_follow', { acao: 'seguir', username: cand.username, resultado: `falhou (${tipoErro}): ${err && err.message ? err.message : err}`, rastro });
       if (err instanceof ErroInstagram && err.tipo === 'ja_relacionado') {
         // 1.1.11: na hora do clique o botão do perfil mostrou que já me segue — nada clicado, não conta no limite.
         e.vistos[cand.id] = 'ja_relacionado';
         log(e, { username: cand.username, acao: 'pulado', resultado: `já me segue (visto no botão do perfil na hora de seguir) — não seguido`, origem: cand.origem });
         continue;
+      }
+      if (err instanceof ErroInstagram && err.semBotao && err.tipo === 'mudanca_api') {
+        // 1.1.12 (teste real do dono: "SEGUIR suspenso … botão 'Seguir' não apareceu", com o botão na tela): API em
+        // HTML + botão não localizado num perfil NÃO suspende o dia. O perfil vai para o fim da fila (sem marcar) e o
+        // diagnóstico vai ao CRM; só 3 perfis seguidos assim no mesmo dia suspendem o SEGUIR (algo sistemático).
+        const hoje = diaSP(Date.now());
+        e.falhasBotaoSeguir = e.falhasBotaoSeguir && e.falhasBotaoSeguir.dia === hoje ? e.falhasBotaoSeguir : { dia: hoje, n: 0 };
+        e.falhasBotaoSeguir.n += 1;
+        if (e.falhasBotaoSeguir.n < LIMITE_FALHAS_BOTAO_SEGUIR) {
+          e.fila.push(cand);
+          log(e, { username: cand.username, acao: 'seguir', resultado: `não seguido: botão "Seguir" não localizado (falha ${e.falhasBotaoSeguir.n} de ${LIMITE_FALHAS_BOTAO_SEGUIR} hoje) — perfil volta para o fim da fila; diagnóstico enviado ao CRM. ${err.message}`, origem: cand.origem });
+          return 'ok';
+        }
       }
       const tipo = tratarErro(e, err, 'seguir', cand.username);
       if (bloqueante(tipo)) { e.fila.unshift(cand); return tipo; }
@@ -1154,6 +1231,78 @@ function validarConfig(atual, nova) {
   return n;
 }
 
+// ---------------------------------------------------------------- 1.1.12: testes na hora (popup/painel)
+
+const limparArroba = (u) => String(u || '').trim().replace(/^https?:\/\/(www\.)?instagram\.com\//i, '').replace(/[/?#].*$/, '').replace(/^@/, '').toLowerCase();
+
+async function testarDmSeco(usuario) {
+  const username = limparArroba(usuario);
+  if (!/^[a-z0-9._]{1,30}$/.test(username)) return { ok: false, erro: 'Digite um @ válido.' };
+  const e = await carregar();
+  let r;
+  try {
+    r = await digitarDmNaAba({ username, texto: e.config.mensagem, seco: true });
+  } catch (err) {
+    r = { ok: false, erro: err && err.message ? err.message : String(err) };
+  }
+  const partes = [
+    r.erro && !('textoConferido' in r) ? `parou antes: ${r.erro}` : null,
+    'textoConferido' in r ? `mensagem ${r.textoConferido ? `inteira na caixa (${r.como})` : 'NÃO ficou inteira na caixa'}` : null,
+    'botaoEnviar' in r ? `botão Enviar ${r.botaoEnviar ? 'encontrado (não clicado)' : 'NÃO encontrado'}` : null,
+    'caixaLimpa' in r ? `caixa ${r.caixaLimpa ? 'apagada' : 'NÃO ficou vazia — apague à mão'}` : null,
+    r.jaNaConversa ? 'a mensagem já está nessa conversa' : null,
+  ].filter(Boolean);
+  const texto = `Teste a seco da DM para @${username} (nada enviado): ${partes.join('; ')}.`;
+  const envio = await diagnosticar('ig_dryrun', { acao: 'testar DM (sem enviar)', username, resultado: texto, rastro: [{ passo: 'teste a seco da DM' }] });
+  log(e, { username, acao: 'teste a seco', resultado: texto });
+  await salvar(e);
+  return { ok: Boolean(r.ok), texto: `${texto}${envio.ok ? ' Diagnóstico enviado ao CRM.' : ` Diagnóstico não enviado (${envio.erro}).`}` };
+}
+
+async function testarSeguirSeco(usuario) {
+  const username = limparArroba(usuario);
+  if (!/^[a-z0-9._]{1,30}$/.test(username)) return { ok: false, erro: 'Digite um @ válido.' };
+  const e = await carregar();
+  let r;
+  try {
+    r = await clicarNaAba({ username, seguir: true, seco: true });
+  } catch (err) {
+    r = { ok: false, erro: err && err.message ? err.message : String(err) };
+  }
+  const nomes = { seguir: 'Seguir', seguir_de_volta: 'Seguir de volta', seguindo: 'Seguindo', solicitado: 'Solicitado' };
+  const texto = r.botao
+    ? `Teste do botão em @${username} (nada clicado): botão "${nomes[r.botao] || r.botao}" encontrado${r.segueVoce ? ' e "Segue você"' : ''}${r.botao === 'seguir' && !r.segueVoce ? ` — a extensão clicaria nele${r.livre === false ? ' (pela página: há algo por cima do ponto)' : ''}` : ' — a extensão NÃO seguiria'}.`
+    : `Teste do botão em @${username} (nada clicado): ${r.erro || 'botão não encontrado'}.`;
+  const envio = await diagnosticar('ig_dryrun', { acao: 'testar botão Seguir (sem clicar)', username, resultado: texto, rastro: [{ passo: 'teste a seco do seguir' }] });
+  log(e, { username, acao: 'teste a seco', resultado: texto });
+  await salvar(e);
+  return { ok: Boolean(r.botao), texto: `${texto}${envio.ok ? ' Diagnóstico enviado ao CRM.' : ` Diagnóstico não enviado (${envio.erro}).`}` };
+}
+
+/**
+ * 1.1.12 — botão "Enviar a próxima boas-vindas agora": a próxima pendente (a mais antiga) sai NA HORA, sem esperar o
+ * agendamento. Mantém tudo o mais: janela 05–22h, extensão ativa, teto diário, 1 min entre DMs, uma única vez,
+ * conferência de texto, confirmação na conversa, incerta nunca reenviada.
+ */
+async function enviarProximaDmAgora() {
+  const e = await carregar();
+  const c = await lerControle();
+  const cfg = e.config;
+  const agora = Date.now();
+  if (!cfg.dmAtiva) return { ok: false, erro: 'A DM de boas-vindas está desligada no painel.' };
+  if (!dentroDaJanela(agora, cfg)) return { ok: false, erro: 'Fora da janela (05:00–22:00) — nada enviado.' };
+  if (!estaAtiva(e, c, agora)) return { ok: false, erro: 'Extensão pausada ou esperando o Instagram — retome antes.' };
+  if (tetoDmAtingido(e.contadores, cfg)) return { ok: false, erro: `Teto diário de ${cfg.limiteDmDiario || LIMITE_DM_DIARIO_PADRAO} boas-vindas atingido.` };
+  if (e.ultimaDmEm && agora - e.ultimaDmEm < INTERVALO_MIN_ENTRE_DMS) return { ok: false, erro: `Espere ${Math.ceil((INTERVALO_MIN_ENTRE_DMS - (agora - e.ultimaDmEm)) / 1000)} s (1 min entre DMs).` };
+  const r = proximaBoasVindasPendente(e);
+  if (!r) return { ok: false, erro: 'Nenhuma boas-vindas pendente.' };
+  log(e, { username: r.username, acao: 'DM', resultado: 'enviando agora (botão "Enviar a próxima boas-vindas agora")', origem: r.origem });
+  const res = await enviarBoasVindas(e, r, { manual: true });
+  await salvar(e);
+  const rotulo = { enviada: 'ENVIADA', incerta: 'INCERTA (não será repetida — confira no Instagram)', nao_enviada: 'NÃO ENVIADA' }[res.situacao] || res.situacao;
+  return { ok: res.situacao === 'enviada', situacao: res.situacao, username: r.username, texto: `@${r.username}: ${rotulo} — ${res.texto}` };
+}
+
 // ---------------------------------------------------------------- eventos
 
 async function garantirAlarmes() {
@@ -1264,6 +1413,35 @@ chrome.runtime.onMessage.addListener((msg, _remetente, responder) => {
       case 'conferirSeguidores':
         // 1.1.7: botão "Conferir seguidores agora" (popup e painel).
         return { ok: true, ...(await serializar(() => cicloVerificar({ manual: true }))) };
+      case 'salvarCrm': {
+        // 1.1.12: URL e chave do CRM (chave pessoal mkp_… da extensão do Marketplace). Fora do estado/histórico/CSV.
+        const url = normalizarUrlCrm(msg.url);
+        const nova = String(msg.chave || '').trim();
+        if (nova && !/^mkp_[A-Za-z0-9_-]{8,}$/.test(nova)) return { ok: false, erro: 'A chave do CRM começa com mkp_ (copie de Cadastros › Marketplace).' };
+        const atual = (await chrome.storage.local.get(CHAVE_CRM))[CHAVE_CRM] || {};
+        const chave = msg.apagarChave ? '' : nova || atual.chave || ''; // campo vazio = mantém a chave já salva
+        await chrome.storage.local.set({ [CHAVE_CRM]: { url, chave } });
+        return { ok: true, url, temChave: Boolean(chave) };
+      }
+      case 'testarCrm': {
+        const crm = await lerConfigCrm();
+        if (!crm.chave) return { ok: false, erro: 'Configure a chave do CRM primeiro.' };
+        try {
+          const r = await enviarDiagnosticoCrm(crm, 'ig_ping', montarDiagnostico({ versao: crm.versao, acao: 'testar conexão', resultado: 'ok' }));
+          await chrome.storage.local.set({ [CHAVE_ULTIMO_ENVIO]: { em: Date.now(), kind: 'ig_ping', ok: true, id: r.id } });
+          return { ok: true, texto: `Conexão com o CRM OK (${crm.url}).` };
+        } catch (err) {
+          return { ok: false, erro: `CRM não respondeu: ${err.message}` };
+        }
+      }
+      case 'testarDm':
+        // 1.1.12: teste a seco — abre, cola, confere, acha o Enviar e PARA (nada é enviado); apaga a caixa.
+        return serializar(() => testarDmSeco(msg.username));
+      case 'testarSeguir':
+        // 1.1.12: abre o perfil e só relata o botão encontrado (nunca clica).
+        return serializar(() => testarSeguirSeco(msg.username));
+      case 'enviarProximaDm':
+        return serializar(() => enviarProximaDmAgora());
       case 'cicloAgora':
         await serializar(ciclo);
         return { ok: true };

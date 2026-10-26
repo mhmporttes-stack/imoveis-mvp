@@ -1,5 +1,6 @@
 import { resumoBusca, resumoBoasVindas, resumoCargaTresDias } from './lib/estado.js';
-import { lerTudo, enviar, statusAtual, textoProxima, contadoresHoje, textoAlerta, estaParada, retomarAgora, ligarBotaoConferir } from './painel-comum.js';
+import { lerTudo, enviar, statusAtual, textoProxima, contadoresHoje, textoAlerta, estaParada, retomarAgora, ligarBotaoConferir, ligarBotaoEnviarAgora, atualizarBotaoEnviarAgora } from './painel-comum.js';
+import { proximaBoasVindasPendente } from './lib/regras.js';
 
 const $ = (id) => document.getElementById(id);
 
@@ -29,6 +30,7 @@ async function render() {
   $('boasVindas').textContent = resumoBoasVindas(e).texto;
   $('carga3Dias').textContent = resumoCargaTresDias(e);
   $('btnPausar').disabled = c.pausado;
+  atualizarBotaoEnviarAgora($('btnEnviarAgora'), e, proximaBoasVindasPendente(e));
   if (e.ultimaBusca && !$('resultadoBusca').dataset.ocupado) {
     const b = e.ultimaBusca;
     $('resultadoBusca').textContent = `Última busca ${resumoBusca(b)}`;
@@ -57,6 +59,7 @@ $('btnPausar').addEventListener('click', async () => { await enviar('pausar'); r
 $('btnRetomar').addEventListener('click', async () => { const { e } = await lerTudo(); if (await retomarAgora(e)) render(); });
 $('btnRetomarAgora').addEventListener('click', async () => { const { e } = await lerTudo(); if (await retomarAgora(e)) render(); });
 $('btnPainel').addEventListener('click', () => chrome.runtime.openOptionsPage());
+ligarBotaoEnviarAgora($('btnEnviarAgora'), $('resultadoEnviarAgora'));
 ligarBotaoConferir($('btnConferir'), $('resultadoConferir'));
 
 // Janela de trabalho (1.1.0): situação + botão (única vez em que ela vem para a frente).

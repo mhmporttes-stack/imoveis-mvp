@@ -99,6 +99,7 @@ export function criarInstagramFalso({ meuId = '999', referencia = 'perfilref', t
     if (nome === 'prepararCaixaNaPagina') { tela.caixa = ''; return { ok: true, contagem: naConversa(args[0]) }; }
     if (nome === 'escreverNaPagina') { for (const p of args[0]) tela.caixa += p.quebra ? '\n' : p.texto || ''; return { ok: true }; }
     if (nome === 'colarNaPagina') { if (ig.dmTela.colaFunciona) tela.caixa += args[0]; return { ok: true, texto: tela.caixa }; }
+    if (nome === 'limparCaixaNaPagina') { tela.caixa = ''; return { ok: true, sobrou: 0 }; }
     if (nome === 'lerCaixaNaPagina') return { ok: true, texto: normT(tela.caixa), conversa: naConversa(args[0]) };
     if (nome === 'acharEnviarNaPagina') {
       if (!ig.dmTela.botaoEnviar) return { ok: false, erro: 'botão Enviar não apareceu ao lado da caixa' };
@@ -311,8 +312,15 @@ export function criarChromeFalso(ig, { logado = true, semJanelas = false } = {})
           if (!u || !ig.legadoFunciona) return [{ result: { ok: false, erro: 'botão "Seguir" não apareceu no perfil' } }];
           const botao = ig.sigo.has(u.pk) ? 'seguindo' : ig.pendentes.has(u.pk) ? 'solicitado' : ig.meSeguem.has(u.pk) ? 'seguir_de_volta' : 'seguir';
           if (botao !== 'seguir') { ig.chamadas.push({ caminho: `recusado:${usuario}:${botao}`, metodo: 'CLICK' }); return [{ result: { ok: false, recusado: true, botao, segueVoce: false } }]; }
+          if (args[1] === false) return [{ result: { ok: true, botao: 'seguir', x: 300, y: 120, livre: true, clicou: false } }]; // 1.1.12: só localiza
+          ig.chamadas.push({ caminho: `clicou-seguir:${usuario}`, metodo: 'CLICK' });
           if (u.is_private) ig.pendentes.set(u.pk, Date.now()); else ig.sigo.set(u.pk, Date.now());
           return [{ result: { ok: true, botao: 'seguir' } }];
+        }
+        if (func && func.name === 'esqueletoNaPagina') {
+          // 1.1.12: esqueleto anonimizado (o real roda na página; aqui só o formato).
+          ig.esqueletos = (ig.esqueletos || 0) + 1;
+          return [{ result: { url: '/:perfil/', candidatosSeguir: [], caixas: [], candidatosEnviar: [], avisos: [] } }];
         }
         if (func && /NaPagina$/.test(func.name) && func.name !== 'lerEstadoNaPagina' && func.name !== 'clicarNaPagina' && func.name !== 'requisicaoNaPagina') {
           return [{ result: ig.telaDm(func.name, args, alvo.t.url) }]; // 1.1.8: tela da DM

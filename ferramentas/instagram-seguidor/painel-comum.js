@@ -69,3 +69,31 @@ export function ligarBotaoConferir(botao, saida) {
     }
   });
 }
+
+/**
+ * 1.1.12 — botão "Enviar a próxima boas-vindas agora" (popup e painel): a próxima DM pendente sai na hora e o resultado
+ * (enviada / incerta / não enviada + motivo) aparece em segundos. Habilitado só com pendente (`atualizarBotaoEnviarAgora`).
+ */
+export function ligarBotaoEnviarAgora(botao, saida) {
+  botao.addEventListener('click', async () => {
+    botao.disabled = true;
+    botao.dataset.enviando = '1';
+    saida.textContent = 'Enviando a próxima boas-vindas agora… (abre a conversa na janela de trabalho; leva até 1 min)';
+    try {
+      const r = await enviar('enviarProximaDm');
+      saida.textContent = r && r.texto ? r.texto : `Não enviada: ${(r && r.erro) || 'sem resposta da extensão'}`;
+    } catch (err) {
+      saida.textContent = `Erro: ${err.message}`;
+    } finally {
+      delete botao.dataset.enviando;
+      botao.disabled = false;
+    }
+  });
+}
+
+/** Habilita/desabilita o botão conforme haja boas-vindas pendente (e a DM esteja ligada). */
+export function atualizarBotaoEnviarAgora(botao, e, proxima) {
+  const r = e.config.dmAtiva ? proxima : null;
+  if (botao.dataset.enviando !== '1') botao.disabled = !r;
+  botao.title = r ? `Próxima: @${r.username}` : e.config.dmAtiva ? 'Nenhuma boas-vindas pendente' : 'DM de boas-vindas desligada';
+}

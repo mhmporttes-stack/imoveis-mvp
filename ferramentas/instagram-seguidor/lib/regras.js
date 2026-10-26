@@ -382,6 +382,18 @@ export function estaAtiva(estado, controle, agora) {
   return true;
 }
 
+/**
+ * 1.1.12 (dono: "a primeira tem que ser testada na hora, principalmente a mensagem"): a próxima boas-vindas pendente —
+ * pessoa que te seguiu e ainda não recebeu nem teve tentativa (a mais antiga primeiro). null se não houver.
+ */
+export function proximaBoasVindasPendente(e) {
+  const regs = [...Object.values((e && e.seguidos) || {}), ...Object.values((e && e.novosSeguidores) || {})];
+  const pend = regs.filter((r) => r && r.dmAgendadaPara && !r.dmEnviadaEm && !r.dmTentativaEm && !r.dmDesistiu && !r.dmIncerta && !r.dmCoberta && r.username);
+  const desde = (r) => r.followBackEm || r.detectadoEm || r.dmAgendadaPara;
+  pend.sort((a, b) => desde(a) - desde(b));
+  return pend[0] || null;
+}
+
 /** Margem de segurança da fila (perfis descartados na hora de seguir). */
 export const MARGEM_FILA = 5;
 

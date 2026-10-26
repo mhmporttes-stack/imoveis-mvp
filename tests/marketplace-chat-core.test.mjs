@@ -275,7 +275,7 @@ test("diagnóstico de estrutura: rota só com a chave da extensão; só tipos co
   const route = read("app/api/marketplace/diagnostic/route.js");
   assert.ok(route.indexOf("rejectExtensionRequest(request") < route.indexOf("try {"));
   const lib = read("lib/marketplace-chat.js");
-  assert.match(lib, /DIAGNOSTIC_KINDS = new Set\(\["inbox_page", "messenger_panel", "thread", "inbox_list"\]\)/);
+  assert.match(lib, /DIAGNOSTIC_KINDS = new Set\(\["inbox_page", "messenger_panel", "thread", "inbox_list", "ig_follow", "ig_dm", "ig_dryrun", "ig_ping"\]\)/);
   assert.match(lib, /DIAGNOSTIC_MAX_BYTES/);
   const sql = read("supabase/migrations/20261020230000_marketplace_diagnostics.sql");
   assert.match(sql, /create table if not exists public\.marketplace_diagnostics/);

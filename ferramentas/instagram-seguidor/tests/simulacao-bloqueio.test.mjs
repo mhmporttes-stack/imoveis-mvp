@@ -191,7 +191,7 @@ test('fila curta: continua a lista do MESMO perfil sozinha, devagar e só na jan
   mock.timers.reset();
 });
 
-test('create devolve HTML: legado funciona → segue; legado falha → suspende o seguir só hoje', { timeout: 120_000 }, async () => {
+test('create devolve HTML: botão funciona → segue; botão não achado 3× no dia → suspende o seguir só hoje (1.1.12: 1ª e 2ª falha não suspendem)', { timeout: 120_000 }, async () => {
   const inicio = Date.parse('2026-10-20T08:00:00Z'); // 05:00 SP
   const ig = criarInstagramFalso();
   ig.createHtml = true;
@@ -202,11 +202,12 @@ test('create devolve HTML: legado funciona → segue; legado falha → suspende 
   let e = ext.estado();
   const seguidosLegado = Object.keys(e.seguidos).length;
   assert.ok(seguidosLegado >= 2, 'deveria seguir pelo clique no botão (1.1.3)');
-  assert.ok(e.historico.some((h) => h.acao === 'seguir' && /confirmado \(botão Seguir\)/.test(h.resultado)));
+  assert.ok(e.historico.some((h) => h.acao === 'seguir' && /confirmado \(botão Seguir/.test(h.resultado)));
 
   ig.legadoFunciona = false;
-  await ext.avancarAte(inicio + 6 * HORA);
+  await ext.avancarAte(inicio + 9 * HORA);
   e = ext.estado();
+  assert.ok(e.historico.some((h) => /botão "Seguir" não localizado \(falha 1 de 3 hoje\) — perfil volta para o fim da fila/.test(h.resultado)), '1ª falha não suspende');
   assert.equal(e.pausaAte, null, 'HTML não é bloqueio: nada de 24 h');
   assert.equal(e.suspensoSeguir, '2026-10-20');
   assert.match(e.alerta.texto, /SEGUIR suspenso até amanhã/);

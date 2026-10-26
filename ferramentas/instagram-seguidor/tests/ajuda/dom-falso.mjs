@@ -15,7 +15,7 @@ function casaSimples(no, sel) {
 }
 const casa = (no, sel) => sel.split(',').some((s) => casaSimples(no, s));
 
-export function el(tag, { texto = '', attrs = {}, filhos = [], visivel = true, aoClicar = null } = {}) {
+export function el(tag, { texto = '', attrs = {}, filhos = [], visivel = true, aoClicar = null, rect = null } = {}) {
   const no = {
     tagName: tag.toUpperCase(),
     attrs: { ...attrs },
@@ -26,10 +26,12 @@ export function el(tag, { texto = '', attrs = {}, filhos = [], visivel = true, a
     cliques: 0,
     eventos: [],
     aoClicar,
+    rect,
+    get children() { return this.filhos; },
     getAttribute(k) { return k in this.attrs ? this.attrs[k] : null; },
     get innerText() { return this.visivel ? [this.textoProprio, ...this.filhos.map((f) => f.innerText)].filter(Boolean).join('\n') : ''; },
     get textContent() { return [this.textoProprio, ...this.filhos.map((f) => f.textContent)].filter(Boolean).join(''); },
-    getBoundingClientRect() { return this.visivel ? { left: 100, top: 200, width: 40, height: 20 } : { left: 0, top: 0, width: 0, height: 0 }; },
+    getBoundingClientRect() { return this.visivel ? { left: 100, top: 200, width: 40, height: 20, ...(this.rect || {}) } : { left: 0, top: 0, width: 0, height: 0 }; },
     click() { this.cliques += 1; if (this.aoClicar) this.aoClicar(this); },
     dispatchEvent(ev) { this.eventos.push(ev); if (this.aoEvento) this.aoEvento(ev); return true; },
     focus() { doc.ativo = this; },

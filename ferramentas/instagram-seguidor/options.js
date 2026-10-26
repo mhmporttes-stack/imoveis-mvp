@@ -1,7 +1,8 @@
-import { lerTudo, enviar, statusAtual, textoProxima, contadoresHoje, textoAlerta, estaParada, retomarAgora, ligarBotaoConferir } from './painel-comum.js';
+import { lerTudo, enviar, statusAtual, textoProxima, contadoresHoje, textoAlerta, estaParada, retomarAgora, ligarBotaoConferir, ligarBotaoEnviarAgora, atualizarBotaoEnviarAgora } from './painel-comum.js';
+import { CHAVE_CRM, CHAVE_ULTIMO_ENVIO, CRM_URL_PADRAO, descreverUltimoEnvio } from './lib/diagnostico.js';
 import { formatarSP, diaSP } from './lib/tempo.js';
 import { gerarCsv, resumoBusca, resumoBoasVindas, resumoCargaTresDias } from './lib/estado.js';
-import { MENSAGEM_PADRAO, STATUS, idsParaVerificarFollowBack } from './lib/regras.js';
+import { MENSAGEM_PADRAO, STATUS, idsParaVerificarFollowBack, proximaBoasVindasPendente } from './lib/regras.js';
 
 const $ = (id) => document.getElementById(id);
 const CAMPOS_NUM = ['limiteDiario', 'limiteUnfollowDiario', 'diasParaUnfollow', 'maxBusca', 'limiteDmDiario'];
@@ -36,6 +37,12 @@ async function render() {
   $('boasVindas').textContent = resumoBoasVindas(e).texto;
   $('carga3Dias').textContent = resumoCargaTresDias(e);
   $('btnPausar').disabled = c.pausado;
+  atualizarBotaoEnviarAgora($('btnEnviarAgora'), e, proximaBoasVindasPendente(e));
+  const crmDados = await chrome.storage.local.get([CHAVE_CRM, CHAVE_ULTIMO_ENVIO]);
+  const crm = crmDados[CHAVE_CRM] || {};
+  if (!$('crmUrl').dataset.carregado) { $('crmUrl').value = crm.url || CRM_URL_PADRAO; $('crmUrl').dataset.carregado = '1'; }
+  $('crmChave').placeholder = crm.chave ? 'mkp_… (chave salva — deixe vazio para manter)' : 'mkp_…';
+  $('ultimoEnvioCrm').textContent = descreverUltimoEnvio(crmDados[CHAVE_ULTIMO_ENVIO]);
 
   const cur = e.cursorOrigem;
   if (cur) {
@@ -109,6 +116,37 @@ $('btnRetomarAgora').addEventListener('click', async () => { const { e } = await
 $('btnLimparAlerta').addEventListener('click', async () => { await enviar('limparAlerta'); render(); });
 $('filtro').addEventListener('input', render);
 ligarBotaoConferir($('btnConferir'), $('resultadoConferir'));
+ligarBotaoEnviarAgora($('btnEnviarAgora'), $('resultadoEnviarAgora'));
+
+// 1.1.12: diagnóstico no CRM e testes a seco.
+$('btnSalvarCrm').addEventListener('click', async () => {
+  const r = await enviar('salvarCrm', { url: $('crmUrl').value, chave: $('crmChave').value });
+  $('crmChave').value = '';
+  $('resultadoCrm').textContent = r.ok ? `Salvo (${r.url}${r.temChave ? ', chave configurada' : ', SEM chave'}).` : `Erro: ${r.erro}`;
+  render();
+});
+$('btnTestarCrm').addEventListener('click', async () => {
+  $('resultadoCrm').textContent = 'Testando…';
+  const r = await enviar('testarCrm');
+  $('resultadoCrm').textContent = r.ok ? r.texto : `Erro: ${r.erro}`;
+  render();
+});
+async function testar(tipo, botao) {
+  const username = $('testeUsuario').value.trim();
+  if (!username) { $('resultadoTeste').textContent = 'Digite o @ do perfil.'; return; }
+  botao.disabled = true;
+  $('resultadoTeste').textContent = 'Testando na janela de trabalho… (até 1 min)';
+  try {
+    const r = await enviar(tipo, { username });
+    $('resultadoTeste').textContent = r.texto || `Erro: ${r.erro || 'sem resposta da extensão'}`;
+  } catch (err) {
+    $('resultadoTeste').textContent = `Erro: ${err.message}`;
+  } finally {
+    botao.disabled = false;
+  }
+}
+$('btnTestarDm').addEventListener('click', () => testar('testarDm', $('btnTestarDm')));
+$('btnTestarSeguir').addEventListener('click', () => testar('testarSeguir', $('btnTestarSeguir')));
 
 chrome.storage.onChanged.addListener(render);
 render();

@@ -434,3 +434,35 @@ test('simulação: na hora do clique o perfil mostra "Seguir de volta" → não 
   assert.ok(!e.historico.some((h) => h.username === 'pessoa1' && h.acao === 'seguir'), 'pessoa1 não entrou como seguida (nem na cota)');
   mock.timers.reset();
 });
+
+// ------------------------------------------------------------- 1.1.12: clique de Seguir com depurador
+
+test('1.1.12 seguir com depurador: clique de mouse no centro do botão e releitura "Seguindo"; clique perdido → 1 clique pela página', async () => {
+  const { clicarNaAba } = await import('../instagram-api.js');
+  mock.timers.enable({ apis: ['setTimeout'] });
+  try {
+    for (const mouseFunciona of [true, false]) {
+      const estado = { botao: 'seguir', cdp: [], cliquesPagina: 0 };
+      abaFalsa({});
+      globalThis.chrome.scripting.executeScript = async ({ func, args }) => {
+        if (func.name === 'seguirNaPagina') {
+          if (estado.botao !== 'seguir') return [{ result: { ok: false, recusado: true, botao: estado.botao } }];
+          if (args[1]) { estado.cliquesPagina += 1; estado.botao = 'seguindo'; }
+          return [{ result: { ok: true, botao: 'seguir', x: 300, y: 120, livre: true, clicou: Boolean(args[1]) } }];
+        }
+        if (func.name === 'lerEstadoNaPagina') return [{ result: { ok: true, botao: estado.botao } }];
+        if (func.name === 'esqueletoNaPagina') return [{ result: { url: '/:perfil/' } }];
+        throw new Error(`inesperada: ${func.name}`);
+      };
+      globalThis.chrome.debugger.sendCommand = async (_a, metodo, p) => {
+        estado.cdp.push([metodo, p]);
+        if (metodo === 'Input.dispatchMouseEvent' && p.type === 'mouseReleased' && p.x === 300 && p.y === 120 && mouseFunciona) estado.botao = 'seguindo';
+        return {};
+      };
+      const r = await aguardar(clicarNaAba({ username: 'fulano', seguir: true }), 100);
+      assert.equal(r.botaoDepois, 'seguindo', JSON.stringify(r));
+      assert.equal(estado.cdp.filter(([m, p]) => m === 'Input.dispatchMouseEvent' && p.type === 'mousePressed').length, 1, 'um clique de mouse');
+      assert.equal(estado.cliquesPagina, mouseFunciona ? 0 : 1);
+    }
+  } finally { mock.timers.reset(); }
+});
