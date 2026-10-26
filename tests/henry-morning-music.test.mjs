@@ -221,3 +221,13 @@ test("aceite curto toca a sugestão de hoje; 'toca outra coisa' vai para o pedid
   assert.equal(todaysMorningSuggestion(stored, "2026-10-25"), null);
   assert.equal(todaysMorningSuggestion(null, "2026-10-24"), null);
 });
+
+test("bom dia: pedido de tocar sem gênero/cantor = aceite (dono, 2026-10-26: tocou 'musiquinha brasileira')", async () => {
+  const { classifyMorningMusicReply } = await import("../lib/henry-morning-core.mjs");
+  for (const text of ["pode tocar bota uma musiquinha aí para tocar para nós tocar para nós", "pode tocar", "bota uma música aí", "solta um som de fundo", "pode escolher"]) {
+    assert.equal(classifyMorningMusicReply(text).kind, "yes", text);
+  }
+  assert.equal(classifyMorningMusicReply("toca Jorge e Mateus").kind, "artist");
+  assert.equal(classifyMorningMusicReply("toca pagode").kind, "genre");
+  assert.equal(classifyMorningMusicReply("agora não").kind, "no");
+});

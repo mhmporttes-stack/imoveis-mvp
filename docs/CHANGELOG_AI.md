@@ -8,6 +8,10 @@
 
 
 
+
+## 2026-10-26 — Bom dia: "pode tocar, bota uma musiquinha aí" = aceite
+Dono: "Falei que o Henry poderia tocar música e ele colocou uma nacional e não um rock blues." A resposta "pode tocar bota uma musiquinha aí para tocar para nós" não era aceite em `classifyMorningMusicReply` e virou busca livre ("musiquinha brasileira"). Agora pedido de tocar sem gênero/cantor (`isGenericPlayRequest`, `lib/henry-morning-core.mjs`) = aceite → o Henry escolhe rock/blues da lista. Teste em `tests/henry-morning-music.test.mjs`.
+
 ## 2026-10-26 — Extensão do Marketplace: CORS nas rotas /api/marketplace/*
 Sintoma: extensão 1.9.9 com "Failed to fetch"/"CRM indisponível"; console do service worker: preflight de `/api/marketplace/chat/sync` bloqueado por CORS (sem Access-Control-Allow-Origin). O Chrome tratou o pedido como CORS (permissão de site da extensão não aplicada nesse PC). Correção: `proxy.js` responde o preflight (204) e põe Access-Control-Allow-Origin só para origem `chrome-extension://` em `/api/marketplace/*`, sem credenciais (a chave Bearer continua sendo a autorização). Regras em `lib/extension-cors-core.mjs`, teste `tests/marketplace-extension-cors.test.mjs`.
 
