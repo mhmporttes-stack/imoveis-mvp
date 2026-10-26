@@ -9,6 +9,13 @@
 
 
 
+## 2026-10-26 — Seguidor Instagram 1.1.9: carga única dos seguidores dos últimos 3 dias (crm-editor) — branch `feat/instagram-carga-3-dias`, NÃO publicado
+Pedido do dono (26/10): "puxar os últimos 3 dias hoje; depois só até a última conferida". Extensão pessoal fora do CRM.
+- **Carga:** `cargaTresDias` (background.js), chamada em `cicloVerificar` depois de `verificarFollowBacks`; marca persistente `estado.carga3Dias.feitaEm` (roda uma vez, também sobre estado 1.1.8). Fonte: `api.atividade` (`/api/v1/news/inbox/`, GET e plano B POST; HTML/404 = `indisponivel`). `lib/carga-tres-dias.js`: `interpretarAtividade` (só "começou a seguir você" com timestamp confirmado ≥ início−72 h; agrupadas/sem data ficam de fora; sem `new_stories`/`old_stories` = indisponível), `separarCarga` (dedupe por id + `jaTemBoasVindas`; seguido pela extensão → `marcarFollowBack`), `registroDaCarga` (origem `carga 3 dias`). Envio pelo `processarDm` de sempre (ritmo, janela, teto 30).
+- **Indisponível:** nenhuma DM pela carga, motivo em `resumoCargaTresDias` (popup/painel); limite/aguarde/sessão/sem janela/aba = nova tentativa (até 5).
+- **Testes:** `tests/carga-tres-dias.test.mjs` (15) + `news/inbox` no simulador; 117 passam.
+- **Risco:** formato do `news/inbox` não conferido no Instagram real (só simulador) — se mudou, a carga cai em "indisponível" (nunca envia). Paginação só por `next_max_id`; sem ela a cobertura pode ser parcial (aparece nas notas).
+
 ## 2026-10-26 — Seguidor Instagram 1.1.8: boas-vindas para todo seguidor novo + envio por digitação (crm-editor) — branch `feat/instagram-boas-vindas-todos`, NÃO publicado
 Decisões do dono (26/10): DM para **todo** seguidor novo e envio por digitação quando a API de DM responde HTML (ciente do risco). Extensão pessoal fora do CRM (`ferramentas/instagram-seguidor`).
 - **Novos seguidores:** `verificarFollowBacks` (background.js) agora sempre lê a lista dos meus seguidores; `detectarNovosSeguidores` (lib/regras.js): 1ª leitura = linha de base (`meusSeguidores.conhecidos`, sem DM); novo = acima do 1º conhecido; nenhum conhecido em até 8 páginas = sem DM (proteção contra lote). Registros em `novosSeguidores`; dedupe por id com `seguidos` (`jaTemBoasVindas`, `dmCoberta`).

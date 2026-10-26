@@ -1,4 +1,4 @@
-import { resumoBusca, resumoBoasVindas } from './lib/estado.js';
+import { resumoBusca, resumoBoasVindas, resumoCargaTresDias } from './lib/estado.js';
 import { lerTudo, enviar, statusAtual, textoProxima, contadoresHoje, textoAlerta, estaParada, retomarAgora, ligarBotaoConferir } from './painel-comum.js';
 
 const $ = (id) => document.getElementById(id);
@@ -27,6 +27,7 @@ async function render() {
   $('tamFila').textContent = e.fila.length;
   $('origemAtual').textContent = e.origemAtual || '—';
   $('boasVindas').textContent = resumoBoasVindas(e).texto;
+  $('carga3Dias').textContent = resumoCargaTresDias(e);
   $('btnPausar').disabled = c.pausado;
   if (e.ultimaBusca && !$('resultadoBusca').dataset.ocupado) {
     const b = e.ultimaBusca;

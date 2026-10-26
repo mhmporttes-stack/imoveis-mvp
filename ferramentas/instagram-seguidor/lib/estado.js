@@ -53,6 +53,8 @@ export function estadoInicial() {
     // leitura grava a linha de base, sem DM); `novosSeguidores` = registros de DM de quem não foi seguido pela extensão.
     meusSeguidores: { linhaDeBaseEm: null, conhecidos: {} },
     novosSeguidores: {}, // { id: { id, username, origem, detectadoEm, dmAgendadaPara, dmEnviadaEm, ... } }
+    // 1.1.9: carga única dos seguidores das últimas 72 h (pela atividade do Instagram). `feitaEm` = nunca roda de novo.
+    carga3Dias: null, // { inicioEm, desde, tentativas, feitaEm, encontrados, agendados, notas, erro, ultimoErro }
   };
 }
 
@@ -184,4 +186,19 @@ export function resumoBoasVindas(e, agora = Date.now()) {
   if (!ms.linhaDeBaseEm) texto += ' · linha de base dos seguidores ainda não lida (a 1ª leitura não manda DM)';
   if (e.config && e.config.dmAtiva === false) texto = `DM desligada no painel — ${texto}`;
   return { enviadasHoje, pendentes, semEnvio, teto, novosHoje, ultimaChecagemEm: bv.ultimaChecagemEm || null, ultimoErro: bv.ultimoErro || null, texto };
+}
+
+/**
+ * 1.1.9: linha da carga única dos últimos 3 dias no popup/painel:
+ * "Carga 3 dias: X encontrados, Y agendados" — ou "Carga dos últimos 3 dias indisponível: <motivo>".
+ */
+export function resumoCargaTresDias(e) {
+  const c = e && e.carga3Dias;
+  if (!c || !c.feitaEm) {
+    const espera = c && c.ultimoErro ? ` — tentativa ${c.tentativas} falhou (${String(c.ultimoErro).slice(0, 160)}); tenta de novo na próxima conferência` : '';
+    return `Carga 3 dias: ainda não feita (roda uma vez, na próxima conferência de seguidores dentro da janela)${espera}`;
+  }
+  if (c.erro) return `Carga dos últimos 3 dias indisponível: ${c.erro}`;
+  const notas = Array.isArray(c.notas) && c.notas.length ? ` (${c.notas.join('; ')})` : '';
+  return `Carga 3 dias: ${c.encontrados} encontrado${c.encontrados === 1 ? '' : 's'}, ${c.agendados} agendado${c.agendados === 1 ? '' : 's'} em ${formatarSP(c.feitaEm).slice(0, 16)}${notas}`;
 }

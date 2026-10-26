@@ -47,6 +47,9 @@ export function criarInstagramFalso({ meuId = '999', referencia = 'perfilref', t
     // 1.1.8: tela da DM (digitação). abre: o botão "Enviar mensagem" aparece; envia: o Enter manda a mensagem;
     // aparece: a mensagem enviada aparece na conversa (confirmação).
     dmTela: { abre: true, envia: true, aparece: true },
+    // 1.1.9: atividade (news/inbox). null = endpoint inexistente (404). Senão { modo: 'ok'|'html'|'sem_lista'|'aguarde',
+    // historias: [...story], porPagina, falhasAguarde }.
+    atividade: null,
   };
   for (const id of ig.jaMeSeguiam) ig.meSeguem.set(id, 0);
   // 1.1.7: outras pessoas (fora da extensão) que passam a me seguir — empurram os follow-backs para fora da 1ª página.
@@ -109,6 +112,17 @@ export function criarInstagramFalso({ meuId = '999', referencia = 'perfilref', t
     const ok = (obj) => ({ status: 200, texto: JSON.stringify(obj) });
     const params = new URLSearchParams(corpo || '');
     let m;
+    if (caminho === '/api/v1/news/inbox/') {
+      const a = ig.atividade;
+      if (!a) return { status: 404, texto: '<html>not found</html>' };
+      if (a.falhasAguarde > 0) { a.falhasAguarde -= 1; return { status: 400, texto: '{"message":"Please wait a few minutes before you try again.","status":"fail"}' }; }
+      if (a.modo === 'html') return { status: 200, texto: '<!DOCTYPE html><html><head><title>Instagram</title></head></html>' };
+      if (a.modo === 'sem_lista') return ok({ counts: {}, status: 'ok' });
+      const porPagina = a.porPagina || 50;
+      const ini = Number(u.searchParams.get('max_id') || params.get('max_id') || 0);
+      const hist = a.historias || [];
+      return ok({ counts: {}, new_stories: [], old_stories: hist.slice(ini, ini + porPagina), ...(ini + porPagina < hist.length ? { next_max_id: String(ini + porPagina) } : {}), status: 'ok' });
+    }
     if (caminho === '/api/v1/web/search/topsearch/') {
       const q = u.searchParams.get('query');
       return ok({ users: q === referencia ? [{ position: 0, user: { pk: '555', username: referencia, is_private: false } }] : [], status: 'ok' });

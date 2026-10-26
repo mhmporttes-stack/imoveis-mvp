@@ -37,6 +37,9 @@ export const ENDPOINTS = {
   amizade: (id) => `/api/v1/friendships/show/${id}/`,
   amizadeVarios: () => '/api/v1/friendships/show_many/',
   dmTexto: () => '/api/v1/direct_v2/threads/broadcast/text/',
+  // 1.1.9: atividade (notificações "começou a seguir você", com data) — só para a carga única dos últimos 3 dias.
+  atividade: (maxId) => `/api/v1/news/inbox/?mark_as_seen=false&timezone_offset=-10800${maxId ? `&max_id=${encodeURIComponent(maxId)}` : ''}`,
+  atividadePost: () => '/api/v1/news/inbox/',
   dmConversaPorParticipante: (id) => `/api/v1/direct_v2/threads/get_by_participants/?recipient_users=${encodeURIComponent(JSON.stringify([Number(id) || String(id)]))}`,
 };
 
@@ -327,6 +330,32 @@ export function criarApiInstagram({ executar, obterCsrf = async () => '', clicar
         throw new ErroInstagram('mudanca_api', `Lista de seguidores veio sem o campo "users" — o Instagram pode ter mudado a API. Resposta: ${trechoSeguro(JSON.stringify(j))}`, { endpoint: 'friendships/followers' });
       }
       return { usuarios: j.users, proximo: j.next_max_id ? String(j.next_max_id) : null, via: 'v1', trecho: trechoSeguro(JSON.stringify(j)) };
+    },
+
+    /**
+     * 1.1.9: uma página da atividade (news/inbox) — o JSON cru; quem chama interpreta (lib/carga-tres-dias.js).
+     * GET como o app; se não vier JSON, o POST que o site usa. HTML, 404 ou resposta estranha nos dois = 'indisponivel'
+     * (nunca vira sessão, pausa ou alerta de mudança de API). Limite/aguarde/sessão sobem como são.
+     */
+    async atividade(maxId = null) {
+      const falhas = [];
+      const tentativas = [
+        () => chamar('news/inbox', ENDPOINTS.atividade(maxId), { referer: '/' }),
+        () => chamar('news/inbox (POST)', ENDPOINTS.atividadePost(), {
+          metodo: 'POST',
+          referer: '/',
+          corpo: form({ could_truncate_feed: 'true', should_skip_su: 'true', mark_as_seen: 'false', timezone_offset: '-10800', ...(maxId ? { max_id: maxId } : {}) }),
+        }),
+      ];
+      for (const t of tentativas) {
+        try {
+          return await t();
+        } catch (e) {
+          if (e instanceof ErroInstagram && ['limite', 'aguarde', 'sessao', 'sem_janela', 'aba'].includes(e.tipo)) throw e; // passageiros: tenta de novo depois
+          falhas.push(e instanceof ErroInstagram ? (e.html ? 'respondeu a página HTML' : `${e.tipo}: ${String(e.message).split(' [')[0]}`) : String((e && e.message) || e));
+        }
+      }
+      throw new ErroInstagram('indisponivel', `atividade do Instagram (news/inbox) indisponível — ${falhas.join(' | ')}`, { endpoint: 'news/inbox' });
     },
 
     /** Plano B: seguidores pelo GraphQL do site. Mesmo formato de paginaSeguidores. */

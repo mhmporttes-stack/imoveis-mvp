@@ -31,6 +31,7 @@ import {
   reabilitarDesistidasPorHtml,
 } from './lib/regras.js';
 import { normalizarEstado, virarDiaSeNecessario, registrarHistorico, resumoBusca } from './lib/estado.js';
+import { CARGA_JANELA_MS, CARGA_PAGINAS_MAX, CARGA_TENTATIVAS_MAX, interpretarAtividade, separarCarga, registroDaCarga } from './lib/carga-tres-dias.js';
 
 const api = criarApiChrome();
 
@@ -674,6 +675,96 @@ function registrarNovosSeguidores(e, usuarios, agora) {
   }
 }
 
+/**
+ * 1.1.9 (pedido do dono, 26/10): "puxar os últimos 3 dias hoje; depois só até a última conferida". Carga ÚNICA por
+ * instalação (marca `e.carga3Dias.feitaEm`), inclusive para quem já tem a linha de base da 1.1.8: lê a atividade do
+ * Instagram (notificações "começou a seguir você", com data) e agenda boas-vindas só para quem seguiu nas últimas 72 h
+ * (contadas da 1ª tentativa), ainda sem DM — mesmo ritmo, janela e teto diário de processarDm. Sem a fonte com data
+ * (HTML, formato desconhecido, data não confirmável): ninguém recebe DM por esta carga e o motivo fica no popup.
+ * Limite/aguarde/sessão/sem janela: tenta de novo na próxima conferência (até CARGA_TENTATIVAS_MAX).
+ */
+async function cargaTresDias(e, agora) {
+  const c3 = e.carga3Dias || {};
+  if (c3.feitaEm || !e.meuId) return 'ok';
+  const inicioEm = c3.inicioEm || agora;
+  const desde = inicioEm - CARGA_JANELA_MS;
+  const tentativas = (c3.tentativas || 0) + 1;
+  e.carga3Dias = { ...c3, inicioEm, desde, tentativas };
+  const encerrar = (extra) => { e.carga3Dias = { ...e.carga3Dias, feitaEm: Date.now(), ...extra }; };
+  const indisponivel = (motivo) => {
+    encerrar({ erro: motivo, encontrados: 0, agendados: 0 });
+    log(e, { acao: 'carga 3 dias', resultado: `Carga dos últimos 3 dias indisponível: ${motivo} — nenhuma DM por esta carga; seguem só os seguidores novos daqui para frente` });
+  };
+
+  const eventos = [];
+  const tot = { seguiu: 0, agrupados: 0, semData: 0 };
+  let parcial = null;
+  let maxId = null;
+  for (let p = 0; p < CARGA_PAGINAS_MAX; p += 1) {
+    await pausaHumana();
+    let j;
+    try {
+      j = await api.atividade(maxId);
+    } catch (err) {
+      const tipo = err instanceof ErroInstagram ? err.tipo : 'outro';
+      if (p > 0) { parcial = `a página ${p + 1} da atividade falhou (${String(err.message || err).slice(0, 160)})`; if (bloqueante(tipo)) tratarErro(e, err, 'carga 3 dias'); break; }
+      if (bloqueante(tipo) || tipo === 'aba') {
+        const msg = String(err.message || err).split(' [')[0];
+        if (tentativas >= CARGA_TENTATIVAS_MAX) { indisponivel(`${tentativas} tentativas sem resposta (${msg})`); return 'ok'; }
+        e.carga3Dias.ultimoErro = msg;
+        if (bloqueante(tipo)) tratarErro(e, err, 'carga 3 dias');
+        else log(e, { acao: 'carga 3 dias', resultado: `tentativa ${tentativas} falhou (${msg}) — tenta de novo na próxima conferência` });
+        return bloqueante(tipo) ? tipo : 'ok';
+      }
+      indisponivel(String(err.message || err).split(' [')[0].slice(0, 300));
+      return 'ok';
+    }
+    const r = interpretarAtividade(j, { agora: Date.now(), desde, meuId: e.meuId });
+    if (!r.ok) {
+      if (p > 0) { parcial = `a página ${p + 1} da atividade veio fora do formato`; break; }
+      indisponivel(r.motivo);
+      return 'ok';
+    }
+    eventos.push(...r.eventos);
+    tot.seguiu += r.seguiu; tot.agrupados += r.agrupados; tot.semData += r.semData;
+    const chegouAntes = r.maisAntigoEm != null && r.maisAntigoEm < desde; // já passou das 72 h: não precisa de mais páginas
+    if (chegouAntes) break;
+    if (!r.proximo) { parcial = `a atividade do Instagram só mostrou até ${r.maisAntigoEm ? formatarSP(r.maisAntigoEm) : 'agora'} — quem seguiu antes disso não aparece nela`; break; }
+    if (p === CARGA_PAGINAS_MAX - 1) { parcial = `lidas ${CARGA_PAGINAS_MAX} páginas da atividade sem chegar a 72 h atrás`; break; }
+    maxId = r.proximo;
+  }
+  if (tot.seguiu > 0 && tot.seguiu === tot.semData) {
+    indisponivel(`${tot.semData} notificações de "começou a seguir você" sem data confirmável`);
+    return 'ok';
+  }
+
+  const { encontrados, novos, followBack, jaTinham } = separarCarga(e, eventos);
+  let agendados = 0;
+  const agoraR = Date.now();
+  if (e.config.dmAtiva) {
+    novos.forEach((u, i) => {
+      const reg = registroDaCarga(u, agoraR, e.config, i);
+      e.novosSeguidores[reg.id] = reg;
+      agendados += 1;
+      log(e, { username: reg.username, acao: 'carga 3 dias', resultado: `seguiu em ${formatarSP(u.em)} — DM de boas-vindas agendada para ${formatarSP(reg.dmAgendadaPara)}`, origem: reg.origem });
+    });
+  }
+  for (const id of followBack) {
+    const reg = e.seguidos[id];
+    marcarFollowBack(e, reg, agoraR);
+    if (reg.dmAgendadaPara && !reg.dmCoberta && !reg.dmDesistiu) agendados += 1;
+  }
+  const notas = [];
+  if (!e.config.dmAtiva && novos.length) notas.push('DM desligada no painel — nenhuma agendada');
+  if (jaTinham) notas.push(`${jaTinham} já tinham boas-vindas`);
+  if (tot.agrupados) notas.push(`${tot.agrupados} notificações agrupadas sem a data de cada pessoa ficaram de fora`);
+  if (tot.semData) notas.push(`${tot.semData} sem data confirmável ficaram de fora`);
+  if (parcial) notas.push(`cobertura parcial: ${parcial}`);
+  encerrar({ erro: null, encontrados: encontrados.length, agendados, notas });
+  log(e, { acao: 'carga 3 dias', resultado: `Carga 3 dias: ${encontrados.length} encontrados, ${agendados} agendados${notas.length ? ` (${notas.join('; ')})` : ''}` });
+  return 'ok';
+}
+
 /** O alerta antigo de "show_many respondeu de forma inesperada" some quando a checagem volta a funcionar. */
 function limparAlertaShowMany(e) {
   if (e.alerta && e.alerta.tipo === 'mudanca_api' && /show_many/.test(e.alerta.texto || '')) e.alerta = null;
@@ -821,7 +912,8 @@ async function cicloVerificar({ manual = false } = {}) {
   const novosAntes = Object.keys(e.novosSeguidores).length;
   const erroAntes = e.boasVindas && e.boasVindas.ultimoErro;
   const forcar = manual && (!e.ultimaVarreduraEm || agora - e.ultimaVarreduraEm >= 2 * MINUTO);
-  const r = await verificarFollowBacks(e, agora, { forcarCompleta: forcar });
+  let r = await verificarFollowBacks(e, agora, { forcarCompleta: forcar });
+  if (r === 'ok') r = await cargaTresDias(e, Date.now()); // 1.1.9: uma vez por instalação
   await agendarProximo(e, c);
   await salvar(e);
   if (!manual) return undefined;

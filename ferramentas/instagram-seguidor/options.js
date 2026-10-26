@@ -1,6 +1,6 @@
 import { lerTudo, enviar, statusAtual, textoProxima, contadoresHoje, textoAlerta, estaParada, retomarAgora, ligarBotaoConferir } from './painel-comum.js';
 import { formatarSP, diaSP } from './lib/tempo.js';
-import { gerarCsv, resumoBusca, resumoBoasVindas } from './lib/estado.js';
+import { gerarCsv, resumoBusca, resumoBoasVindas, resumoCargaTresDias } from './lib/estado.js';
 import { MENSAGEM_PADRAO, STATUS, idsParaVerificarFollowBack } from './lib/regras.js';
 
 const $ = (id) => document.getElementById(id);
@@ -34,6 +34,7 @@ async function render() {
   const solicitados = Object.values(e.seguidos).filter((r) => r.status === STATUS.SOLICITADO).length;
   $('aguardando').textContent = solicitados ? `${aguardando} (${solicitados} Solicitado${solicitados > 1 ? 's' : ''} — privados, pedido pendente)` : aguardando;
   $('boasVindas').textContent = resumoBoasVindas(e).texto;
+  $('carga3Dias').textContent = resumoCargaTresDias(e);
   $('btnPausar').disabled = c.pausado;
 
   const cur = e.cursorOrigem;
