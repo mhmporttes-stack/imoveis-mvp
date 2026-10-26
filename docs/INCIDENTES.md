@@ -40,6 +40,17 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-26 — Seguidor Instagram: DM "escreve e apaga", não clica em Enviar; segue quem já me segue
+- **Data:** 2026-10-26
+- **Sintoma:** "escreve, apaga, escreve outro pedaço e apaga; no final só fica 'Conte comigo! 😊'"; "escreve a mensagem, deixa ali e procura outra pessoa"; "ocorreu um erro, tente novamente, mas ele não clica de novo"; "abriu um perfil que eu estava seguindo".
+- **Área:** Ferramenta pessoal fora do CRM (`ferramentas/instagram-seguidor/`)
+- **Impacto:** toda boas-vindas pelo plano B de digitação (1.1.8–1.1.10); seguir pelo clique no perfil.
+- **Causa raiz:** quebra de linha por `insertLineBreak` apagava o texto no editor da DM; envio só por Enter; um único clique em Mensagem; clique de seguir sem conferir o botão do `<header>` (aceitava "Seguir de volta").
+- **Correção (1.1.11):** colar a mensagem inteira (plano B Shift+Enter real), conferência exata, clique no botão Enviar (Enter plano B), até 4 cliques em Mensagem, `seguirNaPagina` + pulo pela lista dos meus seguidores. Detalhe no CHANGELOG_AI.
+- **Arquivos/commit:** `ferramentas/instagram-seguidor/{instagram-api.js,background.js,lib/regras.js,lib/estado.js}` — branch `fix/instagram-dm-envio-completo`
+- **Prevenção/teste:** `ferramentas/instagram-seguidor/tests/dm-envio-completo.test.mjs` (DOM e CDP falsos).
+- **Status:** Monitorando — não testado contra o Instagram real.
+
 ### 2026-10-26 — "Não está indo mais as conversas antigas" do cliente transferido
 - **Data:** 2026-10-26
 - **Sintoma:** corretor que recebe cliente transferido (fila de clientes frios) não vê o que já foi conversado com o corretor anterior.

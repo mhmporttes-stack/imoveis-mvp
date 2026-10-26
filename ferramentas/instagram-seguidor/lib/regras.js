@@ -46,7 +46,21 @@ export function semFoto(usuario) {
  * privados (se a opção estiver ligada) e sem foto (se a opção estiver ligada).
  * Retorna { aceitos: [...itens da fila], pulados: { motivo: quantidade } }.
  */
-export function filtrarCandidatos(usuarios, { meuId, fila = [], vistos = {}, seguidos = {}, pularPrivados = false, pularSemFoto = false, origem = '', agora = Date.now() }) {
+/**
+ * Relação que o próprio dado da lista já informa (sem abrir o perfil): 'ja_me_segue', 'ja_sigo' ou null.
+ * 1.1.11 (dono, 26/10: "Não deve seguir quem já me segue"): lê friendship_status (following / followed_by /
+ * outgoing_request) e os campos soltos do GraphQL/web (followed_by_viewer = eu sigo, follows_viewer = me segue,
+ * requested_by_viewer = já pedi), mais a lista dos MEUS seguidores que a extensão já conhece (`meSeguem`).
+ */
+export function relacaoConhecida(u, meSeguem = {}) {
+  const id = String(u.pk ?? u.id ?? u.pk_id ?? '');
+  const fs = u.friendship_status || {};
+  if ((id && meSeguem[id]) || fs.followed_by || u.follows_viewer === true) return 'ja_me_segue';
+  if (fs.following || fs.outgoing_request || u.followed_by_viewer === true || u.requested_by_viewer === true) return 'ja_sigo';
+  return null;
+}
+
+export function filtrarCandidatos(usuarios, { meuId, fila = [], vistos = {}, seguidos = {}, meSeguem = {}, pularPrivados = false, pularSemFoto = false, origem = '', agora = Date.now() }) {
   const naFila = new Set(fila.map((f) => String(f.id)));
   const aceitos = [];
   const pulados = {};
@@ -61,10 +75,8 @@ export function filtrarCandidatos(usuarios, { meuId, fila = [], vistos = {}, seg
     if (naFila.has(id)) { pular('ja_na_fila'); continue; }
     if (pularPrivados && u.is_private) { pular('privado'); continue; }
     if (pularSemFoto && semFoto(u)) { pular('sem_foto'); continue; }
-    if (u.friendship_status && (u.friendship_status.following || u.friendship_status.followed_by)) {
-      pular('ja_relacionado');
-      continue;
-    }
+    const relacao = relacaoConhecida(u, meSeguem);
+    if (relacao) { pular(relacao); continue; }
     naFila.add(id);
     aceitos.push({ id, username: u.username || '', origem, adicionadoEm: agora, privado: Boolean(u.is_private) });
   }

@@ -46,7 +46,9 @@ export function criarInstagramFalso({ meuId = '999', referencia = 'perfilref', t
     atrasoVolta,
     // 1.1.8: tela da DM (digitação). abre: o botão "Enviar mensagem" aparece; envia: o Enter manda a mensagem;
     // aparece: a mensagem enviada aparece na conversa (confirmação).
-    dmTela: { abre: true, envia: true, aparece: true },
+    // 1.1.11: colaFunciona: o "colar" põe a mensagem inteira na caixa; botaoEnviar: o botão Enviar existe e o clique
+    // envia; enterEnvia: o Enter (plano B) envia; errosAoAbrir: quantas vezes "Ocorreu um erro" antes de abrir.
+    dmTela: { abre: true, envia: true, aparece: true, colaFunciona: true, botaoEnviar: true, enterEnvia: true, errosAoAbrir: 0 },
     // 1.1.9: atividade (news/inbox). null = endpoint inexistente (404). Senão { modo: 'ok'|'html'|'sem_lista'|'aguarde',
     // historias: [...story], porPagina, falhasAguarde }.
     atividade: null,
@@ -73,6 +75,10 @@ export function criarInstagramFalso({ meuId = '999', referencia = 'perfilref', t
   const tela = { conversa: null, caixa: '' };
   const normT = (t) => String(t || '').replace(/\s+/g, ' ').trim().toLowerCase();
   const naConversa = (trecho) => ig.dms.filter((d) => d.id === tela.conversa && normT(d.texto).includes(normT(trecho))).length;
+  ig.tela = tela;
+  function enviarDaCaixa(como) {
+    if (ig.dmTela.envia && tela.caixa) { ig.dms.push({ id: tela.conversa, texto: tela.caixa, em: Date.now(), via: 'digitacao', como, visivel: ig.dmTela.aparece }); tela.caixa = ''; }
+  }
   ig.telaDm = (nome, args, url) => {
     ig.chamadas.push({ em: Date.now(), metodo: 'DM-TELA', caminho: nome });
     if (nome === 'abrirConversaNaPagina') {
@@ -80,6 +86,11 @@ export function criarInstagramFalso({ meuId = '999', referencia = 'perfilref', t
       const u = usuarios.find((x) => x.username === usuario);
       const pk = u ? u.pk : usuario.startsWith('x') && ig.meSeguem.has(usuario.slice(1)) ? usuario.slice(1) : null;
       if (!ig.dmTela.abre || !pk) return { ok: false, erro: 'botão "Enviar mensagem" não apareceu no perfil' };
+      // 1.1.11: "Ocorreu um erro" nos primeiros cliques; abrirConversaNaPagina clica de novo (até 4 cliques).
+      const maxCliques = args[1] ?? 4;
+      const erros = ig.dmTela.errosAoAbrir || 0;
+      ig.cliquesMensagem = (ig.cliquesMensagem || 0) + Math.min(erros + 1, maxCliques);
+      if (erros >= maxCliques) return { ok: false, erro: `o Instagram mostrou "Ocorreu um erro" ${maxCliques} vez(es) (${maxCliques} clique(s) em "Enviar mensagem")` };
       tela.conversa = pk;
       tela.caixa = '';
       return { ok: true };
@@ -87,18 +98,25 @@ export function criarInstagramFalso({ meuId = '999', referencia = 'perfilref', t
     if (!tela.conversa) return { ok: false, erro: 'caixa de mensagem sumiu' };
     if (nome === 'prepararCaixaNaPagina') { tela.caixa = ''; return { ok: true, contagem: naConversa(args[0]) }; }
     if (nome === 'escreverNaPagina') { for (const p of args[0]) tela.caixa += p.quebra ? '\n' : p.texto || ''; return { ok: true }; }
+    if (nome === 'colarNaPagina') { if (ig.dmTela.colaFunciona) tela.caixa += args[0]; return { ok: true, texto: tela.caixa }; }
+    if (nome === 'lerCaixaNaPagina') return { ok: true, texto: normT(tela.caixa), conversa: naConversa(args[0]) };
+    if (nome === 'acharEnviarNaPagina') {
+      if (!ig.dmTela.botaoEnviar) return { ok: false, erro: 'botão Enviar não apareceu ao lado da caixa' };
+      if (args[1]) { ig.cliquesEnviar = (ig.cliquesEnviar || 0) + 1; enviarDaCaixa('clique'); }
+      return { ok: true, x: 500, y: 600, livre: true, clicou: Boolean(args[1]) };
+    }
     if (nome === 'conferirCaixaNaPagina') {
       if (normT(tela.caixa) === normT(args[0])) return { ok: true };
       tela.caixa = '';
       return { ok: false, erro: 'o texto digitado não conferiu' };
     }
     if (nome === 'apertarEnterNaPagina') {
-      if (ig.dmTela.envia && tela.caixa) { ig.dms.push({ id: tela.conversa, texto: tela.caixa, em: Date.now(), via: 'digitacao', visivel: ig.dmTela.aparece }); tela.caixa = ''; }
+      if (ig.dmTela.enterEnvia) enviarDaCaixa('enter');
       return { ok: true };
     }
     if (nome === 'confirmarDmNaPagina') {
       const vistas = ig.dms.filter((d) => d.id === tela.conversa && d.visivel !== false && normT(d.texto).includes(normT(args[0]))).length;
-      return vistas > args[1] ? { ok: true, confirmado: true } : { ok: false, confirmado: false, erro: 'a mensagem não apareceu na conversa em 12 s' };
+      return vistas > args[1] ? { ok: true, confirmado: true, naCaixa: false } : { ok: false, confirmado: false, naCaixa: normT(tela.caixa).includes(normT(args[0])), erro: 'a mensagem não apareceu na conversa em 12 s' };
     }
     return { ok: false, erro: `função desconhecida ${nome}` };
   };
@@ -285,6 +303,17 @@ export function criarChromeFalso(ig, { logado = true, semJanelas = false } = {})
         if (!alvo) throw new Error(`No tab with id: ${target.tabId}`);
         registro.execucoes = (registro.execucoes || 0) + 1;
         if (alvo.w.id === 1) throw new Error('usou aba da janela do dono');
+        if (func && func.name === 'seguirNaPagina') {
+          // 1.1.11: clique de SEGUIR que confere o botão do perfil na hora (não clica em quem já me segue/já sigo).
+          const usuario = decodeURIComponent((String(alvo.t.url || '').match(/instagram\.com\/([^/?#]+)\/?/) || [])[1] || '');
+          const u = ig.usuarios.find((x) => x.username === usuario);
+          ig.chamadas.push({ caminho: `clique:${usuario}`, metodo: 'CLICK' });
+          if (!u || !ig.legadoFunciona) return [{ result: { ok: false, erro: 'botão "Seguir" não apareceu no perfil' } }];
+          const botao = ig.sigo.has(u.pk) ? 'seguindo' : ig.pendentes.has(u.pk) ? 'solicitado' : ig.meSeguem.has(u.pk) ? 'seguir_de_volta' : 'seguir';
+          if (botao !== 'seguir') { ig.chamadas.push({ caminho: `recusado:${usuario}:${botao}`, metodo: 'CLICK' }); return [{ result: { ok: false, recusado: true, botao, segueVoce: false } }]; }
+          if (u.is_private) ig.pendentes.set(u.pk, Date.now()); else ig.sigo.set(u.pk, Date.now());
+          return [{ result: { ok: true, botao: 'seguir' } }];
+        }
         if (func && /NaPagina$/.test(func.name) && func.name !== 'lerEstadoNaPagina' && func.name !== 'clicarNaPagina' && func.name !== 'requisicaoNaPagina') {
           return [{ result: ig.telaDm(func.name, args, alvo.t.url) }]; // 1.1.8: tela da DM
         }

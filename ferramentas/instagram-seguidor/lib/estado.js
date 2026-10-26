@@ -128,6 +128,8 @@ const ROTULOS_PULADOS = {
   ja_avaliado: 'já avaliados antes',
   ja_na_fila: 'já na fila/repetidos',
   ja_relacionado: 'já me seguem ou já sigo',
+  ja_me_segue: 'já me seguem',
+  ja_sigo: 'já sigo/solicitado',
   eu_mesmo: 'eu mesmo',
   sem_id: 'sem id',
 };

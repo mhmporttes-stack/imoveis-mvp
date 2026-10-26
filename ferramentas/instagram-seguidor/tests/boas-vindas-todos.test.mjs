@@ -219,14 +219,17 @@ test('API de DM em HTML → enviada por digitação na tela da conversa, uma vez
   assert.equal(ig.chamadas.filter((c) => c.caminho === BROADCAST).length, 1, 'tentou a API primeiro');
   const reg = ext.estado().novosSeguidores[ig.dms[0].id];
   assert.equal(reg.dmVia, 'digitacao');
-  assert.ok(ext.estado().historico.some((h) => /boas-vindas enviada \(digitação na tela da DM\)/.test(h.resultado)));
+  assert.ok(ext.estado().historico.some((h) => /boas-vindas enviada \(digitação na tela da DM — mensagem colada, clique no botão Enviar/.test(h.resultado)));
+  assert.equal(ig.dms[0].texto, ext.estado().config.mensagem, '1.1.11: a mensagem inteira (com as linhas) saiu');
+  assert.equal(ig.dms[0].como, 'clique', '1.1.11: enviada pelo botão Enviar');
 });
 
-test('digitação com Enter mas sem confirmação na tela = incerto, nunca reenvia', { timeout: 240_000 }, async () => {
+test('digitação com clique em Enviar mas sem confirmação na tela = incerto, nunca reenvia', { timeout: 240_000 }, async () => {
   const { ig, ext } = await comLinhaDeBase({ antigos: 10, configurar: (x) => { x.dmHtml = true; x.dmTela.aparece = false; } });
   ig.novosSeguidoresDeFora(1, Date.now());
   await ext.avancarAte(Date.now() + 2 * DIA);
-  assert.equal(ig.chamadas.filter((c) => c.caminho === 'apertarEnterNaPagina').length, 1, 'um único Enter');
+  assert.equal(ig.cliquesEnviar, 1, 'um único clique em Enviar');
+  assert.equal(ig.chamadas.filter((c) => c.caminho === 'apertarEnterNaPagina').length, 0, 'sem Enter (a caixa esvaziou: pode ter saído)');
   const e = ext.estado();
   const reg = Object.values(e.novosSeguidores)[0];
   assert.equal(reg.dmIncerta, true);

@@ -62,6 +62,8 @@ export const TEXTOS_DM = {
   mensagem: ['enviar mensagem', 'mensagem', 'message', 'send message'],
   agoraNao: ['agora não', 'not now'],
   enviar: ['enviar', 'send'],
+  // 1.1.11 (dono, 26/10): "clicou em enviar mensagem, ocorreu um erro, tente novamente, mas ele não clica de novo".
+  erroAbrir: ['ocorreu um erro', 'tente novamente', 'algo deu errado', 'something went wrong', 'try again'],
 };
 
 /** Trecho que identifica a mensagem na conversa: a linha mais longa, com espaços normalizados (até 80 caracteres). */
@@ -78,7 +80,8 @@ export class ErroInstagram extends Error {
     // 'indisponivel' (1.1.4) = checagem de amizade sem resposta utilizável (API respondeu HTML e a leitura do
     // botão do perfil também falhou): não é sessão, não é bloqueio, não gasta perfil da fila nem cota.
     // 'nao_enviada' (1.1.5) = DM que certamente não saiu (API respondeu HTML): reagendar, nunca marcar incerta.
-    this.tipo = tipo; // 'limite' | 'sessao' | 'nao_encontrado' | 'mudanca_api' | 'indisponivel' | 'nao_enviada' | 'aba' | 'sem_janela' | 'incerto' | 'outro'
+    // 'ja_relacionado' (1.1.11) = na hora do clique em Seguir o perfil mostrou que já me segue: pulado, sem cota.
+    this.tipo = tipo; // 'ja_relacionado' | 'limite' | 'sessao' | 'nao_encontrado' | 'mudanca_api' | 'indisponivel' | 'nao_enviada' | 'aba' | 'sem_janela' | 'incerto' | 'outro'
     this.status = status;
     this.endpoint = endpoint;
     this.corpo = String(corpo || '').slice(0, 500);
@@ -219,8 +222,16 @@ export function criarApiInstagram({ executar, obterCsrf = async () => '', clicar
         if (opcoes.clique) {
           // 1.1.3: o Instagram passou a responder HTML ao POST da API de seguir; o caminho que não depende
           // da API é fazer o que a pessoa faz: abrir o perfil na janela de trabalho e clicar no botão.
-          const r = await clicar({ username, passos: opcoes.clique });
-          if (!r || !r.ok) throw new ErroInstagram('mudanca_api', `${rotulo}: ${r && r.erro ? r.erro : 'botão não encontrado na página do perfil'}`, { endpoint: rotulo });
+          const r = await clicar({ username, passos: opcoes.clique, ...(opcoes.seguir ? { seguir: true } : {}) });
+          if (r && r.recusado && (r.botao === 'seguir_de_volta' || r.segueVoce)) {
+            // 1.1.11: na hora do clique o perfil mostrou que já me segue — não segue (não é erro, não gasta cota).
+            throw new ErroInstagram('ja_relacionado', `@${username} já me segue (botão "${r.botao === 'seguir_de_volta' ? 'Seguir de volta' : 'Segue você'}" no perfil) — não seguido`, { endpoint: rotulo });
+          }
+          if (r && r.recusado) {
+            // "Seguindo"/"Solicitado" na hora do clique: nada clicado. Se foi o pedido anterior (API) que seguiu, a
+            // conferência abaixo confirma; senão segue para a próxima tentativa sem clicar.
+            falha = `${rotulo}: o perfil já mostra "${r.botao === 'solicitado' ? 'Solicitado' : 'Seguindo'}" (nada clicado)`;
+          } else if (!r || !r.ok) throw new ErroInstagram('mudanca_api', `${rotulo}: ${r && r.erro ? r.erro : 'botão não encontrado na página do perfil'}`, { endpoint: rotulo });
         } else {
           await chamar(rotulo, caminho, { metodo: 'POST', corpo, referer });
         }
@@ -423,7 +434,7 @@ export function criarApiInstagram({ executar, obterCsrf = async () => '', clicar
         username,
         tentativas: [
           ['friendships/create', ENDPOINTS.seguir(id)],
-          ['botão Seguir', null, { clique: [TEXTOS_SEGUIR] }],
+          ['botão Seguir', null, { clique: [TEXTOS_SEGUIR], seguir: true }],
           ['web/friendships/follow', ENDPOINTS.seguirLegado(id), { soSemClique: true }],
         ],
         confirmado: (st) => st.seguindo || st.pedidoPendente,
@@ -542,10 +553,10 @@ export function criarApiInstagram({ executar, obterCsrf = async () => '', clicar
       throw x;
     }
     if (r && r.jaEstava) return { modo: 'digitação — a mensagem já estava na conversa (nada digitado)', digitacao: true };
-    if (r && r.ok && r.confirmado) return { modo: 'digitação na tela da DM', digitacao: true };
+    if (r && r.ok && r.confirmado) return { modo: `digitação na tela da DM${r.como || r.envio ? ` — ${[r.como && `mensagem ${r.como}`, r.envio].filter(Boolean).join(', ')}` : ''}`, digitacao: true };
     const motivo = (r && r.erro) || 'sem resposta da aba';
     const x = r && r.apertouEnter
-      ? new ErroInstagram('incerto', `DM digitada e Enter apertado, mas a mensagem não apareceu na conversa (${motivo}) — não será repetida; confira no Instagram.`, { endpoint: 'digitação na DM' })
+      ? new ErroInstagram('incerto', `DM digitada e enviada (${(r && r.envio) || 'clique em Enviar/Enter'}), mas a mensagem não apareceu na conversa (${motivo}) — não será repetida; confira no Instagram.`, { endpoint: 'digitação na DM' })
       : new ErroInstagram('nao_enviada', `DM não enviada: a API respondeu HTML e a digitação não chegou a enviar (${motivo}). ${erroApi.message}`, { endpoint: 'digitação na DM' });
     x.digitacao = true;
     throw x;
@@ -864,6 +875,40 @@ export async function lerEstadoNaPagina(textos) {
   };
 }
 
+/**
+ * 1.1.11 — NA PÁGINA do perfil: clica em "Seguir" SÓ se o botão principal do perfil (no <header>) for exatamente "Seguir"
+ * e o perfil não mostrar "Segue você". "Seguir de volta"/"Segue você" (já me segue), "Seguindo" ou "Solicitado" (já
+ * sigo / já pedi) = NÃO clica e devolve { ok: false, recusado: true, botao, segueVoce } (dono, 26/10: "Não deve seguir
+ * quem já me segue. Ele acabou de abrir um perfil que eu estava seguindo."). Nunca clica nos "Seguir" das sugestões.
+ */
+export async function seguirNaPagina(textos) {
+  const norm = (t) => String(t || '').replace(/\s+/g, ' ').trim().toLowerCase();
+  const visivel = (el) => { const r = el.getBoundingClientRect(); return r.width > 0 && r.height > 0; };
+  const ordem = ['seguir_de_volta', 'seguindo', 'solicitado', 'seguir'];
+  const achar = () => {
+    const raiz = document.querySelector('header') || document;
+    for (const el of raiz.querySelectorAll('button, div[role="button"]')) {
+      if (!visivel(el)) continue;
+      const t = norm(el.innerText || el.textContent);
+      const tipo = ordem.find((k) => textos[k].includes(t));
+      if (tipo) return { tipo, el };
+    }
+    return null;
+  };
+  let achado = null;
+  for (let t = 0; t < 32 && !achado; t += 1) {
+    achado = achar();
+    if (!achado) await new Promise((r) => setTimeout(r, 250));
+  }
+  if (!achado) return { ok: false, erro: 'botão "Seguir" não apareceu no perfil', origem: location.origin };
+  const cab = norm((document.querySelector('header') || {}).innerText || '');
+  const segueVoce = textos.segueVoce.some((x) => cab.includes(x));
+  if (achado.tipo !== 'seguir' || segueVoce) return { ok: false, recusado: true, botao: achado.tipo, segueVoce, origem: location.origin };
+  achado.el.click();
+  await new Promise((r) => setTimeout(r, 900 + Math.random() * 600));
+  return { ok: true, botao: 'seguir', origem: location.origin };
+}
+
 // --- Página acordada (1.1.6) ------------------------------------------------------------------------------------
 // Problema real (dono, 25/10/2026): "abro outra janela para utilizar, em tela cheia; as duas abas das extensões ficam
 // abertas atrás dessa." Coberta, a aba de trabalho fica OCULTA para o Chrome: ele para de desenhar o perfil e segura os
@@ -904,9 +949,13 @@ export async function lerPerfilNaAba({ username }) {
   return abrirPerfilEExecutar(username, lerEstadoNaPagina, [TEXTOS_LEITURA]);
 }
 
-/** Abre o perfil na janela de trabalho (sem foco) e executa os cliques. 1.1.6: com a página acordada. */
-export async function clicarNaAba({ username, passos }) {
+/**
+ * Abre o perfil na janela de trabalho (sem foco) e executa os cliques. 1.1.6: com a página acordada.
+ * 1.1.11: `seguir: true` = clique de SEGUIR conferindo o botão do perfil na hora (seguirNaPagina).
+ */
+export async function clicarNaAba({ username, passos, seguir = false }) {
   if (!username) return { ok: false, erro: 'sem @ do perfil' };
+  if (seguir) return abrirPerfilEExecutar(username, seguirNaPagina, [TEXTOS_LEITURA]);
   return abrirPerfilEExecutar(username, clicarNaPagina, [passos]);
 }
 
@@ -915,29 +964,65 @@ export async function clicarNaAba({ username, passos }) {
 // na tela da conversa, como uma pessoa: abre o perfil na janela de trabalho (sem foco, página acordada pelo depurador
 // da 1.1.6), clica em "Enviar mensagem", digita e aperta Enter. Só conta como enviada se a mensagem APARECER na
 // conversa; Enter apertado sem confirmação = incerto (nunca reenvia). Antes do Enter, qualquer falha = nada saiu.
+// 1.1.11: a mensagem é colada inteira (plano B: digitada com Shift+Enter) e o envio é o CLIQUE no botão Enviar (Enter só
+// como plano B) — ver digitarDmNaAba. "apertouEnter" continua sendo o marco "pode ter saído" (clique ou Enter).
 // As funções `...NaPagina` rodam DENTRO da aba (chrome.scripting, mundo MAIN): não usam nada de fora delas.
 
-/** NA PÁGINA do perfil: clica em "Enviar mensagem" e espera a caixa de texto da conversa (até ~15 s). */
-export async function abrirConversaNaPagina(textos) {
+/**
+ * NA PÁGINA do perfil: clica em "Enviar mensagem" e espera a caixa de texto da conversa (até ~15 s na última tentativa).
+ * 1.1.11 (dono, 26/10): "clicou em enviar mensagem, ocorreu um erro, tente novamente, mas ele não clica de novo. Se eu
+ * clicar, abre." — se aparecer esse erro (ou nada abrir e o botão continuar ali), espera 1–3 s e clica de novo, até
+ * `maxCliques` vezes. Abrir a conversa não envia nada: repetir o clique é seguro.
+ */
+export async function abrirConversaNaPagina(textos, maxCliques = 4) {
   const norm = (t) => String(t || '').replace(/\s+/g, ' ').trim().toLowerCase();
   const visivel = (el) => { const r = el.getBoundingClientRect(); return r.width > 0 && r.height > 0; };
   const esperar = (ms) => new Promise((r) => setTimeout(r, ms));
   const botoes = (raiz, lista) => [...raiz.querySelectorAll('button, div[role="button"], a[role="button"]')].find((el) => visivel(el) && lista.includes(norm(el.innerText || el.textContent)));
   const caixa = () => [...document.querySelectorAll('div[contenteditable="true"][role="textbox"], div[contenteditable="true"][aria-label], textarea')].filter(visivel).pop();
+  const botaoMensagem = () => botoes(document.querySelector('header') || document, textos.mensagem) || botoes(document.querySelector('main') || document, textos.mensagem);
+  const textoPagina = () => norm(document.body ? document.body.innerText : '');
+  const erros = textos.erroAbrir || [];
   let botao = null;
   for (let t = 0; t < 32 && !botao; t += 1) {
-    botao = botoes(document.querySelector('header') || document, textos.mensagem) || botoes(document.querySelector('main') || document, textos.mensagem);
+    botao = botaoMensagem();
     if (!botao) await esperar(250);
   }
   if (!botao) return { ok: false, erro: 'botão "Enviar mensagem" não apareceu no perfil', origem: location.origin };
-  botao.click();
-  for (let t = 0; t < 60; t += 1) {
-    await esperar(250);
-    const agoraNao = botoes(document, textos.agoraNao); // "Ativar notificações?" → Agora não
-    if (agoraNao) agoraNao.click();
-    if (caixa()) return { ok: true, caminho: location.pathname, origem: location.origin };
+  // Erros que já estavam na página antes do clique não contam (só o aviso que surge depois dele).
+  const antes = textoPagina();
+  const erroNovo = () => { const agora = textoPagina(); return erros.find((x) => agora.includes(x) && !antes.includes(x)) || null; };
+  let cliques = 0;
+  let errosVistos = 0;
+  while (cliques < maxCliques) {
+    // O aviso do clique anterior ainda na tela não é um erro novo: só conta se sumir e voltar.
+    let sumiu = !erroNovo();
+    botao.click();
+    cliques += 1;
+    const ultima = cliques >= maxCliques;
+    let viuErro = false;
+    for (let t = 0; t < (ultima ? 60 : 24); t += 1) {
+      await esperar(250);
+      const agoraNao = botoes(document, textos.agoraNao); // "Ativar notificações?" → Agora não
+      if (agoraNao) agoraNao.click();
+      if (caixa()) return { ok: true, caminho: location.pathname, origem: location.origin, cliques, errosVistos };
+      if (!erroNovo()) sumiu = true;
+      else if (sumiu) { viuErro = true; break; }
+    }
+    if (viuErro) errosVistos += 1;
+    if (ultima) break;
+    await esperar(1000 + Math.round(Math.random() * 2000)); // pausa de 1–3 s antes de clicar de novo
+    if (caixa()) return { ok: true, caminho: location.pathname, origem: location.origin, cliques, errosVistos };
+    const denovo = botaoMensagem();
+    if (!denovo) {
+      // O botão sumiu (a conversa está carregando em outra tela): só espera a caixa, sem clicar.
+      for (let t = 0; t < 40; t += 1) { await esperar(250); if (caixa()) return { ok: true, caminho: location.pathname, origem: location.origin, cliques, errosVistos }; }
+      break;
+    }
+    botao = denovo;
   }
-  return { ok: false, erro: 'a caixa de mensagem da conversa não apareceu', origem: location.origin };
+  const motivo = errosVistos ? `o Instagram mostrou "Ocorreu um erro" ${errosVistos} vez(es)` : 'a caixa de mensagem da conversa não apareceu';
+  return { ok: false, erro: `${motivo} (${cliques} clique(s) em "Enviar mensagem")`, origem: location.origin, cliques, errosVistos };
 }
 
 /**
@@ -961,17 +1046,67 @@ export async function prepararCaixaNaPagina(trecho) {
   return { ok: true, contagem };
 }
 
-/** NA PÁGINA: digita um pedaço de texto (`quebra`: quebra de linha) na caixa já focada. Sem atraso (página oculta). */
+/**
+ * 1.1.11 — NA PÁGINA: cola a mensagem INTEIRA de uma vez na caixa (evento "colar" com o texto, como o Ctrl+V de uma
+ * pessoa). O editor da DM (Lexical) transforma cada "\n" do texto colado em quebra de linha no próprio modelo dele —
+ * diferente do insertLineBreak da 1.1.8, que fazia o editor apagar o que já estava escrito (dono, 26/10: "escreve,
+ * apaga, escreve outro pedaço e apaga; no final só fica 'Conte comigo! 😊'"). Não aperta tecla nenhuma: nada sai daqui.
+ * Devolve o texto que ficou na caixa (quem chama confere).
+ */
+export async function colarNaPagina(texto) {
+  const visivel = (el) => { const r = el.getBoundingClientRect(); return r.width > 0 && r.height > 0; };
+  const esperar = (ms) => new Promise((r) => setTimeout(r, ms));
+  const caixa = [...document.querySelectorAll('div[contenteditable="true"][role="textbox"], div[contenteditable="true"][aria-label], textarea')].filter(visivel).pop();
+  if (!caixa) return { ok: false, erro: 'caixa de mensagem sumiu' };
+  caixa.focus();
+  if (caixa.tagName === 'TEXTAREA') {
+    document.execCommand('insertText', false, texto);
+  } else {
+    // Cursor no fim da caixa (o editor só aceita o colar com uma seleção dentro dele).
+    const sel = document.getSelection();
+    const faixa = document.createRange();
+    faixa.selectNodeContents(caixa);
+    faixa.collapse(false);
+    sel.removeAllRanges();
+    sel.addRange(faixa);
+    await esperar(120);
+    const dados = new DataTransfer();
+    dados.setData('text/plain', texto);
+    caixa.dispatchEvent(new ClipboardEvent('paste', { clipboardData: dados, bubbles: true, cancelable: true }));
+  }
+  await esperar(400);
+  return { ok: true, texto: caixa.value ?? caixa.innerText };
+}
+
+/**
+ * NA PÁGINA (sem depurador, plano B do colar): digita os pedaços na caixa já focada. Quebra de linha = inserir o texto
+ * "\n" (o editor da DM a trata como quebra de linha) — nunca insertLineBreak (1.1.11: apagava o texto) e nunca Enter.
+ */
 export async function escreverNaPagina(partes) {
   const visivel = (el) => { const r = el.getBoundingClientRect(); return r.width > 0 && r.height > 0; };
   const caixa = [...document.querySelectorAll('div[contenteditable="true"][role="textbox"], div[contenteditable="true"][aria-label], textarea')].filter(visivel).pop();
   if (!caixa) return { ok: false, erro: 'caixa de mensagem sumiu' };
   caixa.focus();
   for (const p of partes) {
-    if (p.quebra) { if (caixa.tagName === 'TEXTAREA') document.execCommand('insertText', false, '\n'); else document.execCommand('insertLineBreak'); }
+    if (p.quebra) document.execCommand('insertText', false, '\n');
     else if (p.texto) document.execCommand('insertText', false, p.texto);
   }
   return { ok: true };
+}
+
+/**
+ * 1.1.11 — NA PÁGINA, sem mexer em nada: texto atual da caixa (espaços normalizados) e quantas vezes `trecho` já aparece
+ * na conversa fora da caixa (para saber se uma quebra de linha mandou parte da mensagem).
+ */
+export async function lerCaixaNaPagina(trecho) {
+  const norm = (t) => String(t || '').replace(/\s+/g, ' ').trim();
+  const visivel = (el) => { const r = el.getBoundingClientRect(); return r.width > 0 && r.height > 0; };
+  const caixa = [...document.querySelectorAll('div[contenteditable="true"][role="textbox"], div[contenteditable="true"][aria-label], textarea')].filter(visivel).pop();
+  if (!caixa) return { ok: false, erro: 'caixa de mensagem sumiu' };
+  const conta = (texto, alvo) => { let n = 0; let i = texto.indexOf(alvo); while (alvo && i !== -1) { n += 1; i = texto.indexOf(alvo, i + alvo.length); } return n; };
+  const textoCaixa = norm(caixa.value ?? caixa.innerText);
+  const alvo = norm(trecho).toLowerCase();
+  return { ok: true, texto: textoCaixa, conversa: Math.max(0, conta(norm(document.body.innerText).toLowerCase(), alvo) - conta(textoCaixa.toLowerCase(), alvo)) };
 }
 
 /** NA PÁGINA: o texto da caixa é exatamente a mensagem (espaços normalizados)? Só então o Enter é apertado. */
@@ -1002,29 +1137,58 @@ export async function apertarEnterNaPagina() {
 }
 
 /**
- * NA PÁGINA, depois do Enter: espera (até ~12 s) a mensagem aparecer na conversa (mais ocorrências do trecho que
- * antes, fora da caixa). Se a caixa continua com a mensagem inteira depois de ~3 s (o Enter não enviou), clica UMA
- * vez no botão "Enviar".
+ * 1.1.11 — NA PÁGINA da conversa: acha o botão Enviar (o avião azul à direita da caixa). Procura subindo a partir da
+ * caixa de texto (só no bloco da caixa, nunca o "Enviar" de um post da página): botão/role=button com rótulo ou
+ * aria-label "Enviar"/"Send", ou o svg do avião com esse aria-label. Devolve o centro dele na tela (para o clique de
+ * verdade pelo depurador) — `clicar: true` clica pela própria página (sem depurador).
  */
-export async function confirmarDmNaPagina(trecho, antes, textos) {
+export async function acharEnviarNaPagina(textos, clicar = false) {
+  const norm = (t) => String(t || '').replace(/\s+/g, ' ').trim().toLowerCase();
+  const visivel = (el) => { const r = el.getBoundingClientRect(); return r.width > 0 && r.height > 0; };
+  const caixa = [...document.querySelectorAll('div[contenteditable="true"][role="textbox"], div[contenteditable="true"][aria-label], textarea')].filter(visivel).pop();
+  if (!caixa) return { ok: false, erro: 'caixa de mensagem sumiu' };
+  const ehEnviar = (el) => [el.getAttribute('aria-label'), el.innerText || el.textContent].some((t) => textos.enviar.includes(norm(t)));
+  const clicavel = (el) => (el.closest && el.closest('button, [role="button"]')) || el;
+  let alvo = null;
+  for (let bloco = caixa.parentElement, nivel = 0; bloco && nivel < 8 && !alvo; bloco = bloco.parentElement, nivel += 1) {
+    const achado = [...bloco.querySelectorAll('button, [role="button"], svg[aria-label]')].find((el) => el !== caixa && !caixa.contains(el) && ehEnviar(el) && visivel(clicavel(el)));
+    if (achado) alvo = clicavel(achado);
+  }
+  if (!alvo) return { ok: false, erro: 'botão Enviar não apareceu ao lado da caixa' };
+  if (alvo.scrollIntoView) alvo.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+  const r = alvo.getBoundingClientRect();
+  const x = Math.round(r.left + r.width / 2);
+  const y = Math.round(r.top + r.height / 2);
+  // O ponto do clique cai mesmo no botão (nada por cima)?
+  const noPonto = document.elementFromPoint ? document.elementFromPoint(x, y) : null;
+  const livre = Boolean(noPonto && (noPonto === alvo || alvo.contains(noPonto)));
+  if (clicar) {
+    for (const tipo of ['pointerdown', 'mousedown', 'pointerup', 'mouseup']) alvo.dispatchEvent(new MouseEvent(tipo, { bubbles: true, cancelable: true, clientX: x, clientY: y, button: 0 }));
+    alvo.click();
+  }
+  return { ok: true, x, y, livre, clicou: clicar };
+}
+
+/**
+ * NA PÁGINA, depois do clique em Enviar (ou do Enter): espera (até `esperaMs`) a mensagem aparecer na conversa (mais
+ * ocorrências do trecho que antes, fora da caixa). Não clica nem aperta nada (1.1.11): devolve também se a mensagem
+ * INTEIRA continua na caixa (`naCaixa` — aí certamente não saiu e quem chama pode tentar o plano B).
+ */
+export async function confirmarDmNaPagina(trecho, antes, esperaMs = 12000) {
   const norm = (t) => String(t || '').replace(/\s+/g, ' ').trim().toLowerCase();
   const visivel = (el) => { const r = el.getBoundingClientRect(); return r.width > 0 && r.height > 0; };
   const esperar = (ms) => new Promise((r) => setTimeout(r, ms));
   const conta = (texto, alvo) => { let n = 0; let i = texto.indexOf(alvo); while (alvo && i !== -1) { n += 1; i = texto.indexOf(alvo, i + alvo.length); } return n; };
   const alvo = norm(trecho);
-  let clicou = false;
-  for (let t = 0; t < 48; t += 1) {
+  let naCaixa = 0;
+  for (let t = 0; t < Math.max(1, Math.round(esperaMs / 250)); t += 1) {
     await esperar(250);
     const caixa = [...document.querySelectorAll('div[contenteditable="true"][role="textbox"], div[contenteditable="true"][aria-label], textarea')].filter(visivel).pop();
-    const naCaixa = caixa ? conta(norm(caixa.value ?? caixa.innerText), alvo) : 0;
+    naCaixa = caixa ? conta(norm(caixa.value ?? caixa.innerText), alvo) : 0;
     const naConversa = conta(norm(document.body.innerText), alvo) - naCaixa;
-    if (naConversa > antes && !naCaixa) return { ok: true, confirmado: true, clicouEnviar: clicou };
-    if (!clicou && t >= 12 && naCaixa) {
-      const enviar = [...document.querySelectorAll('button, div[role="button"]')].find((el) => visivel(el) && textos.enviar.includes(norm(el.innerText || el.textContent || el.getAttribute('aria-label'))));
-      if (enviar) { enviar.click(); clicou = true; }
-    }
+    if (naConversa > antes && !naCaixa) return { ok: true, confirmado: true, naCaixa: false };
   }
-  return { ok: false, confirmado: false, erro: 'a mensagem não apareceu na conversa em 12 s' };
+  return { ok: false, confirmado: false, naCaixa: naCaixa > 0, erro: `a mensagem não apareceu na conversa em ${Math.round(esperaMs / 1000)} s` };
 }
 
 /** Partes da digitação: palavras (com o espaço) e quebras de linha. */
@@ -1039,12 +1203,31 @@ export function partesDaDigitacao(texto) {
 
 const cdp = (tabId, metodo, params) => comPrazo(chrome.debugger.sendCommand({ tabId }, metodo, params), 8000, metodo);
 const TECLA_ENTER = { key: 'Enter', code: 'Enter', windowsVirtualKeyCode: 13, nativeVirtualKeyCode: 13 };
+// 1.1.11: Shift+Enter de verdade (modifiers 8 = Shift, sem `text`): no editor da DM é quebra de linha, nunca envio.
+export const SHIFT_ENTER = [
+  { type: 'keyDown', ...TECLA_ENTER, modifiers: 8 },
+  { type: 'keyUp', ...TECLA_ENTER, modifiers: 8 },
+];
+
+/** Linhas da mensagem (para a digitação com Shift+Enter): ['Oi', '', 'Tudo bem?']. */
+export function linhasDaMensagem(texto) {
+  return String(texto || '').split('\n');
+}
 
 /**
- * Executor real do plano B da DM. Devolve { ok, confirmado, jaEstava, apertouEnter, erro } (nunca lança, exceto
- * 'sem_janela'). Com o depurador ligado, digita palavra por palavra (Input.insertText, eventos de teclado reais) e
- * aperta Enter; sem ele, digita pela própria página. Quebra de linha sempre pela página (insertLineBreak) — um Enter
- * de verdade no meio do texto enviaria a mensagem pela metade.
+ * Executor real do plano B da DM. Devolve { ok, confirmado, jaEstava, apertouEnter, erro, como, envio } (nunca lança,
+ * exceto 'sem_janela'). `apertouEnter` = a partir daqui a mensagem PODE ter saído (clique em Enviar, Enter ou uma
+ * quebra de linha que mandou parte dela) — nunca mais "não enviada".
+ *
+ * 1.1.11 (dono, 26/10/2026, olhando a tela): a mensagem tem que estar INTEIRA na caixa antes de enviar, e o envio é o
+ * clique no botão Enviar (o Enter não enviava nesse popup de conversa).
+ *  1) Escrita: cola a mensagem inteira de uma vez (colarNaPagina). Se a caixa não ficar exatamente com a mensagem,
+ *     esvazia e digita linha por linha — com depurador, palavras por Input.insertText e quebra = Shift+Enter real
+ *     (conferindo depois de cada quebra que nada se apagou nem saiu); sem depurador, pela página (quebra = texto "\n").
+ *  2) Conferência do texto exato (como antes): diferente = esvazia a caixa, nada sai ('nao_enviada').
+ *  3) Envio: clique no botão Enviar (com depurador, clique de mouse de verdade no centro dele); Enter só se o botão não
+ *     for achado ou se a mensagem continuar inteira na caixa depois do clique (certamente não saiu).
+ *  4) Só conta como enviada se a mensagem aparecer na conversa; sem isso depois do clique = 'incerto' (nunca reenvia).
  */
 export async function digitarDmNaAba({ username, texto }) {
   if (!username) return { ok: false, apertouEnter: false, erro: 'sem @ do perfil' };
@@ -1060,6 +1243,7 @@ export async function digitarDmNaAba({ username, texto }) {
     return (res && res.result) || { ok: false, erro: 'a aba não respondeu' };
   };
   const pausa = (min, max) => new Promise((r) => setTimeout(r, min + Math.round(Math.random() * (max - min))));
+  const norm = (t) => String(t || '').replace(/\s+/g, ' ').trim();
   return paginaAcordada.run(tabId, async (info) => {
     let apertouEnter = false;
     try {
@@ -1073,34 +1257,94 @@ export async function digitarDmNaAba({ username, texto }) {
       if (!caixa.ok) return { ok: false, apertouEnter, erro: caixa.erro };
       if (caixa.contagem > 0) return { ok: true, jaEstava: true, apertouEnter };
       await pausa(800, 2000);
-      const partes = partesDaDigitacao(texto);
       const comDepurador = info.attached && paginaAcordada.isAttached(tabId);
-      if (comDepurador) {
-        for (const p of partes) {
-          if (p.quebra) await exec(escreverNaPagina, [[p]]);
-          else await cdp(tabId, 'Input.insertText', { text: p.texto });
-          await pausa(60, 220);
+
+      // 1) Escrita — a) colar a mensagem inteira.
+      let como = 'colada';
+      await exec(colarNaPagina, [texto]);
+      let conferida = await exec(conferirCaixaNaPagina, [texto]); // diferente: já esvazia a caixa
+      if (!conferida.ok) {
+        // b) Plano B: digitar linha por linha.
+        como = comDepurador ? 'digitada (Shift+Enter)' : 'digitada pela página';
+        if (comDepurador) {
+          const linhas = linhasDaMensagem(texto);
+          const inicio = norm(linhas.find((l) => norm(l)) || '');
+          const base = await exec(lerCaixaNaPagina, [inicio]);
+          if (!base.ok) return { ok: false, apertouEnter, erro: base.erro };
+          let escrito = '';
+          for (let i = 0; i < linhas.length; i += 1) {
+            if (i > 0) {
+              for (const tecla of SHIFT_ENTER) await cdp(tabId, 'Input.dispatchKeyEvent', tecla);
+              await pausa(150, 350);
+              const agora = await exec(lerCaixaNaPagina, [inicio]);
+              if (!agora.ok) return { ok: false, apertouEnter, erro: agora.erro };
+              if (inicio && agora.conversa > base.conversa) {
+                // A quebra de linha mandou parte da mensagem: pode ter saído — nunca repetir.
+                return { ok: false, apertouEnter: true, erro: 'a quebra de linha (Shift+Enter) enviou parte da mensagem' };
+              }
+              if (agora.texto !== norm(escrito)) {
+                await exec(conferirCaixaNaPagina, [texto]); // esvazia (o texto não confere)
+                return { ok: false, apertouEnter, erro: `a quebra de linha apagou o texto da caixa (${agora.texto.length} de ${norm(escrito).length} caracteres)` };
+              }
+              escrito += '\n';
+            }
+            for (const pedaco of linhas[i].match(/\S+\s*|\s+/g) || []) {
+              await cdp(tabId, 'Input.insertText', { text: pedaco });
+              escrito += pedaco;
+              await pausa(60, 220);
+            }
+          }
+        } else {
+          const w = await exec(escreverNaPagina, [partesDaDigitacao(texto)]);
+          if (!w.ok) return { ok: false, apertouEnter, erro: w.erro };
         }
-      } else {
-        const w = await exec(escreverNaPagina, [partes]);
-        if (!w.ok) return { ok: false, apertouEnter, erro: w.erro };
+        // 2) Conferência do texto exato.
+        conferida = await exec(conferirCaixaNaPagina, [texto]);
+        if (!conferida.ok) return { ok: false, apertouEnter, erro: conferida.erro };
       }
-      const conferida = await exec(conferirCaixaNaPagina, [texto]);
-      if (!conferida.ok) return { ok: false, apertouEnter, erro: conferida.erro };
       await pausa(700, 1800);
+
+      // 3) Envio: clique no botão Enviar.
       apertouEnter = true; // a partir daqui a mensagem pode ter saído: nunca mais "não enviada"
-      if (comDepurador) {
-        await cdp(tabId, 'Input.dispatchKeyEvent', { type: 'keyDown', ...TECLA_ENTER, text: '\r', unmodifiedText: '\r' });
-        await cdp(tabId, 'Input.dispatchKeyEvent', { type: 'keyUp', ...TECLA_ENTER });
+      const enviar = await exec(acharEnviarNaPagina, [TEXTOS_DM, !comDepurador]); // sem depurador já clica aqui
+      let envio;
+      if (enviar.ok && comDepurador && enviar.livre) {
+        envio = 'clique no botão Enviar';
+        await cdp(tabId, 'Input.dispatchMouseEvent', { type: 'mouseMoved', x: enviar.x, y: enviar.y });
+        await cdp(tabId, 'Input.dispatchMouseEvent', { type: 'mousePressed', x: enviar.x, y: enviar.y, button: 'left', buttons: 1, clickCount: 1 });
+        await cdp(tabId, 'Input.dispatchMouseEvent', { type: 'mouseReleased', x: enviar.x, y: enviar.y, button: 'left', buttons: 0, clickCount: 1 });
+      } else if (enviar.ok && comDepurador) {
+        envio = 'clique no botão Enviar (pela página)';
+        await exec(acharEnviarNaPagina, [TEXTOS_DM, true]); // algo por cima do ponto: clica pelo próprio elemento
+      } else if (enviar.ok) {
+        envio = 'clique no botão Enviar (pela página)'; // já clicado por acharEnviarNaPagina(…, true)
       } else {
-        await exec(apertarEnterNaPagina, []);
+        envio = 'Enter (botão Enviar não achado)';
+        await apertarEnter(comDepurador);
       }
-      const conf = await exec(confirmarDmNaPagina, [trecho, caixa.contagem, TEXTOS_DM]);
-      return { ok: Boolean(conf.confirmado), confirmado: Boolean(conf.confirmado), apertouEnter, erro: conf.erro, viaDepurador: comDepurador };
+      let conf = await exec(confirmarDmNaPagina, [trecho, caixa.contagem, enviar.ok ? 4000 : 12000]);
+      if (!conf.confirmado && enviar.ok && conf.naCaixa) {
+        // A mensagem continua inteira na caixa: o clique não enviou (nada saiu). Plano B: Enter, uma vez.
+        envio += ' + Enter (plano B)';
+        await apertarEnter(comDepurador);
+        conf = await exec(confirmarDmNaPagina, [trecho, caixa.contagem, 12000]);
+      } else if (!conf.confirmado && enviar.ok) {
+        conf = await exec(confirmarDmNaPagina, [trecho, caixa.contagem, 8000]);
+      }
+      return { ok: Boolean(conf.confirmado), confirmado: Boolean(conf.confirmado), apertouEnter, erro: conf.erro, viaDepurador: comDepurador, como, envio };
     } catch (err) {
       return { ok: false, apertouEnter, erro: err && err.message ? err.message : String(err) };
     }
   });
+
+  async function apertarEnter(comDepurador) {
+    if (comDepurador) {
+      await cdp(tabId, 'Input.dispatchKeyEvent', { type: 'keyDown', ...TECLA_ENTER, text: '\r', unmodifiedText: '\r' });
+      await cdp(tabId, 'Input.dispatchKeyEvent', { type: 'keyUp', ...TECLA_ENTER });
+    } else {
+      await exec(apertarEnterNaPagina, []);
+    }
+  }
 }
 
 /** API pronta para uso dentro da extensão. */

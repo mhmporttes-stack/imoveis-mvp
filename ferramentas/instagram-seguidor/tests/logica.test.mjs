@@ -131,7 +131,7 @@ test('filtrarCandidatos: dedupe, privados, sem foto, eu mesmo, já seguidos', ()
   });
   assert.deepEqual(r.aceitos.map((x) => x.id), ['1']);
   assert.equal(r.aceitos[0].origem, '@ref');
-  assert.deepEqual(r.pulados, { ja_na_fila: 2, privado: 1, sem_foto: 1, ja_seguido_antes: 1, ja_avaliado: 1, eu_mesmo: 1, ja_relacionado: 1 });
+  assert.deepEqual(r.pulados, { ja_na_fila: 2, privado: 1, sem_foto: 1, ja_seguido_antes: 1, ja_avaliado: 1, eu_mesmo: 1, ja_me_segue: 1 });
 
   const r2 = filtrarCandidatos(usuarios, { meuId: '99', pularPrivados: false, pularSemFoto: false });
   assert.ok(r2.aceitos.some((x) => x.id === '2'));

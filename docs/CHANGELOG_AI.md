@@ -11,6 +11,12 @@
 
 
 
+## 2026-10-26 — Instagram 1.1.11: DM inteira + clique em Enviar; não segue quem já me segue — branch `fix/instagram-dm-envio-completo`, NÃO publicado
+- **Sintomas (dono, olhando a tela):** DM escrita por trechos que se apagavam (sobrava a última linha); mensagem escrita e não enviada; "Ocorreu um erro, tente novamente" ao clicar em Mensagem sem novo clique; perfil já seguido aberto para seguir.
+- **Causa raiz:** `digitarDmNaAba` quebrava linha com `execCommand('insertLineBreak')`, que no editor da DM apagava o texto; envio só por Enter (não envia nesse popup); `abrirConversaNaPagina` clicava uma vez; o clique de seguir (`clicarNaPagina` com `TEXTOS_SEGUIR`, incl. "seguir de volta") procurava em toda a página e não conferia o botão do perfil; `filtrarCandidatos` só lia `friendship_status`.
+- **Correção (`ferramentas/instagram-seguidor/instagram-api.js`, `background.js`, `lib/regras.js`):** `colarNaPagina` (texto inteiro num evento colar) → plano B linha a linha (CDP `Input.insertText` + `SHIFT_ENTER` com conferência após cada quebra; sem depurador, `insertText '\n'`); `acharEnviarNaPagina` + clique de mouse CDP (Enter só plano B); `confirmarDmNaPagina` não age, só confere; `abrirConversaNaPagina` repete até 4 cliques; `seguirNaPagina` (só clica em "Seguir" no `<header>`; senão erro `ja_relacionado`, pulado sem cota); `relacaoConhecida` + `meSeguemConhecidos` (lista dos meus seguidores) pulam sem abrir o perfil.
+- **Testes:** `tests/dm-envio-completo.test.mjs` (novo, 19) + `tests/ajuda/dom-falso.mjs`; 138 passam. Nenhuma DM/follow real.
+
 ## 2026-10-26 — Instagram 1.1.10: DM não parava mais em "mudança de API" (get_by_participants 404)
 - **Pedido/sintoma:** print do dono com o alerta "direct_v2/get_by_participants respondeu HTTP 404" e 0 DMs enviadas.
 - **Causa raiz:** `enviarDmPelaApi` (`ferramentas/instagram-seguidor/instagram-api.js`): broadcast/text recusado (4xx, nada saiu) → busca da conversa 404 em HTML virava `mudanca_api`, que não aciona a digitação (só `nao_enviada` aciona).

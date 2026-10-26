@@ -364,6 +364,14 @@ async function processarDm(e, agora) {
   }
 }
 
+/**
+ * 1.1.11: ids que a extensão já sabe que me seguem — a lista dos meus seguidores lida para as boas-vindas
+ * (`meusSeguidores.conhecidos`) e os novos seguidores detectados. Usado para pular sem abrir o perfil.
+ */
+function meSeguemConhecidos(e) {
+  return { ...((e.meusSeguidores && e.meusSeguidores.conhecidos) || {}), ...(e.novosSeguidores || {}) };
+}
+
 async function processarSeguir(e, agora) {
   const decisao = replanejarSeAtrasado(e, 'follows', agora);
   if (decisao !== 'executar') return 'ok';
@@ -382,6 +390,14 @@ async function processarSeguir(e, agora) {
       return 'ok';
     }
     if (e.seguidos[cand.id] || e.vistos[cand.id]) continue;
+    // 1.1.11 (dono, 26/10: "Não deve seguir quem já me segue"): já está na lista dos meus seguidores que a extensão
+    // conhece → pula sem abrir o perfil, sem checar na API e sem gastar a cota nem uma das 5 tentativas desta vez.
+    if (meSeguemConhecidos(e)[cand.id]) {
+      e.vistos[cand.id] = 'ja_relacionado';
+      log(e, { username: cand.username, acao: 'pulado', resultado: 'já me segue (está na lista dos meus seguidores) — perfil nem aberto', origem: cand.origem });
+      tentativa -= 1;
+      continue;
+    }
 
     await pausaHumana();
     let st;
@@ -426,6 +442,12 @@ async function processarSeguir(e, agora) {
       log(e, { username: cand.username, acao: 'seguir', resultado: `${rotuloSeguir(r)} — confirmado (${r.via})`, origem: cand.origem });
       return 'ok';
     } catch (err) {
+      if (err instanceof ErroInstagram && err.tipo === 'ja_relacionado') {
+        // 1.1.11: na hora do clique o botão do perfil mostrou que já me segue — nada clicado, não conta no limite.
+        e.vistos[cand.id] = 'ja_relacionado';
+        log(e, { username: cand.username, acao: 'pulado', resultado: `já me segue (visto no botão do perfil na hora de seguir) — não seguido`, origem: cand.origem });
+        continue;
+      }
       const tipo = tratarErro(e, err, 'seguir', cand.username);
       if (bloqueante(tipo)) { e.fila.unshift(cand); return tipo; }
       if (tipo === 'mudanca_api' || tipo === 'indisponivel') {
@@ -1026,6 +1048,7 @@ async function buscarOrigem(username) {
       fila: e.fila,
       vistos: e.vistos,
       seguidos: e.seguidos,
+      meSeguem: meSeguemConhecidos(e),
       pularPrivados: cfg.pularPrivados,
       pularSemFoto: cfg.pularSemFoto,
       origem,
@@ -1079,7 +1102,7 @@ async function reabastecerFila(e, agora) {
     }
     lidos += pagina.usuarios.length;
     const { aceitos, pulados: p } = filtrarCandidatos(pagina.usuarios, {
-      meuId: e.meuId, fila: e.fila, vistos: e.vistos, seguidos: e.seguidos,
+      meuId: e.meuId, fila: e.fila, vistos: e.vistos, seguidos: e.seguidos, meSeguem: meSeguemConhecidos(e),
       pularPrivados: cfg.pularPrivados, pularSemFoto: cfg.pularSemFoto, origem: cur.origem, agora: Date.now(),
     });
     e.fila.push(...aceitos);
