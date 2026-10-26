@@ -1,6 +1,7 @@
 // 1.1.5 — a DM de boas-vindas usa a mesma API privada que passou a devolver HTML 200. HTML na DM = a mensagem
 // certamente NÃO saiu: reagenda (no máx. 3 tentativas espaçadas) e então alerta claro no popup. Nunca "incerta"
-// (que nunca é reenviada) e nunca envio por digitação na tela da DM.
+// (que nunca é reenviada). 1.1.8: antes de contar a falha, a extensão tenta digitar na tela da DM; aqui a tela não
+// abre (botão "Enviar mensagem" ausente), então nada sai e as 3 tentativas seguem como antes.
 import test, { mock } from 'node:test';
 import assert from 'node:assert/strict';
 
@@ -51,10 +52,11 @@ test('DM: HTML na alternativa por conversa também é "nao_enviada"; JSON ok con
   await assert.rejects(c.api.enviarDm('77', 'Oi'), (e) => e.tipo === 'incerto', 'JSON sem confirmação continua incerto (não reenviar)');
 });
 
-test('simulação: DM com HTML → 3 tentativas espaçadas, depois alerta no popup; nunca "incerta", nunca em silêncio', { timeout: 240_000 }, async () => {
+test('simulação: DM com HTML (e tela da DM sem abrir) → 3 tentativas espaçadas, depois alerta no popup; nunca "incerta", nunca em silêncio', { timeout: 240_000 }, async () => {
   const inicio = Date.parse('2026-10-20T07:30:00Z'); // 04:30 SP
   const ig = criarInstagramFalso({ totalSeguidores: 60, voltaSe: (n) => n === 1 });
   ig.dmHtml = true;
+  ig.dmTela.abre = false;
   const cf = criarChromeFalso(ig);
   const ext = await iniciarExtensao(cf, inicio);
   await ext.mensagem({ tipo: 'buscarOrigem', username: 'perfilref' });
@@ -73,7 +75,10 @@ test('simulação: DM com HTML → 3 tentativas espaçadas, depois alerta no pop
   assert.ok(cf.notificacoes.some((n) => /DM não enviada/.test(n.title || '')));
   assert.equal(e.semSessao, false);
   assert.equal(e.pausaAte, null);
-  assert.ok(!ig.chamadas.some((c) => c.metodo === 'CLICK' && /direct/.test(c.caminho)), 'sem digitação/clique na tela da DM');
+  assert.equal(ig.chamadas.filter((c) => c.caminho === 'abrirConversaNaPagina').length, 3, '1.1.8: tentou abrir a conversa a cada tentativa');
+  assert.ok(!ig.chamadas.some((c) => c.caminho === 'apertarEnterNaPagina'), 'nunca apertou Enter');
+  assert.equal(reg.dmDesistiuPor, 'html');
+  assert.ok(reg.dmDigitacaoTentadaEm, 'marcada como já tentada por digitação (não é reabilitada)');
   mock.timers.reset();
 });
 

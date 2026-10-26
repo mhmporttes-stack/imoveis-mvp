@@ -4,7 +4,7 @@ import { gerarCsv, resumoBusca, resumoBoasVindas } from './lib/estado.js';
 import { MENSAGEM_PADRAO, STATUS, idsParaVerificarFollowBack } from './lib/regras.js';
 
 const $ = (id) => document.getElementById(id);
-const CAMPOS_NUM = ['limiteDiario', 'limiteUnfollowDiario', 'diasParaUnfollow', 'maxBusca'];
+const CAMPOS_NUM = ['limiteDiario', 'limiteUnfollowDiario', 'diasParaUnfollow', 'maxBusca', 'limiteDmDiario'];
 const CAMPOS_BOOL = ['pularPrivados', 'pularSemFoto', 'dmAtiva'];
 let configCarregada = false;
 

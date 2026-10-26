@@ -79,11 +79,15 @@ test('lista dos meus seguidores fora do ar (v1 e GraphQL) → erro visível no r
 
 test('show_many em HTML mas friendships/show em JSON: o plano B por perfil usa o show (diz se segue de volta)', { timeout: 240_000 }, async () => {
   const ctx = await preparar({ configurar: (ig) => { ig.showHtml = false; } });
-  await seguirDeVoltaEnterrado(ctx, 80); // além das páginas lidas na conferência completa
+  // 1.1.8: 100 seguidores novos de uma vez (além das 8 páginas que a busca de novos seguidores lê): sem nenhum
+  // já conhecido na leitura, ninguém recebe DM em lote (proteção) — e o alvo continua achado pelo friendships/show.
+  await seguirDeVoltaEnterrado(ctx, 100);
   await ctx.ext.avancarAte(Date.now() + 4 * HORA);
-  const reg = ctx.ext.estado().seguidos[ctx.alvo.id];
+  const e = ctx.ext.estado();
+  const reg = e.seguidos[ctx.alvo.id];
   assert.ok(reg.followBackEm, 'detectado pelo friendships/show');
   assert.equal(ctx.ig.dms.length, 1);
+  assert.ok(e.historico.some((h) => /nenhuma DM \(nunca DM em lote\)/.test(h.resultado)), 'anomalia registrada');
 });
 
 test('botão "Conferir seguidores agora": confere na hora e devolve o resumo', { timeout: 240_000 }, async () => {
@@ -112,7 +116,7 @@ test('"Conferir seguidores agora" fora da janela não faz nada e explica', { tim
 });
 
 test('DM em HTML: o erro aparece no resumo de boas-vindas', { timeout: 240_000 }, async () => {
-  const ctx = await preparar({ configurar: (ig) => { ig.dmHtml = true; } });
+  const ctx = await preparar({ configurar: (ig) => { ig.dmHtml = true; ig.dmTela.abre = false; } }); // 1.1.8: digitação também falha
   ctx.ig.meSeguem.set(String(ctx.alvo.id), Date.now());
   await ctx.ext.avancarAte(Date.now() + 20 * MINUTO);
   const e = ctx.ext.estado();
@@ -136,11 +140,12 @@ test('resumoBoasVindas: enviadas hoje, pendentes, sem envio, última checagem e 
   assert.equal(r.enviadasHoje, 2);
   assert.equal(r.pendentes, 1);
   assert.equal(r.semEnvio, 1);
-  assert.match(r.texto, /^Boas-vindas: 2 enviadas hoje, 1 pendente, última checagem de seguidores às 11:58, último erro \(12:00\): DM não enviada: HTML/);
+  assert.match(r.texto, /^Boas-vindas: 2 enviadas hoje \(teto 30\/dia\), 1 pendente, última checagem de seguidores às 11:58, último erro \(12:00\): DM não enviada: HTML/);
   assert.match(r.texto, /1 não pôde ser enviada/);
 
   const vazio = resumoBoasVindas(estadoInicial(), agora);
-  assert.match(vazio.texto, /0 enviadas hoje, 0 pendentes, última checagem de seguidores: ainda não, último erro: nenhum/);
+  assert.match(vazio.texto, /linha de base dos seguidores ainda não lida/);
+  assert.match(vazio.texto, /0 enviadas hoje \(teto 30\/dia\), 0 pendentes, última checagem de seguidores: ainda não, último erro: nenhum/);
   const desligada = estadoInicial();
   desligada.config.dmAtiva = false;
   assert.match(resumoBoasVindas(desligada, agora).texto, /DM desligada no painel/);

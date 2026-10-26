@@ -54,6 +54,20 @@ export const TEXTOS_LEITURA = {
   privado: ['esta conta é privada', 'this account is private'],
 };
 
+// 1.1.8: envio da DM por digitação na tela da conversa (plano B quando a API de DM responde HTML).
+export const TEXTOS_DM = {
+  mensagem: ['enviar mensagem', 'mensagem', 'message', 'send message'],
+  agoraNao: ['agora não', 'not now'],
+  enviar: ['enviar', 'send'],
+};
+
+/** Trecho que identifica a mensagem na conversa: a linha mais longa, com espaços normalizados (até 80 caracteres). */
+export function trechoDaMensagem(texto) {
+  const linhas = String(texto || '').split('\n').map((l) => l.replace(/\s+/g, ' ').trim()).filter(Boolean);
+  const maior = linhas.sort((a, b) => b.length - a.length)[0] || '';
+  return maior.slice(0, 80);
+}
+
 export class ErroInstagram extends Error {
   constructor(tipo, mensagem, { status = 0, endpoint = '', corpo = '' } = {}) {
     super(mensagem);
@@ -94,7 +108,7 @@ function form(obj) {
  * `{ status, texto }` (nos testes é um falso; na extensão é a aba do Instagram).
  * `obterCsrf()` devolve o csrftoken atual (ou '').
  */
-export function criarApiInstagram({ executar, obterCsrf = async () => '', clicar = null, lerPerfil = null }) {
+export function criarApiInstagram({ executar, obterCsrf = async () => '', clicar = null, lerPerfil = null, digitarDm = null }) {
   /**
    * Faz uma chamada. `referer` é o caminho da página "de onde" a chamada parte
    * (ex.: '/fulano/'), como o site faz. `bruto: true` devolve o texto (HTML) sem
@@ -407,61 +421,100 @@ export function criarApiInstagram({ executar, obterCsrf = async () => '', clicar
     },
 
     /**
-     * Envia DM de texto. 1ª tentativa: broadcast/text com recipient_users.
-     * Se o endpoint não aceitar, procura a conversa pelo participante e envia por thread_ids.
-     * Retorna { modo }.
+     * Envia DM de texto. 1ª tentativa: broadcast/text com recipient_users (ver enviarDmPelaApi).
+     * 1.1.8 (decisão do dono, 26/10, ciente do risco): se a API responder a página HTML ('nao_enviada') e houver
+     * `username`, digita a mensagem na tela da conversa (perfil → Mensagem) e aperta Enter, como uma pessoa.
+     * Retorna { modo, digitacao? }.
      */
-    async enviarDm(id, texto) {
-      const comum = {
-        action: 'send_item',
-        is_shh_mode: '0',
-        send_attribution: 'direct_thread',
-        client_context: idNumericoCliente(),
-        offline_threading_id: idNumericoCliente(),
-        mutation_token: uuid(),
-        text: texto,
-      };
-      let j;
+    async enviarDm(id, texto, { username = '' } = {}) {
       try {
-        j = await chamar('direct_v2/broadcast/text', ENDPOINTS.dmTexto(), {
-          metodo: 'POST',
-          corpo: form({ ...comum, recipient_users: JSON.stringify([[String(id)]]) }),
-        });
+        return await enviarDmPelaApi(id, texto);
       } catch (e) {
-        naoEnviadaSeHtml(e);
-        // Só tenta a alternativa quando o Instagram claramente RECUSOU o pedido
-        // (400/404/405) — assim não há risco de a mensagem ter saído duas vezes.
-        const recusado = e instanceof ErroInstagram && [400, 404, 405].includes(e.status) && e.tipo !== 'limite' && e.tipo !== 'sessao';
-        if (!recusado) throw e;
-        // Alternativa: localizar a conversa e enviar por thread_ids.
-        let conv;
-        try {
-          conv = await chamar('direct_v2/get_by_participants', ENDPOINTS.dmConversaPorParticipante(id));
-        } catch (e2) {
-          naoEnviadaSeHtml(e2);
-          throw e2;
-        }
-        const threadId = conv && conv.thread && conv.thread.thread_id;
-        if (!threadId) {
-          throw new ErroInstagram('mudanca_api', `Não foi possível enviar a DM: broadcast/text falhou (${e.message}) e não há conversa existente. O Instagram pode ter mudado a API de mensagens.`, { endpoint: 'direct_v2' });
-        }
-        let j2;
-        try {
-          j2 = await chamar('direct_v2/broadcast/text(thread)', ENDPOINTS.dmTexto(), {
-            metodo: 'POST',
-            corpo: form({ ...comum, client_context: idNumericoCliente(), mutation_token: uuid(), thread_ids: JSON.stringify([threadId]) }),
-          });
-        } catch (e2) {
-          naoEnviadaSeHtml(e2);
-          throw e2;
-        }
-        if (j2 && j2.status === 'ok') return { modo: 'thread_ids' };
-        throw new ErroInstagram('incerto', 'broadcast/text (thread) respondeu sem confirmar o envio — confira a conversa no Instagram.', { endpoint: 'direct_v2/broadcast/text', corpo: JSON.stringify(j2) });
+        if (!(e instanceof ErroInstagram) || e.tipo !== 'nao_enviada' || !digitarDm || !username) throw e;
+        return enviarPorDigitacao(username, texto, e);
       }
-      if (j && j.status === 'ok') return { modo: 'recipient_users' };
-      throw new ErroInstagram('incerto', 'broadcast/text respondeu sem confirmar o envio — confira a conversa no Instagram.', { endpoint: 'direct_v2/broadcast/text', corpo: JSON.stringify(j) });
     },
   };
+
+  /**
+   * Envia pela API: broadcast/text com recipient_users. Se o endpoint não aceitar, procura a conversa pelo
+   * participante e envia por thread_ids. Retorna { modo }.
+   */
+  async function enviarDmPelaApi(id, texto) {
+    const comum = {
+      action: 'send_item',
+      is_shh_mode: '0',
+      send_attribution: 'direct_thread',
+      client_context: idNumericoCliente(),
+      offline_threading_id: idNumericoCliente(),
+      mutation_token: uuid(),
+      text: texto,
+    };
+    let j;
+    try {
+      j = await chamar('direct_v2/broadcast/text', ENDPOINTS.dmTexto(), {
+        metodo: 'POST',
+        corpo: form({ ...comum, recipient_users: JSON.stringify([[String(id)]]) }),
+      });
+    } catch (e) {
+      naoEnviadaSeHtml(e);
+      // Só tenta a alternativa quando o Instagram claramente RECUSOU o pedido
+      // (400/404/405) — assim não há risco de a mensagem ter saído duas vezes.
+      const recusado = e instanceof ErroInstagram && [400, 404, 405].includes(e.status) && e.tipo !== 'limite' && e.tipo !== 'sessao';
+      if (!recusado) throw e;
+      // Alternativa: localizar a conversa e enviar por thread_ids.
+      let conv;
+      try {
+        conv = await chamar('direct_v2/get_by_participants', ENDPOINTS.dmConversaPorParticipante(id));
+      } catch (e2) {
+        naoEnviadaSeHtml(e2);
+        throw e2;
+      }
+      const threadId = conv && conv.thread && conv.thread.thread_id;
+      if (!threadId) {
+        throw new ErroInstagram('mudanca_api', `Não foi possível enviar a DM: broadcast/text falhou (${e.message}) e não há conversa existente. O Instagram pode ter mudado a API de mensagens.`, { endpoint: 'direct_v2' });
+      }
+      let j2;
+      try {
+        j2 = await chamar('direct_v2/broadcast/text(thread)', ENDPOINTS.dmTexto(), {
+          metodo: 'POST',
+          corpo: form({ ...comum, client_context: idNumericoCliente(), mutation_token: uuid(), thread_ids: JSON.stringify([threadId]) }),
+        });
+      } catch (e2) {
+        naoEnviadaSeHtml(e2);
+        throw e2;
+      }
+      if (j2 && j2.status === 'ok') return { modo: 'thread_ids' };
+      throw new ErroInstagram('incerto', 'broadcast/text (thread) respondeu sem confirmar o envio — confira a conversa no Instagram.', { endpoint: 'direct_v2/broadcast/text', corpo: JSON.stringify(j2) });
+    }
+    if (j && j.status === 'ok') return { modo: 'recipient_users' };
+    throw new ErroInstagram('incerto', 'broadcast/text respondeu sem confirmar o envio — confira a conversa no Instagram.', { endpoint: 'direct_v2/broadcast/text', corpo: JSON.stringify(j) });
+  }
+
+  /**
+   * 1.1.8: plano B da DM — digitação na tela da conversa. `digitarDm` devolve { ok, confirmado, jaEstava, apertouEnter,
+   * erro }. Antes do Enter nada saiu (pode tentar de novo: 'nao_enviada'); depois do Enter sem a mensagem aparecer na
+   * conversa = 'incerto' (nunca reenviar). Erro inesperado no meio = 'incerto' também (não dá para saber).
+   */
+  async function enviarPorDigitacao(username, texto, erroApi) {
+    let r;
+    try {
+      r = await digitarDm({ username, texto });
+    } catch (err) {
+      if (err instanceof ErroInstagram && err.tipo === 'sem_janela') throw err;
+      const x = new ErroInstagram('incerto', `DM por digitação interrompida (${err.message || err}) — não será repetida; confira a conversa no Instagram.`, { endpoint: 'digitação na DM' });
+      x.digitacao = true;
+      throw x;
+    }
+    if (r && r.jaEstava) return { modo: 'digitação — a mensagem já estava na conversa (nada digitado)', digitacao: true };
+    if (r && r.ok && r.confirmado) return { modo: 'digitação na tela da DM', digitacao: true };
+    const motivo = (r && r.erro) || 'sem resposta da aba';
+    const x = r && r.apertouEnter
+      ? new ErroInstagram('incerto', `DM digitada e Enter apertado, mas a mensagem não apareceu na conversa (${motivo}) — não será repetida; confira no Instagram.`, { endpoint: 'digitação na DM' })
+      : new ErroInstagram('nao_enviada', `DM não enviada: a API respondeu HTML e a digitação não chegou a enviar (${motivo}). ${erroApi.message}`, { endpoint: 'digitação na DM' });
+    x.digitacao = true;
+    throw x;
+  }
 }
 
 /** Resumo técnico da chamada para o log (sem valores de tokens). */
@@ -822,7 +875,200 @@ export async function clicarNaAba({ username, passos }) {
   return abrirPerfilEExecutar(username, clicarNaPagina, [passos]);
 }
 
+// --- DM por digitação (1.1.8) ------------------------------------------------------------------------------------
+// Decisão do dono (26/10/2026, ciente do risco): com a API de DM respondendo a página HTML, a boas-vindas é digitada
+// na tela da conversa, como uma pessoa: abre o perfil na janela de trabalho (sem foco, página acordada pelo depurador
+// da 1.1.6), clica em "Enviar mensagem", digita e aperta Enter. Só conta como enviada se a mensagem APARECER na
+// conversa; Enter apertado sem confirmação = incerto (nunca reenvia). Antes do Enter, qualquer falha = nada saiu.
+// As funções `...NaPagina` rodam DENTRO da aba (chrome.scripting, mundo MAIN): não usam nada de fora delas.
+
+/** NA PÁGINA do perfil: clica em "Enviar mensagem" e espera a caixa de texto da conversa (até ~15 s). */
+export async function abrirConversaNaPagina(textos) {
+  const norm = (t) => String(t || '').replace(/\s+/g, ' ').trim().toLowerCase();
+  const visivel = (el) => { const r = el.getBoundingClientRect(); return r.width > 0 && r.height > 0; };
+  const esperar = (ms) => new Promise((r) => setTimeout(r, ms));
+  const botoes = (raiz, lista) => [...raiz.querySelectorAll('button, div[role="button"], a[role="button"]')].find((el) => visivel(el) && lista.includes(norm(el.innerText || el.textContent)));
+  const caixa = () => [...document.querySelectorAll('div[contenteditable="true"][role="textbox"], div[contenteditable="true"][aria-label], textarea')].filter(visivel).pop();
+  let botao = null;
+  for (let t = 0; t < 32 && !botao; t += 1) {
+    botao = botoes(document.querySelector('header') || document, textos.mensagem) || botoes(document.querySelector('main') || document, textos.mensagem);
+    if (!botao) await esperar(250);
+  }
+  if (!botao) return { ok: false, erro: 'botão "Enviar mensagem" não apareceu no perfil', origem: location.origin };
+  botao.click();
+  for (let t = 0; t < 60; t += 1) {
+    await esperar(250);
+    const agoraNao = botoes(document, textos.agoraNao); // "Ativar notificações?" → Agora não
+    if (agoraNao) agoraNao.click();
+    if (caixa()) return { ok: true, caminho: location.pathname, origem: location.origin };
+  }
+  return { ok: false, erro: 'a caixa de mensagem da conversa não apareceu', origem: location.origin };
+}
+
+/**
+ * NA PÁGINA da conversa: conta quantas vezes o trecho da mensagem já aparece na conversa (fora da caixa de texto),
+ * esvazia a caixa (rascunho velho nunca é enviado) e deixa o cursor nela.
+ */
+export async function prepararCaixaNaPagina(trecho) {
+  const norm = (t) => String(t || '').replace(/\s+/g, ' ').trim().toLowerCase();
+  const visivel = (el) => { const r = el.getBoundingClientRect(); return r.width > 0 && r.height > 0; };
+  const caixa = [...document.querySelectorAll('div[contenteditable="true"][role="textbox"], div[contenteditable="true"][aria-label], textarea')].filter(visivel).pop();
+  if (!caixa) return { ok: false, erro: 'caixa de mensagem sumiu' };
+  const conta = (texto, alvo) => { let n = 0; let i = texto.indexOf(alvo); while (alvo && i !== -1) { n += 1; i = texto.indexOf(alvo, i + alvo.length); } return n; };
+  const alvo = norm(trecho);
+  const textoCaixa = norm(caixa.value ?? caixa.innerText);
+  const contagem = Math.max(0, conta(norm(document.body.innerText), alvo) - conta(textoCaixa, alvo));
+  caixa.focus();
+  if (textoCaixa) {
+    if (caixa.tagName === 'TEXTAREA') caixa.select(); else document.getSelection().selectAllChildren(caixa);
+    document.execCommand('delete');
+  }
+  return { ok: true, contagem };
+}
+
+/** NA PÁGINA: digita um pedaço de texto (`quebra`: quebra de linha) na caixa já focada. Sem atraso (página oculta). */
+export async function escreverNaPagina(partes) {
+  const visivel = (el) => { const r = el.getBoundingClientRect(); return r.width > 0 && r.height > 0; };
+  const caixa = [...document.querySelectorAll('div[contenteditable="true"][role="textbox"], div[contenteditable="true"][aria-label], textarea')].filter(visivel).pop();
+  if (!caixa) return { ok: false, erro: 'caixa de mensagem sumiu' };
+  caixa.focus();
+  for (const p of partes) {
+    if (p.quebra) { if (caixa.tagName === 'TEXTAREA') document.execCommand('insertText', false, '\n'); else document.execCommand('insertLineBreak'); }
+    else if (p.texto) document.execCommand('insertText', false, p.texto);
+  }
+  return { ok: true };
+}
+
+/** NA PÁGINA: o texto da caixa é exatamente a mensagem (espaços normalizados)? Só então o Enter é apertado. */
+export async function conferirCaixaNaPagina(texto) {
+  const norm = (t) => String(t || '').replace(/\s+/g, ' ').trim();
+  const visivel = (el) => { const r = el.getBoundingClientRect(); return r.width > 0 && r.height > 0; };
+  const caixa = [...document.querySelectorAll('div[contenteditable="true"][role="textbox"], div[contenteditable="true"][aria-label], textarea')].filter(visivel).pop();
+  if (!caixa) return { ok: false, erro: 'caixa de mensagem sumiu' };
+  const atual = norm(caixa.value ?? caixa.innerText);
+  if (atual === norm(texto)) return { ok: true };
+  // Texto errado: esvazia para nunca mandar mensagem truncada/estranha.
+  caixa.focus();
+  if (caixa.tagName === 'TEXTAREA') caixa.select(); else document.getSelection().selectAllChildren(caixa);
+  document.execCommand('delete');
+  return { ok: false, erro: `o texto digitado não conferiu com a mensagem (${atual.length} de ${norm(texto).length} caracteres)` };
+}
+
+/** NA PÁGINA (sem depurador): Enter na caixa de texto. */
+export async function apertarEnterNaPagina() {
+  const visivel = (el) => { const r = el.getBoundingClientRect(); return r.width > 0 && r.height > 0; };
+  const caixa = [...document.querySelectorAll('div[contenteditable="true"][role="textbox"], div[contenteditable="true"][aria-label], textarea')].filter(visivel).pop();
+  if (!caixa) return { ok: false, erro: 'caixa de mensagem sumiu' };
+  caixa.focus();
+  for (const tipo of ['keydown', 'keypress', 'keyup']) {
+    caixa.dispatchEvent(new KeyboardEvent(tipo, { key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true, cancelable: true }));
+  }
+  return { ok: true };
+}
+
+/**
+ * NA PÁGINA, depois do Enter: espera (até ~12 s) a mensagem aparecer na conversa (mais ocorrências do trecho que
+ * antes, fora da caixa). Se a caixa continua com a mensagem inteira depois de ~3 s (o Enter não enviou), clica UMA
+ * vez no botão "Enviar".
+ */
+export async function confirmarDmNaPagina(trecho, antes, textos) {
+  const norm = (t) => String(t || '').replace(/\s+/g, ' ').trim().toLowerCase();
+  const visivel = (el) => { const r = el.getBoundingClientRect(); return r.width > 0 && r.height > 0; };
+  const esperar = (ms) => new Promise((r) => setTimeout(r, ms));
+  const conta = (texto, alvo) => { let n = 0; let i = texto.indexOf(alvo); while (alvo && i !== -1) { n += 1; i = texto.indexOf(alvo, i + alvo.length); } return n; };
+  const alvo = norm(trecho);
+  let clicou = false;
+  for (let t = 0; t < 48; t += 1) {
+    await esperar(250);
+    const caixa = [...document.querySelectorAll('div[contenteditable="true"][role="textbox"], div[contenteditable="true"][aria-label], textarea')].filter(visivel).pop();
+    const naCaixa = caixa ? conta(norm(caixa.value ?? caixa.innerText), alvo) : 0;
+    const naConversa = conta(norm(document.body.innerText), alvo) - naCaixa;
+    if (naConversa > antes && !naCaixa) return { ok: true, confirmado: true, clicouEnviar: clicou };
+    if (!clicou && t >= 12 && naCaixa) {
+      const enviar = [...document.querySelectorAll('button, div[role="button"]')].find((el) => visivel(el) && textos.enviar.includes(norm(el.innerText || el.textContent || el.getAttribute('aria-label'))));
+      if (enviar) { enviar.click(); clicou = true; }
+    }
+  }
+  return { ok: false, confirmado: false, erro: 'a mensagem não apareceu na conversa em 12 s' };
+}
+
+/** Partes da digitação: palavras (com o espaço) e quebras de linha. */
+export function partesDaDigitacao(texto) {
+  const partes = [];
+  String(texto || '').split('\n').forEach((linha, i) => {
+    if (i > 0) partes.push({ quebra: true });
+    for (const pedaco of linha.match(/\S+\s*|\s+/g) || []) partes.push({ texto: pedaco });
+  });
+  return partes;
+}
+
+const cdp = (tabId, metodo, params) => comPrazo(chrome.debugger.sendCommand({ tabId }, metodo, params), 8000, metodo);
+const TECLA_ENTER = { key: 'Enter', code: 'Enter', windowsVirtualKeyCode: 13, nativeVirtualKeyCode: 13 };
+
+/**
+ * Executor real do plano B da DM. Devolve { ok, confirmado, jaEstava, apertouEnter, erro } (nunca lança, exceto
+ * 'sem_janela'). Com o depurador ligado, digita palavra por palavra (Input.insertText, eventos de teclado reais) e
+ * aperta Enter; sem ele, digita pela própria página. Quebra de linha sempre pela página (insertLineBreak) — um Enter
+ * de verdade no meio do texto enviaria a mensagem pela metade.
+ */
+export async function digitarDmNaAba({ username, texto }) {
+  if (!username) return { ok: false, apertouEnter: false, erro: 'sem @ do perfil' };
+  let tabId;
+  try {
+    tabId = await garantirAbaInstagram();
+  } catch (err) {
+    if (err instanceof ErroInstagram && err.tipo === 'sem_janela') throw err;
+    return { ok: false, apertouEnter: false, erro: err.message || String(err) };
+  }
+  const exec = async (func, args) => {
+    const [res] = await chrome.scripting.executeScript({ target: { tabId }, world: 'MAIN', func, args });
+    return (res && res.result) || { ok: false, erro: 'a aba não respondeu' };
+  };
+  const pausa = (min, max) => new Promise((r) => setTimeout(r, min + Math.round(Math.random() * (max - min))));
+  return paginaAcordada.run(tabId, async (info) => {
+    let apertouEnter = false;
+    try {
+      await chrome.tabs.update(tabId, { url: `${BASE}/${encodeURIComponent(username)}/` });
+      await new Promise((r) => setTimeout(r, 400));
+      await esperarCarregar(tabId);
+      const aberta = await exec(abrirConversaNaPagina, [TEXTOS_DM]);
+      if (!aberta.ok) return { ok: false, apertouEnter, erro: aberta.erro };
+      const trecho = trechoDaMensagem(texto);
+      const caixa = await exec(prepararCaixaNaPagina, [trecho]);
+      if (!caixa.ok) return { ok: false, apertouEnter, erro: caixa.erro };
+      if (caixa.contagem > 0) return { ok: true, jaEstava: true, apertouEnter };
+      await pausa(800, 2000);
+      const partes = partesDaDigitacao(texto);
+      const comDepurador = info.attached && paginaAcordada.isAttached(tabId);
+      if (comDepurador) {
+        for (const p of partes) {
+          if (p.quebra) await exec(escreverNaPagina, [[p]]);
+          else await cdp(tabId, 'Input.insertText', { text: p.texto });
+          await pausa(60, 220);
+        }
+      } else {
+        const w = await exec(escreverNaPagina, [partes]);
+        if (!w.ok) return { ok: false, apertouEnter, erro: w.erro };
+      }
+      const conferida = await exec(conferirCaixaNaPagina, [texto]);
+      if (!conferida.ok) return { ok: false, apertouEnter, erro: conferida.erro };
+      await pausa(700, 1800);
+      apertouEnter = true; // a partir daqui a mensagem pode ter saído: nunca mais "não enviada"
+      if (comDepurador) {
+        await cdp(tabId, 'Input.dispatchKeyEvent', { type: 'keyDown', ...TECLA_ENTER, text: '\r', unmodifiedText: '\r' });
+        await cdp(tabId, 'Input.dispatchKeyEvent', { type: 'keyUp', ...TECLA_ENTER });
+      } else {
+        await exec(apertarEnterNaPagina, []);
+      }
+      const conf = await exec(confirmarDmNaPagina, [trecho, caixa.contagem, TEXTOS_DM]);
+      return { ok: Boolean(conf.confirmado), confirmado: Boolean(conf.confirmado), apertouEnter, erro: conf.erro, viaDepurador: comDepurador };
+    } catch (err) {
+      return { ok: false, apertouEnter, erro: err && err.message ? err.message : String(err) };
+    }
+  });
+}
+
 /** API pronta para uso dentro da extensão. */
 export function criarApiChrome() {
-  return criarApiInstagram({ executar: executarNaAba, obterCsrf: async () => (await lerSessao()).csrf, clicar: clicarNaAba, lerPerfil: lerPerfilNaAba });
+  return criarApiInstagram({ executar: executarNaAba, obterCsrf: async () => (await lerSessao()).csrf, clicar: clicarNaAba, lerPerfil: lerPerfilNaAba, digitarDm: digitarDmNaAba });
 }
