@@ -2,7 +2,7 @@
 // Regras de agenda/limite em lib/agenda.js (testadas). Seletores do Facebook em selectors.js.
 import { CHECK_EVERY_MINUTES, REASON_LABELS, STALE_RUN_MS, buildResultBody, decideTick, finishJob, initialState, localWaitUntil, recomputeFromHistory, recordCheck, setManualPause, startJob } from "./lib/agenda.js";
 import { DEFAULT_CRM_URL, downloadAttachment, downloadPhotos, fetchNextListing, fetchNextOutbound, postChatSync, postDiagnostic, postOutboundResult, postResult } from "./lib/crm-api.js";
-import { CHAT_EVERY_MINUTES, MAX_SENDS_PER_ROUND, ROUND_BUDGET_MS, chatLockAlive, clearThreadFailure, diagnosticDue, splitIgnored, decideChatTick, describeChatLock, outboundResultBody, SEND_RETRY_WAIT_MS, verifyOutcome, recordThreadFailure, rememberPreviews, threadRetryBlocked, threadsToRead } from "./lib/chat-agenda.js";
+import { CHAT_EVERY_MINUTES, MAX_SENDS_PER_ROUND, ROUND_BUDGET_MS, outboxWaitMs, chatLockAlive, clearThreadFailure, diagnosticDue, splitIgnored, decideChatTick, describeChatLock, outboundResultBody, SEND_RETRY_WAIT_MS, verifyOutcome, recordThreadFailure, rememberPreviews, threadRetryBlocked, threadsToRead } from "./lib/chat-agenda.js";
 import { CHECKPOINT_PAUSE_MS } from "./lib/agenda.js";
 import { KEEP_AWAKE_ALARM, KEEP_AWAKE_EVERY_MINUTES, PULSE_PAGE, PULSE_TAB_CLOSE_MS, decidePulse, shouldHoldPower } from "./lib/keep-awake.js";
 import { WORK_WINDOW_SIZE, describeWorkView, findWorkWindow } from "./lib/work-window.js";
@@ -39,12 +39,20 @@ function notify(title, message) {
   chrome.notifications.create({ type: "basic", iconUrl: "icones/icon-192-mm.png", title, message, priority: 2 });
 }
 
+// Próxima rodada do chat 1 min depois de AGORA (1.9.9, dono 2026-10-26: "pode voltar e aguardar mais 1 minuto para a
+// próxima rodada"). Recriar o alarme com o mesmo nome substitui o anterior; o período de 1 min fica como rede de
+// segurança (worker encerrado no meio da rodada). Chamado no fim de cada rodada que rodou.
+function scheduleNextChatRound() {
+  chrome.alarms.create(CHAT_ALARM, { delayInMinutes: CHAT_EVERY_MINUTES, periodInMinutes: CHAT_EVERY_MINUTES });
+}
+
 function ensureAlarm() {
   chrome.alarms.get(ALARM, (alarm) => {
     if (!alarm) chrome.alarms.create(ALARM, { delayInMinutes: 1, periodInMinutes: CHECK_EVERY_MINUTES });
   });
+  // 1.9.9: alarme antigo de 2 min (instalação anterior) é trocado pelo de 1 min.
   chrome.alarms.get(CHAT_ALARM, (alarm) => {
-    if (!alarm) chrome.alarms.create(CHAT_ALARM, { delayInMinutes: 1, periodInMinutes: CHAT_EVERY_MINUTES });
+    if (!alarm || alarm.periodInMinutes !== CHAT_EVERY_MINUTES) scheduleNextChatRound();
   });
   chrome.alarms.get(KEEP_AWAKE_ALARM, (alarm) => {
     if (!alarm) chrome.alarms.create(KEEP_AWAKE_ALARM, { delayInMinutes: KEEP_AWAKE_EVERY_MINUTES, periodInMinutes: KEEP_AWAKE_EVERY_MINUTES });
@@ -493,9 +501,9 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 });
 
 // --- Chat do Marketplace (MKT-2) ---------------------------------------------------------------------------------
-// A cada ~2 min (horário e liga/desliga vêm do CRM): abre uma aba própria na caixa de entrada do MARKETPLACE (nunca a
+// A cada ~1 min (1.9.9) (horário e liga/desliga vêm do CRM): abre uma aba própria na caixa de entrada do MARKETPLACE (nunca a
 // lista geral do Messenger), lê só as conversas que mudaram, manda ao CRM e envia as respostas que os corretores
-// escreveram (cliques/teclas reais, no máximo 3 por rodada e o limite por hora do CRM). Nunca responde sozinho.
+// escreveram (cliques/teclas reais, até MAX_SENDS_PER_ROUND por rodada dentro do orçamento e o limite por hora do CRM). Nunca responde sozinho.
 // Depois de um clique: se a aba trocou de endereço/está carregando, espera terminar (até 45 s).
 async function waitTabSettled(tabId, beforeUrl) {
   const end = Date.now() + PAGE_LOAD_TIMEOUT_MS;
@@ -1103,15 +1111,23 @@ async function chatTick() {
       if (synced.settings?.syncEnabled === false) return { reason: (result = "chat_desligado") };
     }
 
-    for (let i = 0; i < MAX_SENDS_PER_ROUND; i += 1) {
+    // 1.9.9: `i` conta só envios (as esperas não contam); fila sem resposta pronta mas com automática marcada
+    // para daqui a até 60 s (`nextAt` do CRM) → espera por ela dentro do orçamento — automáticas saem uma a cada 30 s.
+    for (let i = 0; i < MAX_SENDS_PER_ROUND; ) {
       if (round.elapsed() > ROUND_BUDGET_MS) {
         result = "chat_parcial";
         break;
       }
       const next = await round.step("buscando respostas a enviar", () => fetchNextOutbound(config), STEP_TIMEOUT_MS.outbox, summary);
-      if (!next?.message) break;
+      if (!next?.message) {
+        const wait = outboxWaitMs(next, { now: Date.now(), elapsedMs: round.elapsed() });
+        if (!wait) break;
+        await round.step(`aguardando a próxima resposta automática (${Math.round(wait / 1000)} s)`, () => sleep(wait), wait + 15000, summary);
+        continue;
+      }
+      i += 1;
       tab = await ensureRoundTab(tab, round);
-      const outcome = await round.step(`enviando resposta ${i + 1}`, () => sendOutbound(tab.id, config, next.message), STEP_TIMEOUT_MS.send, summary);
+      const outcome = await round.step(`enviando resposta ${i}`, () => sendOutbound(tab.id, config, next.message), STEP_TIMEOUT_MS.send, summary);
       if (outcome.ok) summary.sent += 1;
       else summary.failed += 1;
       if (outcome.checkpoint) {
@@ -1120,7 +1136,7 @@ async function chatTick() {
       }
       // 1.9.6 (dono, 2026-10-24): "se a mensagem não foi enviada, você espera 30 segundos e tenta enviar de novo". Espera
       // 30 s e pede a próxima ao CRM (que só devolve a mesma 30 s depois da falha); continua dentro do orçamento da rodada
-      // e do máximo de envios por rodada — o resto fica para a próxima rodada (2 min). Conversa bloqueada: o CRM parou.
+      // e do máximo de envios por rodada — o resto fica para a próxima rodada (1 min depois, 1.9.9). Conversa bloqueada: o CRM parou.
       if (!outcome.ok) {
         if (round.elapsed() + SEND_RETRY_WAIT_MS > ROUND_BUDGET_MS) break;
         await round.step("aguardando 30 s para reenviar", () => sleep(SEND_RETRY_WAIT_MS), SEND_RETRY_WAIT_MS + 15000, summary);
@@ -1150,6 +1166,8 @@ async function chatTick() {
     // Só solta a trava se ainda for desta rodada (Destravar/rodada nova já podem ter trocado).
     const stored = await loadChatLock().catch(() => null);
     if (stored?.token === token) await chrome.storage.local.remove("chatLock");
+    // 1.9.9: a próxima rodada começa 1 min depois desta terminar (não no meio de um minuto já corrido).
+    scheduleNextChatRound();
     summary.pending = Math.max(0, summary.pending - summary.read);
     await chrome.storage.local.set({ chatLast: { at: new Date().toISOString(), startedAt, result, ...summary } });
   }
@@ -1184,7 +1202,7 @@ async function sendDiagnostics(tabId, config, { navigate = true } = {}) {
 async function diagnoseNow() {
   const config = await loadConfig();
   if (!config.key) return { error: "Configure a chave nas opções." };
-  if (await chatBusy()) return { error: "Sincronização em andamento; tente de novo em 2 min." };
+  if (await chatBusy()) return { error: "Sincronização em andamento; tente de novo em 1 min." };
   const tab = await getWorkTab();
   const result = await withAwakePage(tab.id, () => sendDiagnostics(tab.id, config));
   await chrome.storage.local.set({ lastDiagnostic: { at: new Date().toISOString(), result } });

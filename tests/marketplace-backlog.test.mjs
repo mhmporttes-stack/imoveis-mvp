@@ -66,11 +66,23 @@ test("acumulado de até 7 dias vai à roleta; mais antigo continua com o admin",
   assert.ok(planAvailabilityAutoReply({ settings, firstContent: true, messages: [standard("2026-10-24T20:00:00Z")], greeting: "Bom dia", now }).body);
 });
 
-test("ritmo: cada automática nova sai depois da última da fila (limite por hora); resposta humana sempre antes", () => {
-  assert.equal(autoReplySpacingMs(20), 3 * 60 * 1000);
+test("ritmo: cada automática nova sai 30 s depois da última da fila (dono, 2026-10-26); resposta humana sempre antes", () => {
+  // "Eu quero que as respostas acumuladas saiam uma a cada 30 segundos." Fixo, qualquer limite por hora (era 1/limite: 20/h → 3 min).
+  assert.equal(autoReplySpacingMs(), 30 * 1000);
+  assert.equal(autoReplySpacingMs(20), 30 * 1000);
+  assert.equal(autoReplySpacingMs(40), 30 * 1000);
   const last = "2026-10-27T11:10:00Z";
   const plan = planAvailabilityAutoReply({ settings, firstContent: true, messages: [standard("2026-10-27T09:00:00Z")], greeting: "Bom dia", now, random: () => 0, lastQueuedSendAfter: last });
-  assert.equal(plan.sendAfter, "2026-10-27T11:13:00.000Z");
+  assert.equal(plan.sendAfter, "2026-10-27T11:10:30.000Z");
+  // Acumulado de 5 na reconexão: 30 s entre cada uma.
+  let queued = null;
+  const times = [];
+  for (let i = 0; i < 5; i += 1) {
+    const next = planAvailabilityAutoReply({ settings, firstContent: true, messages: [standard("2026-10-27T09:00:00Z")], greeting: "Bom dia", now, random: () => 0, lastQueuedSendAfter: queued });
+    times.push(new Date(next.sendAfter).getTime());
+    queued = next.sendAfter;
+  }
+  assert.deepEqual(times.slice(1).map((t, i) => t - times[i]), [30000, 30000, 30000, 30000]);
   const auto = { id: "a", conversation_id: "c1", auto_kind: "availability", send_after: "2026-10-27T10:59:00Z", created_at: "2026-10-27T10:58:00Z" };
   const human = { id: "h", conversation_id: "c2", sender_user_id: "u1", created_at: "2026-10-27T10:59:30Z" };
   assert.equal(pickOutboxCandidate([auto, human], { now }).id, "h");

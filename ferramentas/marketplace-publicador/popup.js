@@ -35,7 +35,7 @@ function render({ state, config, keepAwake, chatLast, chatSkip, chatNow }) {
     if (chatLast.steps) status.append(line("Chat — caminho", chatLast.steps));
     if (chatLast.error) status.append(line("Chat — erro", chatLast.error));
   } else if (!chatNow) {
-    status.append(line("Chat do Marketplace", "ainda não sincronizou (aguarde até 2 min com o Chrome aberto)"));
+    status.append(line("Chat do Marketplace", "ainda não sincronizou (aguarde até 1 min com o Chrome aberto)"));
   }
   if (chatSkip && (!chatLast || new Date(chatSkip.at) > new Date(chatLast.at))) {
     status.append(line("Chat — última verificação", `${fmt(chatSkip.at)} — ${REASON_LABELS[chatSkip.result] || chatSkip.result}${chatSkip.detail ? ` (${chatSkip.detail})` : ""}`));
@@ -117,13 +117,13 @@ refreshWork();
 setInterval(refresh, 5000);
 setInterval(refreshWork, 5000);
 
-// "Destravar sincronização" (1.8.7): solta a trava do chat e fecha a aba dela; a próxima rodada começa em até 2 min.
+// "Destravar sincronização" (1.8.7): solta a trava do chat e fecha a aba dela; a próxima rodada começa em até 1 min.
 $("unlock").addEventListener("click", async () => {
   const feedback = $("feedback");
   $("unlock").disabled = true;
   try {
     const result = await chrome.runtime.sendMessage({ type: "mp-chat-unlock" });
-    feedback.textContent = result?.error ? `Erro: ${result.error}` : result?.released ? `Destravado (estava em: ${result.step || "?"}). Nova rodada em até 2 min.` : "Não havia trava. Nova rodada em até 2 min.";
+    feedback.textContent = result?.error ? `Erro: ${result.error}` : result?.released ? `Destravado (estava em: ${result.step || "?"}). Nova rodada em até 1 min.` : "Não havia trava. Nova rodada em até 1 min.";
   } catch (error) {
     feedback.textContent = `Erro: ${error.message}`;
   } finally {

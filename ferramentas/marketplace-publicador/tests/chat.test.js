@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import "../selectors.js";
-import { CHAT_LOCK_MAX_MS, CHAT_LOCK_TTL_MS, MAX_THREADS_PER_ROUND, chatLockAlive, clearThreadFailure, decideChatTick, describeChatLock, diagnosticDue, outboundResultBody, recordThreadFailure, rememberPreviews, threadRetryBlocked, threadsToRead } from "../lib/chat-agenda.js";
+import { CHAT_EVERY_MINUTES, CHAT_LOCK_MAX_MS, CHAT_LOCK_TTL_MS, MAX_FULL_THREADS_PER_ROUND, MAX_SENDS_PER_ROUND, MAX_THREADS_PER_ROUND, OUTBOX_WAIT_MAX_MS, ROUND_BUDGET_MS, chatLockAlive, outboxWaitMs, clearThreadFailure, decideChatTick, describeChatLock, diagnosticDue, outboundResultBody, recordThreadFailure, rememberPreviews, threadRetryBlocked, threadsToRead } from "../lib/chat-agenda.js";
 import { decideTick, initialState } from "../lib/agenda.js";
 import { fetchNextOutbound, postChatSync, postOutboundResult } from "../lib/crm-api.js";
 
@@ -58,15 +58,20 @@ test("1.8.7: background — trava em chatLock com finally, envio incremental, li
   const popup = readFileSync(new URL("../popup.html", import.meta.url), "utf8");
   assert.match(popup, /id="unlock"[^>]*>Destravar sincronização</);
   const manifest = JSON.parse(readFileSync(new URL("../manifest.json", import.meta.url), "utf8"));
-  assert.equal(manifest.version, "1.9.8");
+  assert.equal(manifest.version, "1.9.9");
 });
 
-test("lê só conversas que mudaram, no máximo 5 por rodada", () => {
+test("lê só conversas que mudaram, até 15 por rodada (1.9.9), das quais até 5 nunca vistas", () => {
+  assert.equal(MAX_THREADS_PER_ROUND, 15);
+  const many = Array.from({ length: 20 }, (_, i) => ({ threadKey: `m${i}`, preview: `oi ${i}`, unread: false }));
+  assert.equal(threadsToRead(many, rememberPreviews({}, [])).length, MAX_FULL_THREADS_PER_ROUND);
+  const changed = many.map((t) => ({ ...t, preview: `${t.preview} novo` }));
+  assert.equal(threadsToRead(changed, rememberPreviews({}, many)).length, MAX_THREADS_PER_ROUND);
   const threads = Array.from({ length: 8 }, (_, i) => ({ threadKey: `t${i}`, preview: `oi ${i}`, unread: false }));
   const known = rememberPreviews({}, threads.slice(0, 6));
   assert.deepEqual(threadsToRead(threads, known).map((t) => t.threadKey), ["t6", "t7"]);
   assert.deepEqual(threadsToRead([{ ...threads[0], unread: true }], known).map((t) => t.threadKey), ["t0"]);
-  assert.equal(threadsToRead(threads, {}).length, MAX_THREADS_PER_ROUND);
+  assert.equal(threadsToRead(threads, {}).length, MAX_FULL_THREADS_PER_ROUND);
   // Conversas nunca vistas: histórico completo, no máximo 5 por rodada; as demais ficam para a próxima.
   assert.ok(threadsToRead(threads, {}).every((t) => t.full));
   const afterFirst = rememberPreviews({}, threadsToRead(threads, {}));
@@ -468,4 +473,46 @@ test("1.9.3: aba oculta não clica nem conta falha; leitura para antes do prazo;
   assert.match(bg, /maxMs: readMs - \(thread\.full \? READ_MARGIN_MS\.full : READ_MARGIN_MS\.incremental\)/);
   assert.match(bg, /message\?\.type === "mp-sleep"/);
   assert.match(inbox, /chrome\.runtime\.sendMessage\(\{ type: "mp-sleep", ms \}\)/);
+});
+
+// [REGRA OFICIAL — dono, 2026-10-26, 1.9.9] "Diminua esse tempo para 1 minuto e deixe cada rodada durando até 10 minutos,
+// caso haja necessidade. Se não, pode voltar e aguardar mais 1 minuto para a próxima rodada."
+test("1.9.9: rodada a cada 1 min contada do fim da anterior, até 10 min, sem duas ao mesmo tempo", () => {
+  assert.equal(CHAT_EVERY_MINUTES, 1);
+  assert.equal(ROUND_BUDGET_MS, 10 * 60 * 1000);
+  // Trava não mata a rodada longa viva: orçamento + etapa mais longa (envio, 330 s) + fechamento cabem no teto.
+  assert.ok(CHAT_LOCK_MAX_MS >= ROUND_BUDGET_MS + 330 * 1000 + 90 * 1000);
+  const settings = { syncEnabled: true, startHour: 7, endHour: 22 };
+  const now = at("10:00");
+  const start = new Date(now.getTime() - 9 * 60 * 1000).toISOString();
+  const longRound = { token: "x", instance: "w1", startedAt: start, heartbeatAt: new Date(now.getTime() - 20000).toISOString() };
+  // Alarme de 1 min dispara com a rodada de 9 min em andamento → pula.
+  assert.equal(decideChatTick({ state: initialState(), settings, now, lock: longRound, instance: "w1" }).reason, "chat_em_andamento");
+  const atBudgetEnd = new Date(new Date(start).getTime() + ROUND_BUDGET_MS + 330 * 1000);
+  assert.equal(chatLockAlive({ ...longRound, heartbeatAt: atBudgetEnd.toISOString() }, { now: atBudgetEnd, instance: "w1" }), true);
+  const source = readFileSync(new URL("../background.js", import.meta.url), "utf8");
+  // Próxima rodada 1 min depois de terminar: o alarme é recriado no finally, depois de soltar a trava.
+  assert.match(source, /chrome\.alarms\.create\(CHAT_ALARM, \{ delayInMinutes: CHAT_EVERY_MINUTES, periodInMinutes: CHAT_EVERY_MINUTES \}\)/);
+  assert.match(source, /remove\("chatLock"\);\s*\/\/ 1\.9\.9[^\n]*\n\s*scheduleNextChatRound\(\);/);
+  // Instalação antiga (alarme de 2 min) é trocada.
+  assert.match(source, /alarm\.periodInMinutes !== CHAT_EVERY_MINUTES/);
+});
+
+test("1.9.9: envios limitados pelo orçamento/ritmo/limite por hora; espera pela próxima automática de 30 s", () => {
+  assert.equal(MAX_SENDS_PER_ROUND, 40);
+  assert.equal(OUTBOX_WAIT_MAX_MS, 60 * 1000);
+  const now = Date.parse("2026-10-27T11:00:00Z");
+  // Próxima automática daqui a 25 s: espera 26 s (1 s de folga).
+  assert.equal(outboxWaitMs({ message: null, nextAt: "2026-10-27T11:00:25Z" }, { now, elapsedMs: 60000 }), 26000);
+  // Já vencida: espera só a folga.
+  assert.equal(outboxWaitMs({ message: null, nextAt: "2026-10-27T10:59:59Z" }, { now }), 1000);
+  // Longe demais, fora do orçamento, sem nextAt (fila vazia / limite por hora) ou com mensagem: não espera.
+  assert.equal(outboxWaitMs({ message: null, nextAt: "2026-10-27T11:02:00Z" }, { now }), 0);
+  assert.equal(outboxWaitMs({ message: null, nextAt: "2026-10-27T11:00:25Z" }, { now, elapsedMs: ROUND_BUDGET_MS - 5000 }), 0);
+  assert.equal(outboxWaitMs({ message: null, reason: "limite_por_hora" }, { now }), 0);
+  assert.equal(outboxWaitMs({ message: { id: "m" }, nextAt: "2026-10-27T11:00:25Z" }, { now }), 0);
+  const source = readFileSync(new URL("../background.js", import.meta.url), "utf8");
+  // Pausa humana entre envios mantida.
+  assert.match(source, /await sleep\(4000 \+ Math\.floor\(Math\.random\(\) \* 6000\)\);/);
+  assert.match(source, /const wait = outboxWaitMs\(next, \{ now: Date\.now\(\), elapsedMs: round\.elapsed\(\) \}\);/);
 });

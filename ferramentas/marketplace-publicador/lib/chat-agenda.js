@@ -1,12 +1,21 @@
 // Chat do Marketplace (MKT-2) — agenda e escolha do que ler, lógica pura (sem chrome.*), testada em
-// tests/chat-agenda.test.js. Sincroniza a cada ~2 min dentro do horário configurado no CRM (padrão 07–22h), nunca
+// tests/chat-agenda.test.js. Sincroniza a cada ~1 min (1.9.9; era 2 min) dentro do horário configurado no CRM (padrão 07–22h), nunca
 // durante uma publicação, nunca com a extensão pausada, e só se o dono deixou a sincronização ligada.
 
 import { saoPauloParts } from "./agenda.js";
 
-export const CHAT_EVERY_MINUTES = 2;
-export const MAX_THREADS_PER_ROUND = 5;
-export const MAX_SENDS_PER_ROUND = 3;
+// [REGRA OFICIAL DE NEGÓCIO — dono, 2026-10-26, 1.9.9] "Diminua esse tempo para 1 minuto e deixe cada rodada durando até
+// 10 minutos, caso haja necessidade. Se não, pode voltar e aguardar mais 1 minuto para a próxima rodada". Rodada a cada
+// 1 min, contado do FIM da anterior (o background recria o alarme no fim de cada rodada); alarme com rodada em andamento
+// pula ("chat_em_andamento"). Era 2 min / 5 conversas / 3 envios até a 1.9.8.
+export const CHAT_EVERY_MINUTES = 1;
+export const MAX_THREADS_PER_ROUND = 15;
+// Teto de segurança por rodada = limite por hora (40). Quem limita de fato: o orçamento de 10 min, as pausas humanas entre
+// envios (4–10 s), o ritmo de 30 s das automáticas e o limite por hora conferido no CRM.
+export const MAX_SENDS_PER_ROUND = 40;
+// Resposta automática com hora marcada até isto à frente (CRM devolve `nextAt`): a rodada espera por ela em vez de
+// encerrar — é o que faz as automáticas acumuladas saírem uma a cada 30 s (dono, 2026-10-26).
+export const OUTBOX_WAIT_MAX_MS = 60 * 1000;
 
 // Trava da sincronização (1.8.7). Na 1.8.6 a trava era `state.chatRunning` (sem dono, sem batimento): o service
 // worker do MV3 era encerrado no meio da rodada (leitura longa da caixa/histórico sem nenhuma chamada à API da
@@ -15,12 +24,28 @@ export const MAX_SENDS_PER_ROUND = 3;
 // - morta se o worker que a criou não existe mais (instância diferente — o Chrome só roda um worker por extensão);
 // - morta se ficou CHAT_LOCK_TTL_MS sem batimento (etapa travada além do próprio timeout);
 // - morta se a rodada passou de CHAT_LOCK_MAX_MS no total.
+// TTL: o batimento roda a cada 20 s mesmo durante uma etapa longa, então 4 min sem batimento = worker travado.
+// MAX (1.9.9): orçamento de 10 min + a etapa mais longa que pode começar no último instante (envio, 330 s) + sinal ao
+// CRM e fechamento (~1,5 min) = 17 min; 18 min de teto, para não matar uma rodada longa viva.
 export const CHAT_LOCK_TTL_MS = 4 * 60 * 1000;
-export const CHAT_LOCK_MAX_MS = 12 * 60 * 1000;
-// Orçamento de uma rodada: depois disso não começa conversa/envio novo (o resto fica para a próxima, em 2 min).
-export const ROUND_BUDGET_MS = 4 * 60 * 1000;
+export const CHAT_LOCK_MAX_MS = 18 * 60 * 1000;
+// Orçamento de uma rodada: depois disso não começa conversa/envio novo (o resto fica para a próxima, 1 min depois).
+// 1.9.9 (dono, 2026-10-26): até 10 min "caso haja necessidade"; sem trabalho a rodada termina em segundos. Era 4 min.
+export const ROUND_BUDGET_MS = 10 * 60 * 1000;
 // Conversas nunca vistas (histórico completo) por rodada — as demais nas próximas rodadas.
 export const MAX_FULL_THREADS_PER_ROUND = 5;
+
+// Fila sem resposta pronta agora (1.9.9): se o CRM avisou a próxima automática (`nextAt`) para daqui a até 60 s e ela cabe
+// no orçamento da rodada, devolve quantos ms esperar (com 1 s de folga); senão 0 (a rodada encerra e a próxima pega).
+// Limite por hora ou fila vazia de verdade: o CRM não manda `nextAt` → 0.
+export function outboxWaitMs(next, { now = Date.now(), elapsedMs = 0, budgetMs = ROUND_BUDGET_MS } = {}) {
+  if (next?.message || !next?.nextAt) return 0;
+  const at = new Date(next.nextAt).getTime();
+  if (!Number.isFinite(at)) return 0;
+  const wait = Math.max(0, at - now) + 1000;
+  if (wait > OUTBOX_WAIT_MAX_MS + 1000 || elapsedMs + wait > budgetMs) return 0;
+  return wait;
+}
 
 export function chatLockAlive(lock, { now = new Date(), instance = "" } = {}) {
   if (!lock?.token || !lock.startedAt) return false;
@@ -56,7 +81,7 @@ export function decideChatTick({ state = {}, settings = {}, now = new Date(), lo
 }
 
 // Lê só as conversas que mudaram desde a última leitura (prévia diferente ou marcada como não lida), as mais novas
-// primeiro (a lista já vem nessa ordem), no máximo 5 por rodada (das quais no máximo MAX_FULL_THREADS_PER_ROUND
+// primeiro (a lista já vem nessa ordem), no máximo MAX_THREADS_PER_ROUND (15 desde a 1.9.9) por rodada (das quais no máximo MAX_FULL_THREADS_PER_ROUND
 // nunca vistas). Conversa nunca vista (sem prévia guardada) → full: importa o histórico inteiro (dono, 2026-10-20).
 // As que ficarem de fora continuam "mudadas" (prévia não guardada) e entram nas próximas rodadas.
 export function threadsToRead(threads = [], known = {}) {

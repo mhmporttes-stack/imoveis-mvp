@@ -7,6 +7,13 @@
 
 
 
+## 2026-10-26 — Marketplace: rodada a cada 1 min (até 10 min), 40 envios/h, automáticas a cada 30 s — extensão 1.9.9 (crm-editor)
+Dono (REGRA OFICIAL, MKT-2n): "Diminua esse tempo para 1 minuto e deixe cada rodada durando até 10 minutos, caso haja necessidade. Se não, pode voltar e aguardar mais 1 minuto para a próxima rodada [...] Pode aumentar os envios por hora para 40. Eu quero que as respostas acumuladas saiam uma a cada 30 segundos."
+- **Extensão 1.9.9** (`ferramentas/marketplace-publicador/`): `CHAT_EVERY_MINUTES` 2 → 1 (alarme recriado no fim de cada rodada: próxima 1 min depois de terminar; alarme antigo de 2 min trocado ao atualizar; rodada em andamento = pula); `ROUND_BUDGET_MS` 4 → 10 min; `CHAT_LOCK_MAX_MS` 12 → 18 min (TTL 4 min mantido); `MAX_THREADS_PER_ROUND` 5 → 15 (nunca vistas continuam 5); `MAX_SENDS_PER_ROUND` 3 → 40; espera pela próxima automática até 60 s (`outboxWaitMs`). Pausa humana 4–10 s e timeouts de etapa inalterados. Textos do popup "2 min" → "1 min". Zip `ferramentas/marketplace-publicador.zip` regerado.
+- **CRM:** `DEFAULT_CHAT_SETTINGS.maxSendsPerHour` 20 → 40; `autoReplySpacingMs` = 30 s fixos (`AUTO_REPLY_SPACING_MS`, era 1/limite-por-hora); `claimNextMarketplaceOutbound` devolve `nextAt` com a fila sem resposta pronta. Valor salvo em `crm_settings` `marketplace_chat` prevalece sobre o padrão — trocar para 40 na tela do Chat Marketplace (ou UPDATE informado ao dono, não executado). Sem migration.
+- **Testes:** `tests/marketplace-ritmo-rapido.test.mjs` (novo, 3) + ajustes em `marketplace-backlog`/`marketplace-chat-core`; extensão `tests/chat.test.js` (+2). `node --test tests/marketplace*.test.mjs` e `ferramentas/marketplace-publicador/tests/*.test.js` verdes.
+- **Risco:** mais atividade no Facebook (caixa lida a cada minuto, até 40 envios/h) → mais chance de verificação/limite (pausa de 24 h continua).
+
 ## 2026-10-26 — "Enquanto você estava fora" conta até a hora do bom dia
 Dono: "ele tem que contar até a hora que eu der play no bom dia; se eu fizer isso 10 da manhã ele conta todos os clientes até as 10". `henryAwayWindow` (`lib/henry-away-core.mjs`): fim = agora (antes 08:00); início igual (ter–sáb ontem 19:00; seg sáb 13:00). Teste `tests/marketplace-backlog.test.mjs`.
 
