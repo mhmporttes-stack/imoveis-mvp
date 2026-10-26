@@ -16,6 +16,13 @@ test("Chat pela sessão individual exige mensagem recebida do contato e limita o
   assert.match(chat, /const CHAT_HOURLY_OUTBOUND_CAP = 80;/);
 });
 
+test("limite por hora conta só envio real: histórico sincronizado do celular não trava o Chat (incidente 2026-10-26)", () => {
+  const fn = chat.slice(chat.indexOf("async function assertIndividualChatReplyOnly("), chat.indexOf("export async function getChatReplyReadiness("));
+  assert.ok(fn.length > 0);
+  assert.match(fn, /\.eq\("direction", "outbound"\)\s*\.is\("metadata->history", null\)\s*\.gte\("message_at", since\);/);
+  assert.doesNotMatch(fn, /\.gte\("created_at", since\)/, "created_at conta a sincronização de histórico como envio");
+});
+
 test("todos os envios do Chat (texto, mídia, atalhos, modelos) passam pela trava", () => {
   const send = chat.slice(chat.indexOf("export async function sendChatMessage("), chat.indexOf("export async function sendChatReaction("));
   assert.match(send, /await assertIndividualChatReplyOnly\(conversation, sendChannel, assignedUserId(, sessionSlot)?\);/);
