@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRevalidateOnReuse } from "@/components/useRevalidateOnReuse";
-import { readViewerData, saveViewerData } from "@/components/chat-view-cache";
+import { readViewerData, restoreViewerData, saveViewerData } from "@/components/chat-view-cache";
 import { CLIENTS_CACHE_NAME } from "@/components/panel-cache-names";
 import { displayLink } from "@/lib/short-links.mjs";
 import { useRouter } from "next/navigation";
@@ -66,6 +66,10 @@ export function useClientList({
   const [activitiesByClient, setActivitiesByClient] = useState(() => initialData?.clientActivities || {});
   const [loading, setLoading] = useState(() => deferred && !cachedList);
   const [loadError, setLoadError] = useState("");
+  // Lista que veio do que estava guardado NO APARELHO (app aberto do zero, dono 2026-10-26 — components/device-view-cache.js):
+  // aparece logo depois da montagem, com "Atualizando…", até a resposta do servidor substituí-la. Nunca é guardada de novo
+  // (não renova a validade) e não serve de base para gravar nada.
+  const [deviceRestored, setDeviceRestored] = useState(false);
   const [localTags, setLocalTags] = useState(() => ensureArray(tags));
   const [busyClientId, setBusyClientId] = useState("");
   const [openingChatClientId, setOpeningChatClientId] = useState("");
@@ -118,13 +122,33 @@ export function useClientList({
     if (deferred) fetchClients({ silent: Boolean(cachedList) });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+  // Sem lista na memória (app aberto do zero): procura a guardada no aparelho desta conta. Só usa se o servidor ainda
+  // não respondeu e a pessoa não trocou filtro/página (o único pedido feito é o da abertura).
+  useEffect(() => {
+    if (!deferred || cachedList || !viewerKey) return undefined;
+    let alive = true;
+    restoreViewerData(viewerKey, CLIENTS_CACHE_NAME).then((restored) => {
+      const saved = restored?.value;
+      if (!alive || !saved || !Array.isArray(saved.items) || fetchRequestRef.current !== 1 || serverAnsweredRef.current) return;
+      setItems(saved.items);
+      setTotal(saved.total || 0);
+      setTotalPages(saved.totalPages || 1);
+      setCounters(saved.counters || { all: 0, byStatus: {}, byGroup: {} });
+      setPendingClientsCount(saved.pendingClientsCount || 0);
+      setActivitiesByClient(saved.clientActivities || {});
+      setDeviceRestored(true);
+      setLoading(false);
+    });
+    return () => { alive = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   // Guarda a visão padrão (sem filtro, 1ª página de 20) depois de cada busca concluída, para a próxima entrada.
   useEffect(() => {
-    if (loading || loadError || page !== 1 || pageSize !== 20 || pinClientId) return;
+    if (loading || loadError || deviceRestored || page !== 1 || pageSize !== 20 || pinClientId) return;
     if (JSON.stringify({ ...DEFAULT_FILTERS, ...filters }) !== JSON.stringify(DEFAULT_FILTERS)) return;
     saveViewerData(viewerKey, CLIENTS_CACHE_NAME, { items, total, totalPages, counters, pendingClientsCount, clientActivities: activitiesByClient, page: 1, pageSize: 20 });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [viewerKey, loading, items, total, counters, pendingClientsCount, activitiesByClient]);
+  }, [viewerKey, loading, deviceRestored, items, total, counters, pendingClientsCount, activitiesByClient]);
 
   // Guarda contra refetch duplicado na primeira montagem (dados iniciais vêm do servidor).
   const isFirstRender = useRef(true);
@@ -149,6 +173,7 @@ export function useClientList({
   }
 
   const fetchRequestRef = useRef(0);
+  const serverAnsweredRef = useRef(false);
   async function fetchClients({ silent = false } = {}) {
     // Só a resposta do pedido mais recente vale (a atualização de fundo não sobrescreve um filtro trocado depois).
     const requestId = ++fetchRequestRef.current;
@@ -173,6 +198,7 @@ export function useClientList({
       const response = await fetch(`/api/simulation-registrations/list?${params.toString()}`);
       const data = await response.json().catch(() => ({}));
       if (requestId !== fetchRequestRef.current) return;
+      serverAnsweredRef.current = true;
       if (!response.ok) {
         if (!silent) setLoadError(data.error || "Não foi possível carregar os clientes.");
         return;
@@ -187,7 +213,10 @@ export function useClientList({
     } catch {
       if (!silent) setLoadError("Não foi possível carregar os clientes. Verifique a conexão e tente de novo.");
     } finally {
-      if (requestId === fetchRequestRef.current) setLoading(false);
+      if (requestId === fetchRequestRef.current) {
+        setLoading(false);
+        setDeviceRestored(false);
+      }
     }
   }
 
@@ -254,6 +283,12 @@ export function useClientList({
   }
 
   async function ensureSimulationId(client) {
+    // Rascunho de simulação é montado com os dados do cadastro: nunca a partir da cópia guardada no aparelho (sem
+    // data de nascimento, CPF etc.) — espera a lista do servidor.
+    if (deviceRestored && !client.simulation?.id) {
+      notify("Atualizando os dados do cliente… tente de novo em instantes.", "warning");
+      return "";
+    }
     if (client.simulation?.id) {
       await withBusy(client, () => touchClientRegistration(client));
       return client.simulation.id;
@@ -979,7 +1014,7 @@ export function useClientList({
   return {
     // estado
     filters, searchInput, page, pageSize, items: displayItems, total, totalPages, counters, pendingClientsCount,
-    transferExit, loading, loadError, localTags, busyClientId: busyClientId || (chatNavPending ? openingChatClientId : ""), reasonTarget, receivedDateTarget, docsListTarget, canMarkSalePaid, responsibleProfiles, responsibleProfileMap, transferTargets,
+    transferExit, loading, loadError, deviceRestored, localTags, busyClientId: busyClientId || (chatNavPending ? openingChatClientId : ""), reasonTarget, receivedDateTarget, docsListTarget, canMarkSalePaid, responsibleProfiles, responsibleProfileMap, transferTargets,
     // filtros e paginação
     setSearchInput, updateFilters, resetFilters, goToPage, changePageSize, fetchClients,
     // ações

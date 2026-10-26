@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import AdminLoginForm from "@/components/AdminLoginForm";
+import DeviceCacheWipe from "@/components/DeviceCacheWipe";
 import AdminTwoFactorChallenge from "@/components/AdminTwoFactorChallenge";
 import { getAdminFromCookies } from "@/lib/admin-auth";
 import { TWO_FACTOR_REQUIRED_CODE } from "@/lib/admin-two-factor-core.mjs";
@@ -20,6 +21,8 @@ export default async function AdminLoginPage({ searchParams }) {
 
   return (
     <main className="bg-mist py-14">
+      {/* Sem sessão: nada do painel guardado no aparelho sobrevive (cache das telas, dono 2026-10-26). */}
+      <DeviceCacheWipe />
       <section className="container-page grid min-h-[62vh] items-center">
         <div className="mx-auto w-full max-w-[520px] rounded-panel border border-line bg-white p-8 shadow-soft md:p-10">
           <p className="text-sm font-black uppercase tracking-[0.18em] text-brand">Área restrita</p>

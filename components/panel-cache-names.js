@@ -17,3 +17,8 @@ export function calendarMonthQuery(month, scope) {
   const end = new Date(month.getFullYear(), month.getMonth() + 1, 0, 23, 59, 59);
   return `from=${encodeURIComponent(start.toISOString())}&to=${encodeURIComponent(end.toISOString())}${scope === "team" ? "&scope=team" : ""}`;
 }
+// Início (dono, 2026-10-26: guardar no aparelho): resumo do dia, mês (funil/indicadores) e visão do dono — o carregamento
+// da tela (app/admin/inicio/loading.jsx) mostra o último guardado desta conta enquanto o servidor monta a tela nova.
+export const INICIO_DAY_CACHE_NAME = "inicio:day";
+export const INICIO_MONTH_CACHE_NAME = "inicio:month";
+export const INICIO_OWNER_CACHE_NAME = "inicio:owner";

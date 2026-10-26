@@ -7,6 +7,7 @@ import SceneTransitionLink from "@/components/motion/SceneTransitionLink";
 import Button from "@/components/ui/Button";
 import { useConfirm } from "@/components/ui/ConfirmDialog";
 import EmptyState from "@/components/ui/EmptyState";
+import DeviceCacheRefreshing from "@/components/DeviceCacheRefreshing";
 import { inputClasses } from "@/components/ui/Field";
 import Sheet from "@/components/ui/Sheet";
 import { SkeletonList } from "@/components/ui/Skeleton";
@@ -202,6 +203,7 @@ export default function ClientWorkspace(props) {
       {/* 5. Lista */}
       <div className="relative mt-3">
         {list.loading ? <span className="ui-progress absolute inset-x-0 -top-2 z-10 h-0.5 rounded-full" role="progressbar" aria-label="Atualizando a lista" /> : null}
+        <DeviceCacheRefreshing show={list.deviceRestored} />
         {list.loadError ? (
           <div className="rounded-card border border-line bg-white">
             <EmptyState tone="danger" icon={TriangleAlert} title="Não foi possível carregar os clientes" description={list.loadError} action={<Button size="sm" onClick={list.fetchClients}>Tentar de novo</Button>} />

@@ -3,6 +3,8 @@ import { requireAdminPage } from "@/lib/admin-auth";
 import { getPainelInicio, getPainelInicioMes } from "@/lib/painel-inicio";
 import { getPainelInicioDono } from "@/lib/painel-inicio-dono";
 import { isGeneralAdminAuth } from "@/lib/admin-profiles";
+import { InicioCacheSaver } from "@/components/inicio/InicioDeviceCache";
+import { INICIO_DAY_CACHE_NAME, INICIO_MONTH_CACHE_NAME, INICIO_OWNER_CACHE_NAME } from "@/components/panel-cache-names";
 import PainelInicio, { InicioAssistente, InicioDono, InicioDonoCarregando, InicioFunil, InicioFunilCarregando, InicioFunilErro, InicioKpisMes, InicioKpisMesCarregando } from "@/components/inicio/PainelInicio";
 
 export const dynamic = "force-dynamic";
@@ -20,8 +22,14 @@ function loadMonth(auth) {
 }
 
 async function MonthKpis({ monthPromise }) {
-  const { month } = await monthPromise;
-  return <InicioKpisMes month={month} />;
+  const { ok, month } = await monthPromise;
+  return (
+    <>
+      <InicioKpisMes month={month} />
+      {/* Guarda o mês para o próximo carregamento do Início (memória + aparelho, só desta conta). */}
+      {ok && month ? <InicioCacheSaver name={INICIO_MONTH_CACHE_NAME} value={month} /> : null}
+    </>
+  );
 }
 
 async function MonthFunnel({ monthPromise }) {
@@ -43,7 +51,13 @@ async function OwnerSummary({ ownerPromise, data }) {
 }
 
 async function OwnerDetail({ ownerPromise }) {
-  return <InicioDono owner={await ownerPromise} />;
+  const owner = await ownerPromise;
+  return (
+    <>
+      <InicioDono owner={owner} />
+      {owner ? <InicioCacheSaver name={INICIO_OWNER_CACHE_NAME} value={owner} /> : null}
+    </>
+  );
 }
 
 export default async function InicioPage() {
@@ -65,6 +79,8 @@ export default async function InicioPage() {
         ) : null}
         ownerDetail={ownerPromise ? <Suspense fallback={<InicioDonoCarregando />}><OwnerDetail ownerPromise={ownerPromise} /></Suspense> : null}
       />
+      {/* Início que abre na hora (dono, 2026-10-26): o carregamento da tela mostra este último resumo desta conta. */}
+      <InicioCacheSaver name={INICIO_DAY_CACHE_NAME} value={{ data, owner: Boolean(ownerPromise) }} />
     </main>
   );
 }
