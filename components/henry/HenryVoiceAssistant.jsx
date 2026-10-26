@@ -59,6 +59,12 @@ import {
   RECORD_VOICE_CONFIRM_TICKS,
   SPONTANEOUS_MAX_AGE_MS,
   canSpeakSpontaneously,
+  morningSessionStart,
+  morningSessionFinishing,
+  morningSessionEnd,
+  morningSessionHolds,
+  isMorningBlockedSpontaneous,
+  nextSpontaneousItem,
   henryLatencyBreakdown,
   recordLevelThreshold,
   triggeredTranscriptIntent,
@@ -364,6 +370,19 @@ export default function HenryVoiceAssistant() {
   // Bom dia em conversa (dono, 2026-10-23): passo que espera a resposta do dono ("music" → "style" → "birthday"). Vale só
   // dentro da janela de conversa (40 s); qualquer pergunta o consome; o servidor decide o resto.
   const morningRef = useRef(null);
+  // Sessão do bom dia (dono, 2026-10-26: "para ele fazer apenas a cena do bom dia"): do play/"bom dia, Henry" até o fim da
+  // cena, nenhum aviso espontâneo toca (morningSessionHolds, lib/henry-voice-conversation.mjs) — ficam na fila.
+  const morningSessionRef = useRef(null);
+  // Começa a sessão: um chamado de aviso que estava no ar deixa de esperar resposta (o "pode" da música nunca vira "pode
+  // falar" do aviso); o aviso continua pendente e sai depois do bom dia.
+  const beginMorningSession = useCallback(() => {
+    morningSessionRef.current = morningSessionStart(Date.now());
+    const alert = alertRef.current;
+    if (alert && (alert.stage === "calling" || alert.stage === "waiting")) {
+      window.clearTimeout(alert.timer);
+      alertRef.current = { ...alert, stage: "idle", calls: 0 };
+    }
+  }, []);
   const webSourceRef = useRef(null); // voz tocando pelo AudioContext (celular)
   const soundRetryRef = useRef(false);
   // Id aleatório deste navegador (só para "um aparelho por vez"; nada identifica o aparelho).
@@ -1101,6 +1120,7 @@ export default function HenryVoiceAssistant() {
     if (!conversationRef.current.active) return;
     conversationRef.current = { active: false, lastAt: 0, historyStart: turnsRef.current.length };
     morningRef.current = null;
+    morningSessionRef.current = morningSessionEnd(morningSessionRef.current);
     pendingReplyRef.current = { active: false };
     setInConversation(false);
     if (phaseRef.current === "armed") updatePhase("idle");
@@ -1654,6 +1674,11 @@ export default function HenryVoiceAssistant() {
     const morning = mode === "question" && pendingMorning && conversationNow.active && !isConversationExpired(conversationNow.lastAt, Date.now(), idleMs) ? { step: pendingMorning.step } : null;
     // Resposta da música/estilo segue como "bom dia" (relatório, com a visão como no bom dia); aniversário = pergunta.
     if (morning && morning.step !== "birthday" && morning.step !== "birthday_alert") mode = "report";
+    // Bom dia (relatório ou passo do bom dia): abre/segue a sessão sem avisos. Outra pergunta fora do bom dia: ela termina
+    // quando a resposta acabar de tocar.
+    if (mode === "report" || morning) {
+      if (!morningSessionRef.current?.active) beginMorningSession();
+    } else morningSessionRef.current = morningSessionFinishing(morningSessionRef.current);
     abortRequest();
     // Confirmação de escuta tocando (gravação já confirmou antes da transcrição): termina o som/interjeição e a resposta
     // entra logo depois (beginSpeech) — nunca corta no meio nem atrasa mais que isso.
@@ -1720,6 +1745,8 @@ export default function HenryVoiceAssistant() {
           rememberSpotifyUser(spotifyVolumeSet);
         }
         morningRef.current = nextMorning?.step ? { step: nextMorning.step } : null;
+        // Última resposta do bom dia (sem próximo passo): a sessão termina quando ele parar de falar.
+        if (!nextMorning?.step) morningSessionRef.current = morningSessionFinishing(morningSessionRef.current);
         // Resposta que termina em pergunta (ou passo do bom dia) = pergunta aberta: espera a resposta curta, sem o nome.
         pendingReplyRef.current = nextMorning?.step || henryAsksQuestion(reply) ? openPendingReply(nextMorning?.step || "question") : { active: false };
         // Bom dia com o Spotify já tocando (o servidor conferiu o player): música baixa enquanto ele fala.
@@ -1856,7 +1883,7 @@ export default function HenryVoiceAssistant() {
     } finally {
       if (abortRef.current === controller) abortRef.current = null;
     }
-  }, [abortRequest, applyProgress, beginSpeech, duckSpotifyVolume, endConversation, endSpeech, enqueueClip, listenAgain, markMusicPlayed, musicPlaying, openSpotifyAndPlay, router, startConversation, stopSpeaking, touchConversation, updateMusic, updatePhase]);
+  }, [abortRequest, applyProgress, beginMorningSession, beginSpeech, duckSpotifyVolume, endConversation, endSpeech, enqueueClip, listenAgain, markMusicPlayed, musicPlaying, openSpotifyAndPlay, router, startConversation, stopSpeaking, touchConversation, updateMusic, updatePhase]);
 
   // Botão de câmera da tela cheia = liga/desliga a visão (mesma configuração do cartão em /admin/alexa).
   const toggleVision = useCallback(async () => {
@@ -2621,13 +2648,16 @@ export default function HenryVoiceAssistant() {
       const now = Date.now();
       const fresh = queue.filter((item) => now - item.at < SPONTANEOUS_MAX_AGE_MS);
       if (fresh.length !== queue.length) spontaneousRef.current = fresh;
-      const next = fresh[0];
+      // Bom dia em andamento (ou tela cheia logo depois dele): os avisos ficam na fila; o resto do bom dia segue.
+      const morningHold = morningSessionHolds(morningSessionRef.current, { now, fullscreen: expandedRef.current });
+      const next = nextSpontaneousItem(fresh, { morningHold });
       if (!next || silencedRef.current()) return;
       const free = canSpeakSpontaneously({
         phase: phaseRef.current,
         recording: Boolean(recordRef.current),
         playing: speechQueueRef.current.playing,
         awaitingReply: !next.allowAwaiting && isAwaitingReply(pendingReplyRef.current, now),
+        morningSession: morningHold && isMorningBlockedSpontaneous(next.kind),
         busyAt: busyAtRef.current,
         heardAt: lastHeardRef.current,
         now
@@ -2639,6 +2669,14 @@ export default function HenryVoiceAssistant() {
     }, 400);
     return () => window.clearInterval(timer);
   }, [active]);
+
+  // Fim do bom dia: a última resposta (sem próximo passo) terminou de tocar → a sessão acaba (respiro da tela cheia em
+  // morningSessionHolds).
+  useEffect(() => {
+    if (phase === "speaking" || phase === "thinking") return;
+    const session = morningSessionRef.current;
+    if (session?.active && session.finishing && !speechQueueRef.current.playing) morningSessionRef.current = morningSessionEnd(session, Date.now());
+  }, [phase]);
 
   const callForAlertNow = useCallback(async ({ kind = "vocative", text = "", audio = null } = {}) => {
     if (silencedRef.current()) return;
@@ -3436,6 +3474,7 @@ export default function HenryVoiceAssistant() {
     openingSoundRef.current = silencedRef.current() ? null : playHenryOpeningSound(audioCtxRef.current, OPENING_SOUND_AT_S);
     abortRequest();
     stopSpeaking();
+    beginMorningSession(); // do play até o fim da cena, nenhum aviso espontâneo (dono, 2026-10-26)
     setExpanded(true);
     warmServer();
     fetch("/api/admin/henry", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ mode: "claim", deviceId: deviceIdRef.current }) }).catch(() => {});
@@ -3446,7 +3485,7 @@ export default function HenryVoiceAssistant() {
     }
     openingRef.current = true;
     setOpening(true);
-  }, [abortRequest, stopSpeaking, unlockAudio, warmServer]);
+  }, [abortRequest, beginMorningSession, stopSpeaking, unlockAudio, warmServer]);
   const finishOpening = useCallback(() => {
     if (!openingRef.current) return;
     openingRef.current = false;

@@ -40,6 +40,17 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-26 — Henry quis ler avisos no meio do bom dia (depois do play)
+- **Data:** 2026-10-26
+- **Sintoma:** "Ele também quis me ler avisos, mesmo eu tendo dado play no bom dia."
+- **Área:** Henry / bom dia / avisos falados
+- **Impacto:** só a cena do bom dia do dono (avisos de cliente/chegada/Central por voz).
+- **Causa raiz:** a fila da fala espontânea (`saySpontaneous`/`canSpeakSpontaneously`) só esperava a janela de 12 s da pergunta aberta; o bom dia não era uma "sessão". Depois da 1ª resposta do bom dia, o efeito `afterAsk` oferecia o aviso guardado ("E aquele aviso, posso falar?") e, passados os 12 s da pergunta da música, a oferta tocava no meio da espera; com o chamado no ar (`stage = waiting`), o "pode" da música era lido por `decideAlertReply` como "pode falar" e `tellAlerts` lia os avisos. Também depois do relatório o chamado vinha ~3 s depois, ainda na tela cheia. O relatório em si (`composeReportAnswer`) não anexa avisos.
+- **Correção:** sessão do bom dia (`morningSessionStart/Finishing/End/Holds`, `nextSpontaneousItem`, `lib/henry-voice-conversation.mjs`): do play (ou "bom dia, Henry") até a última resposta do bom dia terminar de tocar, item `aviso` da fila não toca (fica na fila; repetição da pergunta da música e "tá tocando" seguem); com a tela cheia aberta, só depois de fechar ou 60 s após o fim; trava de 6 min. No início da sessão um chamado no ar volta a `idle` (aviso continua pendente).
+- **Arquivos/commit:** `lib/henry-voice-conversation.mjs`, `components/henry/HenryVoiceAssistant.jsx` — branch `fix/henry-bomdia-sem-avisos`
+- **Prevenção/teste:** `tests/henry-morning-no-alerts.test.mjs`.
+- **Status:** Resolvido (não publicado; sem teste de voz real nesta sessão)
+
 ### 2026-10-26 — Henry tocou música mexicana no bom dia ("nada a ver")
 - **Data:** 2026-10-26
 - **Sintoma:** o dono aceitou a música do bom dia ("um som no clima de Suits") e o Henry tocou uma música mexicana.
