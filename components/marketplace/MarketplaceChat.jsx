@@ -310,7 +310,7 @@ function ClientWhatsappBar({ client, onSaved, onError }) {
   );
 }
 
-export default function MarketplaceChat({ canEditSettings = false, canAssign = false, canManageShortcuts = false, viewerName = "", team = [], viewerKey = "", initialConversationId = "" }) {
+export default function MarketplaceChat({ canEditSettings = false, canApprove = false, canAssign = false, canManageShortcuts = false, viewerName = "", team = [], viewerKey = "", initialConversationId = "" }) {
   const [list, setList] = useState(() => readViewerData(viewerKey, `${MARKETPLACE_LIST_CACHE_PREFIX}${listQuery("all", "")}`)?.data || { ready: true, conversations: [], filters: [] });
   // Lista guardada NO APARELHO (app aberto do zero, dono 2026-10-26 — components/device-view-cache.js): aparece logo depois
   // da montagem com "Atualizando…" até a resposta do servidor. As últimas conversas abertas voltam para a memória.
@@ -551,6 +551,19 @@ export default function MarketplaceChat({ canEditSettings = false, canAssign = f
     }
   }
 
+  // "Aprovar atendimento" (MKT-2m, dono 2026-10-26): conversa do acumulado com texto diferente da pergunta padrão vai
+  // para a entrega de sempre (roleta / fila de espera). Só admin geral; o servidor confere.
+  async function approve() {
+    try {
+      const result = await callApi(`/api/admin/marketplace-chat/conversations/${selectedId}/approve`, { method: "POST" });
+      if (result.waiting) window.alert("Aprovado. Nenhum corretor liberado agora: a conversa entrou na fila da roleta.");
+      loadThread(selectedId);
+      loadList();
+    } catch (approveError) {
+      setError(approveError.message);
+    }
+  }
+
   async function assign(userId) {
     try {
       await callApi(`/api/admin/marketplace-chat/conversations/${selectedId}`, { method: "PATCH", body: JSON.stringify({ assignedUserId: userId || null }) });
@@ -606,7 +619,7 @@ export default function MarketplaceChat({ canEditSettings = false, canAssign = f
                     </span>
                     <span className="block truncate text-xs text-muted">{isMessenger(item) ? MESSENGER_LABEL : item.listingTitle || "Anúncio não identificado"}</span>
                     <span className="block truncate text-sm text-ink">{item.lastMessagePreview}</span>
-                    <span className="block text-xs text-muted">{item.waiting ? "Aguardando corretor on-line" : item.assignedName || "Sem atendente"}{item.lastMessageAt ? ` · ${time.format(new Date(item.lastMessageAt))}` : ""}</span>
+                    <span className="block text-xs text-muted">{item.awaitingApproval ? "Aguardando sua aprovação" : item.waiting ? "Aguardando corretor on-line" : item.assignedName || "Sem atendente"}{item.lastMessageAt ? ` · ${time.format(new Date(item.lastMessageAt))}` : ""}</span>
                   </span>
                   {item.unreadCount ? <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-success-strong px-1.5 text-2xs font-semibold text-white">{item.unreadCount}</span> : null}
                 </button>
@@ -637,6 +650,9 @@ export default function MarketplaceChat({ canEditSettings = false, canAssign = f
                 </div>
               </div>
               <div className="flex flex-wrap items-center gap-2">
+                {canApprove && conversation.awaitingApproval ? (
+                  <Button size="sm" className="shrink-0" onClick={approve} data-approve-attendance>Aprovar atendimento</Button>
+                ) : null}
                 {canAssign ? (
                   <select className="min-w-0 flex-1 rounded-control border border-line px-2 py-1.5 text-sm" value={conversation.assignedUserId || ""} onChange={(event) => assign(event.target.value)} aria-label="Atribuir conversa a">
                     <option value="">Sem atendente</option>

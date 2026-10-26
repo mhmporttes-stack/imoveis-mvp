@@ -41,7 +41,9 @@ test("toda ferramenta do Henry está na lista de acesso e nenhuma escreve no CRM
   // Qualquer outra ferramenta continua só leitura/navegação/música; uma terceira escrita quebra este teste de propósito.
   // 2ª exceção NOMEADA (dono, 2026-10-25, HENRY-1 "Recado à equipe" — "Sem sim, ele apenas envia"): enviar_alerta_corretor
   // = escrita interna direta pela mensagem da Supervisão (tests/henry-team-alert.test.mjs).
-  const WRITE_EXCEPTIONS = { avisar_corretor_aniversario: "escrita_interna_confirmada", enviar_alerta_corretor: "escrita_interna_direta" };
+  // 3ª exceção NOMEADA (dono, 2026-10-26, MKT-2m — "2 clientes eu estou aguardando sua aprovação para atender"):
+  // aprovar_atendimento_marketplace = libera o acumulado do Marketplace pela entrega de sempre (tests/marketplace-backlog.test.mjs).
+  const WRITE_EXCEPTIONS = { avisar_corretor_aniversario: "escrita_interna_confirmada", enviar_alerta_corretor: "escrita_interna_direta", aprovar_atendimento_marketplace: "escrita_interna_direta" };
   for (const [name, access] of Object.entries(HENRY_TOOL_ACCESS)) {
     if (WRITE_EXCEPTIONS[name]) assert.equal(access, WRITE_EXCEPTIONS[name], name);
     else assert.ok(["leitura", "navegacao", "musica"].includes(access), `${name}: ${access}`);
