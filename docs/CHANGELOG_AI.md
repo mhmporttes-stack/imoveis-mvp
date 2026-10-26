@@ -9,6 +9,15 @@
 
 
 
+## 2026-10-26 — Fila de reativação: prazo de 10 min e "Prazo encerrado" que respeita a mensagem (crm-editor)
+Dono (REGRA OFICIAL, FUN-15l): "muda de 5 minutos para 10 minutos. O corretor agora tem 10 minutos para entrar em contato com cada cliente" + aviso vermelho errado no caso de um cliente frio (corretora mandou pelo Chat 5 min 34 s depois de receber; o cliente continuou com ela).
+- **Linha do tempo (prod):** entregue 12:37:51 → clique no WhatsApp 12:40:04 ("Tentando contato", CLI-7c) → retorno automático de 7 dias 12:41:00 zerou o responsável (contato antigo "claimed" sem dono desde 29/09) → rotina da fila 12:41:17 encerrou o caso ("left", sem kept) → rede de segurança devolveu à corretora 12:41:25 → mensagem pelo Chat 12:43:25. O aviso ficou "Prazo encerrado — o cliente foi devolvido".
+- **Prazo:** `REACTIVATION_DEADLINE_MS` 5 → 10 min (fonte única). Roleta de leads novos e Marketplace já usavam 10 min da regra "REDISTRIBUIÇÃO DE LEADS" do banco — sem UPDATE.
+- **Aviso:** `attachReactivationNoticeStates` passa `contacted` (mesma régua da rotina, `loadContactedClientIds`) a `reactivationNoticeState` → "kept" quando houve mensagem humana depois do aviso e o cliente continua com o corretor.
+- **Retorno automático:** `clientReceivedAfterStaleCycle` (`lib/client-distribution-core.mjs`) em `autoReturnStaleProspectingContacts` e `hibernateEndedDailyGoalRounds`: não mexe no cliente/contato quando o responsável atual não é o do contato e recebeu o cliente depois do ciclo parado.
+- **Não mudou:** intervalo de 10 min entre recebimentos (ROL-2h) — conta do recebimento, não espera o contato. Devoluções antigas por prazo passam a citar "10 minutos" no clique do WhatsApp (texto lê a constante atual).
+- **Testes:** `tests/prazo-contato-10min-2026-10-26.test.mjs` (novo); ajustes em `cooled-reactivation-queue` e `cooled-roulette-rules-2026-10-24`.
+
 ## 2026-10-26 — Henry: bom dia sem avisos (crm-editor)
 Dono (REGRA OFICIAL, HENRY-1): "Ele também quis me ler avisos, mesmo eu tendo dado play no bom dia. Ele não pode me avisar sobre os avisos se eu dei play no bom dia, para ele fazer apenas a cena do bom dia." Causa: a oferta/chamado do aviso entrava na fila espontânea e tocava 12 s depois da pergunta da música (ou ~3 s depois do relatório); com o chamado no ar, o "pode" da música virava "pode falar" do aviso. Correção: sessão do bom dia em `lib/henry-voice-conversation.mjs` (`morningSession*`, `nextSpontaneousItem`, `canSpeakSpontaneously({ morningSession })`) ligada em `HenryVoiceAssistant.jsx` (play/relatório abrem; última resposta sem próximo passo termina ao parar de falar; `endConversation` termina; respiro de 60 s com tela cheia; trava 6 min). Avisos ficam na fila. Teste `tests/henry-morning-no-alerts.test.mjs`. Ver `docs/INCIDENTES.md`.
 
