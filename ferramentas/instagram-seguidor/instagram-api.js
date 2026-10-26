@@ -1068,6 +1068,48 @@ const paginaAcordada = createAwakeManager({
 // O dono clicou em "Cancelar" na faixa ou a aba fechou: o Chrome soltou o depurador.
 if (globalThis.chrome?.debugger?.onDetach) chrome.debugger.onDetach.addListener((origem) => origem?.tabId && paginaAcordada.forget(origem.tabId));
 
+// --- Configuração remota (1.1.13) --------------------------------------------------------------------------------
+// O CRM manda só DADOS (textos dos botões, seletores, tempos, liga/desliga) — validados em lib/config-remota.js. Aqui
+// eles substituem o padrão embutido; sem configuração, tudo continua como o padrão. Nunca código remoto (MV3).
+let remota = {};
+export function aplicarConfigRemota(cfg) { remota = cfg && typeof cfg === 'object' ? cfg : {}; }
+export function configRemotaAtual() { return remota; }
+const rt = () => remota.textos || {};
+const listaOu = (v, padrao) => (Array.isArray(v) && v.length ? v : padrao);
+export function textosDm() {
+  return {
+    mensagem: listaOu(rt().mensagem, TEXTOS_DM.mensagem),
+    agoraNao: listaOu(rt().agoraNao, TEXTOS_DM.agoraNao),
+    enviar: listaOu(rt().enviar, TEXTOS_DM.enviar),
+    erroAbrir: listaOu(rt().erroAbrir, TEXTOS_DM.erroAbrir),
+    ...((remota.seletores || {}).caixa ? { caixa: remota.seletores.caixa } : {}),
+  };
+}
+export function textosLeitura() {
+  const o = {};
+  for (const k of Object.keys(TEXTOS_LEITURA)) o[k] = listaOu(rt()[k], TEXTOS_LEITURA[k]);
+  return o;
+}
+function textosEsqueleto() {
+  return { ...TEXTOS_ESQUELETO, enviar: textosDm().enviar, erroAbrir: textosDm().erroAbrir, segueVoce: textosLeitura().segueVoce, ui: [...TEXTOS_UI, ...listaOu(rt().ui, [])] };
+}
+function opPagina(extra = {}) {
+  const sel = remota.seletores || {};
+  return {
+    ...(sel.caixa ? { caixa: sel.caixa } : {}),
+    ...(sel.excluirDaConversa ? { excluir: sel.excluirDaConversa } : {}),
+    ...(Array.isArray(rt().falhaEnvio) && rt().falhaEnvio.length ? { falhas: rt().falhaEnvio } : {}),
+    ...(Array.isArray(rt().enviando) && rt().enviando.length ? { enviando: rt().enviando } : {}),
+    ...extra,
+  };
+}
+const maxCliquesMensagem = () => (remota.tempos || {}).maxCliquesMensagem || 4;
+const confirmarMs = () => (remota.tempos || {}).confirmarMs || 12000;
+function modoDigitacao() {
+  const d = remota.digitacao || {};
+  return { ativa: d.ativa !== false, colar: d.colar !== false, shiftEnter: d.shiftEnter !== false };
+}
+
 // --- Diagnóstico da página (1.1.12) ----------------------------------------------------------------------------------
 // Cada visita da extensão a um perfil/conversa guarda aqui o RASTRO (passos) e o ESQUELETO anonimizado da página, por @.
 // O background tira com `tirarDiagnostico(@)` e manda ao CRM (lib/diagnostico.js). Nada disso decide nada.
@@ -1085,7 +1127,7 @@ function novoRastro() {
 async function guardarDiagnostico(username, exec, rastro) {
   let esqueleto = null;
   try {
-    esqueleto = await exec(esqueletoNaPagina, [username, TEXTOS_ESQUELETO]);
+    esqueleto = await exec(esqueletoNaPagina, [username, textosEsqueleto()]);
   } catch (err) {
     esqueleto = { erro: `esqueleto não lido: ${err && err.message ? err.message : err}` };
   }
@@ -1132,7 +1174,7 @@ async function abrirPerfilComRastro(username, fn) {
 export async function lerPerfilNaAba({ username }) {
   if (!username) return { ok: false, erro: 'sem @ do perfil' };
   return abrirPerfilComRastro(username, async ({ exec, rastro }) => {
-    const r = await exec(lerEstadoNaPagina, [TEXTOS_LEITURA]);
+    const r = await exec(lerEstadoNaPagina, [textosLeitura()]);
     rastro.passo('ler botão do perfil', { ok: Boolean(r.ok), botao: r.botao, segueVoce: r.segueVoce, erro: r.erro });
     return r;
   });
@@ -1155,7 +1197,7 @@ export async function clicarNaAba({ username, passos, seguir = false, seco = fal
     });
   }
   return abrirPerfilComRastro(username, async ({ tabId, exec, rastro, comDepurador }) => {
-    const achado = await exec(seguirNaPagina, [TEXTOS_LEITURA, false]);
+    const achado = await exec(seguirNaPagina, [textosLeitura(), false]);
     rastro.passo('localizar botão Seguir', { ok: Boolean(achado.ok), botao: achado.botao, recusado: achado.recusado, segueVoce: achado.segueVoce, livre: achado.livre, erro: achado.erro });
     if (!achado.ok || seco) return { ...achado, seco };
     if (comDepurador && achado.livre) {
@@ -1164,19 +1206,19 @@ export async function clicarNaAba({ username, passos, seguir = false, seco = fal
       await cdp(tabId, 'Input.dispatchMouseEvent', { type: 'mouseReleased', x: achado.x, y: achado.y, button: 'left', buttons: 0, clickCount: 1 });
       rastro.passo('clique de mouse (depurador) no botão Seguir');
     } else {
-      const c = await exec(seguirNaPagina, [TEXTOS_LEITURA, true]);
+      const c = await exec(seguirNaPagina, [textosLeitura(), true]);
       rastro.passo('clique pela página no botão Seguir', { ok: Boolean(c.ok), botao: c.botao, erro: c.erro });
       if (!c.ok) return c;
     }
     await new Promise((ok) => setTimeout(ok, 1500 + Math.round(Math.random() * 1000)));
-    let depois = await exec(lerEstadoNaPagina, [TEXTOS_LEITURA]);
+    let depois = await exec(lerEstadoNaPagina, [textosLeitura()]);
     rastro.passo('botão depois do clique', { botao: depois.botao, erro: depois.erro });
     if (comDepurador && achado.livre && depois.botao === 'seguir') {
       // O clique de mouse não pegou (o botão continua "Seguir": nada mudou) — tenta UMA vez pela própria página.
-      const c = await exec(seguirNaPagina, [TEXTOS_LEITURA, true]);
+      const c = await exec(seguirNaPagina, [textosLeitura(), true]);
       rastro.passo('clique pela página (2ª tentativa)', { ok: Boolean(c.ok), botao: c.botao, erro: c.erro });
       await new Promise((ok) => setTimeout(ok, 1500 + Math.round(Math.random() * 1000)));
-      depois = await exec(lerEstadoNaPagina, [TEXTOS_LEITURA]);
+      depois = await exec(lerEstadoNaPagina, [textosLeitura()]);
       rastro.passo('botão depois do 2º clique', { botao: depois.botao, erro: depois.erro });
     }
     return { ok: true, botao: 'seguir', botaoDepois: depois.botao || null };
@@ -1199,11 +1241,13 @@ export async function clicarNaAba({ username, passos, seguir = false, seco = fal
  * `maxCliques` vezes. Abrir a conversa não envia nada: repetir o clique é seguro.
  */
 export async function abrirConversaNaPagina(textos, maxCliques = 4) {
+  const op = textos;
+  const caixasDaPagina = () => { const d = 'div[contenteditable="true"][role="textbox"], div[contenteditable="true"][aria-label], textarea'; try { return document.querySelectorAll((op && op.caixa) || d); } catch { return document.querySelectorAll(d); } };
   const norm = (t) => String(t || '').replace(/\s+/g, ' ').trim().toLowerCase();
   const visivel = (el) => { const r = el.getBoundingClientRect(); return r.width > 0 && r.height > 0; };
   const esperar = (ms) => new Promise((r) => setTimeout(r, ms));
   const botoes = (raiz, lista) => [...raiz.querySelectorAll('button, div[role="button"], a[role="button"]')].find((el) => visivel(el) && lista.includes(norm(el.innerText || el.textContent)));
-  const caixa = () => [...document.querySelectorAll('div[contenteditable="true"][role="textbox"], div[contenteditable="true"][aria-label], textarea')].filter(visivel).pop();
+  const caixa = () => [...caixasDaPagina()].filter(visivel).pop();
   const botaoMensagem = () => botoes(document.querySelector('header') || document, textos.mensagem) || botoes(document.querySelector('main') || document, textos.mensagem);
   const textoPagina = () => norm(document.body ? document.body.innerText : '');
   const erros = textos.erroAbrir || [];
@@ -1250,24 +1294,54 @@ export async function abrirConversaNaPagina(textos, maxCliques = 4) {
 }
 
 /**
- * NA PÁGINA da conversa: conta quantas vezes o trecho da mensagem já aparece na conversa (fora da caixa de texto),
- * esvazia a caixa (rascunho velho nunca é enviado) e deixa o cursor nela.
+ * NA PÁGINA da conversa: conta quantas BOLHAS de mensagem enviada com o trecho já existem na conversa (1.1.13: só
+ * bolha fora de qualquer caixa de texto/lista de conversas e sem aviso de falha — antes contava o texto da página
+ * inteira), esvazia a caixa (rascunho velho nunca é enviado) e deixa o cursor nela.
  */
-export async function prepararCaixaNaPagina(trecho) {
+export async function prepararCaixaNaPagina(trecho, op = {}) {
+  const caixasDaPagina = () => { const d = 'div[contenteditable="true"][role="textbox"], div[contenteditable="true"][aria-label], textarea'; try { return document.querySelectorAll((op && op.caixa) || d); } catch { return document.querySelectorAll(d); } };
+  // 1.1.13: só BOLHA de mensagem na conversa — nunca a caixa de texto (nem outra caixa aberta), a lista de conversas
+  // (prévia "Você: …"), a navegação ou o rascunho. Bolha com aviso de falha ("Não enviada", "Toque para tentar
+  // novamente") ou "Enviando…" não conta como enviada. Elemento mais interno com o trecho (textContent, barato).
+  const contarBolhas = (alvoBruto, caixa) => {
+    const n = (t) => String(t || '').replace(/\s+/g, ' ').trim().toLowerCase();
+    const alvo = n(alvoBruto);
+    const r = { enviadas: 0, falhas: 0, enviando: 0 };
+    if (!alvo) return r;
+    const d = '[contenteditable], textarea, nav, [role="navigation"], a[href*="/direct/t/"]';
+    const excluir = (el) => { try { return el.closest((op && op.excluir) || d); } catch { return el.closest(d); } };
+    const falhas = (op && op.falhas) || ['não enviada', 'não foi enviada', 'falha ao enviar', 'não foi possível enviar', 'tentar novamente', 'not delivered', "couldn't send", 'failed to send', 'tap to retry', 'try again'];
+    const enviando = (op && op.enviando) || ['enviando', 'sending'];
+    for (const el of document.querySelectorAll('div, span, p')) {
+      if (caixa && (caixa === el || caixa.contains(el) || el.contains(caixa))) continue;
+      if (!n(el.textContent).includes(alvo)) continue;
+      if ([...(el.children || [])].some((f) => n(f.textContent).includes(alvo))) continue;
+      if (excluir(el)) continue;
+      let estado = 'enviada';
+      for (let b = el, i = 0; b && i < 8; b = b.parentElement, i += 1) {
+        const tx = n(b.innerText || b.textContent);
+        if (tx.length > alvo.length + 300) break; // saiu da linha da mensagem
+        const resto = tx.split(alvo).join(' ');
+        const ar = n(b.getAttribute && b.getAttribute('aria-label'));
+        if (falhas.some((w) => resto.includes(w) || ar.includes(w))) { estado = 'falha'; break; }
+        if (enviando.some((w) => resto.includes(w) || ar.includes(w))) estado = 'enviando';
+      }
+      r[estado === 'enviada' ? 'enviadas' : estado === 'falha' ? 'falhas' : 'enviando'] += 1;
+    }
+    return r;
+  };
   const norm = (t) => String(t || '').replace(/\s+/g, ' ').trim().toLowerCase();
   const visivel = (el) => { const r = el.getBoundingClientRect(); return r.width > 0 && r.height > 0; };
-  const caixa = [...document.querySelectorAll('div[contenteditable="true"][role="textbox"], div[contenteditable="true"][aria-label], textarea')].filter(visivel).pop();
+  const caixa = [...caixasDaPagina()].filter(visivel).pop();
   if (!caixa) return { ok: false, erro: 'caixa de mensagem sumiu' };
-  const conta = (texto, alvo) => { let n = 0; let i = texto.indexOf(alvo); while (alvo && i !== -1) { n += 1; i = texto.indexOf(alvo, i + alvo.length); } return n; };
-  const alvo = norm(trecho);
+  const b = contarBolhas(trecho, caixa);
   const textoCaixa = norm(caixa.value ?? caixa.innerText);
-  const contagem = Math.max(0, conta(norm(document.body.innerText), alvo) - conta(textoCaixa, alvo));
   caixa.focus();
   if (textoCaixa) {
     if (caixa.tagName === 'TEXTAREA') caixa.select(); else document.getSelection().selectAllChildren(caixa);
     document.execCommand('delete');
   }
-  return { ok: true, contagem };
+  return { ok: true, contagem: b.enviadas, falhasAntes: b.falhas, enviandoAntes: b.enviando };
 }
 
 /**
@@ -1277,10 +1351,11 @@ export async function prepararCaixaNaPagina(trecho) {
  * apaga, escreve outro pedaço e apaga; no final só fica 'Conte comigo! 😊'"). Não aperta tecla nenhuma: nada sai daqui.
  * Devolve o texto que ficou na caixa (quem chama confere).
  */
-export async function colarNaPagina(texto) {
+export async function colarNaPagina(texto, op = {}) {
+  const caixasDaPagina = () => { const d = 'div[contenteditable="true"][role="textbox"], div[contenteditable="true"][aria-label], textarea'; try { return document.querySelectorAll((op && op.caixa) || d); } catch { return document.querySelectorAll(d); } };
   const visivel = (el) => { const r = el.getBoundingClientRect(); return r.width > 0 && r.height > 0; };
   const esperar = (ms) => new Promise((r) => setTimeout(r, ms));
-  const caixa = [...document.querySelectorAll('div[contenteditable="true"][role="textbox"], div[contenteditable="true"][aria-label], textarea')].filter(visivel).pop();
+  const caixa = [...caixasDaPagina()].filter(visivel).pop();
   if (!caixa) return { ok: false, erro: 'caixa de mensagem sumiu' };
   caixa.focus();
   if (caixa.tagName === 'TEXTAREA') {
@@ -1306,9 +1381,10 @@ export async function colarNaPagina(texto) {
  * NA PÁGINA (sem depurador, plano B do colar): digita os pedaços na caixa já focada. Quebra de linha = inserir o texto
  * "\n" (o editor da DM a trata como quebra de linha) — nunca insertLineBreak (1.1.11: apagava o texto) e nunca Enter.
  */
-export async function escreverNaPagina(partes) {
+export async function escreverNaPagina(partes, op = {}) {
+  const caixasDaPagina = () => { const d = 'div[contenteditable="true"][role="textbox"], div[contenteditable="true"][aria-label], textarea'; try { return document.querySelectorAll((op && op.caixa) || d); } catch { return document.querySelectorAll(d); } };
   const visivel = (el) => { const r = el.getBoundingClientRect(); return r.width > 0 && r.height > 0; };
-  const caixa = [...document.querySelectorAll('div[contenteditable="true"][role="textbox"], div[contenteditable="true"][aria-label], textarea')].filter(visivel).pop();
+  const caixa = [...caixasDaPagina()].filter(visivel).pop();
   if (!caixa) return { ok: false, erro: 'caixa de mensagem sumiu' };
   caixa.focus();
   for (const p of partes) {
@@ -1322,22 +1398,53 @@ export async function escreverNaPagina(partes) {
  * 1.1.11 — NA PÁGINA, sem mexer em nada: texto atual da caixa (espaços normalizados) e quantas vezes `trecho` já aparece
  * na conversa fora da caixa (para saber se uma quebra de linha mandou parte da mensagem).
  */
-export async function lerCaixaNaPagina(trecho) {
+export async function lerCaixaNaPagina(trecho, op = {}) {
+  const caixasDaPagina = () => { const d = 'div[contenteditable="true"][role="textbox"], div[contenteditable="true"][aria-label], textarea'; try { return document.querySelectorAll((op && op.caixa) || d); } catch { return document.querySelectorAll(d); } };
+  // 1.1.13: só BOLHA de mensagem na conversa — nunca a caixa de texto (nem outra caixa aberta), a lista de conversas
+  // (prévia "Você: …"), a navegação ou o rascunho. Bolha com aviso de falha ("Não enviada", "Toque para tentar
+  // novamente") ou "Enviando…" não conta como enviada. Elemento mais interno com o trecho (textContent, barato).
+  const contarBolhas = (alvoBruto, caixa) => {
+    const n = (t) => String(t || '').replace(/\s+/g, ' ').trim().toLowerCase();
+    const alvo = n(alvoBruto);
+    const r = { enviadas: 0, falhas: 0, enviando: 0 };
+    if (!alvo) return r;
+    const d = '[contenteditable], textarea, nav, [role="navigation"], a[href*="/direct/t/"]';
+    const excluir = (el) => { try { return el.closest((op && op.excluir) || d); } catch { return el.closest(d); } };
+    const falhas = (op && op.falhas) || ['não enviada', 'não foi enviada', 'falha ao enviar', 'não foi possível enviar', 'tentar novamente', 'not delivered', "couldn't send", 'failed to send', 'tap to retry', 'try again'];
+    const enviando = (op && op.enviando) || ['enviando', 'sending'];
+    for (const el of document.querySelectorAll('div, span, p')) {
+      if (caixa && (caixa === el || caixa.contains(el) || el.contains(caixa))) continue;
+      if (!n(el.textContent).includes(alvo)) continue;
+      if ([...(el.children || [])].some((f) => n(f.textContent).includes(alvo))) continue;
+      if (excluir(el)) continue;
+      let estado = 'enviada';
+      for (let b = el, i = 0; b && i < 8; b = b.parentElement, i += 1) {
+        const tx = n(b.innerText || b.textContent);
+        if (tx.length > alvo.length + 300) break; // saiu da linha da mensagem
+        const resto = tx.split(alvo).join(' ');
+        const ar = n(b.getAttribute && b.getAttribute('aria-label'));
+        if (falhas.some((w) => resto.includes(w) || ar.includes(w))) { estado = 'falha'; break; }
+        if (enviando.some((w) => resto.includes(w) || ar.includes(w))) estado = 'enviando';
+      }
+      r[estado === 'enviada' ? 'enviadas' : estado === 'falha' ? 'falhas' : 'enviando'] += 1;
+    }
+    return r;
+  };
   const norm = (t) => String(t || '').replace(/\s+/g, ' ').trim();
   const visivel = (el) => { const r = el.getBoundingClientRect(); return r.width > 0 && r.height > 0; };
-  const caixa = [...document.querySelectorAll('div[contenteditable="true"][role="textbox"], div[contenteditable="true"][aria-label], textarea')].filter(visivel).pop();
+  const caixa = [...caixasDaPagina()].filter(visivel).pop();
   if (!caixa) return { ok: false, erro: 'caixa de mensagem sumiu' };
-  const conta = (texto, alvo) => { let n = 0; let i = texto.indexOf(alvo); while (alvo && i !== -1) { n += 1; i = texto.indexOf(alvo, i + alvo.length); } return n; };
-  const textoCaixa = norm(caixa.value ?? caixa.innerText);
-  const alvo = norm(trecho).toLowerCase();
-  return { ok: true, texto: textoCaixa, conversa: Math.max(0, conta(norm(document.body.innerText).toLowerCase(), alvo) - conta(textoCaixa.toLowerCase(), alvo)) };
+  const b = contarBolhas(trecho, caixa);
+  // Qualquer bolha nova com o trecho (enviada, enviando ou com falha) = parte da mensagem saiu da caixa.
+  return { ok: true, texto: norm(caixa.value ?? caixa.innerText), conversa: b.enviadas + b.falhas + b.enviando };
 }
 
 /** NA PÁGINA: o texto da caixa é exatamente a mensagem (espaços normalizados)? Só então o Enter é apertado. */
-export async function conferirCaixaNaPagina(texto) {
+export async function conferirCaixaNaPagina(texto, op = {}) {
+  const caixasDaPagina = () => { const d = 'div[contenteditable="true"][role="textbox"], div[contenteditable="true"][aria-label], textarea'; try { return document.querySelectorAll((op && op.caixa) || d); } catch { return document.querySelectorAll(d); } };
   const norm = (t) => String(t || '').replace(/\s+/g, ' ').trim();
   const visivel = (el) => { const r = el.getBoundingClientRect(); return r.width > 0 && r.height > 0; };
-  const caixa = [...document.querySelectorAll('div[contenteditable="true"][role="textbox"], div[contenteditable="true"][aria-label], textarea')].filter(visivel).pop();
+  const caixa = [...caixasDaPagina()].filter(visivel).pop();
   if (!caixa) return { ok: false, erro: 'caixa de mensagem sumiu' };
   const atual = norm(caixa.value ?? caixa.innerText);
   if (atual === norm(texto)) return { ok: true };
@@ -1349,9 +1456,10 @@ export async function conferirCaixaNaPagina(texto) {
 }
 
 /** NA PÁGINA (sem depurador): Enter na caixa de texto. */
-export async function apertarEnterNaPagina() {
+export async function apertarEnterNaPagina(op = {}) {
+  const caixasDaPagina = () => { const d = 'div[contenteditable="true"][role="textbox"], div[contenteditable="true"][aria-label], textarea'; try { return document.querySelectorAll((op && op.caixa) || d); } catch { return document.querySelectorAll(d); } };
   const visivel = (el) => { const r = el.getBoundingClientRect(); return r.width > 0 && r.height > 0; };
-  const caixa = [...document.querySelectorAll('div[contenteditable="true"][role="textbox"], div[contenteditable="true"][aria-label], textarea')].filter(visivel).pop();
+  const caixa = [...caixasDaPagina()].filter(visivel).pop();
   if (!caixa) return { ok: false, erro: 'caixa de mensagem sumiu' };
   caixa.focus();
   for (const tipo of ['keydown', 'keypress', 'keyup']) {
@@ -1367,9 +1475,11 @@ export async function apertarEnterNaPagina() {
  * verdade pelo depurador) — `clicar: true` clica pela própria página (sem depurador).
  */
 export async function acharEnviarNaPagina(textos, clicar = false) {
+  const op = textos;
+  const caixasDaPagina = () => { const d = 'div[contenteditable="true"][role="textbox"], div[contenteditable="true"][aria-label], textarea'; try { return document.querySelectorAll((op && op.caixa) || d); } catch { return document.querySelectorAll(d); } };
   const norm = (t) => String(t || '').replace(/\s+/g, ' ').trim().toLowerCase();
   const visivel = (el) => { const r = el.getBoundingClientRect(); return r.width > 0 && r.height > 0; };
-  const caixa = [...document.querySelectorAll('div[contenteditable="true"][role="textbox"], div[contenteditable="true"][aria-label], textarea')].filter(visivel).pop();
+  const caixa = [...caixasDaPagina()].filter(visivel).pop();
   if (!caixa) return { ok: false, erro: 'caixa de mensagem sumiu' };
   const ehEnviar = (el) => [el.getAttribute('aria-label'), el.innerText || el.textContent].some((t) => textos.enviar.includes(norm(t)));
   const clicavel = (el) => (el.closest && el.closest('button, [role="button"]')) || el;
@@ -1398,21 +1508,54 @@ export async function acharEnviarNaPagina(textos, clicar = false) {
  * ocorrências do trecho que antes, fora da caixa). Não clica nem aperta nada (1.1.11): devolve também se a mensagem
  * INTEIRA continua na caixa (`naCaixa` — aí certamente não saiu e quem chama pode tentar o plano B).
  */
-export async function confirmarDmNaPagina(trecho, antes, esperaMs = 12000) {
+export async function confirmarDmNaPagina(trecho, antes, esperaMs = 12000, op = {}) {
+  const caixasDaPagina = () => { const d = 'div[contenteditable="true"][role="textbox"], div[contenteditable="true"][aria-label], textarea'; try { return document.querySelectorAll((op && op.caixa) || d); } catch { return document.querySelectorAll(d); } };
+  // 1.1.13: só BOLHA de mensagem na conversa — nunca a caixa de texto (nem outra caixa aberta), a lista de conversas
+  // (prévia "Você: …"), a navegação ou o rascunho. Bolha com aviso de falha ("Não enviada", "Toque para tentar
+  // novamente") ou "Enviando…" não conta como enviada. Elemento mais interno com o trecho (textContent, barato).
+  const contarBolhas = (alvoBruto, caixa) => {
+    const n = (t) => String(t || '').replace(/\s+/g, ' ').trim().toLowerCase();
+    const alvo = n(alvoBruto);
+    const r = { enviadas: 0, falhas: 0, enviando: 0 };
+    if (!alvo) return r;
+    const d = '[contenteditable], textarea, nav, [role="navigation"], a[href*="/direct/t/"]';
+    const excluir = (el) => { try { return el.closest((op && op.excluir) || d); } catch { return el.closest(d); } };
+    const falhas = (op && op.falhas) || ['não enviada', 'não foi enviada', 'falha ao enviar', 'não foi possível enviar', 'tentar novamente', 'not delivered', "couldn't send", 'failed to send', 'tap to retry', 'try again'];
+    const enviando = (op && op.enviando) || ['enviando', 'sending'];
+    for (const el of document.querySelectorAll('div, span, p')) {
+      if (caixa && (caixa === el || caixa.contains(el) || el.contains(caixa))) continue;
+      if (!n(el.textContent).includes(alvo)) continue;
+      if ([...(el.children || [])].some((f) => n(f.textContent).includes(alvo))) continue;
+      if (excluir(el)) continue;
+      let estado = 'enviada';
+      for (let b = el, i = 0; b && i < 8; b = b.parentElement, i += 1) {
+        const tx = n(b.innerText || b.textContent);
+        if (tx.length > alvo.length + 300) break; // saiu da linha da mensagem
+        const resto = tx.split(alvo).join(' ');
+        const ar = n(b.getAttribute && b.getAttribute('aria-label'));
+        if (falhas.some((w) => resto.includes(w) || ar.includes(w))) { estado = 'falha'; break; }
+        if (enviando.some((w) => resto.includes(w) || ar.includes(w))) estado = 'enviando';
+      }
+      r[estado === 'enviada' ? 'enviadas' : estado === 'falha' ? 'falhas' : 'enviando'] += 1;
+    }
+    return r;
+  };
   const norm = (t) => String(t || '').replace(/\s+/g, ' ').trim().toLowerCase();
   const visivel = (el) => { const r = el.getBoundingClientRect(); return r.width > 0 && r.height > 0; };
   const esperar = (ms) => new Promise((r) => setTimeout(r, ms));
-  const conta = (texto, alvo) => { let n = 0; let i = texto.indexOf(alvo); while (alvo && i !== -1) { n += 1; i = texto.indexOf(alvo, i + alvo.length); } return n; };
   const alvo = norm(trecho);
-  let naCaixa = 0;
+  const falhasAntes = Number(op && op.falhasAntes) || 0;
+  let naCaixa = false;
+  let ultima = { enviadas: 0, falhas: 0, enviando: 0 };
   for (let t = 0; t < Math.max(1, Math.round(esperaMs / 250)); t += 1) {
     await esperar(250);
-    const caixa = [...document.querySelectorAll('div[contenteditable="true"][role="textbox"], div[contenteditable="true"][aria-label], textarea')].filter(visivel).pop();
-    naCaixa = caixa ? conta(norm(caixa.value ?? caixa.innerText), alvo) : 0;
-    const naConversa = conta(norm(document.body.innerText), alvo) - naCaixa;
-    if (naConversa > antes && !naCaixa) return { ok: true, confirmado: true, naCaixa: false };
+    const caixa = [...caixasDaPagina()].filter(visivel).pop();
+    naCaixa = Boolean(caixa && norm(caixa.value ?? caixa.innerText).includes(alvo));
+    ultima = contarBolhas(trecho, caixa);
+    if (ultima.falhas > falhasAntes) return { ok: false, confirmado: false, falhou: true, naCaixa, bolhas: ultima, erro: 'o Instagram mostrou a mensagem como NÃO enviada na conversa' };
+    if (ultima.enviadas > antes && !naCaixa) return { ok: true, confirmado: true, naCaixa: false, bolhas: ultima };
   }
-  return { ok: false, confirmado: false, naCaixa: naCaixa > 0, erro: `a mensagem não apareceu na conversa em ${Math.round(esperaMs / 1000)} s` };
+  return { ok: false, confirmado: false, naCaixa, bolhas: ultima, erro: `nenhuma bolha de mensagem enviada apareceu na conversa em ${Math.round(esperaMs / 1000)} s${ultima.enviando > 0 ? ' (ficou "Enviando…")' : ''}` };
 }
 
 /** Partes da digitação: palavras (com o espaço) e quebras de linha. */
@@ -1481,11 +1624,11 @@ export async function digitarDmNaAba({ username, texto, seco = false }) {
       await esperarCarregar(tabId);
       const comDepurador = Boolean(info.attached && paginaAcordada.isAttached(tabId));
       rastro.passo('perfil aberto', { depurador: comDepurador, seco });
-      const aberta = await exec(abrirConversaNaPagina, [TEXTOS_DM]);
+      const aberta = await exec(abrirConversaNaPagina, [textosDm(), maxCliquesMensagem()]);
       rastro.passo('abrir conversa', { ok: Boolean(aberta.ok), cliques: aberta.cliques, errosVistos: aberta.errosVistos, erro: aberta.erro });
       if (!aberta.ok) return fim({ ok: false, apertouEnter, erro: aberta.erro });
       const trecho = trechoDaMensagem(texto);
-      const caixa = await exec(prepararCaixaNaPagina, [trecho]);
+      const caixa = await exec(prepararCaixaNaPagina, [trecho, opPagina()]);
       rastro.passo('preparar caixa', { ok: Boolean(caixa.ok), jaNaConversa: caixa.contagem, erro: caixa.erro });
       if (!caixa.ok) return fim({ ok: false, apertouEnter, erro: caixa.erro });
       if (caixa.contagem > 0 && !seco) return fim({ ok: true, jaEstava: true, apertouEnter });
@@ -1493,29 +1636,30 @@ export async function digitarDmNaAba({ username, texto, seco = false }) {
 
       // 1) Escrita — a) colar a mensagem inteira.
       let como = 'colada';
-      const colada = await exec(colarNaPagina, [texto]);
-      let conferida = await exec(conferirCaixaNaPagina, [texto]); // diferente: já esvazia a caixa
+      const colada = modoDigitacao().colar ? await exec(colarNaPagina, [texto, opPagina()]) : { texto: '' };
+      let conferida = modoDigitacao().colar ? await exec(conferirCaixaNaPagina, [texto, opPagina()]) : { ok: false, erro: 'colar desligado pela configuração do CRM' }; // diferente: já esvazia a caixa
       rastro.passo('colar mensagem inteira', { ok: Boolean(conferida.ok), caracteresNaCaixa: norm(colada.texto).length, esperado: norm(texto).length, erro: conferida.erro });
       if (!conferida.ok && seco) {
         // Teste a seco: só a digitação pela página (texto "\n" nas quebras) — nenhuma tecla.
         como = 'digitada pela página';
-        const w = await exec(escreverNaPagina, [partesDaDigitacao(texto)]);
-        conferida = w.ok ? await exec(conferirCaixaNaPagina, [texto]) : w;
+        const w = await exec(escreverNaPagina, [partesDaDigitacao(texto), opPagina()]);
+        conferida = w.ok ? await exec(conferirCaixaNaPagina, [texto, opPagina()]) : w;
         rastro.passo('digitar pela página (teste a seco)', { ok: Boolean(conferida.ok), erro: conferida.erro });
       } else if (!conferida.ok) {
         // b) Plano B: digitar linha por linha.
-        como = comDepurador ? 'digitada (Shift+Enter)' : 'digitada pela página';
-        if (comDepurador) {
+        const comShiftEnter = comDepurador && modoDigitacao().shiftEnter;
+        como = comShiftEnter ? 'digitada (Shift+Enter)' : 'digitada pela página';
+        if (comShiftEnter) {
           const linhas = linhasDaMensagem(texto);
           const inicio = norm(linhas.find((l) => norm(l)) || '');
-          const base = await exec(lerCaixaNaPagina, [inicio]);
+          const base = await exec(lerCaixaNaPagina, [inicio, opPagina()]);
           if (!base.ok) return fim({ ok: false, apertouEnter, erro: base.erro });
           let escrito = '';
           for (let i = 0; i < linhas.length; i += 1) {
             if (i > 0) {
               for (const tecla of SHIFT_ENTER) await cdp(tabId, 'Input.dispatchKeyEvent', tecla);
               await pausa(150, 350);
-              const agora = await exec(lerCaixaNaPagina, [inicio]);
+              const agora = await exec(lerCaixaNaPagina, [inicio, opPagina()]);
               if (!agora.ok) return fim({ ok: false, apertouEnter, erro: agora.erro });
               if (inicio && agora.conversa > base.conversa) {
                 // A quebra de linha mandou parte da mensagem: pode ter saído — nunca repetir.
@@ -1524,7 +1668,7 @@ export async function digitarDmNaAba({ username, texto, seco = false }) {
               }
               if (agora.texto !== norm(escrito)) {
                 rastro.passo('Shift+Enter', { linha: i, resultado: 'apagou', caracteres: agora.texto.length, esperado: norm(escrito).length });
-                await exec(conferirCaixaNaPagina, [texto]); // esvazia (o texto não confere)
+                await exec(conferirCaixaNaPagina, [texto, opPagina()]); // esvazia (o texto não confere)
                 return fim({ ok: false, apertouEnter, erro: `a quebra de linha apagou o texto da caixa (${agora.texto.length} de ${norm(escrito).length} caracteres)` });
               }
               escrito += '\n';
@@ -1536,17 +1680,17 @@ export async function digitarDmNaAba({ username, texto, seco = false }) {
             }
           }
         } else {
-          const w = await exec(escreverNaPagina, [partesDaDigitacao(texto)]);
+          const w = await exec(escreverNaPagina, [partesDaDigitacao(texto), opPagina()]);
           if (!w.ok) return fim({ ok: false, apertouEnter, erro: w.erro });
         }
         // 2) Conferência do texto exato.
-        conferida = await exec(conferirCaixaNaPagina, [texto]);
+        conferida = await exec(conferirCaixaNaPagina, [texto, opPagina()]);
         rastro.passo(`conferir texto (${como})`, { ok: Boolean(conferida.ok), erro: conferida.erro });
       }
       if (seco) {
-        const enviarSeco = await exec(acharEnviarNaPagina, [TEXTOS_DM, false]); // nunca clica
+        const enviarSeco = await exec(acharEnviarNaPagina, [textosDm(), false]); // nunca clica
         rastro.passo('localizar botão Enviar (sem clicar)', { ok: Boolean(enviarSeco.ok), livre: enviarSeco.livre, erro: enviarSeco.erro });
-        const limpa = await exec(limparCaixaNaPagina, []);
+        const limpa = await exec(limparCaixaNaPagina, [opPagina()]);
         rastro.passo('apagar texto da caixa', { ok: Boolean(limpa.ok), sobrou: limpa.sobrou });
         return fim({
           ok: Boolean(conferida.ok && enviarSeco.ok && limpa.ok),
@@ -1565,7 +1709,7 @@ export async function digitarDmNaAba({ username, texto, seco = false }) {
 
       // 3) Envio: clique no botão Enviar.
       apertouEnter = true; // a partir daqui a mensagem pode ter saído: nunca mais "não enviada"
-      const enviar = await exec(acharEnviarNaPagina, [TEXTOS_DM, !comDepurador]); // sem depurador já clica aqui
+      const enviar = await exec(acharEnviarNaPagina, [textosDm(), !comDepurador]); // sem depurador já clica aqui
       let envio;
       if (enviar.ok && comDepurador && enviar.livre) {
         envio = 'clique no botão Enviar';
@@ -1574,7 +1718,7 @@ export async function digitarDmNaAba({ username, texto, seco = false }) {
         await cdp(tabId, 'Input.dispatchMouseEvent', { type: 'mouseReleased', x: enviar.x, y: enviar.y, button: 'left', buttons: 0, clickCount: 1 });
       } else if (enviar.ok && comDepurador) {
         envio = 'clique no botão Enviar (pela página)';
-        await exec(acharEnviarNaPagina, [TEXTOS_DM, true]); // algo por cima do ponto: clica pelo próprio elemento
+        await exec(acharEnviarNaPagina, [textosDm(), true]); // algo por cima do ponto: clica pelo próprio elemento
       } else if (enviar.ok) {
         envio = 'clique no botão Enviar (pela página)'; // já clicado por acharEnviarNaPagina(…, true)
       } else {
@@ -1582,16 +1726,16 @@ export async function digitarDmNaAba({ username, texto, seco = false }) {
         await apertarEnter(comDepurador);
       }
       rastro.passo('enviar', { como: envio, botaoAchado: Boolean(enviar.ok), livre: enviar.livre, erro: enviar.erro });
-      let conf = await exec(confirmarDmNaPagina, [trecho, caixa.contagem, enviar.ok ? 4000 : 12000]);
+      let conf = await exec(confirmarDmNaPagina, [trecho, caixa.contagem, enviar.ok ? 4000 : confirmarMs(), opPagina({ falhasAntes: caixa.falhasAntes })]);
       rastro.passo('confirmar na conversa', { confirmado: Boolean(conf.confirmado), mensagemAindaNaCaixa: conf.naCaixa });
-      if (!conf.confirmado && enviar.ok && conf.naCaixa) {
+      if (!conf.confirmado && !conf.falhou && enviar.ok && conf.naCaixa) {
         // A mensagem continua inteira na caixa: o clique não enviou (nada saiu). Plano B: Enter, uma vez.
         envio += ' + Enter (plano B)';
         await apertarEnter(comDepurador);
-        conf = await exec(confirmarDmNaPagina, [trecho, caixa.contagem, 12000]);
+        conf = await exec(confirmarDmNaPagina, [trecho, caixa.contagem, confirmarMs(), opPagina({ falhasAntes: caixa.falhasAntes })]);
         rastro.passo('confirmar depois do Enter (plano B)', { confirmado: Boolean(conf.confirmado), mensagemAindaNaCaixa: conf.naCaixa });
-      } else if (!conf.confirmado && enviar.ok) {
-        conf = await exec(confirmarDmNaPagina, [trecho, caixa.contagem, 8000]);
+      } else if (!conf.confirmado && !conf.falhou && enviar.ok) {
+        conf = await exec(confirmarDmNaPagina, [trecho, caixa.contagem, 8000, opPagina({ falhasAntes: caixa.falhasAntes })]);
         rastro.passo('confirmar (mais 8 s)', { confirmado: Boolean(conf.confirmado) });
       }
       return fim({ ok: Boolean(conf.confirmado), confirmado: Boolean(conf.confirmado), apertouEnter, erro: conf.erro, viaDepurador: comDepurador, como, envio });
@@ -1607,15 +1751,16 @@ export async function digitarDmNaAba({ username, texto, seco = false }) {
       await cdp(tabId, 'Input.dispatchKeyEvent', { type: 'keyDown', ...TECLA_ENTER, text: '\r', unmodifiedText: '\r' });
       await cdp(tabId, 'Input.dispatchKeyEvent', { type: 'keyUp', ...TECLA_ENTER });
     } else {
-      await exec(apertarEnterNaPagina, []);
+      await exec(apertarEnterNaPagina, [opPagina()]);
     }
   }
 }
 
 /** 1.1.12 — NA PÁGINA (teste a seco): esvazia a caixa da conversa. */
-export async function limparCaixaNaPagina() {
+export async function limparCaixaNaPagina(op = {}) {
+  const caixasDaPagina = () => { const d = 'div[contenteditable="true"][role="textbox"], div[contenteditable="true"][aria-label], textarea'; try { return document.querySelectorAll((op && op.caixa) || d); } catch { return document.querySelectorAll(d); } };
   const visivel = (el) => { const r = el.getBoundingClientRect(); return r.width > 0 && r.height > 0; };
-  const caixa = [...document.querySelectorAll('div[contenteditable="true"][role="textbox"], div[contenteditable="true"][aria-label], textarea')].filter(visivel).pop();
+  const caixa = [...caixasDaPagina()].filter(visivel).pop();
   if (!caixa) return { ok: false, erro: 'caixa de mensagem sumiu' };
   caixa.focus();
   if (caixa.tagName === 'TEXTAREA') caixa.select(); else document.getSelection().selectAllChildren(caixa);
@@ -1627,5 +1772,7 @@ export async function limparCaixaNaPagina() {
 
 /** API pronta para uso dentro da extensão. */
 export function criarApiChrome() {
-  return criarApiInstagram({ executar: executarNaAba, obterCsrf: async () => (await lerSessao()).csrf, clicar: clicarNaAba, lerPerfil: lerPerfilNaAba, digitarDm: digitarDmNaAba });
+  // 1.1.13: a configuração do CRM pode desligar a digitação na tela da DM (fica só a API).
+  const digitarDm = (x) => (modoDigitacao().ativa ? digitarDmNaAba(x) : Promise.resolve({ ok: false, apertouEnter: false, erro: 'digitação na tela da DM desligada pela configuração do CRM' }));
+  return criarApiInstagram({ executar: executarNaAba, obterCsrf: async () => (await lerSessao()).csrf, clicar: clicarNaAba, lerPerfil: lerPerfilNaAba, digitarDm });
 }

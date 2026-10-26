@@ -11,6 +11,13 @@
 
 
 
+## 2026-10-26 — Instagram 1.1.13: confirmação só por bolha enviada, reset das falsas, configuração e comandos remotos — branch `fix/instagram-dm-envio-completo`
+- **Sintoma (dono):** "nenhuma mensagem foi enviada, mas ali constam 13 DMs enviadas".
+- **Causa raiz:** `confirmarDmNaPagina`/`prepararCaixaNaPagina` contavam o trecho em `document.body.innerText` menos a caixa escolhida — texto em outra caixa (painel de mensagens), prévia da lista de conversas ou bolha "Não enviada" virava "enviada"/"já estava".
+- **Correção:** `contarBolhas` (elemento mais interno com o trecho, fora de `[contenteditable]`/textarea/nav/links `/direct/t/`, sem aviso de falha/"Enviando"); falha na bolha = `falhou` → incerto. Reset único (`resetarDmsDigitacao`, flag `resetDm1113`) volta a pendentes as enviadas/incertas da digitação e desconta o contador do dia.
+- **Remoto (só dados, MV3):** `GET /api/marketplace/ig-config` (nova; `rejectExtensionRequest` + `getInstagramExtensionConfig` em `lib/marketplace-chat.js`, lê `crm_settings` `instagram_extension_config` e `instagram_extension_commands`; ausentes = {} e []); kind `ig_ack` em `DIAGNOSTIC_KINDS`. Extensão: `lib/config-remota.js` valida (textos, seletores sem {}/url(), tempos, digitação) e filtra comandos (`dryrun_dm`, `dryrun_follow`, `send_next_now`, `check_followers`, `reset_dms`, `ping`; id marcado antes de rodar). Alarme `crm` 5 min + popup.
+- **Testes:** `tests/config-remota.test.mjs` (novo, 9); 160 passam. Nada real enviado.
+
 ## 2026-10-26 — Instagram 1.1.12: diagnóstico remoto no CRM, testes a seco, "enviar agora", Seguir robusto — branch `fix/instagram-dm-envio-completo`
 - **Pedido:** teste real do dono com a 1.1.11 ("SEGUIR suspenso… botão 'Seguir' não apareceu no perfil" com o botão na tela; DM não saiu) + "a primeira tem que ser testada na hora".
 - **CRM (`lib/marketplace-chat.js`):** `DIAGNOSTIC_KINDS` aceita `ig_follow`, `ig_dm`, `ig_dryrun`, `ig_ping` na rota existente `POST /api/marketplace/diagnostic` (mesma chave `mkp_`, limite 600 kB, tabela `marketplace_diagnostics`; sem migration — `kind` ≤ 40). Precisa de deploy para a extensão gravar.

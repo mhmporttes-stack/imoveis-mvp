@@ -6,10 +6,10 @@ function casaSimples(no, sel) {
   const m = sel.trim().match(/^([a-z]*)((?:\[[^\]]+\])*)$/i);
   if (!m) throw new Error(`seletor não suportado no DOM falso: ${sel}`);
   if (m[1] && no.tagName !== m[1].toUpperCase()) return false;
-  for (const [, nome, valor] of m[2].matchAll(/\[([a-z-]+)(?:="([^"]*)")?\]/gi)) {
+  for (const [, nome, op, valor] of m[2].matchAll(/\[([a-z-]+)(?:(\*?)="([^"]*)")?\]/gi)) {
     const v = no.getAttribute(nome);
     if (v == null) return false;
-    if (valor !== undefined && v !== valor) return false;
+    if (valor !== undefined && (op === '*' ? !v.includes(valor) : v !== valor)) return false;
   }
   return true;
 }

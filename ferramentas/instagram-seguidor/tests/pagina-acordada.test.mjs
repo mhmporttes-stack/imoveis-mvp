@@ -15,7 +15,7 @@ test('leitura do botão e cliques do perfil rodam com a página acordada; API n�
   // 1.1.12: abrirPerfilComRastro (com rastro + esqueleto para o diagnóstico) substituiu abrirPerfilEExecutar.
   const abrir = api.slice(api.indexOf('async function abrirPerfilComRastro('), api.indexOf('/** 1.1.4: abre o perfil'));
   assert.match(abrir, /paginaAcordada\.run\(tabId, async \(info\) => \{[\s\S]*?await chrome\.tabs\.update\(tabId/);
-  assert.match(api, /return abrirPerfilComRastro\(username, async \(\{ exec, rastro \}\) => \{\s*const r = await exec\(lerEstadoNaPagina, \[TEXTOS_LEITURA\]\)/);
+  assert.match(api, /return abrirPerfilComRastro\(username, async \(\{ exec, rastro \}\) => \{\s*const r = await exec\(lerEstadoNaPagina, \[textosLeitura\(\)\]\)/);
   assert.match(api, /const r = await exec\(clicarNaPagina, \[passos\]\)/);
   const executar = api.slice(api.indexOf('export async function executarNaAba('), api.indexOf('/** Lê a sessão do navegador'));
   assert.doesNotMatch(executar, /paginaAcordada|debugger/);

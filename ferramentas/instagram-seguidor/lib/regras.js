@@ -406,3 +406,38 @@ export function precisaReabastecer(tamanhoFila, limiteDiario) {
 export function alvoFila(limiteDiario) {
   return Math.max(limiteDiario * 3, limiteDiario + MARGEM_FILA);
 }
+
+/**
+ * 1.1.13 — DMs que a digitação na tela da DM marcou como enviadas/incertas sem terem saído (dono, 26/10: "nenhuma
+ * mensagem foi enviada, mas ali constam 13 DMs enviadas"; causa: a confirmação contava o trecho em qualquer lugar da
+ * página — outra caixa de texto, prévia da lista de conversas, bolha com falha). Volta a PENDENTE, espaçado (1–3 min +
+ * 1 min entre elas), toda DM que passou pela digitação (`dmVia = 'digitacao'` ou `dmDigitacaoTentadaEm`) e está
+ * enviada/incerta/em tentativa. Filtros opcionais: `ids` (só esses) e `desde` (enviada/tentada a partir de). Devolve
+ * { resetados, enviadasHoje, incertasHoje } — quem chama desconta o contador do dia.
+ */
+export function resetarDmsDigitacao(registros, { agora, cfg, dia, diaDe, ids = null, desde = null, intervaloMs = 60 * 1000, rand = Math.random }) {
+  const so = ids ? new Set(ids.map(String)) : null;
+  const resetados = [];
+  let enviadasHoje = 0;
+  let incertasHoje = 0;
+  const lista = [...registros].sort((a, b) => (a.dmTentativaEm || a.dmEnviadaEm || 0) - (b.dmTentativaEm || b.dmEnviadaEm || 0));
+  for (const r of lista) {
+    if (!r || !(r.dmVia === 'digitacao' || r.dmDigitacaoTentadaEm)) continue;
+    if (!(r.dmEnviadaEm || r.dmIncerta || r.dmTentativaEm)) continue;
+    if (so && !so.has(String(r.id))) continue;
+    const quando = r.dmEnviadaEm || r.dmTentativaEm || r.dmDigitacaoTentadaEm || 0;
+    if (desde != null && quando < desde) continue;
+    if (r.dmEnviadaEm && diaDe(r.dmEnviadaEm) === dia) enviadasHoje += 1;
+    if (r.dmIncerta && diaDe(r.dmTentativaEm || r.dmDigitacaoTentadaEm || 0) === dia) incertasHoje += 1;
+    r.dmEnviadaEm = null;
+    r.dmIncerta = false;
+    r.dmTentativaEm = null;
+    r.dmFalhas = 0;
+    r.dmDesistiu = false;
+    r.dmVia = null;
+    r.dmResetEm = agora;
+    r.dmAgendadaPara = ajustarParaJanela(agora + atrasoDmMs(rand) + resetados.length * intervaloMs, agora, cfg, rand);
+    resetados.push(r);
+  }
+  return { resetados, enviadasHoje, incertasHoje };
+}

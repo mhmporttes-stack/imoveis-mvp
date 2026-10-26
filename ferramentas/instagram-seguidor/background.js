@@ -1,7 +1,8 @@
 // Service worker da extensão: agenda, fila, seguir / deixar de seguir, follow-back e DM.
 // Toda a comunicação com o Instagram passa por instagram-api.js.
 
-import { criarApiChrome, lerSessao, ErroInstagram, haJanelaParaTrabalhar, abrirJanelaTrabalho, situacaoJanelaTrabalho, tirarDiagnostico, digitarDmNaAba, clicarNaAba } from './instagram-api.js';
+import { criarApiChrome, lerSessao, ErroInstagram, haJanelaParaTrabalhar, abrirJanelaTrabalho, situacaoJanelaTrabalho, tirarDiagnostico, digitarDmNaAba, clicarNaAba, aplicarConfigRemota } from './instagram-api.js';
+import { CHAVE_CONFIG_REMOTA, CHAVE_COMANDOS, INTERVALO_SINCRONIZAR_MIN, validarConfigRemota, comandosPendentes, marcarExecutado } from './lib/config-remota.js';
 import { CHAVE_CRM, CHAVE_ULTIMO_ENVIO, montarDiagnostico, enviarDiagnosticoCrm, normalizarUrlCrm, CRM_URL_PADRAO } from './lib/diagnostico.js';
 import { MINUTO, diaSP, janelaDoDia, dentroDaJanela, proximaAbertura, formatarSP } from './lib/tempo.js';
 import { planejarHorarios, decidirHorario, atrasoHumanoMs, atrasoDmMs } from './lib/agenda.js';
@@ -31,6 +32,7 @@ import {
   tetoDmAtingido,
   reabilitarDesistidasPorHtml,
   proximaBoasVindasPendente,
+  resetarDmsDigitacao,
 } from './lib/regras.js';
 import { normalizarEstado, virarDiaSeNecessario, registrarHistorico, resumoBusca } from './lib/estado.js';
 import { CARGA_JANELA_MS, CARGA_PAGINAS_MAX, CARGA_TENTATIVAS_MAX, interpretarAtividade, separarCarga, registroDaCarga } from './lib/carga-tres-dias.js';
@@ -39,6 +41,7 @@ const api = criarApiChrome();
 
 const ALARME_ACAO = 'acao'; // próxima ação agendada (one-shot)
 const ALARME_VERIFICAR = 'verificar'; // checagem de follow-back (a cada 2 min)
+const ALARME_CRM = 'crm'; // 1.1.13: configuração e comandos do CRM (a cada 5 min)
 const ALARME_VIGIA = 'vigia'; // rede de segurança (a cada 5 min): virada de dia, abertura da janela etc.
 const VARREDURA_COMPLETA_MS = 30 * MINUTO; // show_many em todos os seguidos, de 30 em 30 min
 // 1.1.4: com o show_many respondendo HTML, a varredura lê o botão de no máximo N perfis por rodada (30 min),
@@ -974,7 +977,116 @@ function reabilitarDmsGetByParticipants(e, agora) {
   if (e.alerta && e.alerta.tipo === 'mudanca_api' && /get_by_participants|direct_v2/.test(e.alerta.texto || '')) e.alerta = null;
 }
 
+/**
+ * 1.1.13 (uma vez, na atualização): as boas-vindas que a digitação na tela da DM deu como enviadas/incertas sem terem
+ * saído (dono, 26/10: "nenhuma mensagem foi enviada, mas ali constam 13 DMs enviadas"; ele confirmou que nenhuma saiu)
+ * voltam a pendentes, espaçadas, e o contador de hoje passa a contar só as reais.
+ */
+function resetarDmsFalsas1113(e, agora) {
+  if (e.resetDm1113) return;
+  e.resetDm1113 = agora;
+  const n = aplicarResetDms(e, agora, {});
+  if (n) log(e, { acao: 'DM', resultado: `versão 1.1.13: ${n} boas-vindas marcadas como enviadas/incertas pela digitação (nenhuma saiu de verdade) voltaram a pendentes; o contador de hoje conta só as reais` });
+}
+
+/** Reset das DMs da digitação (atualização 1.1.13 e comando remoto reset_dms). Devolve quantas voltaram a pendentes. */
+function aplicarResetDms(e, agora, { ids = null, desde = null }) {
+  const hoje = diaSP(agora);
+  const r = resetarDmsDigitacao(registrosDm(e), { agora, cfg: e.config, dia: hoje, diaDe: diaSP, ids, desde, intervaloMs: INTERVALO_MIN_ENTRE_DMS });
+  if (e.contadores.dia === hoje) {
+    e.contadores.dms = Math.max(0, (e.contadores.dms || 0) - r.enviadasHoje);
+    e.contadores.dmsIncertas = Math.max(0, (e.contadores.dmsIncertas || 0) - r.incertasHoje);
+  }
+  for (const x of r.resetados) log(e, { username: x.username, acao: 'DM', resultado: `boas-vindas volta a pendente (não tinha saído) — nova tentativa às ${formatarSP(x.dmAgendadaPara)}`, origem: x.origem });
+  if (r.resetados.length && e.alerta && e.alerta.tipo === 'dm') e.alerta = null;
+  return r.resetados.length;
+}
+
+// ---------------------------------------------------------------- 1.1.13: configuração e comandos do CRM
+
+/**
+ * Busca no CRM (GET /api/marketplace/ig-config, chave mkp_) a configuração (só dados — lib/config-remota.js) e os
+ * comandos da lista fechada. Configuração inválida ou CRM fora do ar: fica a última boa (ou o padrão). Cada comando
+ * roda UMA vez (o id é marcado antes de rodar) e responde com o diagnóstico `ig_ack`.
+ */
+async function sincronizarCrm() {
+  const crm = await lerConfigCrm();
+  await aplicarConfigGuardada();
+  if (!crm.chave) return { ok: false, erro: 'sem chave do CRM' };
+  const guardada = (await chrome.storage.local.get(CHAVE_CONFIG_REMOTA))[CHAVE_CONFIG_REMOTA] || {};
+  let dados;
+  try {
+    const resp = await fetch(`${normalizarUrlCrm(crm.url)}/api/marketplace/ig-config`, {
+      method: 'GET',
+      headers: { Authorization: `Bearer ${crm.chave}`, ...(crm.versao ? { 'X-Extension-Version': `instagram-seguidor ${crm.versao}` } : {}) },
+      cache: 'no-store',
+    });
+    dados = await resp.json().catch(() => ({}));
+    if (!resp.ok) throw new Error(resp.status === 401 ? 'chave do CRM recusada' : dados.error || `CRM respondeu ${resp.status}`);
+  } catch (err) {
+    await chrome.storage.local.set({ [CHAVE_CONFIG_REMOTA]: { ...guardada, erro: `${err.message || err}`, erroEm: Date.now() } });
+    return { ok: false, erro: err.message || String(err) };
+  }
+  const config = validarConfigRemota(dados.config);
+  aplicarConfigRemota(config);
+  configAplicada = true;
+  await chrome.storage.local.set({ [CHAVE_CONFIG_REMOTA]: { config, recebidaEm: Date.now() } });
+  const estadoCmd = (await chrome.storage.local.get(CHAVE_COMANDOS))[CHAVE_COMANDOS] || { executados: [] };
+  const novos = comandosPendentes(dados.commands, estadoCmd.executados || []);
+  for (const cmd of novos) {
+    estadoCmd.executados = marcarExecutado(estadoCmd.executados || [], cmd.id); // antes de rodar: nunca 2 vezes
+    await chrome.storage.local.set({ [CHAVE_COMANDOS]: estadoCmd });
+    let resultado;
+    try {
+      resultado = await executarComando(cmd);
+    } catch (err) {
+      resultado = { ok: false, erro: err && err.message ? err.message : String(err) };
+    }
+    const resumo = String(resultado.texto || resultado.erro || (resultado.ok ? 'ok' : 'falhou')).slice(0, 300);
+    estadoCmd.ultimo = { id: cmd.id, tipo: cmd.tipo, em: Date.now(), resultado: resumo };
+    await chrome.storage.local.set({ [CHAVE_COMANDOS]: estadoCmd });
+    await diagnosticar('ig_ack', { acao: `comando ${cmd.tipo}`, username: cmd.args.username ? limparArroba(cmd.args.username) : '', resultado: resumo, extra: { id: cmd.id, tipo: cmd.tipo, ok: Boolean(resultado.ok), resultado } });
+  }
+  return { ok: true, versao: config.versao || null, comandos: novos.length };
+}
+
+let configAplicada = false;
+/** A configuração guardada vale desde o início do service worker (ele reinicia o tempo todo). */
+async function aplicarConfigGuardada() {
+  if (configAplicada) return;
+  configAplicada = true;
+  const g = (await chrome.storage.local.get(CHAVE_CONFIG_REMOTA))[CHAVE_CONFIG_REMOTA];
+  if (g && g.config) aplicarConfigRemota(validarConfigRemota(g.config));
+}
+
+/** Comandos remotos (lista fechada — lib/config-remota.js TIPOS_COMANDO). Nunca código. */
+async function executarComando(cmd) {
+  switch (cmd.tipo) {
+    case 'ping':
+      return { ok: true, texto: `versão ${versaoExtensao() || '?'} ativa` };
+    case 'dryrun_dm':
+      return testarDmSeco(cmd.args.username);
+    case 'dryrun_follow':
+      return testarSeguirSeco(cmd.args.username);
+    case 'send_next_now':
+      return enviarProximaDmAgora();
+    case 'check_followers':
+      return { ok: true, ...(await cicloVerificar({ manual: true })) };
+    case 'reset_dms': {
+      const e = await carregar();
+      const n = aplicarResetDms(e, Date.now(), { ids: cmd.args.ids || null, desde: cmd.args.desde ?? null });
+      log(e, { acao: 'DM', resultado: `comando do CRM: ${n} boas-vindas da digitação voltaram a pendentes` });
+      await agendarProximo(e, await lerControle());
+      await salvar(e);
+      return { ok: true, texto: `${n} boas-vindas voltaram a pendentes` };
+    }
+    default:
+      return { ok: false, erro: `comando desconhecido: ${cmd.tipo}` };
+  }
+}
+
 async function ciclo() {
+  await aplicarConfigGuardada();
   const e = await carregar();
   const c = await lerControle();
   const agora = Date.now();
@@ -992,6 +1104,7 @@ async function ciclo() {
   await checarSessao(e);
   reabilitarDmsHtml(e, agora);
   reabilitarDmsGetByParticipants(e, agora);
+  resetarDmsFalsas1113(e, agora);
 
   if (estaAtiva(e, c, agora) && dentroDaJanela(agora, e.config) && (await checarJanela(e))) {
     let r = await processarDm(e, agora);
@@ -1016,6 +1129,7 @@ async function ciclo() {
  * a pausa e a sessão como a checagem automática.
  */
 async function cicloVerificar({ manual = false } = {}) {
+  await aplicarConfigGuardada();
   const e = await carregar();
   const c = await lerControle();
   const agora = Date.now();
@@ -1236,6 +1350,7 @@ function validarConfig(atual, nova) {
 const limparArroba = (u) => String(u || '').trim().replace(/^https?:\/\/(www\.)?instagram\.com\//i, '').replace(/[/?#].*$/, '').replace(/^@/, '').toLowerCase();
 
 async function testarDmSeco(usuario) {
+  await aplicarConfigGuardada();
   const username = limparArroba(usuario);
   if (!/^[a-z0-9._]{1,30}$/.test(username)) return { ok: false, erro: 'Digite um @ válido.' };
   const e = await carregar();
@@ -1260,6 +1375,7 @@ async function testarDmSeco(usuario) {
 }
 
 async function testarSeguirSeco(usuario) {
+  await aplicarConfigGuardada();
   const username = limparArroba(usuario);
   if (!/^[a-z0-9._]{1,30}$/.test(username)) return { ok: false, erro: 'Digite um @ válido.' };
   const e = await carregar();
@@ -1285,6 +1401,7 @@ async function testarSeguirSeco(usuario) {
  * conferência de texto, confirmação na conversa, incerta nunca reenviada.
  */
 async function enviarProximaDmAgora() {
+  await aplicarConfigGuardada();
   const e = await carregar();
   const c = await lerControle();
   const cfg = e.config;
@@ -1309,6 +1426,7 @@ async function garantirAlarmes() {
   const cfg = (await carregar()).config;
   if (!(await chrome.alarms.get(ALARME_VERIFICAR))) chrome.alarms.create(ALARME_VERIFICAR, { periodInMinutes: cfg.verificarACadaMin || 2 });
   if (!(await chrome.alarms.get(ALARME_VIGIA))) chrome.alarms.create(ALARME_VIGIA, { periodInMinutes: 5 });
+  if (!(await chrome.alarms.get(ALARME_CRM))) chrome.alarms.create(ALARME_CRM, { periodInMinutes: INTERVALO_SINCRONIZAR_MIN });
 }
 
 chrome.runtime.onInstalled.addListener((detalhes) => {
@@ -1334,15 +1452,16 @@ chrome.runtime.onInstalled.addListener((detalhes) => {
     }
     await garantirAlarmes();
     await ciclo();
+    await sincronizarCrm();
   }).catch((err) => console.error(err));
 });
 chrome.runtime.onStartup.addListener(() => {
-  serializar(async () => { await garantirAlarmes(); await ciclo(); }).catch((err) => console.error(err));
+  serializar(async () => { await garantirAlarmes(); await ciclo(); await sincronizarCrm(); }).catch((err) => console.error(err));
 });
 
 chrome.alarms.onAlarm.addListener((alarme) => {
   // Sem repassar argumento: serializar() entrega à função o resultado da operação anterior.
-  const fn = alarme.name === ALARME_VERIFICAR ? () => cicloVerificar() : () => ciclo();
+  const fn = alarme.name === ALARME_VERIFICAR ? () => cicloVerificar() : alarme.name === ALARME_CRM ? () => sincronizarCrm() : () => ciclo();
   serializar(fn).catch((err) => console.error('[Seguidor IG] erro no ciclo', err));
 });
 
@@ -1442,6 +1561,9 @@ chrome.runtime.onMessage.addListener((msg, _remetente, responder) => {
         return serializar(() => testarSeguirSeco(msg.username));
       case 'enviarProximaDm':
         return serializar(() => enviarProximaDmAgora());
+      case 'sincronizarCrm':
+        // 1.1.13: popup/painel abertos — busca a configuração e os comandos do CRM na hora.
+        return serializar(() => sincronizarCrm());
       case 'cicloAgora':
         await serializar(ciclo);
         return { ok: true };

@@ -40,6 +40,17 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-26 — Seguidor Instagram: "constam 13 DMs enviadas" e nenhuma saiu
+- **Data:** 2026-10-26
+- **Sintoma:** contador e histórico com boas-vindas "enviadas (digitação na tela da DM)" que nunca chegaram.
+- **Área:** Ferramenta pessoal fora do CRM (`ferramentas/instagram-seguidor/`)
+- **Impacto:** 13 DMs dadas como enviadas (1.1.8–1.1.12); seguidores sem boas-vindas.
+- **Causa raiz:** a confirmação contava o trecho da mensagem em qualquer texto da página fora da caixa escolhida (outra caixa aberta, prévia da lista de conversas, bolha "Não enviada").
+- **Correção (1.1.13):** só bolha enviada na conversa conta; falha = incerta; reset único das falsas para pendentes. Detalhe no CHANGELOG_AI.
+- **Arquivos/commit:** `ferramentas/instagram-seguidor/{instagram-api.js,background.js,lib/regras.js}` — branch `fix/instagram-dm-envio-completo`
+- **Prevenção/teste:** `ferramentas/instagram-seguidor/tests/config-remota.test.mjs` (DOM falso com outra caixa + prévia + bolha com falha).
+- **Status:** Monitorando — conferir pelo diagnóstico `ig_dm`/`ig_ack` no CRM.
+
 ### 2026-10-26 — Seguidor Instagram: DM "escreve e apaga", não clica em Enviar; segue quem já me segue
 - **Data:** 2026-10-26
 - **Sintoma:** "escreve, apaga, escreve outro pedaço e apaga; no final só fica 'Conte comigo! 😊'"; "escreve a mensagem, deixa ali e procura outra pessoa"; "ocorreu um erro, tente novamente, mas ele não clica de novo"; "abriu um perfil que eu estava seguindo".

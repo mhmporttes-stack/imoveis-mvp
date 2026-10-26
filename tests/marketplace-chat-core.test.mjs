@@ -275,7 +275,12 @@ test("diagnóstico de estrutura: rota só com a chave da extensão; só tipos co
   const route = read("app/api/marketplace/diagnostic/route.js");
   assert.ok(route.indexOf("rejectExtensionRequest(request") < route.indexOf("try {"));
   const lib = read("lib/marketplace-chat.js");
-  assert.match(lib, /DIAGNOSTIC_KINDS = new Set\(\["inbox_page", "messenger_panel", "thread", "inbox_list", "ig_follow", "ig_dm", "ig_dryrun", "ig_ping"\]\)/);
+  assert.match(lib, /DIAGNOSTIC_KINDS = new Set\(\["inbox_page", "messenger_panel", "thread", "inbox_list", "ig_follow", "ig_dm", "ig_dryrun", "ig_ping", "ig_ack"\]\)/);
+  // Instagram 1.1.13: configuração/comandos remotos — só pela chave da extensão, leitura de crm_settings.
+  const igRoute = read("app/api/marketplace/ig-config/route.js");
+  assert.ok(igRoute.indexOf("rejectExtensionRequest(request") < igRoute.indexOf("try {"));
+  assert.match(lib, /"instagram_extension_config"/);
+  assert.match(lib, /"instagram_extension_commands"/);
   assert.match(lib, /DIAGNOSTIC_MAX_BYTES/);
   const sql = read("supabase/migrations/20261020230000_marketplace_diagnostics.sql");
   assert.match(sql, /create table if not exists public\.marketplace_diagnostics/);

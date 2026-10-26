@@ -116,6 +116,8 @@ export function criarInstagramFalso({ meuId = '999', referencia = 'perfilref', t
       return { ok: true };
     }
     if (nome === 'confirmarDmNaPagina') {
+      // 1.1.13: o Instagram mostra a bolha como "Não enviada" (não conta como enviada).
+      if (ig.dmTela.falha && ig.dms.some((d) => d.id === tela.conversa)) return { ok: false, confirmado: false, falhou: true, naCaixa: false, erro: 'o Instagram mostrou a mensagem como NÃO enviada na conversa' };
       const vistas = ig.dms.filter((d) => d.id === tela.conversa && d.visivel !== false && normT(d.texto).includes(normT(args[0]))).length;
       return vistas > args[1] ? { ok: true, confirmado: true, naCaixa: false } : { ok: false, confirmado: false, naCaixa: normT(tela.caixa).includes(normT(args[0])), erro: 'a mensagem não apareceu na conversa em 12 s' };
     }

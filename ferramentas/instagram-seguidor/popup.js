@@ -1,6 +1,8 @@
 import { resumoBusca, resumoBoasVindas, resumoCargaTresDias } from './lib/estado.js';
 import { lerTudo, enviar, statusAtual, textoProxima, contadoresHoje, textoAlerta, estaParada, retomarAgora, ligarBotaoConferir, ligarBotaoEnviarAgora, atualizarBotaoEnviarAgora } from './painel-comum.js';
 import { proximaBoasVindasPendente } from './lib/regras.js';
+import { CHAVE_CONFIG_REMOTA, CHAVE_COMANDOS, descreverConfigRemota } from './lib/config-remota.js';
+import { formatarSP } from './lib/tempo.js';
 
 const $ = (id) => document.getElementById(id);
 
@@ -31,6 +33,8 @@ async function render() {
   $('carga3Dias').textContent = resumoCargaTresDias(e);
   $('btnPausar').disabled = c.pausado;
   atualizarBotaoEnviarAgora($('btnEnviarAgora'), e, proximaBoasVindasPendente(e));
+  const remoto = await chrome.storage.local.get([CHAVE_CONFIG_REMOTA, CHAVE_COMANDOS]);
+  $('configCrm').textContent = descreverConfigRemota(remoto[CHAVE_CONFIG_REMOTA], remoto[CHAVE_COMANDOS], (t) => formatarSP(t).slice(11, 16));
   if (e.ultimaBusca && !$('resultadoBusca').dataset.ocupado) {
     const b = e.ultimaBusca;
     $('resultadoBusca').textContent = `Última busca ${resumoBusca(b)}`;
@@ -60,6 +64,8 @@ $('btnRetomar').addEventListener('click', async () => { const { e } = await lerT
 $('btnRetomarAgora').addEventListener('click', async () => { const { e } = await lerTudo(); if (await retomarAgora(e)) render(); });
 $('btnPainel').addEventListener('click', () => chrome.runtime.openOptionsPage());
 ligarBotaoEnviarAgora($('btnEnviarAgora'), $('resultadoEnviarAgora'));
+// 1.1.13: ao abrir o popup, busca na hora a configuração e os comandos do CRM (sem esperar os 5 min).
+enviar('sincronizarCrm').catch(() => {});
 ligarBotaoConferir($('btnConferir'), $('resultadoConferir'));
 
 // Janela de trabalho (1.1.0): situação + botão (única vez em que ela vem para a frente).

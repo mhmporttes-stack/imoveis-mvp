@@ -8,7 +8,7 @@
 export const CRM_URL_PADRAO = 'https://www.matheusmachadoimoveis.com.br';
 export const CHAVE_CRM = 'crm'; // chrome.storage.local: { url, chave } — fora do estado (nunca no CSV/histórico)
 export const CHAVE_ULTIMO_ENVIO = 'crmUltimoEnvio';
-export const TIPOS_DIAGNOSTICO = ['ig_follow', 'ig_dm', 'ig_dryrun', 'ig_ping'];
+export const TIPOS_DIAGNOSTICO = ['ig_follow', 'ig_dm', 'ig_dryrun', 'ig_ping', 'ig_ack'];
 const LIMITE_BYTES = 200_000; // o CRM aceita até 600 kB; folga grande
 
 export function normalizarUrlCrm(valor) {
