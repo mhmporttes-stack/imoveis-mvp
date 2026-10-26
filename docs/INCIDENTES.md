@@ -50,6 +50,16 @@ Copie o modelo abaixo (uma entrada por bloco):
 - **Arquivos/commit:** `components/WhatsappChat.jsx`, `components/cooled/CooledChatHistory.jsx`, `lib/whatsapp-chat-scope.mjs` — branch `fix/historico-conversa-transferido`.
 - **Prevenção/teste:** `tests/cooled-transfer-chat-history.test.mjs`.
 - **Status:** Resolvido na branch (não publicado).
+### 2026-10-26 — "Alerta de que já enviei várias mensagens" e o cliente da roleta vai para outro corretor
+- **Data:** 2026-10-26
+- **Sintoma:** corretor recebe "Muitas mensagens enviadas na última hora. Aguarde um pouco para continuar (proteção do seu número)." ao mandar a 1ª mensagem pelo Chat; manda pelo celular/outro WhatsApp, o CRM não vê e o cliente da fila de reativação/roleta vence o prazo e sai dele.
+- **Área:** WhatsApp / Roleta
+- **Impacto:** qualquer corretor durante ~1 h depois de o celular sincronizar histórico ao reconectar (7 dias: 1 corretor em 19/10, 1 em 23/10 e 24/10, o dono em 23/10, 1 em 26/10 — ~400 mensagens antigas às 10:41 bloquearam o Chat dele até ~11:45; um cliente da reativação voltou à fila às 11:28 sem nenhuma mensagem).
+- **Causa raiz:** o limite de 80 envios/hora da sessão pessoal (`assertIndividualChatReplyOnly`, pedido do dono em 2026-10-05) contava por `created_at`; mensagens de histórico (`metadata.history`, de dias atrás) entram com `created_at` = agora e contavam como "enviadas na última hora".
+- **Correção:** conta só envio real: `message_at` na última hora e sem `metadata->history` (mesma exclusão de `lib/whatsapp-false-connection.js`). Limite de 80/h mantido.
+- **Arquivos/commit:** `lib/whatsapp-chat.js` — branch `fix/eduardo-alerta-roleta`
+- **Prevenção/teste:** `tests/chat-reply-only.test.mjs` (trava contra voltar a contar por `created_at`).
+- **Status:** Resolvido no código (aguarda merge/deploy). Mensagem mandada por um WhatsApp NÃO conectado ao CRM continua invisível (decisão do dono pendente).
 
 ### 2026-10-26 — Seguidor Instagram: "não foi enviada nenhuma" DM de boas-vindas
 - **Data:** 2026-10-26

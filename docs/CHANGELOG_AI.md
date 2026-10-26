@@ -25,6 +25,13 @@ Relato do dono (26/10, REGRA OFICIAL): corretores não veem "as conversas antiga
 - **Testes:** `tests/cooled-transfer-chat-history.test.mjs` (+2). Falhas pré-existentes e não relacionadas nos testes de Chat/WhatsApp (8, iguais antes e depois).
 - **Fora do escopo (decisão do dono):** conversa excluída e WhatsApp pessoal de terceiros (outros que receberam o cliente na fila) continuam fora, como na FUN-15g.
 
+## 2026-10-26 — Limite de 80 mensagens/hora do Chat não conta mais o histórico sincronizado (crm-editor) — branch `fix/eduardo-alerta-roleta`, NÃO publicado
+Relato do dono (Eduardo): "alerta de que já enviou várias mensagens" + cliente da roleta indo para outro corretor.
+- **Alerta:** `CHAT_HOURLY_CAP` ("Muitas mensagens enviadas na última hora…"), criado a pedido do dono em 2026-10-05 (banimento do Benck) — mantido.
+- **Causa:** a contagem usava `created_at`; ao reconectar, o celular do Eduardo sincronizou 412 mensagens antigas (`metadata.history`) às 10:41 → Chat bloqueado até ~11:45; cliente da fila de reativação recebido às 11:18 voltou à fila às 11:28 sem mensagem registrada. Mesmo padrão em outras sessões em 19/10, 23/10 e 24/10.
+- **Mudança:** `assertIndividualChatReplyOnly` (`lib/whatsapp-chat.js`) conta `message_at >= agora-1h` e exclui `metadata->history` (vale também para `getChatReplyReadiness`). Sem migration, sem mudança de regra. Teste novo em `tests/chat-reply-only.test.mjs`.
+- **Não mudou:** os 9 clientes que saíram do Eduardo às 10:35 foram pelo próprio "Cliente não respondeu mais" na janela do cliente frio (FUN-15j, regra oficial); 7 deles eram do Marketplace sem telefone e sem mensagem desde setembro.
+
 ## 2026-10-26 — Seguidor Instagram 1.1.9: carga única dos seguidores dos últimos 3 dias (crm-editor) — branch `feat/instagram-carga-3-dias`, NÃO publicado
 Pedido do dono (26/10): "puxar os últimos 3 dias hoje; depois só até a última conferida". Extensão pessoal fora do CRM.
 - **Carga:** `cargaTresDias` (background.js), chamada em `cicloVerificar` depois de `verificarFollowBacks`; marca persistente `estado.carga3Dias.feitaEm` (roda uma vez, também sobre estado 1.1.8). Fonte: `api.atividade` (`/api/v1/news/inbox/`, GET e plano B POST; HTML/404 = `indisponivel`). `lib/carga-tres-dias.js`: `interpretarAtividade` (só "começou a seguir você" com timestamp confirmado ≥ início−72 h; agrupadas/sem data ficam de fora; sem `new_stories`/`old_stories` = indisponível), `separarCarga` (dedupe por id + `jaTemBoasVindas`; seguido pela extensão → `marcarFollowBack`), `registroDaCarga` (origem `carga 3 dias`). Envio pelo `processarDm` de sempre (ritmo, janela, teto 30).
