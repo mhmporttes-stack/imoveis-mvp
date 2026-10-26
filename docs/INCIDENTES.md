@@ -40,7 +40,6 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
-<<<<<<< HEAD
 ### 2026-10-26 — Seguidor Instagram: "não foi enviada nenhuma" DM de boas-vindas
 - **Data:** 2026-10-26
 - **Sintoma:** extensão 1.1.6 segue gente todo dia, mas nenhuma boas-vindas sai e o popup não diz por quê (contador "seguiram de volta" parado).
@@ -51,7 +50,6 @@ Copie o modelo abaixo (uma entrada por bloco):
 - **Arquivos/commit:** `ferramentas/instagram-seguidor/{background.js,lib/estado.js,painel-comum.js,popup.*,options.*,manifest.json,README.md}`, `ferramentas/instagram-seguidor.zip` — branch `fix/instagram-boas-vindas`
 - **Prevenção/teste:** `ferramentas/instagram-seguidor/tests/boas-vindas.test.mjs` (follow-back enterrado por 15 seguidores novos; v1 em HTML → GraphQL; tudo fora do ar → erro visível; show em JSON; botão manual); simulador pagina os meus seguidores de 12 em 12.
 - **Status:** Monitorando — a DM em si ainda pode receber HTML do Instagram (1.1.5); agora aparece na linha de boas-vindas.
-=======
 ### 2026-10-26 — "Prazo encerrado" vermelho mesmo com a mensagem enviada (cliente frio da roleta)
 - **Data:** 2026-10-26
 - **Sintoma:** "Ela enviou a mensagem em até 5 minutos, só que ainda tem uma tagzinha embaixo de 'prazo encerrado'. O cliente foi devolvido, mas ela enviou e o cliente ainda está com ela."
@@ -62,7 +60,6 @@ Copie o modelo abaixo (uma entrada por bloco):
 - **Arquivos/commit:** `lib/cooled-clients-reactivation{,-core.mjs}`, `lib/prospecting-auto-return.js`, `lib/client-distribution-core.mjs` — branch `fix/prazo-contato-10min`
 - **Prevenção/teste:** `tests/prazo-contato-10min-2026-10-26.test.mjs`.
 - **Status:** Resolvido (não publicado). Casos antigos: o aviso some sozinho na próxima leitura (é calculado); nada a corrigir no banco.
->>>>>>> origin/fix/prazo-contato-10min
 
 ### 2026-10-26 — Henry quis ler avisos no meio do bom dia (depois do play)
 - **Data:** 2026-10-26
