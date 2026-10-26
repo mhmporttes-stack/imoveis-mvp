@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { OFFICIAL_SESSION_KEY, TRANSFER_HISTORY_JOURNEY_TYPES, TRANSFER_HISTORY_RELEASE_SOURCE, lastResponsibleTransferCut, latestTransferHistoryCut, transferHistoryOutsideConversation, transferHistoryConversationAllowed, transferHistoryMessageAllowed } from "../lib/whatsapp-chat-scope.mjs";
+import { OFFICIAL_SESSION_KEY, TRANSFER_HISTORY_JOURNEY_TYPES, TRANSFER_HISTORY_RELEASE_SOURCE, lastResponsibleTransferCut, latestTransferHistoryCut, transferHistoryOutsideConversation, transferHistoryPreviousUserIds, transferHistoryConversationAllowed, transferHistoryMessageAllowed } from "../lib/whatsapp-chat-scope.mjs";
 import { transferHistoryDivider, transferHistoryNumberLabel } from "../lib/cooled-clients-core.mjs";
 
 // FUN-15g (REGRA OFICIAL DE NEGÓCIO — dono, 2026-10-16): o corretor que recebe o cliente transferido lê, somente
@@ -224,4 +224,38 @@ test("Chat mostra a conversa anterior pela MESMA leitura, só leitura, fora de P
   assert.match(block, /fetch\(`\/api\/admin\/cooled-clients\/handoff\/history\?clientId=/);
   assert.doesNotMatch(block, /method:\s*"(POST|PATCH|PUT|DELETE)"/);
   assert.doesNotMatch(block, /\/send|\/read|markRead|mark-read/);
+});
+
+// FUN-15p (REGRA OFICIAL DE NEGÓCIO — dono, 2026-10-26): números pessoais de TODOS os responsáveis anteriores.
+const CARLOS = "44444444-4444-4444-8444-444444444444";
+const NOVO = "55555555-5555-4555-8555-555555555555";
+test("todos os responsáveis anteriores: FUN-15, quem pegou na fila e perdeu, quem segurou a fila; nunca o atual", () => {
+  const ids = transferHistoryPreviousUserIds({
+    cooled: [{ broker_id: JENNYFER }],
+    distribution: [
+      { from_user_id: "", to_user_id: CARLOS, details: { historyPreviousUserId: JENNYFER } },
+      { from_user_id: CARLOS, to_user_id: OTHER, details: { cooledReactivation: "returned_to_owner" } },
+      { from_user_id: "", to_user_id: NOVO, details: { historyPreviousUserId: JENNYFER } }
+    ],
+    journey: [{ details: { fromId: CARLOS, toId: OTHER } }, { details: { fromId: "00000000-0000-0000-0000-000000000000", toId: "" } }]
+  }, NOVO);
+  assert.deepEqual(ids.sort(), [JENNYFER, CARLOS, OTHER].sort());
+});
+
+test("conversa/mensagem do número de um responsável intermediário entra; de quem nunca foi responsável não", () => {
+  const owners = { clientId: CLIENT, previousBrokerId: JENNYFER, previousUserIds: [JENNYFER, CARLOS] };
+  assert.equal(transferHistoryConversationAllowed(conversation({ session_key: CARLOS }), owners), true);
+  assert.equal(transferHistoryConversationAllowed(conversation({ session_key: OTHER }), owners), false);
+  assert.equal(transferHistoryConversationAllowed(conversation({ session_key: CARLOS, deleted_at: "2026-10-10T10:00:00Z" }), owners), false);
+  assert.equal(transferHistoryConversationAllowed(conversation({ session_key: CARLOS, client_id: OTHER }), owners), false);
+  const message = { direction: "inbound", message_type: "text", session_user_id: CARLOS, message_at: "2026-10-20T10:00:00Z" };
+  assert.equal(transferHistoryMessageAllowed(message, { previousBrokerId: JENNYFER, previousUserIds: [CARLOS], cutoffAt: "2026-10-21T00:00:00Z" }), true);
+  assert.equal(transferHistoryMessageAllowed(message, { previousBrokerId: JENNYFER, cutoffAt: "2026-10-21T00:00:00Z" }), false);
+});
+
+test("servidor usa a lista de responsáveis anteriores nas conversas, mensagens e mídia", () => {
+  const src = read("lib/cooled-clients.js");
+  assert.match(src, /transferHistoryPreviousUserIds\(/);
+  assert.equal((src.match(/transferHistoryConversationAllowed\(conversation, \{ clientId, \.\.\.owners \}\)/g) || []).length, 2);
+  assert.equal((src.match(/transferHistoryMessageAllowed\(message, \{ \.\.\.owners,/g) || []).length, 2);
 });

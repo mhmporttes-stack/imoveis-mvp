@@ -10,6 +10,14 @@
 
 
 
+
+## 2026-10-26 — Conversa anterior com os números de TODOS os responsáveis anteriores (FUN-15p) (crm-editor) — branch `fix/historico-todos-corretores`, NÃO publicado
+Pedido do dono (REGRA OFICIAL): "Se for do WhatsApp particular de um corretor e ele foi transferido para o WhatsApp de outro, ele deve ir ali o histórico só com visualização."
+- **Mudança:** `transferHistoryConversationAllowed`/`transferHistoryMessageAllowed` aceitam `previousUserIds`; nova `transferHistoryPreviousUserIds` (`lib/whatsapp-chat-scope.mjs`) monta a lista dos mesmos registros do corte, sem o responsável atual. `lib/cooled-clients.js` (`loadTransferHistoryCut`, `getCooledChatHistory`, `resolveCooledHistoryMedia`) usa a lista; rótulo do número e divisor com o dono de cada número.
+- **Mantido:** corte, escopo (`assertCanAccessResponsibleUser` sobre o responsável atual), só leitura, excluída/Particular/grupo fora. Sem migration.
+- **Dado real (só leitura):** entregas da fila 17–26/10 com histórico: 176 → 179 de 722.
+- **Testes:** `tests/cooled-transfer-chat-history.test.mjs` (+3).
+
 ## 2026-10-26 — Conversa anterior do cliente transferido também no Chat (FUN-15o) (crm-editor) — branch `fix/historico-conversa-transferido`, NÃO publicado
 Relato do dono (26/10, REGRA OFICIAL): corretores não veem "as conversas antigas" do cliente transferido (fila de clientes frios); o histórico deve aparecer no WhatsApp do novo corretor, só visualização.
 - **Diagnóstico (produção, só leitura):** não houve regressão. O corte (`lastResponsibleTransferCut`) e o `historyPreviousUserId` das entregas da fila de reativação estão corretos em 100% das entregas de 17–26/10. O bloco "Conversa anterior" (FUN-15g/h) só existia na FICHA do cliente, recolhido; no Chat, onde o corretor trabalha, nunca existiu. Das entregas, ~1 em 4 tinha conversa anterior gravada; nas outras o corretor anterior não tinha conversa no CRM com o cliente ou ela estava excluída (oficial excluído por usuário em 09/10; arquivamento WA-13).
