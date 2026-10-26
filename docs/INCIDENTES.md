@@ -47,6 +47,17 @@ Copie o modelo abaixo (uma entrada por bloco):
 - **Causa raiz:** cada publicação muda `public/sw.js`; o service worker novo assume (`skipWaiting`) e `components/PwaLifecycle.jsx` recarregava a página quando o app ia para segundo plano ou logo ao voltar (regra de 2026-10-09). Com ~25 publicações/dia, quase toda volta caía numa recarga completa. Parte residual: o iOS descarta o app da memória em segundo plano (abertura do zero, fora do nosso controle).
 - **Correção:** sair/voltar nunca recarrega; a versão nova entra na próxima troca de tela (`components/pwa-update-policy.mjs`). Ver `docs/CHANGELOG_AI.md` 2026-10-26.
 
+### 2026-10-26 — Henry não diz a origem de quem não virou simulação e manda abrir a tela
+- **Data:** 2026-10-26 (conversa de 2026-10-25)
+- **Sintoma:** "dos 107 atendimentos, 63 não viraram simulação" → "Qual origem desses 63?" respondeu a origem de todos os 220 clientes novos ("185 por outras origens"); "Todo cliente tem uma origem" → "o detalhe você só encontra abrindo a lista"; "Quero que vc me diga" → "Vou puxar a origem desses 63 agora mesmo." sem buscar; "Certo" → "Beleza!".
+- **Área:** Henry (voz/IA) / Funil
+- **Impacto:** só o dono; pergunta sem resposta e promessa não cumprida.
+- **Causa raiz:** (1) não havia leitura por cliente do recorte do funil (só contagens) nem origem por grupo — o Henry só tinha anúncio/Marketplace/"outras"; (2) "desses 63" não herdava o recorte; (3) o "63" da promessa fazia `replyAnswersQuestion` achar que havia resposta, então `henryPromisedAction` não pegou; (4) "Certo" virava concordância fixa; (5) "só encontra na tela" não era barrado.
+- **Correção:** ferramenta `funil_recorte` (`getFunnelCohortStages` + `henryOriginGroup`), rota direta com o recorte/período da conversa, `henryPendingFollowUp` (insistência e "certo" após promessa), número-eco fora da conferência da promessa, `henryScreenDeflection` + rodada obrigatória, persona e Treino (`recusa_com_dado`, cenário "recorte_origem"). Detalhe: `docs/CHANGELOG_AI.md` 2026-10-26.
+- **Arquivos/commit:** branch `fix/henry-origem-sem-simulacao`.
+- **Prevenção/teste:** `tests/henry-recorte-origem.test.mjs` (falas reais); números conferidos por SQL só leitura (107/44/63).
+- **Status:** Resolvido (aguarda publicação)
+
 ### 2026-10-25 — Henry: resumo do mês começa com "Hoje,", "por que não fecha?" repete o gargalo, despedida vira "Beleza!"
 - **Data:** 2026-10-25
 - **Sintoma:** Treino 13 (22:27Z, automático): "dá pra falar mais curto?" depois do gargalo do mês → "Hoje, claro. Entre aprovado e venda…"; "por que tanto aprovado que não fecha?" (gargalo e lista já ditos) → a mesma frase do gargalo; "já tô saindo por hoje. Boa noite." → "Beleza!".

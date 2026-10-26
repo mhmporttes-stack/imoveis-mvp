@@ -102,7 +102,7 @@ test("3: pedido de piada é papo, sem ferramenta, mesmo citando cliente", () => 
   assert.equal(henryQuestionPart(ask), "");
   assert.equal(route(ask), null);
   assert.match(henryTurnHint({ text: ask }), /piada[\s\S]*nenhum número nem assunto do CRM/);
-  assert.match(lib, /const personal = !image && !greeting && !accepted && (?:!screenOpen && )?\(isPersonalQuestion\(text\) \|\| isCasualRequest\(text\)/);
+  assert.match(lib, /const personal = !image && !greeting && !accepted && (?:!screenOpen && )?(?:!pending && )?\(isPersonalQuestion\(text\) \|\| isCasualRequest\(text\)/);
   // o Treino não acusa "pergunta ignorada" numa piada
   const report = analyzeHenryTraining([{ owner: ask, reply: "Sabe por que o corretor levou uma escada pra visita? Porque o cliente queria subir de vida!" }]);
   assert.equal(kinds(report).includes("pergunta_ignorada"), false);
@@ -165,7 +165,7 @@ test("7: até 5 clientes novos, os nomes são falados (mesma leitura da contagem
   assert.equal(buildHenryNewClientsAnswer({ range: today, leads: { total: 2, ad: 0, marketplace: 0, other: 2, names: ["Ana", ""] }, names: true }), "Hoje entraram Ana e um sem nome.");
   assert.equal(buildHenryNewClientsAnswer({ range: today, leads: { total: 1, ad: 0, marketplace: 0, other: 1, names: ["Ana"] }, names: true }), "Hoje entrou Ana.");
   assert.equal(buildHenryNewClientsAnswer({ range: today, leads: { total: 8, ad: 0, marketplace: 0, other: 8 }, names: true }), "Hoje entraram 8 clientes novos; os nomes estão na tela.");
-  assert.match(reports, /select\("id, full_name, acquisition_context"\)/);
+  assert.match(reports, /select\("id, full_name, acquisition_context(?:, prospecting_contact_id)?"\)/);
   assert.match(reports, /names: rows\.map\(\(row\) => clientFirstNameOf\(row\.full_name\)\)/);
   assert.match(buildHenryStaticPrompt(), /se ele pedir os NOMES e forem até 5/);
 });
