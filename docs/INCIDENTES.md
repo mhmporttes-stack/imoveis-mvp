@@ -40,6 +40,17 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-26 — Henry tocou música mexicana no bom dia ("nada a ver")
+- **Data:** 2026-10-26
+- **Sintoma:** o dono aceitou a música do bom dia ("um som no clima de Suits") e o Henry tocou uma música mexicana.
+- **Área:** Henry / bom dia / Spotify
+- **Impacto:** só a música de fundo do bom dia do dono.
+- **Causa raiz:** o aceite buscava PLAYLIST genérica no Spotify por termos sorteados ("indie rock groove", "soul funk moderno", "modern soul"…), um deles em português, e aceitava o melhor resultado mesmo sem casar bem (`acceptBest`); o filtro só barrava "Suits/Ima Robot/Greenback". Busca genérica de playlist com termo vago (sobretudo em português) devolve playlists de outros gêneros (latinas/regionais) — o resultado não era validado contra o estilo.
+- **Correção:** a escolha automática virou ARTISTA de uma lista fechada rock/blues (`MORNING_ROCK_BLUES_ARTISTS`), busca só de artista com nome exato (`strict` em `runSpotifyCommand`; parecido = not_found → outro artista da lista), tocado como `spotify:artist:<id>`; filtro ampliado (`MORNING_MUSIC_EXCLUDED_WORDS`: latin, mexicana, regional, corridos…). Oferta trocada pela frase do dono ("Que tal uma música de fundo? Posso escolher ou você tem alguma de preferência?"). Ver `docs/CHANGELOG_AI.md` 2026-10-26.
+- **Arquivos/commit:** `lib/henry-morning-music-core.mjs`, `lib/henry-morning-core.mjs`, `lib/henry-spotify-core.mjs`, `lib/henry-spotify.js`, `lib/henry-voice.js` — branch `fix/henry-bomdia-musica-fundo`
+- **Prevenção/teste:** `tests/henry-morning-music.test.mjs` (escolha só da lista, strict, descarte latino/mexicano, frase sem Suits).
+- **Status:** Resolvido (não publicado; sem teste com o Spotify real nesta sessão)
+
 ### 2026-10-26 — Henry diz que o corretor não tem nenhum cliente em simulação (tela mostra 5)
 - **Data:** 2026-10-26
 - **Sintoma:** "Quantos clientes o corretor Gabriel tem com status simulação enviada" → "O Gabriel não tem nenhum cliente na etapa de simulação agora"; "Simulação realizada" → "nem realizada nem enviada". Tela Clientes (Corretor: Gabriel Ribeiro): aba Simulação 5, "Simulação realizada" 2.

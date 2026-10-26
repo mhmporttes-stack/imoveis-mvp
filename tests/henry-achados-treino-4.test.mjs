@@ -27,7 +27,7 @@ import {
 import { answerQuery, buildQuery } from "../lib/alexa-v2/router.mjs";
 import { measureSentence } from "../lib/alexa-v2/medidas.mjs";
 import { spotifyVolumeLine } from "../lib/henry-spotify-core.mjs";
-import { MORNING_SUGGESTIONS, morningOpenChoices, morningSuggestionLine } from "../lib/henry-morning-music-core.mjs";
+import { MORNING_SUGGESTIONS, morningSuggestionLine } from "../lib/henry-morning-music-core.mjs";
 import { analyzeHenryTraining, duplicatedSentence } from "../lib/henry-training-core.mjs";
 
 const lib = readFileSync(new URL("../lib/henry-voice.js", import.meta.url), "utf8");
@@ -193,16 +193,14 @@ test("8: volume e aparelho pela rota direta, com fala fixa curta", () => {
 });
 
 // 9. Bom dia: "Vai um sertanejo raiz…? Ou tá na vibe de outro estilo, rock, sertanejo, pagode…"
-// Desde 2026-10-25 (dono: música de fundo no clima de Suits) a abertura não lista estilos: só "outro estilo ou cantor".
+// Desde 2026-10-26 (dono: "Que tal uma música de fundo? Posso escolher ou você tem alguma de preferência?") a abertura não
+// cita estilo nenhum, nem Suits.
 test("9: bom dia não repete na abertura o estilo que ele mesmo sugeriu", () => {
   const offer = MORNING_SUGGESTIONS[0];
-  for (const tail of morningOpenChoices(offer)) {
-    assert.doesNotMatch(tail, /suits/i, tail);
-    assert.match(tail, /estilo[\s\S]*cantor/, tail);
-  }
   for (const r of [0, 0.5, 0.99]) {
     const line = morningSuggestionLine(offer, "Matheus", { random: () => r });
-    assert.equal((line.match(/Suits/g) || []).length, 1, line);
+    assert.doesNotMatch(line, /suits|rock|blues|sertanejo|pagode|estilo/i, line);
+    assert.ok(line.endsWith("Posso escolher ou você tem alguma de preferência?"), line);
   }
 });
 

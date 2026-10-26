@@ -50,7 +50,8 @@ test("1b: a dica da piada avisa as palavras que a voz barra", () => {
   assert.match(hint, /financiamento, renda, salário, saldo, FGTS, cartão e senha/);
 });
 
-// Desde 2026-10-25 a oferta é sempre "um som no clima de Suits" (sem "Pense em Mim"); a regra do achado continua:
+// Desde 2026-10-26 a oferta é "Que tal uma música de fundo?…" e a escolha é rock/blues; "clima de Suits" dito na resposta
+// (oferta de 2026-10-25) = o mesmo rock/blues. A regra do achado continua:
 // o gênero pedido igual ao do item oferecido toca a sugestão, pelo gênero guardado (o texto não tem a palavra).
 test("2: bom dia — gênero pedido = o da sugestão toca a sugestão (sem MIROSMAR do Zezé)", () => {
   const suggestion = MORNING_SUGGESTIONS[0];

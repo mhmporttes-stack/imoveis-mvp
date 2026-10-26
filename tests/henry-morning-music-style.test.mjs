@@ -4,8 +4,6 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { MORNING_GENRES, MORNING_STEPS, classifyMorningMusicReply, parseMorningState } from "../lib/henry-morning-core.mjs";
 import {
-  MORNING_OPEN_CHOICES,
-  morningOpenChoices,
   MORNING_SUGGESTIONS,
   morningArtistTarget,
   morningConfirmLine,
@@ -58,24 +56,23 @@ test("intenção de música desde o 1º evento acompanha a classificação", () 
   assert.equal(henryMusicIntent({ mode: "report", question: "não", morningStep: "music_confirm" }), false);
 });
 
-test("frase do bom dia: oferta de música de fundo no estilo primeiro + abertura para outro estilo ou cantor, terminando em pergunta", () => {
+// Desde 2026-10-26 (dono): "Que tal uma música de fundo? Posso escolher ou você tem alguma de preferência?" — a pergunta
+// já abre para estilo ou cantor; sem citar estilo, artista sorteado nem Suits.
+test("frase do bom dia: oferta de música de fundo aberta à preferência dele, terminando em pergunta", () => {
   for (const entry of MORNING_SUGGESTIONS) {
     for (const r of [0, 0.34, 0.67, 0.99]) {
       const line = morningSuggestionLine(entry, "Matheus", { now: MONDAY, random: () => r });
-      assert.ok(line.includes(entry.say), line);
-      assert.ok(line.indexOf(entry.say) < line.search(/estilo|cantor/), line);
-      assert.ok(morningOpenChoices(entry).some((tail) => line.endsWith(tail)), line);
-      assert.ok(MORNING_OPEN_CHOICES.includes(morningOpenChoices(entry)[0]));
-      assert.equal(/rock ou sertanejo/i.test(line), false, line);
+      assert.ok(line.endsWith("Que tal uma música de fundo? Posso escolher ou você tem alguma de preferência?"), line);
+      assert.equal(line.includes(entry.target.query), false, line);
+      assert.equal(/rock ou sertanejo|suits/i.test(line), false, line);
       assert.equal(safeHenryReply(line), line, line);
       assert.ok(line.length <= 220, line);
     }
   }
-  // A abertura já dita hoje não volta enquanto houver outra.
+  // A saudação já dita hoje não volta enquanto houver outra.
   const first = morningSuggestionLine(MORNING_SUGGESTIONS[0], "Matheus", { now: MONDAY, random: () => 0 });
-  const tail = morningOpenChoices(MORNING_SUGGESTIONS[0]).find((item) => first.endsWith(item));
   const again = morningSuggestionLine(MORNING_SUGGESTIONS[0], "Matheus", { now: MONDAY, random: () => 0, said: [first] });
-  assert.equal(again.endsWith(tail), false, again);
+  assert.notEqual(again, first, again);
 });
 
 test("estilo → o que tocar: configurado, playlist dele, padrão do dono, busca do gênero", () => {
