@@ -40,6 +40,17 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-26 — Henry diz que o corretor não tem nenhum cliente em simulação (tela mostra 5)
+- **Data:** 2026-10-26
+- **Sintoma:** "Quantos clientes o corretor Gabriel tem com status simulação enviada" → "O Gabriel não tem nenhum cliente na etapa de simulação agora"; "Simulação realizada" → "nem realizada nem enviada". Tela Clientes (Corretor: Gabriel Ribeiro): aba Simulação 5, "Simulação realizada" 2.
+- **Área:** Henry / Clientes
+- **Impacto:** toda pergunta de etapa Simulação (e Aprovação/Atendimento) e de sub-status ao Henry, por corretor ou da equipe, dava número diferente da tela; zero falso por corretor.
+- **Causa raiz:** o Henry usava o catálogo da Alexa (`etapaProvider`, `lib/alexa-v2/providers/funil.js`), em que a etapa `simulacao` = só `pending` ("Aguardando simulação", `ETAPA_STATUSES`) — desde 2026-10-24 sem `auto_simulation`, e `completed`/`simulation_sent` nunca contaram — enquanto a aba Simulação da tela soma 4 status. O catálogo não tem sub-status: "simulação enviada/realizada" virava a etapa `simulacao` → "O Gabriel não tem cliente aguardando simulação." (os 5 dele estão em realizada/outros).
+- **Correção:** `consultar_crm` etapa (hoje) lê `getSimulationClientCounters` (mesma conta da tela, filtro Corretor) e entende os rótulos dos sub-status da tela; falha = "não consegui ver". Ver `docs/CHANGELOG_AI.md` 2026-10-26.
+- **Arquivos/commit:** `lib/henry-stage-counts-core.mjs`, `lib/henry-reports.js`, `lib/henry-voice.js` — branch `fix/henry-etapa-por-corretor`
+- **Prevenção/teste:** `tests/henry-etapa-corretor.test.mjs` (falas reais); cenário `etapa_corretor` no Treino. Risco residual: a Alexa segue com a etapa `simulacao` = aguardando simulação.
+- **Status:** Resolvido (não publicado; números da produção não conferidos por SQL nesta sessão — sem acesso ao banco)
+
 ### 2026-10-26 — app recarrega tudo ao sair e voltar (iPhone e computador)
 - **Data:** 2026-10-26
 - **Área:** PWA / atualização de versão
