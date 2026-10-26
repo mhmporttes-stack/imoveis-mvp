@@ -11,6 +11,11 @@
 
 
 
+## 2026-10-26 — Instagram 1.1.10: DM não parava mais em "mudança de API" (get_by_participants 404)
+- **Pedido/sintoma:** print do dono com o alerta "direct_v2/get_by_participants respondeu HTTP 404" e 0 DMs enviadas.
+- **Causa raiz:** `enviarDmPelaApi` (`ferramentas/instagram-seguidor/instagram-api.js`): broadcast/text recusado (4xx, nada saiu) → busca da conversa 404 em HTML virava `mudanca_api`, que não aciona a digitação (só `nao_enviada` aciona).
+- **Correção:** com o broadcast já recusado, falha da busca da conversa (exceto limite/sessão) ou conversa inexistente = `nao_enviada` → digitação. Reabilitação única das desistidas (`reabilitarDmsGetByParticipants`). Testes: `tests/boas-vindas-todos.test.mjs` (+2; 119 passam).
+
 ## 2026-10-26 — Conversa anterior com os números de TODOS os responsáveis anteriores (FUN-15p) (crm-editor) — branch `fix/historico-todos-corretores`, NÃO publicado
 Pedido do dono (REGRA OFICIAL): "Se for do WhatsApp particular de um corretor e ele foi transferido para o WhatsApp de outro, ele deve ir ali o histórico só com visualização."
 - **Mudança:** `transferHistoryConversationAllowed`/`transferHistoryMessageAllowed` aceitam `previousUserIds`; nova `transferHistoryPreviousUserIds` (`lib/whatsapp-chat-scope.mjs`) monta a lista dos mesmos registros do corte, sem o responsável atual. `lib/cooled-clients.js` (`loadTransferHistoryCut`, `getCooledChatHistory`, `resolveCooledHistoryMedia`) usa a lista; rótulo do número e divisor com o dono de cada número.

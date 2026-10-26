@@ -854,6 +854,27 @@ function reabilitarDmsHtml(e, agora) {
   if (feitos.length && e.alerta && e.alerta.tipo === 'dm') e.alerta = null;
 }
 
+/**
+ * 1.1.10 (uma vez, na atualização): boas-vindas que pararam porque a busca da conversa (get_by_participants) respondeu
+ * 404 — tratada como "mudança de API" até a 1.1.9 — ganham UMA nova tentativa, que agora segue para a digitação.
+ * Nunca mexe em DM já enviada, incerta ou que já passou pela digitação.
+ */
+function reabilitarDmsGetByParticipants(e, agora) {
+  if (e.reabilitacaoDm1110) return;
+  e.reabilitacaoDm1110 = agora;
+  let n = 0;
+  for (const r of registrosDm(e)) {
+    if (!r.dmDesistiu || r.dmEnviadaEm || r.dmIncerta || r.dmDigitacaoTentadaEm) continue;
+    r.dmDesistiu = false;
+    r.dmFalhas = 0;
+    r.dmTentativaEm = null;
+    r.dmAgendadaPara = ajustarParaJanela(agora + atrasoDmMs() + n * INTERVALO_MIN_ENTRE_DMS, agora, e.config);
+    n += 1;
+    log(e, { username: r.username, acao: 'DM', resultado: `versão 1.1.10: nova tentativa (uma vez) da boas-vindas — agora com digitação na tela da DM, às ${formatarSP(r.dmAgendadaPara)}`, origem: r.origem });
+  }
+  if (e.alerta && e.alerta.tipo === 'mudanca_api' && /get_by_participants|direct_v2/.test(e.alerta.texto || '')) e.alerta = null;
+}
+
 async function ciclo() {
   const e = await carregar();
   const c = await lerControle();
@@ -871,6 +892,7 @@ async function ciclo() {
   }
   await checarSessao(e);
   reabilitarDmsHtml(e, agora);
+  reabilitarDmsGetByParticipants(e, agora);
 
   if (estaAtiva(e, c, agora) && dentroDaJanela(agora, e.config) && (await checarJanela(e))) {
     let r = await processarDm(e, agora);

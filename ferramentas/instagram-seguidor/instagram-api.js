@@ -497,11 +497,17 @@ export function criarApiInstagram({ executar, obterCsrf = async () => '', clicar
         conv = await chamar('direct_v2/get_by_participants', ENDPOINTS.dmConversaPorParticipante(id));
       } catch (e2) {
         naoEnviadaSeHtml(e2);
+        // 1.1.10: o broadcast/text já foi RECUSADO (nada saiu) e a busca da conversa falhou (ex.: 404 em HTML): é
+        // 'nao_enviada' — segue para a digitação na tela da DM em vez de virar "mudança de API" e parar.
+        if (e2 instanceof ErroInstagram && e2.tipo !== 'limite' && e2.tipo !== 'sessao') {
+          throw new ErroInstagram('nao_enviada', `DM não enviada pela API: broadcast/text recusado (${e.message}) e get_by_participants falhou (${e2.message}).`, { status: e2.status, endpoint: 'direct_v2', corpo: e2.corpo });
+        }
         throw e2;
       }
       const threadId = conv && conv.thread && conv.thread.thread_id;
       if (!threadId) {
-        throw new ErroInstagram('mudanca_api', `Não foi possível enviar a DM: broadcast/text falhou (${e.message}) e não há conversa existente. O Instagram pode ter mudado a API de mensagens.`, { endpoint: 'direct_v2' });
+        // Sem conversa existente e broadcast/text recusado: nada saiu → digitação na tela da DM (1.1.10).
+        throw new ErroInstagram('nao_enviada', `DM não enviada pela API: broadcast/text recusado (${e.message}) e não há conversa existente.`, { endpoint: 'direct_v2' });
       }
       let j2;
       try {

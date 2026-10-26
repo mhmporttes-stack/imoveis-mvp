@@ -263,3 +263,17 @@ test('reabilitação na atualização: desistida por HTML (1.1.7) sai por digita
   const e = ext.estado();
   assert.ok(e.seguidos['1005'].dmReabilitadaEm);
 });
+
+test('1.1.10: broadcast recusado (404) + get_by_participants 404 em HTML → digitação (não "mudança de API")', async () => {
+  const H404 = { status: 404, texto: '<!DOCTYPE html><html><head><title>Page Not Found &bull; Instagram</title></head></html>' };
+  const { api, chamadas } = apiDm([H404, H404], () => ({ ok: true, confirmado: true, apertouEnter: true }));
+  const r = await api.enviarDm('77', 'Oi', { username: 'fulano' });
+  assert.equal(r.digitacao, true);
+  assert.deepEqual(chamadas, [{ username: 'fulano', texto: 'Oi' }]);
+});
+
+test('1.1.10: broadcast recusado (400) e sem conversa existente → digitação', async () => {
+  const { api } = apiDm([{ status: 400, texto: '{"status":"fail"}' }, { status: 200, texto: '{"status":"ok"}' }], () => ({ ok: true, confirmado: true, apertouEnter: true }));
+  const r = await api.enviarDm('77', 'Oi', { username: 'fulano' });
+  assert.equal(r.digitacao, true);
+});
