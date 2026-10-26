@@ -40,6 +40,17 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-26 — Seguidor Instagram: "não foi enviada nenhuma" DM de boas-vindas
+- **Data:** 2026-10-26
+- **Sintoma:** extensão 1.1.6 segue gente todo dia, mas nenhuma boas-vindas sai e o popup não diz por quê (contador "seguiram de volta" parado).
+- **Área:** Ferramenta pessoal fora do CRM (`ferramentas/instagram-seguidor/`)
+- **Impacto:** toda DM de boas-vindas de quem seguiu de volta fora da 1ª página dos seguidores (12 mais recentes no momento da checagem de 2 min).
+- **Causa raiz:** com `friendships/show_many` (e `friendships/show`) respondendo HTML desde 24/10, a conferência completa de 30 min caía na leitura do botão do perfil, que mostra "Seguindo" e não diz se a pessoa segue de volta (`meSegue` indefinido) — nunca marcava follow-back. Sobrava só a 1ª página dos MEUS seguidores a cada 2 min: quem seguiu de volta à noite (checagem só 05–22h), com o PC desligado ou antes de outras 12 pessoas novas nunca era visto; sem follow-back nenhuma DM é agendada. A lista dos meus seguidores também não tinha o plano B GraphQL que a busca de origem tem. O simulador dos testes devolvia 25 seguidores numa página (o real devolve 12), o que escondia o problema.
+- **Correção (1.1.7):** conferência completa lê até 4 páginas dos meus seguidores (v1 → GraphQL se a v1 não der dados); o plano B um a um tenta `friendships/show` antes do botão. Visibilidade: linha "Boas-vindas: X enviadas hoje, Y pendentes, última checagem…, último erro…" e botão "Conferir seguidores agora" no popup/painel.
+- **Arquivos/commit:** `ferramentas/instagram-seguidor/{background.js,lib/estado.js,painel-comum.js,popup.*,options.*,manifest.json,README.md}`, `ferramentas/instagram-seguidor.zip` — branch `fix/instagram-boas-vindas`
+- **Prevenção/teste:** `ferramentas/instagram-seguidor/tests/boas-vindas.test.mjs` (follow-back enterrado por 15 seguidores novos; v1 em HTML → GraphQL; tudo fora do ar → erro visível; show em JSON; botão manual); simulador pagina os meus seguidores de 12 em 12.
+- **Status:** Monitorando — a DM em si ainda pode receber HTML do Instagram (1.1.5); agora aparece na linha de boas-vindas.
+
 ### 2026-10-26 — Henry quis ler avisos no meio do bom dia (depois do play)
 - **Data:** 2026-10-26
 - **Sintoma:** "Ele também quis me ler avisos, mesmo eu tendo dado play no bom dia."

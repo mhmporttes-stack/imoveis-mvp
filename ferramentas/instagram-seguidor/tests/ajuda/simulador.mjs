@@ -40,10 +40,16 @@ export function criarInstagramFalso({ meuId = '999', referencia = 'perfilref', t
     v1Vazio: false, // friendships/{id}/followers devolve users: []
     graphqlVazio: false, // GraphQL de seguidores devolve lista vazia
     falharSeguidoresDeMim: 0, // quantas vezes a lista dos MEUS seguidores responde "aguarde"
+    meusSeguidoresHtml: false, // 1.1.7: a lista v1 dos MEUS seguidores devolve a página HTML
+    meusSeguidoresGraphqlFalha: false, // 1.1.7: o GraphQL dos MEUS seguidores também não responde dados
     voltaSe,
     atrasoVolta,
   };
   for (const id of ig.jaMeSeguiam) ig.meSeguem.set(id, 0);
+  // 1.1.7: outras pessoas (fora da extensão) que passam a me seguir — empurram os follow-backs para fora da 1ª página.
+  let outros = 0;
+  ig.novosSeguidoresDeFora = (n, em = Date.now()) => { for (let i = 0; i < n; i += 1) { outros += 1; ig.meSeguem.set(`9${String(outros).padStart(5, '0')}`, em + i); } };
+  const meusSeguidoresRecentes = () => [...ig.meSeguem.entries()].sort((a, b) => b[1] - a[1]).map(([id]) => id);
 
   function atualizarVoltas(agora) {
     for (const [id, desde] of ig.pendentes) {
@@ -77,6 +83,18 @@ export function criarInstagramFalso({ meuId = '999', referencia = 'perfilref', t
     }
     if (caminho === '/graphql/query/') {
       const vars = JSON.parse(u.searchParams.get('variables'));
+      if (vars.id === meuId) {
+        // 1.1.7: plano B da lista dos MEUS seguidores (mais recentes primeiro).
+        if (ig.meusSeguidoresGraphqlFalha) return { status: 200, texto: '<!DOCTYPE html><html><head><title>Instagram</title></head></html>' };
+        const todos = meusSeguidoresRecentes();
+        const ini = Number(vars.after || 0);
+        const pg = todos.slice(ini, ini + vars.first);
+        return ok({ data: { user: { edge_followed_by: {
+          count: todos.length,
+          page_info: { has_next_page: ini + vars.first < todos.length, end_cursor: String(ini + vars.first) },
+          edges: pg.map((id) => ({ node: { id, username: `x${id}`, is_private: false, followed_by_viewer: false, follows_viewer: true } })),
+        } } }, status: 'ok' });
+      }
       const inicio = Number(vars.after || 0);
       const pagina = ig.graphqlVazio ? [] : usuarios.slice(inicio, inicio + vars.first);
       const fim = inicio + vars.first;
@@ -92,8 +110,13 @@ export function criarInstagramFalso({ meuId = '999', referencia = 'perfilref', t
     if ((m = caminho.match(/^\/api\/v1\/friendships\/(\w+)\/followers\/$/))) {
       if (m[1] === meuId) {
         if (ig.falharSeguidoresDeMim > 0) { ig.falharSeguidoresDeMim -= 1; return { status: 400, texto: '{"message":"Please wait a few minutes before you try again.","status":"fail"}' }; }
-        const lista = [...ig.meSeguem.entries()].sort((a, b) => b[1] - a[1]).slice(0, 25).map(([id]) => ({ pk: id, username: `x${id}` }));
-        return ok({ users: lista, next_max_id: null, status: 'ok' });
+        if (ig.meusSeguidoresHtml) return { status: 200, texto: '<!DOCTYPE html><html><head><title>Instagram</title></head></html>' };
+        // Como o site: páginas de `count` (12), mais recentes primeiro, com next_max_id.
+        const todos = meusSeguidoresRecentes();
+        const ini = Number(u.searchParams.get('max_id') || 0);
+        const n = Number(u.searchParams.get('count') || 12);
+        const lista = todos.slice(ini, ini + n).map((id) => ({ pk: id, username: `x${id}` }));
+        return ok({ users: lista, next_max_id: ini + n < todos.length ? String(ini + n) : null, status: 'ok' });
       }
       if (ig.v1Vazio) return ok({ users: [], big_list: false, page_size: 12, status: 'ok' });
       const inicio = Number(u.searchParams.get('max_id') || 0);

@@ -53,3 +53,19 @@ export function textoAlerta(e) {
   else if (e.esfriarAte && Date.now() < e.esfriarAte) t += ` Nova tentativa às ${formatarSP(e.esfriarAte).slice(11)}.`;
   return t;
 }
+
+/** 1.1.7: botão "Conferir seguidores agora" (popup e painel) — confere na hora e mostra o resultado. */
+export function ligarBotaoConferir(botao, saida) {
+  botao.addEventListener('click', async () => {
+    botao.disabled = true;
+    saida.textContent = 'Conferindo seus seguidores… (pode levar 1 a 2 min)';
+    try {
+      const r = await enviar('conferirSeguidores');
+      saida.textContent = r && r.ok ? r.texto : `Erro: ${(r && r.erro) || 'sem resposta da extensão'}`;
+    } catch (err) {
+      saida.textContent = `Erro: ${err.message}`;
+    } finally {
+      botao.disabled = false;
+    }
+  });
+}

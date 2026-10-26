@@ -21,5 +21,7 @@ test('leitura do botão e cliques do perfil rodam com a página acordada; API n�
   assert.doesNotMatch(api, /bringToFront/);
   const manifest = JSON.parse(ler('../manifest.json'));
   assert.ok(manifest.permissions.includes('debugger'));
-  assert.equal(manifest.version, '1.1.6');
+  // A página acordada existe desde a 1.1.6 (versões seguintes mantêm).
+  const [maior, menor, rev] = manifest.version.split('.').map(Number);
+  assert.ok(maior > 1 || (maior === 1 && (menor > 1 || (menor === 1 && rev >= 6))), manifest.version);
 });

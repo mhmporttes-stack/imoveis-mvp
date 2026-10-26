@@ -1,6 +1,6 @@
-import { lerTudo, enviar, statusAtual, textoProxima, contadoresHoje, textoAlerta, estaParada, retomarAgora } from './painel-comum.js';
+import { lerTudo, enviar, statusAtual, textoProxima, contadoresHoje, textoAlerta, estaParada, retomarAgora, ligarBotaoConferir } from './painel-comum.js';
 import { formatarSP, diaSP } from './lib/tempo.js';
-import { gerarCsv, resumoBusca } from './lib/estado.js';
+import { gerarCsv, resumoBusca, resumoBoasVindas } from './lib/estado.js';
 import { MENSAGEM_PADRAO, STATUS, idsParaVerificarFollowBack } from './lib/regras.js';
 
 const $ = (id) => document.getElementById(id);
@@ -33,6 +33,7 @@ async function render() {
   const aguardando = idsParaVerificarFollowBack(e.seguidos).length;
   const solicitados = Object.values(e.seguidos).filter((r) => r.status === STATUS.SOLICITADO).length;
   $('aguardando').textContent = solicitados ? `${aguardando} (${solicitados} Solicitado${solicitados > 1 ? 's' : ''} — privados, pedido pendente)` : aguardando;
+  $('boasVindas').textContent = resumoBoasVindas(e).texto;
   $('btnPausar').disabled = c.pausado;
 
   const cur = e.cursorOrigem;
@@ -106,6 +107,7 @@ $('btnRetomar').addEventListener('click', async () => { const { e } = await lerT
 $('btnRetomarAgora').addEventListener('click', async () => { const { e } = await lerTudo(); if (await retomarAgora(e)) render(); });
 $('btnLimparAlerta').addEventListener('click', async () => { await enviar('limparAlerta'); render(); });
 $('filtro').addEventListener('input', render);
+ligarBotaoConferir($('btnConferir'), $('resultadoConferir'));
 
 chrome.storage.onChanged.addListener(render);
 render();

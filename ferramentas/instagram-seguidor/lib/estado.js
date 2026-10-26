@@ -46,6 +46,8 @@ export function estadoInicial() {
     proxima: null, // { acao, em }
     ultimaBusca: null,
     ultimaDmEm: null,
+    // 1.1.7: visibilidade das boas-vindas no popup (última leitura dos meus seguidores e último erro de checagem/DM).
+    boasVindas: { ultimaChecagemEm: null, via: null, ultimoErro: null },
   };
 }
 
@@ -56,6 +58,7 @@ export function normalizarEstado(bruto) {
   e.config = { ...base.config, ...((bruto && bruto.config) || {}) };
   e.agenda = { ...base.agenda, ...((bruto && bruto.agenda) || {}) };
   e.contadores = { ...base.contadores, ...((bruto && bruto.contadores) || {}) };
+  e.boasVindas = { ...base.boasVindas, ...((bruto && bruto.boasVindas) || {}) };
   for (const k of ['fila', 'historico']) if (!Array.isArray(e[k])) e[k] = [];
   for (const k of ['vistos', 'seguidos']) if (!e[k] || typeof e[k] !== 'object') e[k] = {};
   migrarEstado(e, bruto);
@@ -132,4 +135,35 @@ export function resumoBusca(b) {
   if (b.via === 'graphql') t += ' (lista obtida pelo plano B/GraphQL)';
   if (b.erro) t += `.\n⚠ ${b.erro}`;
   return t;
+}
+
+/** Hora "HH:MM" (São Paulo) de um instante. */
+function horaSP(ts) {
+  return formatarSP(ts).slice(11, 16);
+}
+
+/**
+ * 1.1.7: linha de situação das boas-vindas para o popup/painel:
+ * "Boas-vindas: X enviadas hoje, Y pendentes, última checagem de seguidores às HH:MM, último erro: …".
+ * Pendente = seguiu de volta e a DM ainda vai sair (agendada ou em nova tentativa).
+ * Sem envio = seguiu de volta e a extensão desistiu (3 falhas, DM desligada) ou o envio ficou incerto.
+ */
+export function resumoBoasVindas(e, agora = Date.now()) {
+  const enviadasHoje = e.contadores && e.contadores.dia === diaSP(agora) ? e.contadores.dms || 0 : 0;
+  let pendentes = 0;
+  let semEnvio = 0;
+  for (const r of Object.values(e.seguidos || {})) {
+    if (!r.followBackEm || r.dmEnviadaEm) continue;
+    if (r.dmDesistiu || r.dmIncerta) semEnvio += 1;
+    else if (r.dmAgendadaPara || r.dmTentativaEm) pendentes += 1;
+  }
+  const bv = e.boasVindas || {};
+  const checagem = bv.ultimaChecagemEm ? ` às ${horaSP(bv.ultimaChecagemEm)}` : ': ainda não';
+  const erro = bv.ultimoErro && bv.ultimoErro.texto
+    ? ` (${horaSP(bv.ultimoErro.em)}): ${String(bv.ultimoErro.texto).slice(0, 180)}`
+    : ': nenhum';
+  let texto = `Boas-vindas: ${enviadasHoje} enviada${enviadasHoje === 1 ? '' : 's'} hoje, ${pendentes} pendente${pendentes === 1 ? '' : 's'}, última checagem de seguidores${checagem}, último erro${erro}`;
+  if (semEnvio) texto += ` · ${semEnvio} ${semEnvio === 1 ? 'não pôde ser enviada' : 'não puderam ser enviadas'} (veja o histórico)`;
+  if (e.config && e.config.dmAtiva === false) texto = `DM desligada no painel — ${texto}`;
+  return { enviadasHoje, pendentes, semEnvio, ultimaChecagemEm: bv.ultimaChecagemEm || null, ultimoErro: bv.ultimoErro || null, texto };
 }
