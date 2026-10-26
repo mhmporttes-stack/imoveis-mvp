@@ -12,6 +12,14 @@
 ## 2026-10-26 — Henry: bom dia sem avisos (crm-editor)
 Dono (REGRA OFICIAL, HENRY-1): "Ele também quis me ler avisos, mesmo eu tendo dado play no bom dia. Ele não pode me avisar sobre os avisos se eu dei play no bom dia, para ele fazer apenas a cena do bom dia." Causa: a oferta/chamado do aviso entrava na fila espontânea e tocava 12 s depois da pergunta da música (ou ~3 s depois do relatório); com o chamado no ar, o "pode" da música virava "pode falar" do aviso. Correção: sessão do bom dia em `lib/henry-voice-conversation.mjs` (`morningSession*`, `nextSpontaneousItem`, `canSpeakSpontaneously({ morningSession })`) ligada em `HenryVoiceAssistant.jsx` (play/relatório abrem; última resposta sem próximo passo termina ao parar de falar; `endConversation` termina; respiro de 60 s com tela cheia; trava 6 min). Avisos ficam na fila. Teste `tests/henry-morning-no-alerts.test.mjs`. Ver `docs/INCIDENTES.md`.
 
+## 2026-10-26 — Henry: bom dia toca a playlist do dono "Rock Blues Animadas" (crm-editor)
+Dono (REGRA OFICIAL, HENRY-1): print da playlist "Rock Blues Animadas" + "Toque essa playlist."; fala do aceite: "Já estou escolhendo uma música para iniciarmos o dia, em seguida já te atualizo do que aconteceu enquanto você estava fora."
+- **Escolha:** aceite da oferta → `resolveHenryMorningPlaylist` (`lib/henry-spotify.js`): link configurado direto; nome → cache `crm_settings` `henry_morning_playlist` (30 dias) ou `findOwnerSpotifyPlaylist` (`/v1/me` + `/v1/me/playlists` paginado + busca `type=playlist`; nome exato e dono pela `pickOwnerPlaylist`). Play `context_uri` com `offset` sorteado + `setSpotifyShuffle(true)` (flags `shuffle`/`offsetPosition` em `runSpotifyCommand`). Falha → artistas de `MORNING_ROCK_BLUES_ARTISTS` (reserva, como antes), log só com o motivo.
+- **Escopos:** nenhum novo — `/v1/me/playlists` traz as públicas com qualquer escopo (privadas só com `playlist-read-private`, já pedido); shuffle usa `user-modify-playback-state`. Sem reconexão.
+- **Tela:** campo "Playlist do bom dia" no cartão do Henry (`style.morningPlaylist`, `lib/henry-voice-style.mjs`).
+- **Fala:** `MORNING_CHOICE_ACCEPT_LINE` substitui "Lá vai um rock blues animado de fundo." (playlist e reserva).
+- **Testes:** `tests/henry-morning-playlist.test.mjs` (novo, 7); ajustes em `henry-morning-music`/`henry-voice-style`.
+
 ## 2026-10-26 — Bom dia: "pode tocar, bota uma musiquinha aí" = aceite
 Dono: "Falei que o Henry poderia tocar música e ele colocou uma nacional e não um rock blues." A resposta "pode tocar bota uma musiquinha aí para tocar para nós" não era aceite em `classifyMorningMusicReply` e virou busca livre ("musiquinha brasileira"). Agora pedido de tocar sem gênero/cantor (`isGenericPlayRequest`, `lib/henry-morning-core.mjs`) = aceite → o Henry escolhe rock/blues da lista. Teste em `tests/henry-morning-music.test.mjs`.
 
