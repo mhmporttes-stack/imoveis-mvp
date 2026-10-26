@@ -6,6 +6,13 @@
 
 
 
+## 2026-10-26 — Henry: acesso a tudo do CRM, só leitura (crm-editor)
+Dono (REGRA OFICIAL): "Faça um pente fino e veja o que o Henry ainda não tem acesso no CRM, depois libere tudo… ele deve ter acesso a tudo e todas as informações." Branch `feat/henry-acesso-total`, NÃO publicada.
+- **Pente fino:** comparadas as telas do painel (`app/admin/**`, menus) com as ferramentas do Henry. Faltavam: agenda fora de hoje/amanhã/semana e no futuro, documentação/CCA geral, abas/arquivados/Não contactar, histórico completo do cliente, etiquetas, financeiro detalhado (vendas, comissão, despesas), Gerador de Links, anúncios da Meta, histórico da roleta, Marketplace/Messenger, Academia, automações/fluxos, Central de Alertas, mensagem do dia, regras/ajustes de pontos, equipe/cargos, captações, gastos de IA, reentradas, bases de prospecção.
+- **Alteração:** ferramenta `consultar_area` (leitura) em `lib/henry-voice.js` (1 entrada em `TOOLS` + `runAreaTool`), leituras em `lib/henry-areas.js` pelas MESMAS funções das telas, montagem pura em `lib/henry-areas-core.mjs`, catálogo e frases de espera em `lib/henry-areas-catalog.mjs`/`lib/henry-voice-narration.mjs`; `HENRY_TOOL_ACCESS.consultar_area = "leitura"`; telas `gerador_links` e `marketplace` na navegação; palavras das áreas novas em `isCrmQuestion`; prompt diz que ele tem acesso a tudo; Treino ganha o cenário `areas` (teto 42 → 50 trocas). `getAdsBoard` ganhou `refreshCreatives` (padrão `true`, a tela não muda) para o Henry ler sem renovar miniaturas (que grava).
+- **Fora (motivo):** fila da Prospecção (a leitura da tela grava a hibernação da Meta Diária), falhas de execução das automações (nenhuma tela lê), Disparo pelo oficial, motivo de arquivamento em lote, alertas de outras pessoas (privados), recorte do funil por origem/corretor/etapa (outro agente, `funil_recorte`).
+- **Testes:** `tests/henry-areas.test.mjs` (18); `node --test tests/henry*.test.mjs tests/alexa*.test.mjs tests/crm-metrics*.test.mjs` 688/688; build ok. Sem migration.
+
 ## 2026-10-26 — App não recarrega mais ao sair e voltar (crm-editor)
 Dono: "Quando eu saio do app por um tempo e volto, ele tem que carregar tudo de novo. Tem como deixar em cache ou algo onde ele já fique pré-carregado?" (PWA no iPhone e site no computador). Branch `fix/pwa-voltar-sem-recarregar`, NÃO publicada.
 - **Causa raiz:** cada deploy muda `public/sw.js` → ao voltar, `PwaLifecycle` achava a versão nova e recarregava a página ao sair do app (ou logo ao voltar). ~25 deploys/dia = recarga em quase toda volta.
