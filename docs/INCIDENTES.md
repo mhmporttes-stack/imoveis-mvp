@@ -40,6 +40,7 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+<<<<<<< HEAD
 ### 2026-10-26 — Seguidor Instagram: "não foi enviada nenhuma" DM de boas-vindas
 - **Data:** 2026-10-26
 - **Sintoma:** extensão 1.1.6 segue gente todo dia, mas nenhuma boas-vindas sai e o popup não diz por quê (contador "seguiram de volta" parado).
@@ -50,6 +51,18 @@ Copie o modelo abaixo (uma entrada por bloco):
 - **Arquivos/commit:** `ferramentas/instagram-seguidor/{background.js,lib/estado.js,painel-comum.js,popup.*,options.*,manifest.json,README.md}`, `ferramentas/instagram-seguidor.zip` — branch `fix/instagram-boas-vindas`
 - **Prevenção/teste:** `ferramentas/instagram-seguidor/tests/boas-vindas.test.mjs` (follow-back enterrado por 15 seguidores novos; v1 em HTML → GraphQL; tudo fora do ar → erro visível; show em JSON; botão manual); simulador pagina os meus seguidores de 12 em 12.
 - **Status:** Monitorando — a DM em si ainda pode receber HTML do Instagram (1.1.5); agora aparece na linha de boas-vindas.
+=======
+### 2026-10-26 — "Prazo encerrado" vermelho mesmo com a mensagem enviada (cliente frio da roleta)
+- **Data:** 2026-10-26
+- **Sintoma:** "Ela enviou a mensagem em até 5 minutos, só que ainda tem uma tagzinha embaixo de 'prazo encerrado'. O cliente foi devolvido, mas ela enviou e o cliente ainda está com ela."
+- **Área:** fila de reativação (FUN-15l) / aviso "Cliente transferido para você" / retorno automático da Prospecção
+- **Impacto:** clientes frios entregues pela fila cujo corretor clicava no WhatsApp (CLI-7c → "Tentando contato") e que tinham um contato antigo "claimed" na Prospecção (2 casos em 10 min no dia).
+- **Causa raiz:** (1) o retorno automático de 7 dias (`autoReturnStaleProspectingContacts`) pega todo cliente em "Tentando contato" com contato parado e zera o responsável sem conferir quem é — o clique da corretora levou o cliente a "Tentando contato" e o contato antigo (sem dono, de 29/09) derrubou o responsável; (2) a rotina da fila viu o cliente sem a corretora e encerrou o caso ("left") sem marcar a mensagem; a rede de segurança devolveu o cliente a ela 8 s depois; (3) o aviso só saía do vermelho com `reactivation_kept_at`, então ficou "Prazo encerrado — o cliente foi devolvido" para sempre, mesmo com a mensagem pelo Chat.
+- **Correção:** aviso usa a mesma régua de contato do prazo (`attachReactivationNoticeStates` → `loadContactedClientIds`); retornos automáticos não derrubam quem recebeu depois do ciclo parado (`clientReceivedAfterStaleCycle`); prazo 5 → 10 min (pedido do dono).
+- **Arquivos/commit:** `lib/cooled-clients-reactivation{,-core.mjs}`, `lib/prospecting-auto-return.js`, `lib/client-distribution-core.mjs` — branch `fix/prazo-contato-10min`
+- **Prevenção/teste:** `tests/prazo-contato-10min-2026-10-26.test.mjs`.
+- **Status:** Resolvido (não publicado). Casos antigos: o aviso some sozinho na próxima leitura (é calculado); nada a corrigir no banco.
+>>>>>>> origin/fix/prazo-contato-10min
 
 ### 2026-10-26 — Henry quis ler avisos no meio do bom dia (depois do play)
 - **Data:** 2026-10-26

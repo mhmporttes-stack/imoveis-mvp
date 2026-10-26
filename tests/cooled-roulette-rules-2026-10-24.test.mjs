@@ -29,7 +29,7 @@ const iso = (ms) => new Date(ms).toISOString();
 
 test("1) uma volta só: sem mensagem no prazo o cliente frio vai ao dono, fora da fila, sem apagar histórico", () => {
   assert.equal(REACTIVATION_MAX_ROUNDS, 1);
-  const base = { offeredTo: "gab", offeredAt: iso(T0), clientResponsibleId: "gab", rounds: 1, now: T0 + 6 * 60 * 1000 };
+  const base = { offeredTo: "gab", offeredAt: iso(T0), clientResponsibleId: "gab", rounds: 1, now: T0 + 11 * 60 * 1000 };
   assert.equal(offeredCaseOutcome(base), "return_to_owner");
   assert.equal(offeredCaseOutcome({ ...base, contacted: true }), "kept");
   const runner = read("lib/cooled-clients-reactivation.js");
@@ -41,13 +41,13 @@ test("1) uma volta só: sem mensagem no prazo o cliente frio vai ao dono, fora d
   assert.match(distribution, /const waiting = !roulette\.brokerId && !parkWithOwner;/);
   assert.doesNotMatch(runner + distribution, /\.delete\(\)/);
   // Aviso e clique do WhatsApp dizem "foi devolvido".
-  assert.equal(requeueTriggerMinutes(REACTIVATION_RETURN_TRIGGER), 5);
-  const returned = reactivationNoticeState({ noticeAt: iso(T0), stillResponsible: false, requeues: [{ at: iso(T0 + 6 * 60 * 1000), trigger: REACTIVATION_RETURN_TRIGGER }], now: T0 + 7 * 60 * 1000 });
+  assert.equal(requeueTriggerMinutes(REACTIVATION_RETURN_TRIGGER), 10);
+  const returned = reactivationNoticeState({ noticeAt: iso(T0), stillResponsible: false, requeues: [{ at: iso(T0 + 11 * 60 * 1000), trigger: REACTIVATION_RETURN_TRIGGER }], now: T0 + 12 * 60 * 1000 });
   assert.equal(returned.state, "requeued");
   assert.equal(returned.returned, true);
-  assert.equal(reactivationNoticeState({ noticeAt: iso(T0), stillResponsible: true, now: T0 + 6 * 60 * 1000 }).returned, true);
+  assert.equal(reactivationNoticeState({ noticeAt: iso(T0), stillResponsible: true, now: T0 + 11 * 60 * 1000 }).returned, true);
   const row = { event_type: "auto_transferred", from_user_id: "gab", details: { trigger: REACTIVATION_RETURN_TRIGGER } };
-  assert.equal(requeuedFromScopeMessage(row, ["gab"]), "Este cliente foi devolvido porque nenhuma mensagem foi enviada em 5 minutos.");
+  assert.equal(requeuedFromScopeMessage(row, ["gab"]), "Este cliente foi devolvido porque nenhuma mensagem foi enviada em 10 minutos.");
   assert.match(requeuedFromScopeMessage({ ...row, details: { trigger: REACTIVATION_REQUEUE_TRIGGER } }, ["gab"]), /voltou para a fila/);
   assert.match(read("components/cooled/ReactivationNoticeStatus.jsx"), /o cliente foi devolvido/);
 });

@@ -30,9 +30,9 @@ const T0 = Date.parse("2026-10-17T13:00:00.000Z");
 const iso = (ms) => new Date(ms).toISOString();
 const OWNER = "owner";
 
-test("prazo para mandar mensagem passa a 5 min; intervalo entre entregas 10 min (dono 2026-10-19)", () => {
-  assert.equal(REACTIVATION_DEADLINE_MS, 5 * 60 * 1000);
-  assert.equal(REACTIVATION_DEADLINE_MINUTES, 5);
+test("prazo para mandar mensagem passa a 10 min (dono 2026-10-26); intervalo entre entregas 10 min (dono 2026-10-19)", () => {
+  assert.equal(REACTIVATION_DEADLINE_MS, 10 * 60 * 1000);
+  assert.equal(REACTIVATION_DEADLINE_MINUTES, 10);
   assert.equal(REACTIVATION_SPACING_MS, 10 * 60 * 1000);
 });
 
@@ -89,17 +89,17 @@ test("quem perdeu o cliente nesta fila (3 min sem mensagem) PODE recebê-lo de n
   assert.doesNotMatch(read("lib/cooled-clients-reactivation-core.mjs"), /excluded_ids|losers/);
 });
 
-test("prazo: sem mensagem em 5 min a volta acaba e o cliente vai ao dono (uma volta só, dono 2026-10-24); com mensagem fica", () => {
+test("prazo: sem mensagem em 10 min a volta acaba e o cliente vai ao dono (uma volta só, dono 2026-10-24); com mensagem fica", () => {
   const base = { offeredTo: "gab", offeredAt: iso(T0), clientResponsibleId: "gab", rounds: 1 };
   assert.equal(offeredCaseOutcome({ ...base, now: T0 + 2 * 60 * 1000 }), "wait");
-  assert.equal(offeredCaseOutcome({ ...base, now: T0 + 4 * 60 * 1000 + 59 * 1000 }), "wait");
-  assert.equal(offeredCaseOutcome({ ...base, now: T0 + 5 * 60 * 1000 }), "return_to_owner");
-  assert.equal(offeredCaseOutcome({ ...base, rounds: 3, now: T0 + 5 * 60 * 1000 }), "return_to_owner");
-  assert.equal(offeredCaseOutcome({ ...base, now: T0 + 4 * 60 * 1000, contacted: true }), "kept");
+  assert.equal(offeredCaseOutcome({ ...base, now: T0 + 9 * 60 * 1000 + 59 * 1000 }), "wait");
+  assert.equal(offeredCaseOutcome({ ...base, now: T0 + 10 * 60 * 1000 }), "return_to_owner");
+  assert.equal(offeredCaseOutcome({ ...base, rounds: 3, now: T0 + 10 * 60 * 1000 }), "return_to_owner");
+  assert.equal(offeredCaseOutcome({ ...base, now: T0 + 9 * 60 * 1000, contacted: true }), "kept");
   assert.equal(offeredCaseOutcome({ ...base, now: T0 + 60 * 1000, contacted: true }), "kept");
   // Transferido à mão ou status fora da roleta: sai da fila, nunca é tomado de volta.
-  assert.equal(offeredCaseOutcome({ ...base, clientResponsibleId: "carol", now: T0 + 4 * 60 * 1000 }), "left");
-  assert.equal(offeredCaseOutcome({ ...base, clientEligible: false, now: T0 + 4 * 60 * 1000 }), "left");
+  assert.equal(offeredCaseOutcome({ ...base, clientResponsibleId: "carol", now: T0 + 9 * 60 * 1000 }), "left");
+  assert.equal(offeredCaseOutcome({ ...base, clientEligible: false, now: T0 + 9 * 60 * 1000 }), "left");
 });
 
 test("só mensagem humana real conta como contato", () => {
@@ -176,22 +176,22 @@ test("prazo em fonte única: servidor grava a marca nova e o aviso usa os minuto
   assert.match(server, /trigger: REACTIVATION_REQUEUE_TRIGGER/);
   assert.match(server, /deadlineMinutes = REACTIVATION_DEADLINE_MINUTES/);
   assert.doesNotMatch(server, /no_message_3min|em 3 minutos/);
-  assert.equal(requeueTriggerMinutes(REACTIVATION_REQUEUE_TRIGGER), 5);
+  assert.equal(requeueTriggerMinutes(REACTIVATION_REQUEUE_TRIGGER), 10);
   assert.equal(requeueTriggerMinutes("no_message_3min"), 3); // devoluções antigas
   assert.equal(requeueTriggerMinutes("backfill"), null);
-  assert.equal(reactivationRequeuedMessage(), "Este cliente voltou para a fila porque nenhuma mensagem foi enviada em 5 minutos.");
+  assert.equal(reactivationRequeuedMessage(), "Este cliente voltou para a fila porque nenhuma mensagem foi enviada em 10 minutos.");
 });
 
 test("aviso: contagem regressiva, prazo encerrado, devolvido e mantido", () => {
   const noticeAt = iso(T0);
   const base = { noticeAt, stillResponsible: true };
-  assert.deepEqual(reactivationNoticeState({ ...base, now: T0 + 60 * 1000 }), { state: "pending", deadlineAt: iso(T0 + 5 * 60 * 1000) });
-  assert.equal(reactivationNoticeState({ ...base, now: T0 + 6 * 60 * 1000 }).state, "expired");
-  const requeued = reactivationNoticeState({ ...base, stillResponsible: false, requeues: [{ at: iso(T0 + 6 * 60 * 1000), trigger: REACTIVATION_REQUEUE_TRIGGER }], now: T0 + 7 * 60 * 1000 });
+  assert.deepEqual(reactivationNoticeState({ ...base, now: T0 + 60 * 1000 }), { state: "pending", deadlineAt: iso(T0 + 10 * 60 * 1000) });
+  assert.equal(reactivationNoticeState({ ...base, now: T0 + 11 * 60 * 1000 }).state, "expired");
+  const requeued = reactivationNoticeState({ ...base, stillResponsible: false, requeues: [{ at: iso(T0 + 11 * 60 * 1000), trigger: REACTIVATION_REQUEUE_TRIGGER }], now: T0 + 12 * 60 * 1000 });
   assert.equal(requeued.state, "requeued");
-  assert.equal(requeued.minutes, 5);
+  assert.equal(requeued.minutes, 10);
   // Mandou mensagem: a rodada confirmou (kept) -> sem contagem nem "prazo encerrado".
-  assert.equal(reactivationNoticeState({ ...base, now: T0 + 6 * 60 * 1000, keptAt: iso(T0 + 6 * 60 * 1000) }).state, "kept");
+  assert.equal(reactivationNoticeState({ ...base, now: T0 + 11 * 60 * 1000, keptAt: iso(T0 + 11 * 60 * 1000) }).state, "kept");
   assert.equal(reactivationNoticeState({ ...base, stillResponsible: false, now: T0 + 60 * 1000 }).state, "kept");
   // Aviso antigo de uma entrega anterior: a devolução DEPOIS de uma nova entrega não é dele.
   const older = reactivationNoticeState({ noticeAt, laterNoticeAt: iso(T0 + 20 * 60 * 1000), stillResponsible: true, requeues: [{ at: iso(T0 + 26 * 60 * 1000), trigger: REACTIVATION_REQUEUE_TRIGGER }], now: T0 + 30 * 60 * 1000 });
@@ -200,7 +200,7 @@ test("aviso: contagem regressiva, prazo encerrado, devolvido e mantido", () => {
 
 test("clique no WhatsApp: mensagem de 'voltou para a fila' só quando a última movimentação foi a devolução por prazo de quem clicou", () => {
   const row = { event_type: "auto_transferred", from_user_id: "gab", details: { trigger: REACTIVATION_REQUEUE_TRIGGER } };
-  assert.equal(requeuedFromScopeMinutes(row, ["gab"]), 5);
+  assert.equal(requeuedFromScopeMinutes(row, ["gab"]), 10);
   assert.equal(requeuedFromScopeMinutes(row, ["carol"]), null);
   assert.equal(requeuedFromScopeMinutes({ ...row, details: { trigger: "backfill" } }, ["gab"]), null);
   assert.equal(requeuedFromScopeMinutes({ ...row, event_type: "assigned" }, ["gab"]), null);
