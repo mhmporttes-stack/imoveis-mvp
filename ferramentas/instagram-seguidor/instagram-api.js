@@ -1077,8 +1077,12 @@ export async function digitarDmNaAba({ username, texto }) {
       const comDepurador = info.attached && paginaAcordada.isAttached(tabId);
       if (comDepurador) {
         for (const p of partes) {
-          if (p.quebra) await exec(escreverNaPagina, [[p]]);
-          else await cdp(tabId, 'Input.insertText', { text: p.texto });
+          if (p.quebra) {
+            // 1.1.11: quebra de linha = Shift+Enter real (como a pessoa faz). O execCommand('insertLineBreak') no editor
+            // da DM apagava as linhas anteriores (print do dono: só "Conte comigo! 😊" ficou na caixa).
+            await cdp(tabId, 'Input.dispatchKeyEvent', { type: 'keyDown', ...TECLA_ENTER, modifiers: 8 });
+            await cdp(tabId, 'Input.dispatchKeyEvent', { type: 'keyUp', ...TECLA_ENTER, modifiers: 8 });
+          } else await cdp(tabId, 'Input.insertText', { text: p.texto });
           await pausa(60, 220);
         }
       } else {
