@@ -11,6 +11,14 @@
 
 
 
+## 2026-10-29 — "Abrir" do imóvel no CRM abre a apresentação interna (crm-editor) — branch `feat/imovel-apresentacao-interna`, NÃO publicado
+
+- Dono: "quando o corretor clicar em abrir, não deve abrir a apresentação do site, e sim uma apresentação interna" com número do proprietário, valor etc.
+- `components/AdminPropertyList.jsx`: "Abrir" de imóvel → `/admin/imoveis/[id]` (página interna já existente, agora também para imóvel fora do site); "Ver no site" secundário quando publicado. Empreendimento inalterado (sem página interna).
+- `app/admin/imoveis/[id]/page.jsx`: + código, situação, aviso "publicado sem valores", entrada, descontos, entrega, botão Ligar (tel:) ao lado do WhatsApp, link "Ver no site". Sem migration; nenhum campo novo.
+- Permissão mantida (regra 2026-10-16): contato/internalNotes só dono/gestor. Corretor/associado veem a apresentação sem o bloco privado — o pedido do dono cita o corretor: DECISÃO pendente.
+- Não existem no banco: comissão, exclusividade, endereço completo separado, documentos do imóvel. Teste: `tests/property-internal-presentation.test.mjs`.
+
 ## 2026-10-29 — Admin geral sem "Entendi" nos alertas de supervisão (AL-ADM) + setas coloridas IPCA/INCC (crm-editor) — branch `fix/alertas-ok-setas-radar`, NÃO publicado
 
 - Dono: "Remova as mensagens de alerta que eu preciso ficar clicando em OK... só para Carol." Últimos 30 dias: admin recebeu Importantes "Cliente aguardando resposta" (67), `whatsapp_session_attention` (51), `whatsapp_false_connection` (34) — os mesmos que a gestora Caroline Mayumi (única "Carol", manager) recebe. `createAlertDeliveries` passa esses ao admin geral como Informativo (`quietImportantForAdmins`, `lib/crm-alerts-core.mjs`). Gestora/corretores sem mudança. Mantidos Importantes ao admin: serviço WhatsApp parado, Marketplace (extensão, envio, redistribuição), trava do Henry, WhatsApp de corretor desconectado (`whatsapp_disconnect_owner`), teste. Pendentes já gravados continuam até a ciência.

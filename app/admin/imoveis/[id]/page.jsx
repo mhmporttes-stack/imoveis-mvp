@@ -22,6 +22,8 @@ export default async function ImovelConsultaPage({ params }) {
   // Contato do imóvel (interno, 2026-10-16): só dono/gestor — corretor/associado nem buscam o dado.
   const contact = canViewInternalPropertyFields(auth) ? await getPropertyContact(id) : null;
   const contactWhatsappUrl = buildWhatsAppUrl(contact?.contactPhone);
+  const contactDigits = String(contact?.contactPhone || "").replace(/\D/g, "");
+  const contactTelUrl = contactDigits ? `tel:+${contactDigits.length <= 11 ? `55${contactDigits}` : contactDigits}` : "";
   const photos = (property.photos || []).map((photo) => (typeof photo === "string" ? photo.trim() : photo?.data || photo?.url || photo?.src || photo?.publicUrl || "")).filter(Boolean);
 
   return <main className="min-h-screen bg-mist py-10 sm:py-14">
@@ -39,19 +41,29 @@ export default async function ImovelConsultaPage({ params }) {
           <h1 className="mt-1 text-2xl font-black text-navy">{property.name}</h1>
           <p className="mt-1 text-xl font-black text-navy">{propertyPrice(property)}</p>
         </div>
+        <Info label="Código" value={property.code ? `COD${property.code}` : ""} />
+        <Info label="Situação" value={property.status} />
+        {property.hidePrice ? <Info label="Valor no site" value="Publicado sem valores (o site não mostra preço nem entrada)" /> : null}
         <Info label="Localização" value={property.location} />
         <Info label="Quartos" value={property.bedrooms} />
         <Info label="Área" value={property.area} />
         <Info label="Condições" value={property.terms || property.salesText} />
+        <Info label="Entrada" value={property.installmentEntry} />
+        <Info label="Descontos" value={property.discounts} />
+        <Info label="Entrega" value={property.delivery} />
         <Info label="Diferenciais" value={(property.features || []).map((item) => (typeof item === "string" ? item : item.text)).filter(Boolean).join(" • ")} />
         {property.internalNotes ? <div className="rounded-xl border border-amber-200 bg-amber-50 p-5"><p className="text-xs font-black uppercase tracking-[0.14em] text-amber-800">Informações internas</p><p className="mt-2 whitespace-pre-line font-semibold leading-7 text-amber-950">{property.internalNotes}</p></div> : null}
         {contact && (contact.contactName || contact.contactPhone) ? <div className="rounded-xl border border-amber-200 bg-amber-50 p-5">
           <p className="text-xs font-black uppercase tracking-[0.14em] text-amber-800">Contato do imóvel{contact.contactType ? ` · ${propertyContactTypeLabel(contact.contactType)}` : ""}</p>
           <p className="mt-2 font-semibold leading-7 text-amber-950">{[contact.contactName, contact.contactPhone].filter(Boolean).join(" · ")}</p>
-          {contactWhatsappUrl ? <a className="mt-2 inline-flex text-sm font-black text-brand hover:text-navy" href={contactWhatsappUrl} target="_blank" rel="noreferrer">Chamar no WhatsApp</a> : null}
+          <div className="mt-2 flex flex-wrap gap-4">
+            {contactWhatsappUrl ? <a className="inline-flex min-h-[44px] items-center text-sm font-black text-brand hover:text-navy" href={contactWhatsappUrl} target="_blank" rel="noreferrer">Chamar no WhatsApp</a> : null}
+            {contactTelUrl ? <a className="inline-flex min-h-[44px] items-center text-sm font-black text-brand hover:text-navy" href={contactTelUrl}>Ligar</a> : null}
+          </div>
         </div> : null}
         <div className="flex flex-wrap gap-3">
           <a className="premium-button-secondary" href={buildGoogleMapsUrl(property)} target="_blank" rel="noreferrer"><MapPin className="mr-2 h-5 w-5" aria-hidden="true" />Localização</a>
+          {property.isPublished ? <Link className="premium-button-secondary" href={`/empreendimentos/${property.id}`} target="_blank">Ver no site</Link> : null}
           <Link className="premium-button-secondary" href="/admin/imoveis">Voltar</Link>
         </div>
       </div>
