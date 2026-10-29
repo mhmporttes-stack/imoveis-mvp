@@ -40,6 +40,17 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-29 — "Assumiu o 1º lugar" aparece às 12:00 em ponto, sem os minutos de liderança
+- **Data:** 2026-10-29
+- **Sintoma:** reconhecimento "Liderança do dia" sai no 1º tick das 12:00 (ex.: 10-25, 10-26, 10-29), ignorando "Minutos seguros de liderança" (10).
+- **Área:** Reconhecimentos (Incentivo), cron `celebrations-ranking`
+- **Impacto:** só o 1º turno do dia, quando o líder era o mesmo do fim do dia anterior; o líder certo recebia, só que antes do tempo mínimo.
+- **Causa raiz:** `celebration_ranking_lead_state.leading_since` não zera à meia-noite (antes das 12h o cron sai sem gravar); mesmo líder de ontem → liderança "desde ontem" → tempo mínimo já cumprido.
+- **Correção:** `resolveLeadingSince` (`lib/celebrations-ranking-core.mjs`) recomeça a contagem quando a liderança registrada é de outro dia (São Paulo).
+- **Arquivos/commit:** `lib/celebrations.js`, `lib/celebrations-ranking-core.mjs` — branch `fix/animacoes-incentivo`
+- **Prevenção/teste:** `tests/celebrations-ranking-core.test.mjs` (caso real de 2026-10-29).
+- **Status:** Corrigido na branch, não publicado
+
 ### 2026-10-29 — Imóvel aprovado não sai no Marketplace
 - **Data:** 2026-10-29
 - **Sintoma:** anúncio aprovado fica "pending" na fila; extensão ligada e sincronizando o chat normalmente.

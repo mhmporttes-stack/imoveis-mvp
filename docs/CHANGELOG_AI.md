@@ -11,6 +11,11 @@
 
 
 
+## 2026-10-29 — Reconhecimentos: auditoria + "1º lugar" respeita o tempo mínimo no 1º turno (RAN-9) (crm-editor) — branch `fix/animacoes-incentivo`, NÃO publicado
+- Pedido do dono: "verifica as animações de incentivo que aparecem na tela dos corretores se está funcionando". Auditoria somente leitura em produção (19 a 29/10): cron `celebration-ranking-tick` 1.160 execuções ok em 7 dias; 100% dos eventos de reconhecimento e da Mensagem do dia viraram "vistos"; nenhum evento travado.
+- Bug corrigido: `runCelebrationRankingTick` reaproveitava `leading_since` do dia anterior quando o líder se repetia, e "Assumiu o 1º lugar" saía às 12:00 em ponto sem os "Minutos seguros de liderança". Agora `resolveLeadingSince` (`lib/celebrations-ranking-core.mjs`) recomeça a contagem em dia novo. Teste `tests/celebrations-ranking-core.test.mjs`. Sem migration.
+- Lacunas encontradas e NÃO alteradas (decisão do dono): (1) meta 100/150/200% só é detectada enquanto o corretor está com o CRM aberto (poll de 30 s); meta batida pelo disparo automático depois que ele saiu nunca gera a cena (caso real: um corretor, 17/10, 106%, sem reconhecimento); (2) "Meta semanal/mensal batida" soma só a prospecção (`done_count`/`total_due`), sem os pendentes da MD-8 — saiu em 21/10 e 23/10 sem nenhum dia com meta batida; (3) evento entregue dias depois mostra o chip "Hoje" com a data do dia em que é visto.
+
 ## 2026-10-29 — Janelinha de cliente novo some sozinha (CLI-16) (crm-editor) — branch `fix/notificacoes-toast-somem`, NÃO publicado
 - Pedido do dono (print com cartões "MESSENGER · há 1 min / Daniel / Facebook Marketplace…" empilhados no topo): "essas notificações têm que sumir sozinhas e ficar apenas no ícone de notificações".
 - Causa: a janelinha da CLI-16 (`components/client-popups/ClientPopupStack.jsx`) foi feita para "ficar até um clique" — sem tempo de saída, ficava na tela até alguém clicar (no celular, faixa no topo por cima do cabeçalho).
