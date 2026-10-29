@@ -15,7 +15,8 @@ const RecognitionScene = dynamic(() => import("./scenes/RecognitionScene"), { ss
 // botão do rodapé ou Esc — nunca trava o CRM. previewMode = true é usado pelo
 // botão "Testar" do admin: mesmo componente, nenhuma chamada de rede, nenhum
 // evento gravado.
-export default function CelebrationOverlay({ message, animation = "confete", triggerKey, onDismiss, previewMode = false, userName = "", userPhotoUrl = "" }) {
+// eventDate (opcional, "AAAA-MM-DD"): data real do reconhecimento — o selo diz "Hoje" só se for de hoje.
+export default function CelebrationOverlay({ message, animation = "confete", triggerKey, eventDate = "", onDismiss, previewMode = false, userName = "", userPhotoUrl = "" }) {
   const rootRef = useRef(null);
 
   useEffect(() => {
@@ -49,6 +50,7 @@ export default function CelebrationOverlay({ message, animation = "confete", tri
         message={message}
         animation={animation}
         triggerKey={triggerKey}
+        eventDate={eventDate}
         userName={userName}
         userPhotoUrl={userPhotoUrl}
         previewMode={previewMode}

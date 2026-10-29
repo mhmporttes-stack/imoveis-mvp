@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createHash, timingSafeEqual } from "crypto";
 import { closeAllOpenDailyGoals, formatDailyGoalError, freezeDailyGoalPendingForActiveBrokers, freezeDailyGoalWalletForActiveBrokers } from "@/lib/daily-goal";
+import { recordClosedDayGoalMilestones } from "@/lib/celebrations";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -49,7 +50,15 @@ export async function GET(request) {
     } catch (freezeError) {
       console.error("Falha ao congelar a carteira da Meta Diária.", freezeError);
     }
-    return NextResponse.json({ ok: true, ...result, pendingFreeze, walletFreeze });
+    // Meta de ontem batida sem o corretor ter visto a cena (ex.: completada pelo disparo automático depois que ele
+    // saiu do CRM) — fica pendente para a próxima abertura (dono, 2026-10-29). Nunca impede o fechamento.
+    let celebrations = null;
+    try {
+      celebrations = await recordClosedDayGoalMilestones();
+    } catch (celebrationError) {
+      console.error("Falha ao registrar os reconhecimentos de meta batida do dia fechado.", celebrationError);
+    }
+    return NextResponse.json({ ok: true, ...result, pendingFreeze, walletFreeze, celebrations });
   } catch (error) {
     console.error("Falha ao fechar a Meta Diária.", error);
     return NextResponse.json({ error: formatDailyGoalError(error) }, { status: 500 });

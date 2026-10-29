@@ -6,6 +6,8 @@ import WeldText, { weldLayout } from "@/components/scenes/WeldText";
 import scene from "@/components/scenes/scenes.module.css";
 import styles from "../celebration.module.css";
 import { effectsFor, getParticleQuality, risingMotes } from "../celebrationEffects";
+import { recognitionDateChip } from "@/lib/celebrations-core.mjs";
+import { saoPauloDateOf } from "@/lib/celebrations-ranking-core.mjs";
 
 // Cena única de Reconhecimento (visual novo, 2026-10-22) para todos os gatilhos. O que muda por gatilho é só o
 // título, o selo e o chip — tudo derivado do próprio gatilho, nunca um número inventado. A mensagem é a do banco
@@ -44,12 +46,7 @@ function initials(name) {
   return ((parts[0][0] || "") + (parts.length > 1 ? parts[parts.length - 1][0] || "" : "")).toUpperCase();
 }
 
-function todayChip() {
-  return new Intl.DateTimeFormat("pt-BR", { timeZone: "America/Sao_Paulo", weekday: "short", day: "2-digit", month: "2-digit" })
-    .format(new Date()).replace(".", "");
-}
-
-export default function RecognitionScene({ message, animation = "confete", triggerKey, userName = "", userPhotoUrl = "", previewMode = false, closeLabel }) {
+export default function RecognitionScene({ message, animation = "confete", triggerKey, eventDate = "", userName = "", userPhotoUrl = "", previewMode = false, closeLabel }) {
   const reduced = usePrefersReducedMotion();
   const [quality] = useState(() => getParticleQuality());
   const look = LOOK[triggerKey] || { kicker: "Reconhecimento", chip: "" };
@@ -57,9 +54,12 @@ export default function RecognitionScene({ message, animation = "confete", trigg
   const effects = useMemo(() => effectsFor(animation, quality), [animation, quality]);
   const motes = useMemo(() => risingMotes(quality === "low" ? 10 : 18), [quality]);
   const end = layout.end;
+  // Reconhecimento visto dias depois (ex.: meta batida pelo disparo automático com o corretor fora do CRM) mostra a
+  // data real do evento; "Hoje" só quando for de hoje (dono, 2026-10-29). Sem data (prévia/vitrine) = hoje.
+  const dateChip = recognitionDateChip(eventDate, saoPauloDateOf(new Date()));
   const chips = [
     look.chip ? { label: look.chip } : null,
-    { label: "Hoje", value: todayChip() },
+    dateChip,
     previewMode ? { label: "Prévia" } : null
   ].filter(Boolean);
   const userInitials = initials(userName);
