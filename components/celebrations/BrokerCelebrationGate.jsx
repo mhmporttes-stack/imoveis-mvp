@@ -98,6 +98,7 @@ export default function BrokerCelebrationGate({ userId, userName = "", userPhoto
           message={active.message}
           animation={active.animation}
           triggerKey={active.trigger_key}
+          eventDate={active.event_date}
           userName={userName}
           userPhotoUrl={userPhotoUrl}
           onDismiss={handleDismiss}
