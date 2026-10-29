@@ -19,6 +19,18 @@ test("apresentação interna exige login e redige campos internos por perfil no 
 
 test("payload público nunca leva campos internos nem contato", () => {
   const pub = read("lib/public-properties.js");
-  assert.match(pub, /const \{ internalNotes, createdByUserId, contactName, contactPhone, contactType, \.\.\.publicSafe \}/);
+  assert.match(pub, /const \{ internalNotes, createdByUserId, contactName, contactPhone, contactType, exclusivity, fullAddress, documents, \.\.\.publicSafe \}/);
   assert.doesNotMatch(pub, /\.from\("property_contacts"\)/);
+});
+
+test("campos internos novos (2026-10-29): todos os perfis logados veem; sem login, nada; sem comissão", async () => {
+  const { INTERNAL_PROPERTY_FIELDS, redactInternalPropertyFields } = await import("../lib/property-visibility-core.mjs");
+  for (const field of ["exclusivity", "fullAddress", "documents"]) assert.ok(INTERNAL_PROPERTY_FIELDS.includes(field));
+  const redacted = redactInternalPropertyFields({ exclusivity: "Sim", fullAddress: "Rua X, 1", documents: [{ url: "https://x/a.pdf" }] }, false);
+  assert.equal(redacted.fullAddress, "");
+  assert.deepEqual(redacted.documents, []);
+  assert.match(read("lib/property-visibility.js"), /return Boolean\(auth && auth\.profile\);/);
+  const migration = read("supabase/migrations/20261029180000_property_internal_fields.sql");
+  assert.match(migration, /add column if not exists full_address/);
+  assert.doesNotMatch(migration + read("lib/property-mapper.js"), /commission/i);
 });

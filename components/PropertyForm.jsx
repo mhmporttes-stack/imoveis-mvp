@@ -71,6 +71,7 @@ export default function PropertyForm({ property, canPublish = false, isDevelopme
   const [status, setStatus] = useState("Use IA, site ou PDF para acelerar o cadastro.");
   const [photoStatus, setPhotoStatus] = useState("");
   const [pdfStatus, setPdfStatus] = useState("");
+  const [documentStatus, setDocumentStatus] = useState("");
   const [saveError, setSaveError] = useState("");
   const [saving, setSaving] = useState(false);
   const [processingPhotos, setProcessingPhotos] = useState(false);
@@ -219,6 +220,34 @@ export default function PropertyForm({ property, canPublish = false, isDevelopme
     }
   }
 
+  // Documentos internos do imóvel (dono, 2026-10-29): mesmo upload de PDF do Book (/api/uploads/documents).
+  async function handleDocument(file) {
+    if (!file) return;
+    if (file.type !== "application/pdf") { setSaveError("Formato não suportado. Envie um arquivo PDF."); return; }
+    if (file.size > 50_000_000) { setSaveError("Arquivo acima do tamanho permitido (50 MB)."); return; }
+    setProcessingPdf(true);
+    setSaveError("");
+    setDocumentStatus("Enviando documento...");
+    try {
+      const uploaded = await uploadDocument(file, property?.id || form.name || "novo-imovel");
+      setForm((current) => ({ ...current, documents: [...(current.documents || []), { name: uploaded.name, url: uploaded.data }] }));
+      setDocumentStatus("Documento enviado. Salve o imóvel.");
+    } catch (error) {
+      console.error(error);
+      setDocumentStatus("");
+      setSaveError(error.message || "Não foi possível enviar o documento.");
+    } finally {
+      setProcessingPdf(false);
+    }
+  }
+
+  function removeDocument(index) {
+    if (!confirm("Remover este documento?")) return;
+    const target = (form.documents || [])[index];
+    setForm((current) => ({ ...current, documents: (current.documents || []).filter((_, i) => i !== index) }));
+    if (target?.url) removeRemoteDocument(target.url);
+  }
+
   async function removeBook() {
     if (!confirm("Remover o Book deste empreendimento?")) return;
     const previousUrl = form.pdfData;
@@ -308,7 +337,8 @@ export default function PropertyForm({ property, canPublish = false, isDevelopme
       const response = await fetch(url, {
         method,
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...form, isDevelopment: property?.isDevelopment ?? isDevelopment })
+        // Campos internos (exclusividade/endereço/documentos) só vão quando admin/gestor editam (canPublish).
+        body: JSON.stringify({ ...(canPublish ? form : withoutInternalFields(form)), isDevelopment: property?.isDevelopment ?? isDevelopment })
       });
       const result = await response.json().catch(() => ({}));
 
@@ -494,6 +524,17 @@ export default function PropertyForm({ property, canPublish = false, isDevelopme
             {PROPERTY_CONTACT_TYPES.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
           </select>
         </label>
+        <Field label="Exclusividade" value={form.exclusivity} onChange={(value) => update("exclusivity", value)} placeholder="Ex.: Sim, até 12/2026" />
+        <div className="lg:col-span-2"><Field label="Endereço completo" value={form.fullAddress} onChange={(value) => update("fullAddress", value)} placeholder="Rua, número, complemento, bairro, cidade" /></div>
+        <div className="grid gap-2 lg:col-span-3">
+          <FilePicker accept="application/pdf" label="Documentos do imóvel (PDF, internos)" onChange={(files) => handleDocument(files?.[0])} selectedText={documentStatus || "Escolher PDF"} />
+          {(form.documents || []).length ? <ul className="grid gap-1 text-sm font-bold">
+            {form.documents.map((doc, index) => <li key={`${doc.url}-${index}`} className="flex flex-wrap gap-3">
+              <a href={doc.url} target="_blank" rel="noopener noreferrer" className="text-brand hover:underline">{doc.name || `Documento ${index + 1}`}</a>
+              <button type="button" onClick={() => removeDocument(index)} className="text-red-600 hover:underline">Remover</button>
+            </li>)}
+          </ul> : null}
+        </div>
       </section> : null}
 
       <section className="grid gap-5 lg:grid-cols-2">
@@ -632,6 +673,11 @@ function Textarea({ label, value, onChange }) {
       <textarea className="min-h-32 rounded-2xl border border-line px-4 py-3 outline-none focus:border-brand focus:ring-4 focus:ring-brand/10" value={value || ""} onChange={(event) => onChange(event.target.value)} />
     </label>
   );
+}
+
+function withoutInternalFields(form) {
+  const { exclusivity, fullAddress, documents, ...rest } = form;
+  return rest;
 }
 
 function normalizeInitialProperty(property) {

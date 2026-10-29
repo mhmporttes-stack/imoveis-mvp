@@ -119,7 +119,7 @@ Listas de equipe/ranking excluem os e-mails dono (`listVisibleTeamProfiles`).
 
 **`requireFinancialManagerApi` (admin/gestor):** `empreendimentos/[id]`, `properties/[id]` (PUT/DELETE), `admin/property-contacts` (GET, autocomplete do contato do imóvel), `testimonials/[id]`, `testimonials/[id]/publish`, `uploads/documents`.
 
-**Apresentação interna do imóvel (`/admin/imoveis/[id]`, 2026-10-29):** `requireAdminPage` (todos os perfis); contato do imóvel e `internalNotes` só dono/gestor (`canViewInternalPropertyFields`/`redactPropertyForAuth`, no servidor — corretor/associado nem buscam o contato). Nunca no site público (`lib/public-properties.js` remove os campos; contato vive em `property_contacts`, fora do select público).
+**Apresentação interna do imóvel (`/admin/imoveis/[id]`, 2026-10-29):** `requireAdminPage` (todos os perfis); contato do imóvel, `internalNotes`, exclusividade, endereço completo e documentos: todos os perfis logados (dono, 2026-10-29; `canViewInternalPropertyFields` = tem perfil); edição só admin/gestor. Nunca no site público (`lib/public-properties.js` remove os campos; contato vive em `property_contacts`, fora do select público).
 
 **`requirePerformanceApi` (não-associado):** `daily-report`, `financeiro/[id]` (GET — e bloqueia gestor dentro da rota). **`requireFinancialAccessApi` (não-gestor):** `financeiro` (GET).
 

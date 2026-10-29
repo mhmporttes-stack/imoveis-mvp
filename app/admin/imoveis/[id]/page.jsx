@@ -12,14 +12,14 @@ import { buildWhatsAppUrl } from "@/lib/phone-utils";
 
 export const dynamic = "force-dynamic";
 
-// Detalhe só leitura de um imóvel (publicado ou não) para toda a equipe (dono, 2026-10-15). Informações internas só
-// dono/gestor (redactPropertyForAuth, no servidor).
+// Apresentação INTERNA do imóvel (publicado ou não) para toda a equipe (dono, 2026-10-15/29). Informações internas,
+// contato, exclusividade, endereço completo e documentos: todos os perfis logados (dono, 2026-10-29); nunca no site.
 export default async function ImovelConsultaPage({ params }) {
   const auth = await requireAdminPage();
   const { id } = await params;
   const property = redactPropertyForAuth(await getProperty(id), auth);
   if (!property || property.isDevelopment) notFound();
-  // Contato do imóvel (interno, 2026-10-16): só dono/gestor — corretor/associado nem buscam o dado.
+  // Contato do imóvel (interno): todos os perfis logados (dono, 2026-10-29).
   const contact = canViewInternalPropertyFields(auth) ? await getPropertyContact(id) : null;
   const contactWhatsappUrl = buildWhatsAppUrl(contact?.contactPhone);
   const contactDigits = String(contact?.contactPhone || "").replace(/\D/g, "");
@@ -45,6 +45,8 @@ export default async function ImovelConsultaPage({ params }) {
         <Info label="Situação" value={property.status} />
         {property.hidePrice ? <Info label="Valor no site" value="Publicado sem valores (o site não mostra preço nem entrada)" /> : null}
         <Info label="Localização" value={property.location} />
+        <Info label="Endereço completo" value={property.fullAddress} />
+        <Info label="Exclusividade" value={property.exclusivity} />
         <Info label="Quartos" value={property.bedrooms} />
         <Info label="Área" value={property.area} />
         <Info label="Condições" value={property.terms || property.salesText} />
@@ -60,6 +62,10 @@ export default async function ImovelConsultaPage({ params }) {
             {contactWhatsappUrl ? <a className="inline-flex min-h-[44px] items-center text-sm font-black text-brand hover:text-navy" href={contactWhatsappUrl} target="_blank" rel="noreferrer">Chamar no WhatsApp</a> : null}
             {contactTelUrl ? <a className="inline-flex min-h-[44px] items-center text-sm font-black text-brand hover:text-navy" href={contactTelUrl}>Ligar</a> : null}
           </div>
+        </div> : null}
+        {(property.documents || []).length ? <div className="rounded-xl border border-amber-200 bg-amber-50 p-5">
+          <p className="text-xs font-black uppercase tracking-[0.14em] text-amber-800">Documentos do imóvel</p>
+          <ul className="mt-2 grid gap-1">{property.documents.map((doc, index) => <li key={`${doc.url}-${index}`}><a className="inline-flex min-h-[44px] items-center text-sm font-black text-brand hover:text-navy" href={doc.url} target="_blank" rel="noreferrer">{doc.name || `Documento ${index + 1}`}</a></li>)}</ul>
         </div> : null}
         <div className="flex flex-wrap gap-3">
           <a className="premium-button-secondary" href={buildGoogleMapsUrl(property)} target="_blank" rel="noreferrer"><MapPin className="mr-2 h-5 w-5" aria-hidden="true" />Localização</a>

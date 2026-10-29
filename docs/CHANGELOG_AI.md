@@ -16,8 +16,9 @@
 - Dono: "quando o corretor clicar em abrir, não deve abrir a apresentação do site, e sim uma apresentação interna" com número do proprietário, valor etc.
 - `components/AdminPropertyList.jsx`: "Abrir" de imóvel → `/admin/imoveis/[id]` (página interna já existente, agora também para imóvel fora do site); "Ver no site" secundário quando publicado. Empreendimento inalterado (sem página interna).
 - `app/admin/imoveis/[id]/page.jsx`: + código, situação, aviso "publicado sem valores", entrada, descontos, entrega, botão Ligar (tel:) ao lado do WhatsApp, link "Ver no site". Sem migration; nenhum campo novo.
-- Permissão mantida (regra 2026-10-16): contato/internalNotes só dono/gestor. Corretor/associado veem a apresentação sem o bloco privado — o pedido do dono cita o corretor: DECISÃO pendente.
-- Não existem no banco: comissão, exclusividade, endereço completo separado, documentos do imóvel. Teste: `tests/property-internal-presentation.test.mjs`.
+- Decisão do dono (mesmo dia): campos internos do imóvel (contato, informações internas e os novos) visíveis a TODOS os perfis logados (`lib/property-visibility.js`); edição segue só admin/gestor; nunca no site.
+- Novos campos internos: exclusividade, endereço completo, documentos (PDFs via `/api/uploads/documents`, mesmo upload do Book) — migration `20261029180000_property_internal_fields.sql` (aditiva, **NÃO aplicada**; aplicar antes de publicar, senão salvar imóvel com esses campos falha). Comissão: dono desistiu, sem campo.
+- Teste: `tests/property-internal-presentation.test.mjs` (inclui payload público sem campos internos).
 
 ## 2026-10-29 — Admin geral sem "Entendi" nos alertas de supervisão (AL-ADM) + setas coloridas IPCA/INCC (crm-editor) — branch `fix/alertas-ok-setas-radar`, NÃO publicado
 
