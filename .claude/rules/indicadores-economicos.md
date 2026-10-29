@@ -18,5 +18,5 @@ paths:
 - Taxas por banco = média de mercado do BCB; a tela sempre diz que não é a taxa oferecida ao cliente.
 - Textos de "O que mudou"/impacto são determinísticos, só com números; nunca causalidade ou previsão.
 - Alertas só pela Central de Alertas existente (`createAlertDeliveries`), Informativo, sem push, chave `econ:<indicador>:<referência>`. Não crie outro canal.
-- Radar: seta neutra (sem verde/vermelho); não altere a lógica dos cards Campeão da Semana/Melhor do Dia (`components/TopRankingBadge.jsx`).
+- **[REGRA OFICIAL DE NEGÓCIO — dono, 2026-10-29]** Setas de IPCA e INCC (Radar e aba): queda = verde (`text-success`), alta = vermelha (`text-danger`, "quer dizer que o juro/inflação subiu"), estável = neutra; ícone + aria-label sempre. Demais indicadores: seta neutra. Regra única `directionTone` (`lib/economic-indicators-core.mjs`). Não altere a lógica dos cards Campeão da Semana/Melhor do Dia (`components/TopRankingBadge.jsx`).
 - Migration `20261029120000_economic_indicators.sql` criada e **pendente de aplicação** pelo dono.
