@@ -11,6 +11,13 @@
 
 
 
+## 2026-10-29 — Indicadores Econômicos + Radar Econômico (ECON-1) (crm-editor) — branch `feat/indicadores-economicos`, NÃO publicado
+Pedido do dono: aba de indicadores econômicos oficiais, calculadora de correção, alertas e card "Radar Econômico" na barra.
+- **Novo:** `lib/economic-indicators-core.mjs`, `lib/economic-indicators.js`, rotas `app/api/admin/economic-indicators/*` (Zod + `requireAdminApi`), cron `app/api/cron/economic-indicators`, página `app/admin/indicadores-economicos`, `components/economic/*`; item no menu (todos os perfis, logo após Início); `TopRankingBadge` em três terços (lógica dos dois cards intacta; "Sua posição hoje" foi para a linha de baixo).
+- **Fontes confirmadas por requisição real (2026-10-29):** SGS 433, 7478, 188 (= SIDRA IBGE), 192, 7456, 189 (FGV via BCB, sem conferência com a FGV), 432, 4389, 7811; SIDRA 6381, 6390, 5932; Olinda TaxasJurosMensalPorMes (só modalidades de financiamento imobiliário). SGS devolveu "Requisição inválida" intermitente em chamadas simultâneas — coleta em lotes de 3 com 3 tentativas.
+- **Banco:** migration `20261029120000_economic_indicators.sql` (4 tabelas + job pg_cron) — **NÃO aplicada** (decisão do dono). Sem ela a tela mostra o aviso de tabelas ausentes.
+- **Testes:** `tests/economic-indicators.test.mjs` (19, com respostas reais em `tests/fixtures/economic/`); `pnpm build` ok.
+
 ## 2026-10-26 — Instagram 1.1.10: DM não parava mais em "mudança de API" (get_by_participants 404)
 - **Pedido/sintoma:** print do dono com o alerta "direct_v2/get_by_participants respondeu HTTP 404" e 0 DMs enviadas.
 - **Causa raiz:** `enviarDmPelaApi` (`ferramentas/instagram-seguidor/instagram-api.js`): broadcast/text recusado (4xx, nada saiu) → busca da conversa 404 em HTML virava `mudanca_api`, que não aciona a digitação (só `nao_enviada` aciona).

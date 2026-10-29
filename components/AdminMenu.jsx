@@ -207,6 +207,9 @@ const ownerGroups = [
   manualGroup
 ];
 
+// "Indicadores Econômicos" (dono, 2026-10-29 — ECON-1): todos os perfis, no primeiro grupo, logo depois do Início.
+const ECONOMIC_INDICATORS_ITEM = { href: "/admin/indicadores-economicos", label: "Indicadores Econômicos", key: "economic-indicators" };
+
 const CAIXA_SIMULATOR_ITEM = { href: "/admin/simulador-caixa", label: "Simulador Caixa", key: "caixa-simulator" };
 const CAIXA_SIMULATOR_GROUPS = new Set(["crm", "clientes"]);
 
@@ -223,7 +226,7 @@ export function getAdminMenuGroups({ isAdmin = false, isBroker = false, isAssoci
   // "Simulador Caixa" (dono, 2026-10-19): todos os perfis, no grupo de clientes (CRM / CLIENTES).
   const withSimulator = filtered.map((group) => (CAIXA_SIMULATOR_GROUPS.has(group.key) ? { ...group, items: [...group.items, CAIXA_SIMULATOR_ITEM] } : group));
   // "Início" (dono, 2026-10-22): primeiro item do primeiro grupo, em todos os perfis (menu lateral, barra do celular e "Mais").
-  const visible = withSimulator.map((group, index) => (index === 0 ? { ...group, items: [HOME_ITEM, ...group.items] } : group));
+  const visible = withSimulator.map((group, index) => (index === 0 ? { ...group, items: [HOME_ITEM, ECONOMIC_INDICATORS_ITEM, ...group.items] } : group));
   // Chave da Academia desligada (padrão): devolve exatamente os mesmos grupos de sempre.
   return withAcademyMenuGroup(visible, academiaEnabled);
 }
@@ -232,6 +235,7 @@ export function getAdminMenuGroups({ isAdmin = false, isBroker = false, isAssoci
 // Mesmos valores que as páginas passavam ao AdminSectionNav — os `activeKeys` dos itens continuam valendo.
 const PATH_KEYS = [
   ["/admin/inicio", "inicio"],
+  ["/admin/indicadores-economicos", "economic-indicators"],
   ["/admin/chat/marketplace", "marketplace-chat"],
   ["/admin/chat", "chat"],
   ["/admin/simulacoes", "simulations"],

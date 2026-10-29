@@ -59,6 +59,8 @@
 
 **`simulation_registrations` — colunas que as regras dependem** (não exaustivo): `id`, `client_code`, `full_name`, `phone`, `phone_normalized`, `status`, `last_status_change_at`, `approved_at`, `responsible_user_id`, `previous_responsible_user_id`, `responsible_changed_at`, `distribution_type` (`round_robin` ou vazio), `direct_broker_link`, `journey_type` (`simulation`/`quick_service`), `contact_preference`, `acquisition_context` (jsonb, lido pelo trigger da jornada), `last_whatsapp_contact_at`, `last_admin_email`, `scheduled_activity_at/_type/_note/_notified_at/_completed_at/_completed_by`, `prospecting_contact_id`, `prospecting_assigned_pending`, `prospecting_assigned_by_user_id`, `preferences_access_token`, dados de renda/estado civil (`primary_*`, `secondary_*`, `has_children_under_18`, …), `cpf`, `pis`, `email`, `sale_completed_at`, `service_started_at`, `oldest_birth_date`, `created_at`, `updated_at`, `last_form_submitted_at` (só reenvio do formulário), `list_order_at` (coluna gerada para paginação por último formulário ou criação; migration `20260927235741`).
 
+**Indicadores Econômicos (ECON-1, migration `20261029120000_economic_indicators.sql`, NÃO aplicada em produção em 2026-10-29):** `econ_indicator_values` (UNIQUE `indicator_code, reference_date`), `econ_indicator_status` (última consulta/sucesso/erro por indicador; `bank_rates` = taxas por banco), `econ_bank_rates` (UNIQUE `reference_month, modality, cnpj8`), `econ_alert_preferences` (PK `user_id, indicator_code`). RLS ligado, sem policy. Acesso só por `lib/economic-indicators.js`.
+
 ## 4. Funções, RPCs e triggers (o que a aplicação chama)
 
 | Função | Papel |
@@ -114,6 +116,7 @@ Todos chamam `GET` na aplicação (host técnico `https://imoveis-mvp.vercel.app
 | `weekly-ranking-monday` | `1 3 * * 1` | segunda 00:01 | `/api/cron/weekly-ranking` (congela o vencedor da semana anterior em `crm_settings`) |
 | `meta-ads-intraday-sync` | `0 1,11,13,15,17,19,21,23 * * *` | 08–22 h (de 2 em 2 h) + 22:00 | `/api/cron/meta-ads-intraday-sync` |
 | `meta-ads-daily-consolidation` | `0 9 * * *` | 06:00 | `/api/cron/meta-ads-daily-consolidation` |
+| `economic-indicators-daily` | `30 21 * * *` | 18:30 | `/api/cron/economic-indicators` (Indicadores Econômicos, ECON-1 — migration `20261029120000`, **não aplicada**) |
 
 Removido: `daily-broker-performance-whatsapp-once-a-day` (`20260922200000`). Não há `vercel.json`: **nenhum cron da Vercel**.
 
