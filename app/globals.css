@@ -1145,8 +1145,34 @@ html.mm-dark .mm-champion-weekly .mm-scan {
   filter: drop-shadow(0 0 6px rgba(242, 198, 109, 0.6));
   animation: mm-float 2.4s ease-in-out infinite;
 }
+/* Radar Econômico (components/economic/EconomicRadarCard.jsx, ECON-2): gráfico de fundo com a linha REAL do INCC/Selic,
+   10% de opacidade, deriva lenta só por transform (ciclo de 20 s, ida e volta). Para com "reduzir movimento" e com a aba
+   oculta (classe mm-radar-paused, posta pelo card via components/page-visibility.js). */
+@keyframes mm-radar-drift {
+  from { transform: translate3d(0, 0, 0); }
+  to { transform: translate3d(-10%, 0, 0); }
+}
+.mm-radar-backdrop {
+  position: absolute;
+  inset: 18% -12% 0 0;
+  width: 112%;
+  height: 82%;
+  pointer-events: none;
+  color: var(--mm-radar-line, #1b7fb0);
+  opacity: 0.1;
+  animation: mm-radar-drift 10s ease-in-out infinite alternate;
+}
+html.mm-dark .mm-radar-backdrop {
+  --mm-radar-line: #4fc3e0;
+  opacity: 0.12;
+}
+.mm-radar-paused .mm-radar-backdrop,
+.mm-radar-paused .mm-scan {
+  animation-play-state: paused;
+}
 @media (prefers-reduced-motion: reduce) {
   .mm-scan,
+  .mm-radar-backdrop,
   .mm-pulse-ring::before,
   .mm-float,
   .mm-crown {

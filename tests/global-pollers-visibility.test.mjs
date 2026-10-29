@@ -7,7 +7,8 @@ import { readFileSync } from "node:fs";
 const files = [
   "components/celebrations/BrokerCelebrationGate.jsx",
   "components/DailyMessageGate.jsx",
-  "components/TopRankingBadge.jsx"
+  "components/TopRankingBadge.jsx",
+  "components/economic/EconomicRadarCard.jsx"
 ];
 
 for (const file of files) {

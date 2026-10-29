@@ -16,8 +16,10 @@ import {
   formatValue,
   indicatorByCode,
   labelMonth,
+  RADAR_BANK_MODALITY_PATTERN,
   referenceLabel
 } from "@/lib/economic-indicators-core.mjs";
+import McmvSettingsForm from "@/components/economic/McmvSettingsForm";
 
 // Tela "Indicadores Econômicos" (dono, 2026-10-29 — ECON-1). Dados iniciais vêm do servidor (banco); o histórico dos
 // gráficos é buscado sob demanda. Nada aqui chama fonte externa nem o Supabase direto.
@@ -103,7 +105,7 @@ function IndicatorGrid({ items }) {
 // ---------- Comparativo de bancos ----------
 function BankRates({ bankRates }) {
   const modalities = bankRates?.modalities || [];
-  const [modality, setModality] = useState(() => modalities.find((m) => /mercado - Prefixado$/.test(m.modality))?.modality || modalities[0]?.modality || "");
+  const [modality, setModality] = useState(() => modalities.find((m) => RADAR_BANK_MODALITY_PATTERN.test(m.modality))?.modality || modalities[0]?.modality || "");
   const current = modalities.find((m) => m.modality === modality);
   return (
     <Card title="Taxas médias de financiamento imobiliário por instituição" note={bankRates?.month ? `Período: ${labelMonth(bankRates.month.slice(0, 7))}` : null}>
@@ -361,7 +363,7 @@ function AlertPreferences() {
   );
 }
 
-export default function EconomicIndicatorsDashboard({ initial = null, initialError = "" }) {
+export default function EconomicIndicatorsDashboard({ initial = null, initialError = "", mcmv = null, canEditMcmv = false }) {
   if (!initial) {
     return (
       <div className="mx-auto w-full max-w-6xl px-4 sm:px-6">
@@ -401,6 +403,11 @@ export default function EconomicIndicatorsDashboard({ initial = null, initialErr
         <CorrectionCalculator />
         <AlertPreferences />
       </Section>
+      {canEditMcmv ? (
+        <Section title="Minha Casa Minha Vida no Radar" note="Cadastro manual do administrador geral. Aparece na tira do Radar Econômico só quando preenchido, sempre com a portaria e a data.">
+          <McmvSettingsForm initial={mcmv} />
+        </Section>
+      ) : null}
     </div>
   );
 }
