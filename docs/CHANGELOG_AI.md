@@ -11,6 +11,12 @@
 
 
 
+## 2026-10-29 — Chat do Marketplace: busca pelo nome do cliente no topo da lista (MKT-2d) (crm-editor) — branch `feat/marketplace-busca-nome`, NÃO publicado
+- Pedido do dono: "O Marketplace não tem a caixa de busca lá em cima pelo nome do cliente. Precisa ter. Ao invés de 'Todos' [...] quero uma caixa para pesquisar pelo nome do [cliente]."
+- Caixa "Buscar pelo nome do cliente" no topo da lista (computador e celular/app, todos os perfis), com lupa, botão limpar (e Esc), espera de 350 ms ao digitar, "Buscando…", "N conversas encontradas" e "Nenhuma conversa encontrada para …". O seletor Todos/corretor/Roleta continua ao lado (mesmas regras).
+- Busca no servidor: `listMarketplaceConversations(auth, { search })` (`lib/marketplace-chat.js`, `?q=` em `GET /api/admin/marketplace-chat/conversations`) procura no nome da conversa (`contact_name`), no título do anúncio e no nome do cliente ligado (`simulation_registrations.full_name`, junção `client_id`), sem acento/maiúscula (`normalizeMarketplaceSearch`/`marketplaceSearchRegex`, operador `imatch` do PostgREST, `lib/marketplace-chat-core.mjs`). As duas consultas partem da mesma base com escopo + seletor (MKT-2d): a busca só restringe. O nome da ficha não volta na resposta. Até 200 resultados (mais recentes). Resultado de busca não vai para o cache do aparelho.
+- Sem migration. Teste `tests/marketplace-busca-nome.test.mjs`. Falta conferir a busca com dado real depois de publicar (o `imatch` com acento não foi rodado contra o banco nesta sessão).
+
 ## 2026-10-29 — WhatsApp conectado sempre abre o Chat do CRM (WA-13c) (crm-editor) — branch `fix/whatsapp-conectado-abre-chat`, NÃO publicado
 - Pedido do dono: "Corretores com WhatsApp conectado não deve abrir o WhatsApp Web, deve abrir o chat do CRM."
 - Causa: o card já ia ao Chat (WA-13a); quem levava ao WhatsApp Web era (1) o próprio Chat — proteção "só responde" (2026-10-05) mostrava "enviar pelo celular" (wa.me) quando o cliente ainda não escreveu e não veio da distribuição (WA-13b); (2) a Meta Diária manual, que sempre devolvia wa.me (decisão de 2026-09-29).
