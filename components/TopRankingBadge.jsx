@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import SceneTransitionLink from "@/components/motion/SceneTransitionLink";
 import Avatar from "@/components/Avatar";
 import { weeklyChampionTitle } from "@/lib/ranking-display.mjs";
+import EconomicRadarCard from "@/components/economic/EconomicRadarCard";
 
 const REFRESH_MS = 5 * 60 * 1000;
 
@@ -94,9 +95,9 @@ export default function TopRankingBadge({ weeklyIndicator = null, dailyIndicator
   const showMyRank = Boolean(daily && !data.isMeTop1 && data.myRank);
 
   return (
-    <div className={`grid w-full grid-cols-2 gap-2 pb-1 pt-2 lg:items-stretch lg:gap-3 ${showMyRank
-      ? "lg:grid-cols-[1fr_1fr_0.8fr]"
-      : "lg:grid-cols-2"}`}>
+    // Radar Econômico (dono, 2026-10-29 — ECON-1): no computador os três cards dividem a largura em terços; no celular os
+    // dois cards continuam lado a lado e o Radar vem logo abaixo, na largura toda. "Sua posição hoje" passa para a linha de baixo.
+    <div className="grid w-full grid-cols-2 gap-2 pb-1 pt-2 lg:grid-cols-3 lg:items-stretch lg:gap-3">
       <div className="relative flex min-w-0">
         <SceneTransitionLink href="/admin/meta-diaria" direction="forward" title="Ver desempenho" className={`${WEEKLY_CARD} ${CARD_GRID}`}>
           <span aria-hidden="true" className="mm-scan" />
@@ -139,8 +140,11 @@ export default function TopRankingBadge({ weeklyIndicator = null, dailyIndicator
         </SceneTransitionLink>
         {dailyIndicator ? <span className={`${INDICATOR_POSITION} ${DAILY_TOP}`}>{dailyIndicator}</span> : null}
       </div>
+      <div className="col-span-2 flex min-w-0 lg:col-span-1">
+        <EconomicRadarCard />
+      </div>
       {showMyRank ? (
-        <div className="col-span-2 flex min-w-0 items-center gap-2 rounded-card border border-line bg-white px-3 py-1.5 text-ink lg:col-span-1 lg:px-3.5 lg:py-2.5">
+        <div className="col-span-2 flex min-w-0 items-center gap-2 rounded-card border border-line bg-white px-3 py-1.5 text-ink lg:col-span-3 lg:px-3.5 lg:py-1.5">
           <RankingIcon />
           <span className="shrink-0 text-xs font-bold text-muted">Sua posição hoje:</span>
           <span className="rounded-full bg-accent-soft px-2.5 py-1 text-sm font-black text-accent-text">{data.myRank}º</span>

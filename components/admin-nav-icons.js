@@ -1,7 +1,7 @@
 import {
   BarChart3, BookOpen, Building, Building2, Calculator, CalendarDays, CircleDot, FileText, GraduationCap, House, HousePlus, Link2,
   Megaphone, MessageCircle, MessageSquarePlus, MessageSquareQuote, Mic, Radar, RotateCcw, Route, Search, ShieldCheck, Snowflake,
-  BrainCircuit, Store, Target, Trophy, UserCheck, UserRoundPlus, Users, UsersRound, Wallet, Zap
+  BrainCircuit, LineChart, Store, Target, Trophy, UserCheck, UserRoundPlus, Users, UsersRound, Wallet, Zap
 } from "lucide-react";
 import { MarketplaceChatIcon } from "@/components/marketplace/MarketplaceChatShortcut";
 
@@ -10,6 +10,7 @@ import { MarketplaceChatIcon } from "@/components/marketplace/MarketplaceChatSho
 // Só apresentação — destinos, ordem e permissões vêm do próprio menu.
 export const ADMIN_NAV_ICONS = {
   inicio: House,
+  "economic-indicators": LineChart,
   "daily-goal": Target,
   "daily-goal-admin": Target,
   simulations: Users,

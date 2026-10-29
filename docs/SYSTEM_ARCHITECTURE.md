@@ -107,6 +107,8 @@ Credencial presente no ambiente ≠ ativa: sempre confirme antes de assumir bug 
 
 Agendados por **`pg_cron` + `pg_net` no Supabase** (não há `vercel.json`): ver tabela em [`DATABASE.md`](DATABASE.md) §5. `cron/scheduled-activities` faz, em ordem: lembretes de atividade legadas → lembretes de `calendar_activities` → `runCrmAutomations` → `reconcileSponsoredLeads` (lead patrocinado) → `reassignOrphanedClientsToOwner`. Funções de banco/RPC: [`DATABASE.md`](DATABASE.md) §4.
 
+**Indicadores Econômicos (ECON-1, 2026-10-29):** `lib/economic-indicators-core.mjs` (puro: catálogo, parsers SGS/SIDRA/Olinda, acumulados, correção, frescor, "o que mudou", alertas) + `lib/economic-indicators.js` (coleta com tempo-limite 12 s, 3 tentativas com espera, até 3 fontes em paralelo; leitura; alertas via `createAlertDeliveries`). Tela `components/economic/*` (gráficos SVG próprios, sem dependência nova). Integrações externas novas, sem chave: `api.bcb.gov.br`, `olinda.bcb.gov.br`, `apisidra.ibge.gov.br`.
+
 ## 9. Dependências (`package.json`)
 
 `next 16.2.10`, `react/react-dom 19.2.7`, `@supabase/supabase-js ^2.110`, `zod ^4.4`, `pdf-lib ^1.17`, `xlsx 0.18.5`, `lucide-react 1.23`, Tailwind `3.4.19` + PostCSS/Autoprefixer, TypeScript `^5.9` (dev). **Sem** SDK da Anthropic/Meta/Resend (todas por `fetch`), **sem** biblioteca de push (VAPID nativo em `lib/web-push.js`). Gerenciador: `pnpm` (lockfile). `pnpm-workspace.yaml` só libera build do `sharp`.
