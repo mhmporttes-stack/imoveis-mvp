@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { AlertTriangle, ArrowLeft, Lock, MessageSquareText, Paperclip, Phone, Send, Settings2 } from "lucide-react";
+import { AlertTriangle, ArrowLeft, Lock, MessageSquareText, Paperclip, Phone, Search, Send, Settings2, X } from "lucide-react";
 import Button from "@/components/ui/Button";
 import Badge from "@/components/ui/Badge";
 import Card from "@/components/ui/Card";
@@ -14,7 +14,7 @@ import { readViewerData, restoreViewerData, saveViewerData } from "@/components/
 import DeviceCacheRefreshing from "@/components/DeviceCacheRefreshing";
 import { MARKETPLACE_LIST_CACHE_PREFIX, MARKETPLACE_THREADS_CACHE_NAME } from "@/components/panel-cache-names";
 import { ManageShortcuts } from "@/components/WhatsappChatShortcuts";
-import { MARKETPLACE_MEDIA_ACCEPT, MARKETPLACE_MEDIA_MAX_BYTES, MARKETPLACE_MEDIA_MIN_VERSION, MAX_INTERNAL_LENGTH, MAX_OUTBOUND_LENGTH, fillMarketplaceShortcut, marketplaceOfficialWhatsappText, supportsMarketplaceMedia } from "@/lib/marketplace-chat-core.mjs";
+import { MARKETPLACE_MEDIA_ACCEPT, MARKETPLACE_MEDIA_MAX_BYTES, MARKETPLACE_MEDIA_MIN_VERSION, MAX_INTERNAL_LENGTH, MAX_OUTBOUND_LENGTH, fillMarketplaceShortcut, marketplaceOfficialWhatsappText, normalizeMarketplaceSearch, supportsMarketplaceMedia } from "@/lib/marketplace-chat-core.mjs";
 import ChatAttachmentTray, { filesFromTransfer, prepareImageFile, useChatAttachments } from "@/components/ChatAttachmentTray";
 import { sendAttachmentsInOrder, sendingProgressLabel } from "@/lib/chat-attachments-core.mjs";
 import { toWhatsAppDigits, formatBrazilianPhone } from "@/lib/phone-utils";
@@ -40,9 +40,13 @@ const isMessenger = (item) => item?.channel === "messenger";
 // FRESH_MS (ex.: pelo pré-carregamento) não é buscada de novo ao entrar — a próxima volta do polling atualiza.
 const FRESH_MS = 15000;
 const MAX_CACHED_THREADS = 6;
-const listQuery = (view, brokerId) => {
+// Busca pelo nome (dono, 2026-10-29): caixa no topo da lista; o servidor procura (nome da conversa, nome do cliente
+// ligado e título do anúncio, sem acento/maiúscula) dentro do escopo. Resultado de busca não vai para o cache.
+const SEARCH_DEBOUNCE_MS = 350;
+const listQuery = (view, brokerId, search = "") => {
   const params = new URLSearchParams({ view });
   if (brokerId) params.set("brokerId", brokerId);
+  if (search) params.set("q", search);
   return params.toString();
 };
 const readCachedThread = (viewerKey, id) => (id && readViewerData(viewerKey, MARKETPLACE_THREADS_CACHE_NAME)?.[id]) || null;
@@ -318,6 +322,14 @@ export default function MarketplaceChat({ canEditSettings = false, canApprove = 
   const listAnsweredRef = useRef(false);
   const [view, setView] = useState("all");
   const [brokerId, setBrokerId] = useState("");
+  const [searchText, setSearchText] = useState("");
+  const [search, setSearch] = useState("");
+  useEffect(() => {
+    const next = normalizeMarketplaceSearch(searchText);
+    if (next === search) return undefined;
+    const timer = setTimeout(() => setSearch(next), next ? SEARCH_DEBOUNCE_MS : 0);
+    return () => clearTimeout(timer);
+  }, [searchText, search]);
   const [selectedId, setSelectedId] = useState(initialConversationId || "");
   // Aviso da mensagem interna (sino/push, MKT-2i) com o painel já aberto nesta tela: a URL muda e a conversa abre.
   useEffect(() => {
@@ -343,7 +355,7 @@ export default function MarketplaceChat({ canEditSettings = false, canApprove = 
   const slashQuery = !internal && text.startsWith("/") && !text.includes("\n") ? text.slice(1) : null;
   const selectedRef = useRef("");
   const viewKeyRef = useRef("");
-  viewKeyRef.current = `${view}:${brokerId}`;
+  viewKeyRef.current = `${view}:${brokerId}:${search}`;
   const sectionRef = useRef(null);
   // Tela cheia como o Chat do WhatsApp (dono, 2026-10-22: "Remova a opção Sair embaixo, deixe como o Chat: a rolagem
   // deve rolar apenas as conversas"): sem rodapé, altura da janela e só a lista / as mensagens rolam.
@@ -359,19 +371,22 @@ export default function MarketplaceChat({ canEditSettings = false, canApprove = 
   useChatRowCascade({ sceneRef, rowsEnter, setRowsEnter, hasRows: list.conversations.length > 0, rowTag: "LI" });
 
   const loadList = useCallback(() => {
-    const query = listQuery(view, brokerId);
+    const query = listQuery(view, brokerId, search);
+    const key = `${view}:${brokerId}:${search}`;
     callApi(`/api/admin/marketplace-chat/conversations?${query}`)
       .then((data) => {
+        if (!search) saveViewerData(viewerKey, `${MARKETPLACE_LIST_CACHE_PREFIX}${query}`, { at: Date.now(), data });
+        // Resposta de um filtro/busca que já mudou (digitando): não troca a lista na tela por uma antiga.
+        if (viewKeyRef.current !== key) return;
         listAnsweredRef.current = true;
         setList(data);
         setDeviceRestored(false);
-        saveViewerData(viewerKey, `${MARKETPLACE_LIST_CACHE_PREFIX}${query}`, { at: Date.now(), data });
       })
       .catch((loadError) => {
         setDeviceRestored(false);
         setError(loadError.message);
       });
-  }, [view, brokerId, viewerKey]);
+  }, [view, brokerId, search, viewerKey]);
   useEffect(() => {
     const defaultName = `${MARKETPLACE_LIST_CACHE_PREFIX}${listQuery("all", "")}`;
     if (!viewerKey || readViewerData(viewerKey, defaultName)) return undefined;
@@ -379,7 +394,7 @@ export default function MarketplaceChat({ canEditSettings = false, canApprove = 
     restoreViewerData(viewerKey, MARKETPLACE_THREADS_CACHE_NAME);
     restoreViewerData(viewerKey, defaultName).then((restored) => {
       const saved = restored?.value?.data;
-      if (!alive || !saved || !Array.isArray(saved.conversations) || listAnsweredRef.current || viewKeyRef.current !== "all:") return;
+      if (!alive || !saved || !Array.isArray(saved.conversations) || listAnsweredRef.current || viewKeyRef.current !== "all::") return;
       setList((currentList) => (currentList.conversations.length ? currentList : saved));
       setDeviceRestored(true);
     });
@@ -399,7 +414,7 @@ export default function MarketplaceChat({ canEditSettings = false, canApprove = 
 
   useEffect(() => {
     // Ao trocar o filtro: mostra o que já estava guardado para ele e atualiza; recém-buscada não repete a busca.
-    const cached = readViewerData(viewerKey, `${MARKETPLACE_LIST_CACHE_PREFIX}${listQuery(view, brokerId)}`);
+    const cached = search ? null : readViewerData(viewerKey, `${MARKETPLACE_LIST_CACHE_PREFIX}${listQuery(view, brokerId)}`);
     if (cached?.data) setList(cached.data);
     if (!cached || Date.now() - cached.at > FRESH_MS) loadList();
     const timer = setInterval(() => document.visibilityState === "visible" && loadList(), LIST_REFRESH_MS);
@@ -575,6 +590,9 @@ export default function MarketplaceChat({ canEditSettings = false, canApprove = 
   }
 
   const conversation = thread?.conversation;
+  // Busca digitada ainda sem a resposta do servidor (debounce + ida ao servidor): "Buscando…", sem estado vazio falso.
+  const searchTerm = normalizeMarketplaceSearch(searchText);
+  const searchPending = searchTerm !== (list.search || "");
   return (
     <>
     <h1 id="marketplace-chat-title" className="sr-only">Chat do Marketplace</h1>
@@ -586,27 +604,54 @@ export default function MarketplaceChat({ canEditSettings = false, canApprove = 
 
       <div ref={sceneRef} data-chat-enter={rowsEnter ? "" : undefined} className="grid min-h-0 flex-1 grid-rows-[minmax(0,1fr)] gap-3 md:mb-4 md:grid-cols-[320px,1fr]">
         <Card padding="none" className={`min-h-0 flex-col overflow-hidden max-md:rounded-none max-md:border-x-0 ${selectedId ? "hidden md:flex" : listBack ? "admin-motion-back flex" : "flex"}`}>
-          {list.filters?.length ? (
-            <div className="shrink-0 border-b border-line p-2">
-              <select className="w-full rounded-control border border-line px-2 py-1.5 text-sm" aria-label="Mostrar conversas de"
-                value={brokerId || (view === "unassigned" ? ROULETTE : "")}
-                onChange={(event) => {
-                  const value = event.target.value;
-                  setView(value === ROULETTE ? "unassigned" : "all");
-                  setBrokerId(value && value !== ROULETTE ? value : "");
-                }}>
-                <option value="">Todos</option>
-                {list.filters.includes("unassigned") ? <option value={ROULETTE}>Roleta (aguardando atendimento)</option> : null}
-                {team.map((member) => <option key={member.id} value={member.id}>{member.name}</option>)}
-              </select>
+          {/* Busca pelo nome em destaque (dono, 2026-10-29), para todos os perfis; o seletor Todos/corretor/Roleta
+              continua ao lado, para quem o servidor libera (`filters`). */}
+          <div className="shrink-0 space-y-1 border-b border-line p-2">
+            <div className="flex items-stretch gap-2">
+              <div className="relative min-w-0 flex-1">
+                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" aria-hidden="true" />
+                <input type="search" enterKeyHint="search" autoComplete="off" aria-label="Buscar pelo nome do cliente"
+                  className={`${inputClasses} pl-9 pr-10 [&::-webkit-search-cancel-button]:hidden`}
+                  placeholder="Buscar pelo nome do cliente" value={searchText} maxLength={80}
+                  onChange={(event) => setSearchText(event.target.value)}
+                  onKeyDown={(event) => { if (event.key === "Escape" && searchText) { event.preventDefault(); setSearchText(""); } }} />
+                {searchText ? (
+                  <button type="button" onClick={() => setSearchText("")} aria-label="Limpar busca"
+                    className="absolute right-1 top-1/2 inline-flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-control text-muted hover:bg-neutral-soft hover:text-ink">
+                    <X className="h-4 w-4" aria-hidden="true" />
+                  </button>
+                ) : null}
+              </div>
+              {list.filters?.length ? (
+                <select className="w-[38%] min-w-0 shrink-0 rounded-control border border-line px-2 py-1.5 text-sm" aria-label="Mostrar conversas de"
+                  value={brokerId || (view === "unassigned" ? ROULETTE : "")}
+                  onChange={(event) => {
+                    const value = event.target.value;
+                    setView(value === ROULETTE ? "unassigned" : "all");
+                    setBrokerId(value && value !== ROULETTE ? value : "");
+                  }}>
+                  <option value="">Todos</option>
+                  {list.filters.includes("unassigned") ? <option value={ROULETTE}>Roleta (aguardando atendimento)</option> : null}
+                  {team.map((member) => <option key={member.id} value={member.id}>{member.name}</option>)}
+                </select>
+              ) : null}
             </div>
-          ) : null}
+            {searchTerm ? (
+              <p role="status" className="px-1 text-xs text-muted">
+                {searchPending ? "Buscando…" : list.conversations.length
+                  ? `${list.conversations.length} ${list.conversations.length === 1 ? "conversa encontrada" : "conversas encontradas"}${list.limited ? " (mostrando as mais recentes)" : ""}`
+                  : null}
+              </p>
+            ) : null}
+          </div>
           {list.extension ? (() => {
             const read = extensionReadText(list.extension.lastSyncAt, Date.now(), list.extension.extensionVersion, list.extension.lastRound);
             if (!read) return null;
             return <p className={`shrink-0 border-b border-line px-3 py-1.5 text-xs ${read.stale ? "bg-warning-soft text-warning" : "text-muted"}`}>{read.text}</p>;
           })() : null}
-          {!list.conversations.length ? <p className="shrink-0 p-4 text-sm text-muted">Nenhuma conversa do Marketplace ainda.</p> : null}
+          {!list.conversations.length && !searchPending ? (
+            <p className="shrink-0 p-4 text-sm text-muted">{searchTerm ? `Nenhuma conversa encontrada para “${searchText.trim()}”.` : "Nenhuma conversa do Marketplace ainda."}</p>
+          ) : null}
           <ul data-chat-rows className="min-h-0 flex-1 divide-y divide-line overflow-y-auto overscroll-contain">
             {list.conversations.map((item) => (
               <li key={item.id}>
