@@ -42,6 +42,11 @@ Pedido do dono: aba de indicadores econômicos oficiais, calculadora de correç�
 - **Causa raiz:** desde a 1.9.9 o chat roda a cada 1 min (rodadas de até 10 min); o tique de publicação (alarme de 15 min) cai quase sempre durante uma rodada e `decideTick` pula com `chat_em_andamento`, sem nova tentativa ao fim da rodada.
 - **Correção:** `publishAfterChat` (`ferramentas/marketplace-publicador/background.js`): ao terminar a rodada do chat, se a última checagem foi `chat_em_andamento`, roda o tique na hora (o chat seguinte espera via `state.running`). Versão 1.9.10, zip atualizado. Teste estrutural em `tests/estrutura-real.test.js` (110 passam).
 
+## 2026-10-29 — Roleta só do Marketplace (ROL-2k) (crm-editor) — branch `feat/roleta-so-marketplace`, NÃO publicado
+- **Pedido (REGRA OFICIAL):** Caroline Mayumi (gestora) na roleta do Marketplace com as mesmas regras dos corretores, SÓ no Marketplace.
+- **Feito:** coluna `admin_users.marketplace_roulette_only`; `pick_round_robin_broker` ganha `distribution_origin` (default `leads` = igual ao de antes; corpo conferido com o vivo em produção); só `distribute` (`lib/marketplace-chat.js`, exceto Messenger) passa `marketplace`; interruptor "Recebe só clientes do Marketplace" na edição de Gestão › Corretores. Migration `20261029120000_roleta_so_marketplace.sql` NÃO aplicada. Teste `tests/roleta-so-marketplace.test.mjs`.
+- **Pendente:** aplicar a migration, ligar a opção para a Caroline; ela precisa reconectar o WhatsApp (hoje em erro) para ser elegível.
+
 ## 2026-10-26 — Instagram 1.1.10: DM não parava mais em "mudança de API" (get_by_participants 404)
 - **Pedido/sintoma:** print do dono com o alerta "direct_v2/get_by_participants respondeu HTTP 404" e 0 DMs enviadas.
 - **Causa raiz:** `enviarDmPelaApi` (`ferramentas/instagram-seguidor/instagram-api.js`): broadcast/text recusado (4xx, nada saiu) → busca da conversa 404 em HTML virava `mudanca_api`, que não aciona a digitação (só `nao_enviada` aciona).

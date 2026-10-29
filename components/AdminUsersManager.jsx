@@ -59,7 +59,7 @@ export default function AdminUsersManager({ initialUsers = [], counts = {}, canM
 
   function beginEdit(user) {
     setEditingId(user.id);
-    setEditForm({ name: user.name, email: user.email, phone: user.phone || "", gender: user.gender || "", password: "", creci: user.creci || "", addressStreet: user.addressStreet || "", addressNumber: user.addressNumber || "", addressNeighborhood: user.addressNeighborhood || "", addressCity: user.addressCity || "", addressState: user.addressState || "", residenceType: user.residenceType || "", apartmentNumber: user.apartmentNumber || "", addressComplement: user.addressComplement || "", emergencyContactName: user.emergencyContactName || "", emergencyContactRelationship: user.emergencyContactRelationship || "", emergencyContactPhone: user.emergencyContactPhone || "", meetLink: user.meetLink || "", role: user.role, linkedBrokerId: user.linkedBrokerId || "", managerId: user.managerId || "", brokerCommissionPercentage: user.brokerCommissionPercentage ?? 50, agencyCommissionPercentage: user.agencyCommissionPercentage ?? 50, defaultManagerPercentage: user.defaultManagerPercentage ?? 10, leadDistributionEnabled: user.leadDistributionEnabled === true, status: user.status });
+    setEditForm({ name: user.name, email: user.email, phone: user.phone || "", gender: user.gender || "", password: "", creci: user.creci || "", addressStreet: user.addressStreet || "", addressNumber: user.addressNumber || "", addressNeighborhood: user.addressNeighborhood || "", addressCity: user.addressCity || "", addressState: user.addressState || "", residenceType: user.residenceType || "", apartmentNumber: user.apartmentNumber || "", addressComplement: user.addressComplement || "", emergencyContactName: user.emergencyContactName || "", emergencyContactRelationship: user.emergencyContactRelationship || "", emergencyContactPhone: user.emergencyContactPhone || "", meetLink: user.meetLink || "", role: user.role, linkedBrokerId: user.linkedBrokerId || "", managerId: user.managerId || "", brokerCommissionPercentage: user.brokerCommissionPercentage ?? 50, agencyCommissionPercentage: user.agencyCommissionPercentage ?? 50, defaultManagerPercentage: user.defaultManagerPercentage ?? 10, leadDistributionEnabled: user.leadDistributionEnabled === true, marketplaceRouletteOnly: user.marketplaceRouletteOnly === true, status: user.status });
     setError("");
     setMessage("");
   }
@@ -310,6 +310,7 @@ export default function AdminUsersManager({ initialUsers = [], counts = {}, canM
                   {["admin", "manager", "broker"].includes(editForm.role) ? <FinancialRuleFields form={editForm} managers={managers.filter((manager) => manager.id !== user.id)} onChange={(field, value) => setEditForm((current) => ({ ...current, [field]: value }))} /> : null}
                   <Field label="CRECI" value={editForm.creci} onChange={(value) => setEditForm((current) => ({ ...current, creci: value }))} />
                   <DistributionField checked={editForm.leadDistributionEnabled} onChange={(value) => setEditForm((current) => ({ ...current, leadDistributionEnabled: value }))} />
+                  <MarketplaceOnlyField checked={editForm.marketplaceRouletteOnly === true} onChange={(value) => setEditForm((current) => ({ ...current, marketplaceRouletteOnly: value }))} />
                   {["admin", "manager"].includes(editForm.role) ? <MeetLinkField value={editForm.meetLink} onChange={(value) => setEditForm((current) => ({ ...current, meetLink: value }))} /> : null}
                 </div>
                 <div className="mt-4 divide-y divide-line">
@@ -529,6 +530,11 @@ function MeetLinkField({ value, onChange }) {
 
 function DistributionField({ checked, onChange, className = "" }) {
   return <label className={`flex min-h-11 min-w-0 max-w-full items-center gap-3 rounded-2xl border border-line bg-white px-4 text-sm font-black text-navy lg:w-fit ${className}`}><input className="h-5 w-5 shrink-0 accent-brand" type="checkbox" checked={checked} onChange={(event) => onChange(event.target.checked)} /><span>Participa da distribuição de leads</span></label>;
+}
+
+// ROL-2k (dono, 2026-10-29): quem não participa da distribuição de leads pode receber só os clientes do Marketplace.
+function MarketplaceOnlyField({ checked, onChange, className = "" }) {
+  return <label className={`flex min-h-11 min-w-0 max-w-full items-center gap-3 rounded-2xl border border-line bg-white px-4 text-sm font-black text-navy lg:w-fit ${className}`}><input className="h-5 w-5 shrink-0 accent-brand" type="checkbox" checked={checked} onChange={(event) => onChange(event.target.checked)} /><span>Recebe só clientes do Marketplace</span></label>;
 }
 
 function FinancialRuleFields({ form, managers, onChange, compact = false }) {
