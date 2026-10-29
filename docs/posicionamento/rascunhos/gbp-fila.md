@@ -8,8 +8,8 @@
 ## Status
 | # | Dia | Tipo | Assunto | Status |
 |---|---|---|---|---|
-| I1 | 1 | Imóvel | COD4362 Jd. Santa Antonieta | NÃO PUBLICADO (2026-10-29: ferramenta Windsor indisponível na sessão) |
-| N1 | 1 | Informativa | Primeiro imóvel: por onde começar (Post 1 aprovado 02/10) | NÃO PUBLICADO (idem) |
+| I1 | 1 | Imóvel | COD4362 Jd. Santa Antonieta | PUBLICADO 2026-10-29 (localPosts/6008231067595434958) |
+| N1 | 1 | Informativa | Primeiro imóvel: por onde começar (Post 1 aprovado 02/10) | PUBLICADO 2026-10-29 (localPosts/7534848968843610473) |
 | I2 | 2 | Imóvel | COD4361 Maria Angélica | na fila |
 | N2 | 2 | Informativa | MCMV e faixas de renda (Post 2 aprovado 02/10) | na fila |
 | I3 | 3 | Imóvel | COD4360 Torres de Marília | na fila |

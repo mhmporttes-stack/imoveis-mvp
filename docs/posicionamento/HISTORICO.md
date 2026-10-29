@@ -142,3 +142,5 @@ Meta Ads, 30 dias (moeda A CONFIRMAR): 10 campanhas/anúncios, gasto total 682,8
 
 **Números-chave:** title "Matheus Machado - Corretor de Imóveis"; description "Empreendimentos imobiliários em Marília com atendimento consultivo."; `application-name` e apple title = "Painel Matheus" (nome do CRM no site público); 16 imóveis linkados; sem "primeiro imóvel/MCMV/Caixa" no title/description.
 **Variação vs. anterior:** n/a (linha de base).
+
+- **2026-10-29 — GMN publicado (Windsor `create_local_post`):** I1 COD4362 Jd. Santa Antonieta (foto real + "Saiba mais" com UTM `gmn_post`/`cod4362`, post `localPosts/6008231067595434958`) e N1 "Primeiro imóvel: por onde começar" (aprovado 02/10, "Saiba mais" → /simulacao, post `localPosts/7534848968843610473`). Ambos aceitos com estado PROCESSING (revisão do Google). Autorização permanente do dono de 29/10: 2 posts/dia (1 imóvel + 1 informativo).
