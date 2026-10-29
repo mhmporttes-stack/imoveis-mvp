@@ -68,8 +68,13 @@ export default function AdminPropertyList({ properties }) {
               {place ? <p className="mt-0.5 text-sm text-muted">{place}</p> : null}
             </div>
             <div className="mt-3 flex flex-wrap gap-1.5 border-t border-line px-4 py-3">
+              {/* "Abrir" de imóvel = apresentação INTERNA do CRM (dono, 2026-10-29), com contato e informações internas
+                  (redação por perfil no servidor). Empreendimento não tem a página interna: segue abrindo o site. */}
+              {!property.isDevelopment ? (
+                <Link className={`${SMALL_BTN} border-line text-navy`} href={`/admin/imoveis/${property.id}`}>Abrir</Link>
+              ) : null}
               {property.isPublished ? (
-                <Link className={`${SMALL_BTN} border-line text-navy`} href={`/empreendimentos/${property.id}`}>Abrir</Link>
+                <Link className={`${SMALL_BTN} border-line text-navy`} href={`/empreendimentos/${property.id}`}>{property.isDevelopment ? "Abrir" : "Ver no site"}</Link>
               ) : null}
               <Link className={`${SMALL_BTN} border-line text-navy`} href={`/admin/empreendimentos/${property.id}`}>Editar</Link>
               {/* Regras de entrada só existem para empreendimento (dono, 2026-10-15). */}

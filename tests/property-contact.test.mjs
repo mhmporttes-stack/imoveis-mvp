@@ -42,7 +42,7 @@ test("corretor/associado não recebem o contato (redação no servidor)", () => 
 test("contato nunca entra no site público nem no imóvel genérico", () => {
   const publicSource = read("lib/public-properties.js");
   assert.doesNotMatch(publicSource, /property_contacts|contact_phone/);
-  assert.match(publicSource, /const \{ internalNotes, createdByUserId, contactName, contactPhone, contactType, \.\.\.publicSafe \} = property;/);
+  assert.match(publicSource, /const \{ internalNotes, createdByUserId, contactName, contactPhone, contactType, exclusivity, fullAddress, documents, \.\.\.publicSafe \} = property;/);
   assert.doesNotMatch(read("lib/property-mapper.js"), /contact_/);
   const migration = read("supabase/migrations/20261016150000_property_contacts.sql");
   assert.match(migration, /enable row level security/);
