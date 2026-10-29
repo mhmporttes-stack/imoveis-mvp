@@ -18,15 +18,15 @@ Regra do dono (2026-10-15):
 - (nenhum)
 
 ### Carrossel azul (escuro)
-- **Financiar e pagar 2 imóveis? Tô fora** (quitar antes do prazo) — `carrosseis/2026-10-18-quitar-antes/` (7 lâminas, 3:4; capa com foto "pensativo" trocada em 2026-10-29)
-- **Nunca vi ninguém se arrepender de comprar cedo** — `carrosseis/2026-10-20-arrependeu-esperar/` (lâmina única)
+- (nenhum)
 
 ### Imóvel
 - (nenhum)
 
 ## Publicados
+- Financiar e pagar 2 imóveis? Tô fora / quitar antes (2026-10-18, azul) — dono confirmou em 2026-10-29
+- Nunca vi ninguém se arrepender de comprar cedo (2026-10-20, azul) — dono confirmou em 2026-10-29
 - NF-e ABI / Receita Federal (2026-10-23, azul) — dono confirmou em 2026-10-29
-- Não importa quem ganhar a eleição (2026-10-24) — dono confirmou em 2026-10-29
 - Escolher entre o aluguel ou o meu 1º apê (claro) — dono confirmou em 2026-10-29
 - Casa Maria Angélica (COD4361, imóvel) — Instagram, site e Marketplace em 2026-10-26
 - Casa Jd. Santa Antonieta (COD4362, imóvel) — Instagram, site e Marketplace em 2026-10-29
@@ -45,3 +45,6 @@ Regra do dono (2026-10-15):
 - Alameda Lima Fase 3 (azul)
 - Casa + edícula · Cavalari (COD4352, imóvel)
 - Casa com área gourmet e spa · Terra Nova (COD4353, imóvel)
+
+## Descartados
+- Não importa quem ganhar a eleição (2026-10-24) — dono não postou porque não gostou; eleição já passou.
