@@ -84,6 +84,8 @@ export default function DailyGoalDashboard({ initialGoal, variant = "full", rend
     }
     const refreshed = await fetch("/api/daily-goal");
     if (refreshed.ok) setGoal(await refreshed.json());
+    // Dono, 2026-10-29: WhatsApp conectado → Chat do CRM (chatUrl, interno); senão o wa.me de sempre.
+    if (data.chatUrl) return { chatUrl: data.chatUrl };
     return data.whatsappUrl || null;
   }
 
@@ -293,7 +295,10 @@ function ClientCard({ client, onSend, onSaveTemplate, intro = null }) {
     setBusy(true);
     try {
       const whatsappUrl = await onSend(client.roundId, editing ? text : undefined);
-      if (whatsappUrl) {
+      if (whatsappUrl?.chatUrl) {
+        popup?.close();
+        window.location.assign(whatsappUrl.chatUrl);
+      } else if (whatsappUrl) {
         if (popup) popup.location.href = whatsappUrl;
         else window.location.assign(whatsappUrl);
       } else {

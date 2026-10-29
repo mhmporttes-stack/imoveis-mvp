@@ -11,6 +11,11 @@
 
 
 
+## 2026-10-29 — WhatsApp conectado sempre abre o Chat do CRM (WA-13c) (crm-editor) — branch `fix/whatsapp-conectado-abre-chat`, NÃO publicado
+- Pedido do dono: "Corretores com WhatsApp conectado não deve abrir o WhatsApp Web, deve abrir o chat do CRM."
+- Causa: o card já ia ao Chat (WA-13a); quem levava ao WhatsApp Web era (1) o próprio Chat — proteção "só responde" (2026-10-05) mostrava "enviar pelo celular" (wa.me) quando o cliente ainda não escreveu e não veio da distribuição (WA-13b); (2) a Meta Diária manual, que sempre devolvia wa.me (decisão de 2026-09-29).
+- Correção: decisão única `isConnectedChatFirst`/`buildCrmChatUrl` (`lib/client-card-whatsapp-core.mjs`); `isConnectedOwnClientFirstMessageAllowed` (`lib/distribution-first-message-core.mjs`) usada por `distributionFirstMessageAllowed` (`lib/whatsapp-chat.js`): corretor/associado conectado e responsável inicia a conversa pelo Chat (fora: arquivado, Não contactar por cadastro ou telefone, fila de espera; ROL-4c e 80/h mantidos). `registerDailyGoalAttempt` devolve `chatUrl` (Chat com o texto pronto) depois de gravar a tentativa — contagem/pontuação iguais; `DailyGoalDashboard` navega para ele. Teste `tests/whatsapp-connected-chat-first.test.mjs`.
+
 ## 2026-10-29 — Admin geral sem "Entendi" nos alertas de supervisão (AL-ADM) + setas coloridas IPCA/INCC (crm-editor) — branch `fix/alertas-ok-setas-radar`, NÃO publicado
 
 - Dono: "Remova as mensagens de alerta que eu preciso ficar clicando em OK... só para Carol." Últimos 30 dias: admin recebeu Importantes "Cliente aguardando resposta" (67), `whatsapp_session_attention` (51), `whatsapp_false_connection` (34) — os mesmos que a gestora Caroline Mayumi (única "Carol", manager) recebe. `createAlertDeliveries` passa esses ao admin geral como Informativo (`quietImportantForAdmins`, `lib/crm-alerts-core.mjs`). Gestora/corretores sem mudança. Mantidos Importantes ao admin: serviço WhatsApp parado, Marketplace (extensão, envio, redistribuição), trava do Henry, WhatsApp de corretor desconectado (`whatsapp_disconnect_owner`), teste. Pendentes já gravados continuam até a ciência.
