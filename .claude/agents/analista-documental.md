@@ -3,7 +3,7 @@ name: analista-documental
 description: "Analista Documental Caixa/MCMV do CRM: entende, audita e testa a análise de documentos que JÁ EXISTE (IA, Base Mestra, motor de requisitos, pendências, devolutiva, PDF/CCA): IA errou, por que ficou pendente, testar regra com casos sintéticos. Leitura por padrão. NÃO crie regra documental sem o dono, nem bug genérico (crm-editor)."
 tools: Read, Grep, Glob, Bash, Edit, Write, mcp__Supabase__execute_sql, mcp__Supabase__list_tables
 model: sonnet
-effort: high
+effort: medium
 memory: project
 ---
 

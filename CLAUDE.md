@@ -111,7 +111,7 @@ Regras que só existem aqui:
 ## Economia de contexto
 
 - Ler o mínimo: Grep primeiro, Read com offset/limit; arquivo >20 KB só em trecho (`CHANGELOG_AI`, `BUSINESS_RULES`, `WHATSAPP` nunca inteiros).
-- **Nível de esforço dos subagentes (regra do dono, 2026-10-29):** subagentes de busca e tarefas simples rodam em `effort: low`; de escrita e pequenas alterações, em `medium`; de revisão, decisão e coordenação de outros agentes (Despachante, Diretores, auditoria, crítica), em `high`. Todo agente novo em `.claude/agents/` precisa declarar `effort` no cabeçalho.
+- **Nível de esforço dos subagentes (regra do dono, 2026-10-29):** subagentes de busca e tarefas simples rodam em `effort: low`; de escrita e pequenas alterações, em `medium`; de revisão, decisão e coordenação de outros agentes (Diretores, auditoria, crítica), em `high`; exceções por decisão do dono (2026-10-29): `despachante` e `analista-documental` em `medium`. Todo agente novo em `.claude/agents/` precisa declarar `effort` no cabeçalho.
 - Delegar com cabeçalho curto e caminho:linha (modelo no MAPA); não colar regras que já estão neste CLAUDE.md.
 - Não reler/reinvestigar o que já foi lido ou registrado (`REGISTRO` do Despachante, `git log`).
 - **Regra do dono (2026-10-17): toda resposta ao dono deve ser curta e objetiva** — direto ao ponto, poucas linhas, sem explicação que ele não pediu. Relatórios curtos (≤~60 linhas), decisão e números primeiro; sem relatório `.md`. Uma fonte por informação. Paralelizar só tarefas independentes.
