@@ -66,10 +66,12 @@ Quatro papéis em `admin_users.role`: **admin** (geral), **manager** (gestor de 
 | Clientes, funil/status, tags, jornada pública | `.claude/rules/crm-clientes-funil.md` |
 | Meta Diária, carteira ativa, ranking/pontuação | `.claude/rules/meta-diaria-ranking.md` |
 | Roleta, prospecção, campanhas/gerador de links | `.claude/rules/roleta-prospeccao-campanhas.md` |
+| Marketplace do Facebook (roleta, chat, extensão) | `.claude/rules/marketplace-chat.md` |
 | Documentação do cliente, IA, envio à CCA | `.claude/rules/documentacao-cca.md` |
 | Automações, notificações, push, mensagem diária | `.claude/rules/automacoes-notificacoes.md` |
 | Financeiro (comissões, despesas, recebimentos) | `.claude/rules/financeiro.md` |
 | Integrações externas (WhatsApp, IA, e-mail, cron) | `.claude/rules/integracoes-externas.md` |
+| Assistente de voz Henry (voz, treino, bom dia) | `.claude/rules/henry-assistente-voz.md` |
 | E-mail marketing / prospecção por e-mail | `.claude/rules/email-marketing.md` |
 | Convenções de frontend, PWA | `.claude/rules/frontend-pwa.md` |
 | Academia (formação dos corretores) | `.claude/rules/academia.md` |
