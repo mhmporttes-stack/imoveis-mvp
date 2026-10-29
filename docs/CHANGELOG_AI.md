@@ -11,6 +11,12 @@
 
 
 
+## 2026-10-29 — Janelinha de cliente novo some sozinha (CLI-16) (crm-editor) — branch `fix/notificacoes-toast-somem`, NÃO publicado
+- Pedido do dono (print com cartões "MESSENGER · há 1 min / Daniel / Facebook Marketplace…" empilhados no topo): "essas notificações têm que sumir sozinhas e ficar apenas no ícone de notificações".
+- Causa: a janelinha da CLI-16 (`components/client-popups/ClientPopupStack.jsx`) foi feita para "ficar até um clique" — sem tempo de saída, ficava na tela até alguém clicar (no celular, faixa no topo por cima do cabeçalho).
+- Agora: ~7 s de tela por janelinha (`CLIENT_POPUP_AUTO_DISMISS_MS`), pausando com mouse/toque/foco em cima e com a aba oculta; ao vencer, vira "vista" no aparelho (mesmo `localStorage` do clique — não volta no próximo ciclo de 20 s nem ao recarregar). Máx. 3 na tela; excedentes viram "vistas" na hora e ficam só no sino (contadas no "+N" enquanto houver janelinha). O sino (`crm_notifications`) não é marcado como lido. Clique em cima/fora/Esc, Henry em tela cheia, som, push, quem recebe e texto não mudaram; Central de Alertas (Importante), Supervisão e FUN-15 intocados.
+- Regras puras `advanceClientPopupTimers`/`overflowClientPopupKeys` em `lib/client-popup-view-core.mjs`; testes em `tests/client-popup-core.test.mjs`. Docs: `BUSINESS_RULES.md` CLI-16, `.claude/rules/crm-clientes-funil.md`.
+
 ## 2026-10-29 — Chat do Marketplace: busca pelo nome do cliente no topo da lista (MKT-2d) (crm-editor) — branch `feat/marketplace-busca-nome`, NÃO publicado
 - Pedido do dono: "O Marketplace não tem a caixa de busca lá em cima pelo nome do cliente. Precisa ter. Ao invés de 'Todos' [...] quero uma caixa para pesquisar pelo nome do [cliente]."
 - Caixa "Buscar pelo nome do cliente" no topo da lista (computador e celular/app, todos os perfis), com lupa, botão limpar (e Esc), espera de 350 ms ao digitar, "Buscando…", "N conversas encontradas" e "Nenhuma conversa encontrada para …". O seletor Todos/corretor/Roleta continua ao lado (mesmas regras).
