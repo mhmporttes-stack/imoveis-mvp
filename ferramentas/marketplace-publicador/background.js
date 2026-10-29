@@ -1,6 +1,6 @@
 // Service worker da extensão. Agenda (alarme de 15 min), manter acordado (alarme de 1 min), fila do CRM, abertura da aba do Facebook e retorno ao CRM.
 // Regras de agenda/limite em lib/agenda.js (testadas). Seletores do Facebook em selectors.js.
-import { CHECK_EVERY_MINUTES, REASON_LABELS, STALE_RUN_MS, buildResultBody, decideTick, finishJob, initialState, localWaitUntil, recomputeFromHistory, recordCheck, setManualPause, startJob } from "./lib/agenda.js";
+import { CHECK_EVERY_MINUTES, REASON_LABELS, STALE_RUN_MS, buildResultBody, decideTick, finishJob, initialState, localWaitUntil, publishLimits, recomputeFromHistory, recordCheck, setManualPause, startJob, todayCount } from "./lib/agenda.js";
 import { DEFAULT_CRM_URL, downloadAttachment, downloadPhotos, fetchNextListing, fetchNextOutbound, postChatSync, postDiagnostic, postOutboundResult, postResult } from "./lib/crm-api.js";
 import { CHAT_EVERY_MINUTES, MAX_SENDS_PER_ROUND, ROUND_BUDGET_MS, outboxWaitMs, chatLockAlive, clearThreadFailure, diagnosticDue, splitIgnored, decideChatTick, describeChatLock, outboundResultBody, SEND_RETRY_WAIT_MS, verifyOutcome, recordThreadFailure, rememberPreviews, threadRetryBlocked, threadsToRead } from "./lib/chat-agenda.js";
 import { CHECKPOINT_PAUSE_MS } from "./lib/agenda.js";
@@ -8,6 +8,7 @@ import { KEEP_AWAKE_ALARM, KEEP_AWAKE_EVERY_MINUTES, PULSE_PAGE, PULSE_TAB_CLOSE
 import { WORK_WINDOW_SIZE, describeWorkView, findWorkWindow } from "./lib/work-window.js";
 import { createAwakeManager } from "./lib/page-awake.js";
 import { SIGNALED_SKIPS, roundStatus } from "./lib/round-status.js";
+import { criarLigacaoCrmChrome } from "./lib/crm-link.js";
 
 const ALARM = "mp-tick";
 const CHAT_ALARM = "mp-chat";
@@ -34,6 +35,12 @@ async function loadConfig() {
   // está rodando no PC (em 22/10 o PC ainda rodava a 1.9.0 com o zip da 1.9.2 publicado no repositório).
   return { baseUrl: config?.baseUrl || DEFAULT_CRM_URL, key: config?.key || "", version: chrome.runtime.getManifest().version };
 }
+
+// 1.10.0 (EXT-1, dono, 2026-10-29): tela "Extensões" do CRM — "Parar tudo" consultado antes de cada ação, limites da
+// publicação editados lá, aviso de versão nova e sinal de saúde (erros, partes da tela não achadas, falhas internas).
+const crmLink = criarLigacaoCrmChrome(loadConfig);
+const swallow = (context) => crmLink.engolido(context);
+const stoppedByCrm = async () => (await crmLink.estado()).stopped === true;
 
 function notify(title, message) {
   chrome.notifications.create({ type: "basic", iconUrl: "icones/icon-192-mm.png", title, message, priority: 2 });
@@ -85,7 +92,7 @@ chrome.alarms.onAlarm.addListener((alarm) => {
 });
 // Opção "Manter acordado" mudou nas Opções: aplica na hora (sem esperar o próximo minuto).
 chrome.storage.onChanged.addListener((changes, area) => {
-  if (area === "local" && changes.keepAwake) applyPower().catch(() => {});
+  if (area === "local" && changes.keepAwake) applyPower().catch(swallow("aplicar manter acordado"));
 });
 
 // --- Manter acordado (1.9.0) -------------------------------------------------------------------------------------
@@ -115,7 +122,7 @@ async function getWorkTab({ create = true } = {}) {
   if (workTabPending) return workTabPending;
   workTabPending = (async () => {
     const { workWindow } = await chrome.storage.local.get("workWindow");
-    const windows = await chrome.windows.getAll({ populate: true, windowTypes: ["normal"] }).catch(() => []);
+    const windows = await chrome.windows.getAll({ populate: true, windowTypes: ["normal"] }).catch((error) => swallow("listar as janelas do Chrome")(error) || []);
     const found = findWorkWindow(windows, workWindow);
     if (found) {
       if (found.windowId !== workWindow?.windowId || found.tabId !== workWindow?.tabId) await chrome.storage.local.set({ workWindow: { windowId: found.windowId, tabId: found.tabId } });
@@ -148,7 +155,7 @@ async function openWorkWindow() {
 
 // Indicador do popup: a janela existe? está minimizada? a página do Facebook está visível para o Chrome?
 async function workView() {
-  const tab = await getWorkTab({ create: false }).catch(() => null);
+  const tab = await getWorkTab({ create: false }).catch(swallow("procurar a janela de trabalho (popup)"));
   if (!tab) return describeWorkView({ exists: false });
   const window = await chrome.windows.get(tab.windowId).catch(() => ({}));
   const view = String(tab.url || "").startsWith(FB_PREFIX) ? await pageVisibility(tab.id) : { visibility: "?" };
@@ -157,8 +164,8 @@ async function workView() {
 
 // Abas "manter acordado" que ficaram de uma versão anterior / worker morto (só as da extensão, pelo endereço).
 async function closeLeftoverPulseTabs() {
-  const tabs = await chrome.tabs.query({ url: chrome.runtime.getURL(PULSE_PAGE) }).catch(() => []);
-  for (const tab of tabs) await chrome.tabs.remove(tab.id).catch(() => {});
+  const tabs = await chrome.tabs.query({ url: chrome.runtime.getURL(PULSE_PAGE) }).catch((error) => swallow("listar abas de manter acordado")(error) || []);
+  for (const tab of tabs) await chrome.tabs.remove(tab.id).catch(swallow("fechar aba de manter acordado antiga"));
 }
 
 // Pedido literal do dono (1.9.0): a cada 1 min abre uma aba em segundo plano e fecha em ~2 s. 1.9.4: dentro da janela
@@ -167,17 +174,17 @@ async function keepAwakeTick() {
   const { keepAwake, state } = await applyPower();
   const { pulseTabId } = await chrome.storage.session.get("pulseTabId");
   const previousPulseOpen = pulseTabId ? Boolean(await chrome.tabs.get(pulseTabId).catch(() => null)) : false;
-  const work = await getWorkTab({ create: false }).catch(() => null);
+  const work = await getWorkTab({ create: false }).catch(swallow("procurar a janela de trabalho (manter acordado)"));
   const decision = decidePulse(keepAwake, state, { chatBusy: await chatBusy(), hasNormalWindow: Boolean(work), previousPulseOpen });
   if (!decision.pulse) {
     // Aba de um minuto anterior que ficou (worker morreu antes de fechar): fecha agora.
-    if (previousPulseOpen && decision.reason === "aba_anterior_aberta") await chrome.tabs.remove(pulseTabId).catch(() => {});
+    if (previousPulseOpen && decision.reason === "aba_anterior_aberta") await chrome.tabs.remove(pulseTabId).catch(swallow("fechar aba de manter acordado"));
     return decision;
   }
   const tab = await chrome.tabs.create({ windowId: work.windowId, active: false, url: chrome.runtime.getURL(PULSE_PAGE) });
   await chrome.storage.session.set({ pulseTabId: tab.id });
   await sleep(PULSE_TAB_CLOSE_MS);
-  await chrome.tabs.remove(tab.id).catch(() => {});
+  await chrome.tabs.remove(tab.id).catch(swallow("fechar aba de manter acordado"));
   await chrome.storage.session.remove("pulseTabId");
   return decision;
 }
@@ -367,7 +374,7 @@ async function runPublication(listing) {
   await sleep(500);
   // Depurador + emulação de foco durante a publicação inteira (1.9.8: funciona com a janela de trabalho atrás de outra).
   const outcome = await withAwakePage(tab.id, () => publishOnTab(tab, listing, photos));
-  await chrome.tabs.remove(tab.id).catch(() => {});
+  await chrome.tabs.remove(tab.id).catch(swallow("fechar a aba da publicação"));
   return outcome;
 }
 
@@ -388,7 +395,7 @@ async function publishOnTab(tab, listing, photos) {
       if (outcome?.ok && !outcome.url) {
         await navigateAndWait(tab.id, `${FB_ORIGIN}/marketplace/you/selling`);
         await inject(tab.id);
-        const found = await sendWithTimeout(tab.id, { type: "mp-find-url", price: listing.price }, 60000).catch(() => ({}));
+        const found = await sendWithTimeout(tab.id, { type: "mp-find-url", price: listing.price }, 60000).catch((error) => swallow("achar o link do anúncio publicado")(error) || {});
         outcome = { ...outcome, url: found?.url || "" };
       }
       outcome = outcome || { ok: false, clickedPublish: false, step: "página do Facebook", error: "Sem resposta da página." };
@@ -414,13 +421,44 @@ async function recoverInterruptedRun(state) {
   return saveState(finishJob(state, outcome, new Date()));
 }
 
+// --- Tela "Extensões" do CRM (1.10.0, EXT-1) -------------------------------------------------------------------------
+// Sinal de saúde: publicações do dia x limite, pausa, última rodada, erros e partes da tela não achadas (lib/crm-link.js).
+async function reportHealth({ ok = true, stage = "", error = "", force = false } = {}) {
+  const [state, runtime] = await Promise.all([loadState(), crmLink.estado()]);
+  const limits = publishLimits(runtime.config || {});
+  const paused = state.pausedUntil && new Date(state.pausedUntil).getTime() > Date.now();
+  const result = await crmLink.enviarSaude({
+    ok,
+    stage,
+    error,
+    today: { publish: { done: todayCount(state), limit: limits.dailyLimit } },
+    pausedUntil: paused ? state.pausedUntil : null,
+    pauseReason: paused ? state.pauseReason : "",
+    manualPause: state.manualPause === true,
+    stoppedByCrm: runtime.stopped === true
+  }, { forcar: force });
+  await maybeWarnOutdated(runtime);
+  return result;
+}
+
+// Versão do PC atrasada: avisa uma vez por versão nova (o popup mostra o link do zip o tempo todo).
+async function maybeWarnOutdated(runtime) {
+  if (!runtime?.outdated || !runtime.latestVersion) return;
+  const { warnedVersion } = await chrome.storage.local.get("warnedVersion");
+  if (warnedVersion === runtime.latestVersion) return;
+  await chrome.storage.local.set({ warnedVersion: runtime.latestVersion });
+  notify("Publicador do Marketplace: versão nova", `A versão ${runtime.latestVersion} está no CRM (este PC roda a ${chrome.runtime.getManifest().version}). Abra o popup da extensão para baixar.`);
+}
+
 async function tick(origin, onDecision = () => {}) {
   let state = await recoverInterruptedRun(await loadState());
-  const decision = decideTick(state, new Date(), { chatBusy: await chatBusy() });
+  const runtime = await crmLink.estado();
+  const decision = decideTick(state, new Date(), { chatBusy: await chatBusy(), stoppedByCrm: runtime.stopped === true, limits: runtime.config || {} });
   if (decision.action !== "check") {
     const waitUntil = localWaitUntil(state, decision.reason);
     await saveState(recordCheck(state, decision.reason, new Date(), waitUntil));
     onDecision({ reason: decision.reason, waitUntil });
+    await reportHealth({ ok: true, stage: decision.reason }).catch(swallow("sinal de saúde (publicação)"));
     return { reason: decision.reason, waitUntil };
   }
 
@@ -446,6 +484,11 @@ async function tick(origin, onDecision = () => {}) {
   }
 
   state = await saveState(finishJob(await loadState(), { ...outcome, error: `${outcome.error || ""}${reportError}` }, new Date()));
+  if (!outcome.ok) {
+    await crmLink.registrarErro("publicação", `Passo ${outcome.step || "?"}: ${outcome.error || "falha sem descrição"}`);
+    if (/não encontrad|nao encontrad|not found/i.test(String(outcome.error || ""))) await crmLink.registrarSeletor(`publicação: ${outcome.step || "?"}`, outcome.error);
+  }
+  await reportHealth({ ok: Boolean(outcome.ok), stage: outcome.ok ? "publicado" : `publicação: ${outcome.step || "?"}`, error: outcome.ok ? "" : outcome.error, force: true }).catch(swallow("sinal de saúde (publicação)"));
   if (outcome.ok) {
     notify("Anúncio publicado", `${listing.title}${outcome.url ? "" : " — confira o link no Facebook"}${reportError}`);
   } else if (outcome.checkpoint) {
@@ -460,7 +503,7 @@ async function tick(origin, onDecision = () => {}) {
 // rodada ("chat_em_andamento") e o anúncio aprovado ficava parado na fila. Agora, quando a publicação foi adiada pelo
 // chat, ela roda assim que a rodada do chat termina (a próxima rodada do chat espera: decideChatTick pula com `running`).
 async function publishAfterChat() {
-  const state = await loadState().catch(() => null);
+  const state = await loadState().catch(swallow("ler o estado depois do chat"));
   if (state?.lastCheckResult !== "chat_em_andamento") return;
   await tick("após o chat").catch((error) => console.warn("[marketplace] tique após o chat falhou:", error));
 }
@@ -487,9 +530,15 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       const alive = chatLockAlive(chatLock, { now, instance: WORKER_INSTANCE });
       const chatNow = chatLock?.token ? { alive, step: describeChatLock(chatLock, now), progress: chatLock.progress || null } : null;
       const { keepAwake } = await chrome.storage.local.get("keepAwake");
-      return { state: await loadState(), config: { baseUrl: config.baseUrl, hasKey: Boolean(config.key) }, keepAwake: keepAwake !== false, chatLast: chatLast || null, chatSkip: chatSkip || null, chatNow };
+      const crm = await crmLink.estado();
+      return { state: await loadState(), config: { baseUrl: config.baseUrl, hasKey: Boolean(config.key) }, keepAwake: keepAwake !== false, chatLast: chatLast || null, chatSkip: chatSkip || null, chatNow, crm: { stopped: crm.stopped === true, outdated: crm.outdated === true, latestVersion: crm.latestVersion || "", downloadUrl: crm.downloadUrl || "", limits: publishLimits(crm.config || {}), origin: crm.origem } };
     }
     if (message?.type === "mp-chat-unlock") return unlockChat();
+    // 1.10.0: falha interna da aba/opções que antes sumia (content.js, options.js) → sinal de saúde.
+    if (message?.type === "mp-swallowed") {
+      swallow(String(message.context || "página").slice(0, 80))(new Error(String(message.error || "")));
+      return { ok: true };
+    }
     if (message?.type === "mp-work-open") return openWorkWindow();
     if (message?.type === "mp-work-view") return workView();
     if (message?.type === "mp-pause") {
@@ -669,7 +718,7 @@ async function focusTab(tabId) {
   const [previous] = await chrome.tabs.query({ active: true, windowId: tab.windowId });
   await chrome.tabs.update(tabId, { active: true });
   await sleep(600);
-  return { info, restore: async () => { if (previous?.id && previous.id !== tabId) await chrome.tabs.update(previous.id, { active: true }).catch(() => {}); } };
+  return { info, restore: async () => { if (previous?.id && previous.id !== tabId) await chrome.tabs.update(previous.id, { active: true }).catch(swallow("voltar para a aba anterior")); } };
 }
 
 // Visibilidade da página como o Chrome a vê (1.9.3; vai também nos diagnósticos). "hidden" com a aba ativa = tela
@@ -850,7 +899,7 @@ async function sendOnPage(tabId, message, awakeInfo) {
     // 1.9.3: falha ao abrir com a página oculta para o Chrome → diz o motivo real no erro (vai ao CRM e ao aviso do admin).
     if (error?.beforeSend && (await pageVisibility(tabId)).visibility === "hidden") outcome.error = `${error.message} ${hiddenTabMessage(focus?.info, awakeInfo)}`.slice(0, 480);
   } finally {
-    if (focus) await focus.restore().catch(() => {});
+    if (focus) await focus.restore().catch(swallow("devolver o foco à aba anterior"));
   }
   return outcome;
 }
@@ -860,7 +909,7 @@ async function ensureRoundTab(tab, round) {
   const alive = tab?.id ? await chrome.tabs.get(tab.id).catch(() => null) : null;
   if (alive) return alive;
   const fresh = await getWorkTab();
-  await round.set({ tabId: fresh.id }).catch(() => {});
+  await round.set({ tabId: fresh.id }).catch(swallow("gravar a aba da rodada"));
   await sleep(500);
   return fresh;
 }
@@ -890,7 +939,7 @@ async function closeOrphanTab(lock) {
   if (!lock?.tabId) return;
   await awake.release(lock.tabId);
   // A aba da janela de trabalho (1.9.4) fica: é reutilizada. Só fecha aba de rodada de versão anterior.
-  if (!(await isWorkTab(lock.tabId))) await chrome.tabs.remove(lock.tabId).catch(() => {});
+  if (!(await isWorkTab(lock.tabId))) await chrome.tabs.remove(lock.tabId).catch(swallow("fechar aba órfã do chat"));
 }
 
 async function releaseDeadChatLock(reason) {
@@ -935,7 +984,7 @@ function createChatRound(token, startedAt) {
     current = { ...current, ...patch, heartbeatAt: new Date().toISOString() };
     await chrome.storage.local.set({ chatLock: current });
   };
-  const timer = setInterval(() => write({}).catch(() => {}), CHAT_HEARTBEAT_MS);
+  const timer = setInterval(() => write({}).catch(swallow("pulso da trava do chat")), CHAT_HEARTBEAT_MS);
   return {
     get lost() {
       return lost;
@@ -956,7 +1005,7 @@ function createChatRound(token, startedAt) {
 async function signalSkip(reason, state) {
   const config = await loadConfig();
   if (!config.key) return;
-  const detail = reason === "pausado" ? "Extensão pausada no popup (botão Pausar)." : state?.pauseReason || "Pausa de 24 h: o Facebook pediu verificação ou avisou de limite.";
+  const detail = reason === "pausado" ? "Extensão pausada no popup (botão Pausar)." : reason === "parado_crm" ? "Parada pelo CRM (Extensões › Parar tudo)." : state?.pauseReason || "Pausa de 24 h: o Facebook pediu verificação ou avisou de limite.";
   try {
     const synced = await withTimeout(postChatSync(config, [], undefined, roundStatus({ skipReason: reason, skipDetail: detail })), 45000, "sinal ao CRM");
     if (synced?.settings) await chrome.storage.local.set({ chatSettings: synced.settings });
@@ -969,12 +1018,14 @@ async function chatTick() {
   const { chatSettings, chatPreviews, chatBackoff } = await chrome.storage.local.get(["chatSettings", "chatPreviews", "chatBackoff"]);
   const state = await loadState();
   const previousLock = await loadChatLock();
-  const decision = decideChatTick({ state, settings: chatSettings || {}, now: new Date(), lock: previousLock, instance: WORKER_INSTANCE });
+  const runtime = await crmLink.estado();
+  const decision = decideChatTick({ state, settings: chatSettings || {}, now: new Date(), lock: previousLock, instance: WORKER_INSTANCE, stoppedByCrm: runtime.stopped === true });
   if (decision.action !== "sync") {
     // Rodada pulada vai para `chatSkip` — não apaga as contagens/caminho/erro da última rodada (`chatLast`).
     await chrome.storage.local.set({ chatSkip: { at: new Date().toISOString(), result: decision.reason } });
     // 1.9.8: pausa (botão Pausar ou 24 h de verificação) também avisa o CRM, com o motivo — nunca silêncio. Não toca no Facebook.
     if (SIGNALED_SKIPS.has(decision.reason)) await signalSkip(decision.reason, state);
+    if (decision.reason !== "chat_em_andamento") await reportHealth({ ok: true, stage: decision.reason }).catch(swallow("sinal de saúde (chat pulado)"));
     return decision;
   }
   const config = await loadConfig();
@@ -1035,6 +1086,7 @@ async function chatTick() {
     summary.listed = threads.length;
     if (inbox && !threads.length) {
       summary.error = "Nenhuma conversa encontrada na caixa do Marketplace (seletores a calibrar ou caixa vazia).";
+      await crmLink.registrarSeletor("inbox: lista de conversas", "nenhuma conversa achada na caixa do Marketplace");
       // Envia sozinho o diagnóstico de estrutura (no máximo 1 por hora) para calibrar os seletores.
       const { lastDiagnosticAt } = await chrome.storage.local.get("lastDiagnosticAt");
       if (!lastDiagnosticAt || Date.now() - new Date(lastDiagnosticAt).getTime() > 60 * 60 * 1000) {
@@ -1060,6 +1112,12 @@ async function chatTick() {
     summary.pending = toRead.length;
     let posted = 0;
     for (const [index, thread] of toRead.entries()) {
+      // 1.10.0: "Parar tudo" no CRM vale na hora — confere antes de abrir cada conversa.
+      if (await stoppedByCrm()) {
+        summary.steps += " → parada pelo CRM (Extensões › Parar tudo)";
+        result = "chat_parcial";
+        break;
+      }
       if (round.elapsed() > ROUND_BUDGET_MS) {
         summary.steps += ` → tempo da rodada esgotado; ${toRead.length - index} conversa(s) ficam para a próxima`;
         result = "chat_parcial";
@@ -1081,6 +1139,8 @@ async function chatTick() {
       }
       summary.steps += ` → ${thread.contactName}: ${read?.ok ? `${(read.messages || []).length} msg` : read?.hidden ? "aba oculta" : "falhou"}`;
       // Aba oculta (1.9.3): nenhuma outra conversa abre nesta rodada — para aqui, sem contar falha para a conversa.
+      // 1.10.0: parte da tela não achada (ex.: área de mensagens só pelo seletor genérico) vai ao sinal de saúde.
+      if (read?.selectorFailed) await crmLink.registrarSeletor(read.selectorFailed, read.error);
       if (read?.hidden) {
         summary.error = read.error;
         hiddenError = read.error;
@@ -1123,6 +1183,11 @@ async function chatTick() {
     // 1.9.9: `i` conta só envios (as esperas não contam); fila sem resposta pronta mas com automática marcada
     // para daqui a até 60 s (`nextAt` do CRM) → espera por ela dentro do orçamento — automáticas saem uma a cada 30 s.
     for (let i = 0; i < MAX_SENDS_PER_ROUND; ) {
+      // 1.10.0: "Parar tudo" — confere antes de cada envio.
+      if (await stoppedByCrm()) {
+        summary.steps += " → envios parados pelo CRM (Extensões › Parar tudo)";
+        break;
+      }
       if (round.elapsed() > ROUND_BUDGET_MS) {
         result = "chat_parcial";
         break;
@@ -1173,12 +1238,16 @@ async function chatTick() {
         .catch((error) => console.warn("[marketplace] sinal ao CRM falhou:", error?.message || error));
     }
     // Só solta a trava se ainda for desta rodada (Destravar/rodada nova já podem ter trocado).
-    const stored = await loadChatLock().catch(() => null);
+    const stored = await loadChatLock().catch(swallow("ler a trava do chat no fim da rodada"));
     if (stored?.token === token) await chrome.storage.local.remove("chatLock");
     // 1.9.9: a próxima rodada começa 1 min depois desta terminar (não no meio de um minuto já corrido).
     scheduleNextChatRound();
     summary.pending = Math.max(0, summary.pending - summary.read);
     await chrome.storage.local.set({ chatLast: { at: new Date().toISOString(), startedAt, result, ...summary } });
+    // 1.10.0: sinal de saúde ao CRM (tela Extensões) — rodada com erro sempre manda; as demais no máximo a cada 2 min.
+    const failed = result === "chat_erro" || Boolean(summary.error);
+    if (failed) await crmLink.registrarErro("chat", summary.error || result);
+    await reportHealth({ ok: !failed, stage: result, error: summary.error, force: failed }).catch(swallow("sinal de saúde (chat)"));
   }
 }
 

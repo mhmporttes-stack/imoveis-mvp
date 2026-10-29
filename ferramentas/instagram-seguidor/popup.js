@@ -1,5 +1,5 @@
 import { resumoBusca, resumoBoasVindas, resumoCargaTresDias } from './lib/estado.js';
-import { lerTudo, enviar, statusAtual, textoProxima, contadoresHoje, textoAlerta, estaParada, retomarAgora, ligarBotaoConferir } from './painel-comum.js';
+import { lerTudo, enviar, statusAtual, textoProxima, contadoresHoje, textoAlerta, estaParada, retomarAgora, ligarBotaoConferir, renderAvisoCrm } from './painel-comum.js';
 
 const $ = (id) => document.getElementById(id);
 
@@ -82,4 +82,5 @@ $('btnAbrirJanela').addEventListener('click', async () => {
 chrome.storage.onChanged.addListener(render);
 render();
 renderJanela();
+renderAvisoCrm($('avisoCrm'));
 setInterval(renderJanela, 5000);

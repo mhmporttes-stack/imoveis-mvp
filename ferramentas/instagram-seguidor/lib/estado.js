@@ -6,11 +6,14 @@ import { diaSP, formatarSP } from './tempo.js';
 export const LIMITE_HISTORICO = 3000;
 
 // 2 = versão 1.1.0 (perfis privados passam a ser seguidos por padrão).
-export const VERSAO_ESTADO = 2;
+// 3 = versão 1.2.0 (só pela tela: perfis identificados pelo @, não pelo id interno do Instagram).
+export const VERSAO_ESTADO = 3;
+// Padrão antigo de "seguir por dia" (até a 1.1.x). Na 1.2.0 o dono pediu 20 (29/10/2026).
+export const LIMITE_DIARIO_ANTIGO = 15;
 
 export function configPadrao() {
   return {
-    limiteDiario: 15, // SEGUIR por dia
+    limiteDiario: 20, // SEGUIR por dia (dono, 2026-10-29: 20; era 15). Com a chave do CRM vale o da tela Extensões.
     limiteUnfollowDiario: 15, // DEIXAR DE SEGUIR por dia (máximo)
     diasParaUnfollow: 3,
     inicioHora: 5, // 05:00 São Paulo
@@ -19,7 +22,8 @@ export function configPadrao() {
     pularSemFoto: false,
     maxBusca: 200, // máximo de perfis lidos por busca de origem
     intervaloMinimoMin: 20, // nunca duas ações do mesmo tipo com menos que isto
-    verificarACadaMin: 2, // checagem de follow-back
+    verificarACadaMin: 10, // conferência dos meus seguidores (1.2.0: pela tela, 10 min; era 2 pela API)
+    meuUsuario: '', // 1.2.0: meu @ (Opções); vazio = lido na tela (link "Perfil" do menu)
     mensagem: MENSAGEM_PADRAO,
     dmAtiva: true,
     limiteDmDiario: LIMITE_DM_DIARIO_PADRAO, // 1.1.8: teto de DMs de boas-vindas por dia (excedente: dia seguinte)
@@ -30,11 +34,11 @@ export function estadoInicial() {
   return {
     versao: VERSAO_ESTADO,
     config: configPadrao(),
-    meuId: null,
+    meuUsuario: null, // 1.2.0: meu @ lido na tela (antes: meuId, do cookie)
     origemAtual: '',
-    fila: [], // [{ id, username, origem, adicionadoEm, privado }]
-    vistos: {}, // { id: motivo } — já avaliados (seguidos ou pulados), nunca voltam à fila
-    seguidos: {}, // { id: registro } — SOMENTE perfis seguidos pela extensão
+    fila: [], // [{ id (= @), username, origem, adicionadoEm, privado }]
+    vistos: {}, // { @: motivo } — já avaliados (seguidos ou pulados), nunca voltam à fila
+    seguidos: {}, // { @: registro } — SOMENTE perfis seguidos pela extensão
     agenda: { dia: null, follows: [], unfollows: [], limite: null, limiteUnfollow: null },
     contadores: { dia: null, seguidos: 0, deixados: 0, followBacks: 0, dms: 0, dmsIncertas: 0, novosSeguidores: 0 },
     historico: [], // [{ em, username, acao, resultado, origem }]
@@ -88,7 +92,40 @@ export function migrarEstado(e, bruto) {
     if (e.config.pularPrivados === true) e.config.pularPrivados = false;
     for (const [id, motivo] of Object.entries(e.vistos)) if (motivo === 'privado') delete e.vistos[id];
   }
+  if (versao < 3) migrarParaTela(e);
   e.versao = VERSAO_ESTADO;
+  return e;
+}
+
+/**
+ * 2 → 3 (extensão 1.2.0, decisão do dono de 29/10/2026: só pela tela). A tela mostra o @, não o id interno: seguidos,
+ * novos seguidores e fila passam a ser guardados pelo @ (o id antigo fica em `idAntigo`). Os "já vistos" por id não
+ * casam mais com nada (saem; os seguidos continuam marcados). A linha de base dos meus seguidores é lida de novo —
+ * a 1ª leitura NÃO manda DM para ninguém (nunca DM em lote). "Seguir por dia" no padrão antigo (15) vira 20.
+ */
+export function migrarParaTela(e) {
+  const porUsuario = (registros) => {
+    const novo = {};
+    for (const r of Object.values(registros || {})) {
+      const u = String((r && r.username) || '').toLowerCase();
+      if (!u) continue;
+      novo[u] = { ...r, id: u, ...(r.id && String(r.id) !== u ? { idAntigo: String(r.id) } : {}) };
+    }
+    return novo;
+  };
+  e.seguidos = porUsuario(e.seguidos);
+  e.novosSeguidores = porUsuario(e.novosSeguidores);
+  const naFila = new Set();
+  e.fila = (e.fila || []).filter((f) => f && f.username).map((f) => ({ ...f, id: String(f.username).toLowerCase() })).filter((f) => !naFila.has(f.id) && naFila.add(f.id));
+  e.vistos = Object.fromEntries(Object.keys(e.seguidos).map((u) => [u, 'seguido']));
+  e.meusSeguidores = { linhaDeBaseEm: null, conhecidos: {} };
+  if (e.cursorOrigem && e.cursorOrigem.username) {
+    const t = e.cursorOrigem.totais || { lidos: 0, adicionados: 0, pulados: {} };
+    e.cursorOrigem = { username: e.cursorOrigem.username, origem: e.cursorOrigem.origem, lidos: t.lidos || 0, esgotado: Boolean(e.cursorOrigem.esgotado), totais: t };
+  }
+  delete e.meuId;
+  if (e.config.limiteDiario === LIMITE_DIARIO_ANTIGO) e.config.limiteDiario = configPadrao().limiteDiario;
+  if (e.config.verificarACadaMin === 2) e.config.verificarACadaMin = configPadrao().verificarACadaMin;
   return e;
 }
 

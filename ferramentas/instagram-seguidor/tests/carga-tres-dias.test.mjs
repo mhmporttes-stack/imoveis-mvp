@@ -8,14 +8,13 @@ import { DIA, HORA, MINUTO, diaSP } from '../lib/tempo.js';
 import { STATUS } from '../lib/regras.js';
 import { estadoInicial, resumoCargaTresDias } from '../lib/estado.js';
 import { interpretarAtividade, separarCarga, timestampParaMs, registroDaCarga, CARGA_JANELA_MS } from '../lib/carga-tres-dias.js';
-import { criarApiInstagram, ErroInstagram } from '../instagram-api.js';
+import { ErroInstagram } from '../instagram-tela.js';
 import { criarInstagramFalso, criarChromeFalso, iniciarExtensao } from './ajuda/simulador.mjs';
 
 afterEach(() => mock.timers.reset());
 
 const CFG = estadoInicial().config;
 const INICIO = Date.parse('2026-10-20T07:30:00Z'); // 04:30 SP (fora da janela)
-const INBOX = '/api/v1/news/inbox/';
 
 /** Notificação "começou a seguir você" no formato do news/inbox (timestamp em segundos). */
 const seguiu = (id, username, emMs) => ({ story_type: 101, type: 3, args: { text: `${username} começou a seguir você.`, profile_id: Number(id), profile_name: username, timestamp: emMs / 1000 } });
@@ -88,167 +87,21 @@ test('resumoCargaTresDias: pendente, feita e indisponível', () => {
   assert.equal(resumoCargaTresDias(e), 'Carga dos últimos 3 dias indisponível: respondeu a página HTML');
 });
 
-// ---------------------------------------------------------------- API
+// ---------------------------------------------------------------- 1.2.0: só pela tela
 
-const HTML = { status: 200, texto: '<!DOCTYPE html><html><head><title>Instagram</title></head></html>' };
-function apiCom(respostas) {
-  const pedidos = [];
-  const api = criarApiInstagram({ obterCsrf: async () => 'tok', executar: async (x) => { pedidos.push(x); return respostas.shift(); } });
-  return { api, pedidos };
-}
-
-test('api.atividade: HTML no GET e no POST = indisponivel; GET em HTML e POST com JSON = dados; aguarde sobe', async () => {
-  const a = apiCom([HTML, { status: 404, texto: '<html>not found</html>' }]);
-  await assert.rejects(a.api.atividade(), (e) => e instanceof ErroInstagram && e.tipo === 'indisponivel' && /news\/inbox/.test(e.message));
-  assert.deepEqual(a.pedidos.map((p) => p.metodo), ['GET', 'POST']);
-  assert.match(a.pedidos[0].url, /mark_as_seen=false/);
-  const b = apiCom([HTML, { status: 200, texto: '{"old_stories":[],"status":"ok"}' }]);
-  assert.deepEqual(await b.api.atividade(), { old_stories: [], status: 'ok' });
-  const c = apiCom([{ status: 400, texto: '{"message":"Please wait a few minutes before you try again.","status":"fail"}' }]);
-  await assert.rejects(c.api.atividade(), (e) => e.tipo === 'aguarde');
-});
-
-// ---------------------------------------------------------------- simulações (Instagram falso)
-
-/**
- * Como o dono: 1.1.8 instalada (linha de base gravada às ~05:00), atualiza para a 1.1.9. A 1ª conferência da 1.1.8
- * no simulador já rodaria a carga (a atividade não existe → indisponível); apagamos a marca para simular a
- * atualização e então ligamos a atividade.
- */
-async function atualizadoDa118({ antigos = 20, atividade }) {
-  const ig = criarInstagramFalso({ totalSeguidores: 20, voltaSe: () => false });
-  ig.novosSeguidoresDeFora(antigos, 1);
+// A carga lia a atividade pela API interna do Instagram (news/inbox), que a extensão não usa mais (decisão do dono,
+// 29/10/2026). As regras puras acima ficam (lib/carga-tres-dias.js), sem uso pela extensão. Instalação que ainda não
+// fez a carga: marcada como indisponível, ninguém recebe DM por ela; os seguidores novos seguem normalmente.
+test('1.2.0: carga ainda não feita vira "indisponível" na 1ª conferência — nenhuma DM por ela, nenhuma API', { timeout: 240_000 }, async () => {
+  const ig = criarInstagramFalso({ totalSeguidores: 10, voltaSe: () => false });
+  ig.novosSeguidoresDeFora(5, 1);
   const cf = criarChromeFalso(ig);
   const ext = await iniciarExtensao(cf, INICIO);
-  await ext.avancarAte(INICIO + HORA); // 05:30 SP
-  assert.ok(ext.estado().meusSeguidores.linhaDeBaseEm, 'linha de base da 1.1.8 gravada');
-  assert.equal(ig.dms.length, 0);
-  delete cf.dados.estado.carga3Dias; // estado como o da 1.1.8 (sem a marca da carga)
-  ig.atividade = typeof atividade === 'function' ? atividade(Date.now()) : atividade;
-  return { ig, cf, ext };
-}
-
-const chamadasInbox = (ig) => ig.chamadas.filter((c) => c.caminho === INBOX).length;
-
-test('carga 3 dias: só quem seguiu nas últimas 72 h recebe, uma vez; roda uma única vez', { timeout: 240_000 }, async () => {
-  const { ig, ext } = await atualizadoDa118({
-    atividade: (agora) => ({
-      modo: 'ok',
-      porPagina: 4, // força paginação
-      historias: [
-        seguiu('70001', 'r1', agora - 1 * HORA),
-        curtiu('70009', agora - 2 * HORA),
-        seguiu('70002', 'r2', agora - 30 * HORA),
-        seguiu('70001', 'r1', agora - 31 * HORA), // mesma pessoa de novo (seguiu, saiu, voltou)
-        seguiu('70003', 'r3', agora - 70 * HORA),
-        seguiu('70004', 'velho1', agora - 74 * HORA),
-        seguiu('70005', 'velho2', agora - 5 * DIA),
-        seguiu('70006', 'velho3', agora - 9 * DIA),
-        seguiu('70007', 'velho4', agora - 20 * DIA),
-      ],
-    }),
-  });
-  await ext.avancarAte(Date.now() + 2 * HORA);
-  let e = ext.estado();
-  assert.ok(e.carga3Dias.feitaEm, 'carga feita');
-  assert.equal(e.carga3Dias.encontrados, 3);
-  assert.equal(e.carga3Dias.agendados, 3);
-  assert.equal(e.carga3Dias.erro, null);
-  assert.equal(e.carga3Dias.tentativas, 1);
-  assert.equal(e.novosSeguidores['70001'].origem, 'carga 3 dias');
-  assert.deepEqual(ig.dms.map((d) => d.id).sort(), ['70001', '70002', '70003']);
-  assert.equal(ig.dms.length, 3, 'uma DM por pessoa');
-  assert.ok(!ig.dms.some((d) => ['70004', '70005', '70006', '70007', '70009'].includes(d.id)), 'nada para quem seguiu antes de 72 h');
-  const ordenadas = ig.dms.map((d) => d.em).sort((a, b) => a - b);
-  for (let i = 1; i < ordenadas.length; i += 1) assert.ok(ordenadas[i] - ordenadas[i - 1] >= 60 * 1000, 'espaçamento mínimo entre DMs');
-  assert.match(resumoCargaTresDias(e), /^Carga 3 dias: 3 encontrados, 3 agendados/);
-  assert.ok(e.historico.some((h) => h.acao === 'carga 3 dias' && /3 encontrados, 3 agendados/.test(h.resultado)));
-
-  // Depois: só os novos desde a última conferida (1.1.8). A carga não roda de novo, mesmo com notificações novas.
-  const lidas = chamadasInbox(ig);
-  ig.atividade.historias.unshift(seguiu('70008', 'r8', Date.now()));
-  await ext.avancarAte(Date.now() + 3 * DIA);
-  assert.equal(chamadasInbox(ig), lidas, 'a atividade não é lida de novo');
-  assert.equal(ig.dms.length, 3, 'a carga não roda de novo');
-  ig.novosSeguidoresDeFora(1, Date.now());
-  await ext.avancarAte(Date.now() + HORA);
-  assert.equal(ig.dms.length, 4, 'seguidor novo daqui para frente continua recebendo (1.1.8)');
-  e = ext.estado();
-  assert.equal(e.carga3Dias.tentativas, 1);
-});
-
-test('carga 3 dias: dedupe — quem já tem (ou vai ter) boas-vindas não recebe 2ª DM', { timeout: 240_000 }, async () => {
-  const { ig, cf, ext } = await atualizadoDa118({ atividade: (agora) => ({ modo: 'ok', historias: [seguiu('900001', 'x900001', agora - HORA), seguiu('71000', 'nova', agora - 2 * HORA)] }) });
-  cf.dados.estado.novosSeguidores['900001'] = { id: '900001', username: 'x900001', origem: 'novo seguidor', dmEnviadaEm: Date.now() - HORA };
-  await ext.avancarAte(Date.now() + DIA);
+  await ext.avancarAte(INICIO + 2 * HORA); // 06:30 SP: conferências dentro da janela
   const e = ext.estado();
-  assert.equal(e.carga3Dias.encontrados, 2);
-  assert.equal(e.carga3Dias.agendados, 1);
-  assert.ok(e.carga3Dias.notas.some((n) => /1 já tinham boas-vindas/.test(n)));
-  assert.deepEqual(ig.dms.map((d) => d.id), ['71000']);
-});
-
-for (const [nome, atividade, motivo] of [
-  ['página HTML', { modo: 'html' }, /news\/inbox.*indisponível.*HTML/],
-  ['sem a lista de notificações', { modo: 'sem_lista' }, /não tem a lista de notificações/],
-  ['endpoint inexistente (404)', null, /indisponível/],
-  ['notificações sem data', { modo: 'ok', historias: [{ story_type: 101, args: { text: 'a começou a seguir você.', profile_id: 72001, profile_name: 'a' } }] }, /sem data confirmável/],
-]) {
-  test(`carga 3 dias indisponível (${nome}): nenhuma DM por ela, motivo no popup, novos daqui para frente seguem`, { timeout: 240_000 }, async () => {
-    const { ig, ext } = await atualizadoDa118({ atividade });
-    await ext.avancarAte(Date.now() + DIA);
-    let e = ext.estado();
-    assert.equal(ig.dms.length, 0, 'nunca DM em lote');
-    assert.ok(e.carga3Dias.feitaEm);
-    assert.match(resumoCargaTresDias(e), /^Carga dos últimos 3 dias indisponível: /);
-    assert.match(e.carga3Dias.erro, motivo);
-    assert.equal(e.pausaAte, null, 'não pausa');
-    const lidas = chamadasInbox(ig);
-    ig.novosSeguidoresDeFora(1, Date.now());
-    await ext.avancarAte(Date.now() + DIA);
-    assert.equal(ig.dms.length, 1, 'o seguidor novo recebe pelo fluxo da 1.1.8');
-    assert.equal(chamadasInbox(ig), lidas, 'não tenta a carga de novo');
-    e = ext.estado();
-    assert.equal(Object.values(e.novosSeguidores).filter((r) => r.origem === 'carga 3 dias').length, 0);
-  });
-}
-
-test('carga 3 dias: "aguarde" do Instagram → tenta de novo depois (uma carga só), sem perder ninguém', { timeout: 240_000 }, async () => {
-  const { ig, ext } = await atualizadoDa118({ atividade: (agora) => ({ modo: 'ok', falhasAguarde: 1, historias: [seguiu('73001', 'a', agora - 10 * HORA)] }) });
-  await ext.avancarAte(Date.now() + 10 * MINUTO);
-  let e = ext.estado();
-  assert.equal(e.carga3Dias.feitaEm, undefined, 'ainda não feita');
-  assert.match(resumoCargaTresDias(e), /tentativa 1 falhou/);
-  await ext.avancarAte(Date.now() + 2 * HORA);
-  e = ext.estado();
-  assert.ok(e.carga3Dias.feitaEm);
-  assert.equal(e.carga3Dias.tentativas, 2);
-  assert.equal(e.carga3Dias.agendados, 1);
-  assert.deepEqual(ig.dms.map((d) => d.id), ['73001']);
-});
-
-test('carga 3 dias: teto diário (30) — 40 na carga, 30 no dia e o resto no dia seguinte', { timeout: 240_000 }, async () => {
-  const { ig, ext } = await atualizadoDa118({
-    atividade: (agora) => ({ modo: 'ok', historias: Array.from({ length: 40 }, (_, i) => seguiu(String(74000 + i), `c${i}`, agora - (i + 1) * HORA)) }),
-  });
-  await ext.avancarAte(INICIO + 17 * HORA); // 21:30 SP do 1º dia
-  assert.equal(ext.estado().carga3Dias.agendados, 40);
-  assert.equal(ig.dms.length, 30, 'no máximo 30 no dia');
-  await ext.avancarAte(INICIO + DIA + 17 * HORA);
-  assert.equal(ig.dms.length, 40);
-  assert.equal(new Set(ig.dms.map((d) => d.id)).size, 40, 'uma por pessoa');
-  const porDia = {};
-  for (const d of ig.dms) porDia[diaSP(d.em)] = (porDia[diaSP(d.em)] || 0) + 1;
-  assert.ok(Object.values(porDia).every((n) => n <= 30), JSON.stringify(porDia));
-});
-
-test('carga 3 dias numa instalação nova: roda junto com a linha de base, só os das 72 h', { timeout: 240_000 }, async () => {
-  const ig = criarInstagramFalso({ totalSeguidores: 20, voltaSe: () => false });
-  ig.novosSeguidoresDeFora(15, 1);
-  ig.atividade = { modo: 'ok', historias: [seguiu('75001', 'n', INICIO - 5 * HORA), seguiu('75002', 'v', INICIO - 4 * DIA)] };
-  const cf = criarChromeFalso(ig);
-  const ext = await iniciarExtensao(cf, INICIO);
-  await ext.avancarAte(INICIO + DIA);
-  assert.deepEqual(ig.dms.map((d) => d.id), ['75001']);
-  assert.ok(ext.estado().meusSeguidores.linhaDeBaseEm);
+  assert.ok(e.carga3Dias && e.carga3Dias.feitaEm);
+  assert.match(resumoCargaTresDias(e), /^Carga dos últimos 3 dias indisponível: desde a versão 1\.2\.0/);
+  assert.equal(ig.dms.length, 0);
+  assert.ok(cf.registro.funcoes.every((n) => /NaPagina$/.test(n)));
+  void DIA; void MINUTO; void diaSP; void STATUS; void ErroInstagram;
 });

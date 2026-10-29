@@ -67,7 +67,9 @@ export function describeChatLock(lock, now = new Date()) {
   return `${lock.step || "iniciando"} há ${ago(lock.stepAt || lock.startedAt)} (rodada começou há ${ago(lock.startedAt)})`;
 }
 
-export function decideChatTick({ state = {}, settings = {}, now = new Date(), lock = null, instance = "" } = {}) {
+// stoppedByCrm (1.10.0, EXT-1): "Parar tudo" na tela Extensões do CRM.
+export function decideChatTick({ state = {}, settings = {}, now = new Date(), lock = null, instance = "", stoppedByCrm = false } = {}) {
+  if (stoppedByCrm) return { action: "skip", reason: "parado_crm" };
   if (settings.syncEnabled === false) return { action: "skip", reason: "chat_desligado" };
   if (state.manualPause) return { action: "skip", reason: "pausado" };
   if (state.pausedUntil && new Date(state.pausedUntil).getTime() > now.getTime()) return { action: "skip", reason: "pausa_verificacao" };

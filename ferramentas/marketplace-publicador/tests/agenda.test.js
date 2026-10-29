@@ -134,7 +134,7 @@ test("popup: motivo com horário de liberação em São Paulo", () => {
   assert.equal(describeCheck("intervalo_seguranca", "2026-10-20T13:02:00Z"), "Aguardando intervalo de segurança até 10:02");
   assert.equal(describeCheck("fila_vazia"), "Nenhum anúncio aprovado na fila");
   assert.equal(describeCheck("pausado"), "Pausado por você");
-  assert.equal(describeCheck("fora_do_horario"), "Fora do horário (08:00–20:00)");
+  assert.equal(describeCheck("fora_do_horario"), "Fora do horário de publicação (padrão 08:00–20:00; muda na tela Extensões do CRM)");
   const state = { ...initialState(), nextAllowedAt: "2026-10-20T13:30:00Z", pausedUntil: "2026-10-21T12:00:00Z" };
   assert.equal(localWaitUntil(state, "intervalo"), "2026-10-20T13:30:00Z");
   assert.equal(localWaitUntil(state, "pausa_verificacao"), "2026-10-21T12:00:00Z");

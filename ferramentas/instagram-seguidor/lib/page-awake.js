@@ -66,8 +66,8 @@ export function createAwakeManager({ attach, detach, send, warn = () => {} }) {
     if (entry.count > 0) return;
     tabs.delete(tabId);
     if (!entry.attached) return;
-    for (const command of AWAKE_OFF) await send(tabId, command.method, command.params).catch(() => {});
-    await detach(tabId).catch(() => {});
+    for (const command of AWAKE_OFF) await send(tabId, command.method, command.params).catch((error) => warn(`desligar ${command.method} falhou: ${error?.message || error}`));
+    await detach(tabId).catch((error) => warn(`soltar o depurador falhou: ${error?.message || error}`));
   }
 
   return {
@@ -89,9 +89,9 @@ export function createAwakeManager({ attach, detach, send, warn = () => {} }) {
       const entry = tabs.get(tabId);
       tabs.delete(tabId);
       if (entry?.attached) {
-        for (const command of AWAKE_OFF) await send(tabId, command.method, command.params).catch(() => {});
+        for (const command of AWAKE_OFF) await send(tabId, command.method, command.params).catch((error) => warn(`desligar ${command.method} falhou: ${error?.message || error}`));
       }
-      await detach(tabId).catch(() => {});
+      await detach(tabId).catch((error) => warn(`soltar o depurador falhou: ${error?.message || error}`));
     },
     // O Chrome soltou o depurador sozinho (dono clicou em "Cancelar" na faixa, aba fechada).
     forget(tabId) {

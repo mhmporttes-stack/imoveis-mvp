@@ -16,17 +16,17 @@ test('fila preenchida à tarde: horários gastos com fila vazia voltam e o dia s
   await ext.avancarAte(inicio + 6 * HORA); // 14:00 SP: vários horários passaram sem ninguém na fila
   let e = ext.estado();
   assert.equal(e.contadores.seguidos, 0);
-  assert.ok(e.agenda.follows.length < 15, 'horários foram consumidos com a fila vazia');
+  assert.ok(e.agenda.follows.length < 20, 'horários foram consumidos com a fila vazia');
 
   const r = await ext.mensagem({ tipo: 'buscarOrigem', username: '@perfilref' });
   assert.equal(r.ok, true, r.erro);
   await ext.avancarAte(inicio + 6 * HORA + 10 * MINUTO);
   e = ext.estado();
-  assert.equal(e.agenda.follows.length + e.contadores.seguidos, 15, 'agenda replanejada para o limite do dia');
+  assert.equal(e.agenda.follows.length + e.contadores.seguidos, 20, 'agenda replanejada para o limite do dia (20, padrão da 1.2.0)');
 
   await ext.avancarAte(inicio + 13 * HORA); // 21:00 SP
   e = ext.estado();
   assert.equal(diaSP(inicio), diaSP(inicio + 13 * HORA));
   assert.ok(e.contadores.seguidos >= 10, `seguiu ${e.contadores.seguidos} no resto do dia`);
-  assert.ok(e.contadores.seguidos <= 15);
+  assert.ok(e.contadores.seguidos <= 20);
 });

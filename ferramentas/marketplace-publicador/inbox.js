@@ -507,7 +507,11 @@
       await closeChatWindow(win);
       return { ok: false, error: "Restaure o histórico com o PIN do Messenger (a conversa está criptografada e sem mensagens).", checkpoint: pageCheckpoint() };
     }
-    if (!area) return { ok: false, error: `Janela/área de mensagens não encontrada (${location.pathname}; janelas com campo "Aa": ${document.querySelectorAll(MP.inbox.composer).length}).`, checkpoint: pageCheckpoint() };
+    if (!area && !win && document.querySelector(MP.inbox.messageAreaGeneric)) {
+      // 1.10.0: só o seletor genérico acharia a área — parar e avisar (nunca ler a página inteira como se fosse a conversa).
+      return { ok: false, selectorFailed: "inbox.messageArea", error: `Área de mensagens só achada pelo seletor genérico [role="main"] — parei sem ler; o Facebook pode ter mudado a tela (${location.pathname}).`, checkpoint: pageCheckpoint() };
+    }
+    if (!area) return { ok: false, selectorFailed: "inbox.messageArea", error: `Janela/área de mensagens não encontrada (${location.pathname}; janelas com campo "Aa": ${document.querySelectorAll(MP.inbox.composer).length}).`, checkpoint: pageCheckpoint() };
     await sleep(between(1200, 2200));
     let rows = readRows(scope, area, contactName);
     if (full) {

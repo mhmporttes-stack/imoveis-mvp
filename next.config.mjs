@@ -11,6 +11,10 @@ export default function nextConfig(phase) {
     images: {
       unoptimized: true
     },
+    // Zips das extensões do dono (EXT-1): baixados pela tela Extensões (rota lê o arquivo do disco).
+    outputFileTracingIncludes: {
+      "/api/admin/extensoes/download": ["./ferramentas/*.zip"]
+    },
     pageExtensions:
       phase === PHASE_DEVELOPMENT_SERVER ? ["dev.jsx", ...DEFAULT_PAGE_EXTENSIONS] : DEFAULT_PAGE_EXTENSIONS
   };

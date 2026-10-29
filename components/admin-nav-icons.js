@@ -1,6 +1,6 @@
 import {
   BarChart3, BookOpen, Building, Building2, Calculator, CalendarDays, CircleDot, FileText, GraduationCap, House, HousePlus, Link2,
-  Megaphone, MessageCircle, MessageSquarePlus, MessageSquareQuote, Mic, Radar, RotateCcw, Route, Search, ShieldCheck, Snowflake,
+  Megaphone, MessageCircle, Puzzle, MessageSquarePlus, MessageSquareQuote, Mic, Radar, RotateCcw, Route, Search, ShieldCheck, Snowflake,
   BrainCircuit, LineChart, Store, Target, Trophy, UserCheck, UserRoundPlus, Users, UsersRound, Wallet, Zap
 } from "lucide-react";
 import { MarketplaceChatIcon } from "@/components/marketplace/MarketplaceChatShortcut";
@@ -47,7 +47,8 @@ export const ADMIN_NAV_ICONS = {
   ads: Megaphone,
   reentries: RotateCcw,
   "cooled-clients": Snowflake,
-  marketplace: Store
+  marketplace: Store,
+  extensions: Puzzle
 };
 
 export function navIconFor(key) {

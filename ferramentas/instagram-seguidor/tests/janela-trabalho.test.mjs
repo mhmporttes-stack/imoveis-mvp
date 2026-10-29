@@ -43,7 +43,7 @@ test('simulação: janela própria sem foco, reaproveitada; nunca aba na janela 
   assert.equal(trab.tabs.length, 1);
   assert.equal(trab.tabs[0].autoDiscardable, false);
   assert.ok(cf.registro.atualizacoesAba.every((u) => u.active !== true), 'nunca ativa aba sozinha');
-  assert.ok(ig.chamadas.filter((c) => c.caminho.includes('/create/')).length >= 4);
+  assert.ok(ig.de('clique-seguir').length >= 4);
 
   // O dono fecha a janela de trabalho → reabre sem foco na próxima ação
   cf.janelas.splice(cf.janelas.indexOf(trab), 1);
@@ -69,7 +69,7 @@ test('simulação: sem nenhuma janela do Chrome, não cria janela e espera, sem 
   const ext = await iniciarExtensao(cf, inicio);
   // Fila montada direto no estado (a busca manual sai do popup, que exige janela).
   const e0 = ext.estado();
-  e0.fila = ig.usuarios.slice(0, 30).map((u) => ({ id: u.pk, username: u.username, origem: '@perfilref', adicionadoEm: inicio, privado: u.is_private }));
+  e0.fila = ig.usuarios.slice(0, 30).map((u) => ({ id: u.username, username: u.username, origem: '@perfilref', adicionadoEm: inicio, privado: u.privado }));
   cf.dados.estado = e0;
   await ext.avancarAte(inicio + 4 * HORA);
   let e = ext.estado();

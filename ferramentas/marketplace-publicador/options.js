@@ -23,7 +23,7 @@ $("form").addEventListener("submit", async (event) => {
       if (!granted) throw new Error("Sem permissão para acessar esse endereço.");
     }
     if ($("prints").checked) await chrome.permissions.request({ origins: ["<all_urls>"] });
-    else await chrome.permissions.remove({ origins: ["<all_urls>"] }).catch(() => {});
+    else await chrome.permissions.remove({ origins: ["<all_urls>"] }).catch((error) => chrome.runtime.sendMessage({ type: "mp-swallowed", context: "tirar a permissão de prints", error: String(error?.message || error) }));
     const { config } = await chrome.storage.local.get("config");
     await chrome.storage.local.set({ config: { baseUrl, key: typedKey || config?.key || "" }, keepAwake: $("keepAwake").checked });
     $("key").value = "";

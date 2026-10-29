@@ -1,4 +1,4 @@
-import { DAILY_LIMIT, REASON_LABELS, describeCheck, todayCount } from "./lib/agenda.js";
+import { REASON_LABELS, describeCheck, publishLimits, todayCount } from "./lib/agenda.js";
 
 const $ = (id) => document.getElementById(id);
 const fmt = (iso) => (iso ? new Date(iso).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo", dateStyle: "short", timeStyle: "short" }) : "—");
@@ -13,13 +13,32 @@ function line(label, value) {
 
 const chatCounts = (c) => `${c.listed ?? 0} na caixa, ${c.read ?? 0} lida(s) e enviada(s) ao CRM, ${c.created ?? 0} nova(s) no CRM, ${c.newMessages ?? 0} mensagem(ns) nova(s), ${c.sent ?? 0} resposta(s) enviada(s)${c.pending ? `, ${c.pending} pendente(s)` : ""}`;
 
-function render({ state, config, keepAwake, chatLast, chatSkip, chatNow }) {
+// 1.10.0 (EXT-1): o que o CRM manda — "Parar tudo" e versão nova com o link do zip (abre no Chrome logado no CRM).
+function renderCrm(crm) {
+  const box = $("crm-aviso");
+  box.replaceChildren();
+  if (!crm || (!crm.stopped && !crm.outdated)) {
+    box.hidden = true;
+    return;
+  }
+  box.hidden = false;
+  if (crm.stopped) box.append(line("Parada pelo CRM", "Extensões › Parar tudo. Toque em Retomar no CRM para voltar."));
+  if (crm.outdated) {
+    const p = line("Versão nova", `${crm.latestVersion} disponível (este PC roda a ${chrome.runtime.getManifest().version}). `);
+    if (crm.downloadUrl) p.append(Object.assign(document.createElement("a"), { href: crm.downloadUrl, target: "_blank", textContent: "Baixar o zip" }));
+    p.append(document.createTextNode(" — descompacte por cima da mesma pasta e recarregue a extensão em chrome://extensions."));
+    box.append(p);
+  }
+}
+
+function render({ state, config, keepAwake, chatLast, chatSkip, chatNow, crm }) {
+  renderCrm(crm);
   const status = $("status");
   status.replaceChildren();
   const paused = state.manualPause || (state.pausedUntil && new Date(state.pausedUntil) > new Date());
   status.append(line("Situação", state.running ? `Publicando “${state.running.title}” (${state.running.step})` : paused ? (state.manualPause ? "Pausado por você" : `Pausado até ${fmt(state.pausedUntil)}`) : "Ativo"));
   if (state.pauseReason && !state.manualPause && paused) status.append(line("Motivo", state.pauseReason));
-  status.append(line("Hoje", `${todayCount(state)} de ${DAILY_LIMIT} publicações`));
+  status.append(line("Hoje", `${todayCount(state)} de ${(crm?.limits || publishLimits()).dailyLimit} publicações`));
   status.append(line("Próxima publicação a partir de", fmt(state.nextAllowedAt)));
   status.append(line("Última verificação", `${fmt(state.lastCheckAt)} — ${describeCheck(state.lastCheckResult, state.lastCheckWaitUntil)}`));
   // Diagnóstico do Chat do Marketplace (1.8.7): o que está fazendo agora (etapa + há quanto tempo), a última rodada

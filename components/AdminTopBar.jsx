@@ -59,6 +59,7 @@ const SUBTITLES = {
   captacoes: "Imóveis oferecidos por proprietários",
   testimonials: "Depoimentos de clientes",
   marketplace: "Anúncios para o Facebook Marketplace",
+  extensions: "Extensões do Chrome: saúde, configuração e Parar tudo",
   ads: "Campanhas da Meta e resultado",
   reentries: "Clientes que voltaram por anúncio",
   audit: "Atendimentos conferidos",

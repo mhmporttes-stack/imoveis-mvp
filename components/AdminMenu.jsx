@@ -179,7 +179,9 @@ const ownerGroups = [
       { href: "/admin/corretores", label: "Corretores", key: "brokers" },
       { href: "/admin/gerador-de-links", label: "Gerador de Links", key: "campaign-links" },
       // Publicador do Facebook Marketplace (MKT-1, dono, 2026-10-20): só o admin geral.
-      { href: "/admin/marketplace", label: "Marketplace", key: "marketplace" }
+      { href: "/admin/marketplace", label: "Marketplace", key: "marketplace" },
+      // Extensões do Chrome do dono (EXT-1, dono, 2026-10-29): só o admin geral real (a página confere).
+      { href: "/admin/extensoes", label: "Extensões", key: "extensions" }
     ]
   },
   {
@@ -264,6 +266,7 @@ const PATH_KEYS = [
   ["/admin/corretores", "brokers"],
   ["/admin/gerador-de-links", "campaign-links"],
   ["/admin/marketplace", "marketplace"],
+  ["/admin/extensoes", "extensions"],
   ["/admin/documentacao/regras", "document-rules"],
   ["/admin/automacoes", "automations"],
   ["/admin/guia-atendimento", "attendance-guide"],

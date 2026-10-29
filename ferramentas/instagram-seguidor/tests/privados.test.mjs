@@ -9,7 +9,7 @@ import {
   atualizarSolicitacao, rotuloDeixar, rotuloStatus,
 } from '../lib/regras.js';
 import { configPadrao, normalizarEstado, VERSAO_ESTADO, gerarCsv } from '../lib/estado.js';
-import { criarApiInstagram } from '../instagram-api.js';
+import { criarTelaInstagram } from '../instagram-tela.js';
 import { criarInstagramFalso, criarChromeFalso, iniciarExtensao } from './ajuda/simulador.mjs';
 
 const T0 = Date.parse('2026-10-20T12:00:00Z');
@@ -27,11 +27,10 @@ test('migração: quem tinha o padrão antigo (pular privados) passa para o novo
   const antigo = normalizarEstado({ versao: 1, config: { pularPrivados: true, limiteDiario: 10 }, vistos: { 5: 'privado', 6: 'seguido' } });
   assert.equal(antigo.config.pularPrivados, false);
   assert.equal(antigo.config.limiteDiario, 10, 'as outras opções ficam');
-  assert.deepEqual(antigo.vistos, { 6: 'seguido' }, 'privados pulados só por serem privados podem voltar');
+  assert.deepEqual(antigo.vistos, {}, '1.2.0: ids antigos não casam com o @ (os seguidos continuam marcados)');
   assert.equal(antigo.versao, VERSAO_ESTADO);
   const religado = normalizarEstado({ versao: 2, config: { pularPrivados: true }, vistos: { 5: 'privado' } });
   assert.equal(religado.config.pularPrivados, true, 'religado no painel depois da migração continua ligado');
-  assert.deepEqual(religado.vistos, { 5: 'privado' });
   assert.equal(normalizarEstado(undefined).config.pularPrivados, false, 'instalação nova');
 });
 
@@ -55,45 +54,40 @@ test('status e rótulos: pedido pendente = "Solicitado"; aceite vira "seguindo";
   assert.equal(elegivelParaUnfollow({ id: '2', status: STATUS.SOLICITADO, seguidoEm: T0 }, T0 + 3 * DIA, 3), true);
 });
 
-function apiCom(respostas) {
+// 1.2.0: pela tela — o clique em "Seguir" no perfil privado vira "Solicitado"; "Solicitado" → "Cancelar solicitação"
+// só confirma quando o botão volta a "Seguir".
+function telaCom(respostas) {
   const pedidos = [];
-  const api = criarApiInstagram({
-    obterCsrf: async () => 'tok',
-    executar: async (req) => { pedidos.push(req); return respostas.shift(); },
-  });
+  const api = criarTelaInstagram({ executar: async (req) => { pedidos.push(req); return respostas.shift(); } });
   return { api, pedidos };
 }
-const HTML = { status: 200, texto: '<!DOCTYPE html><html><head><title>Instagram</title></head></html>' };
-const PENDENTE = { status: 200, texto: '{"following":false,"outgoing_request":true,"is_private":true,"status":"ok"}' };
-const NADA = { status: 200, texto: '{"following":false,"outgoing_request":false,"status":"ok"}' };
-const OK = { status: 200, texto: '{"status":"ok"}' };
 
-test('seguir privado: outgoing_request no friendships/show confirma (mesmo com resposta estranha do create)', async () => {
-  const { api, pedidos } = apiCom([HTML, PENDENTE]);
-  const st = await api.seguir('77', 'privado');
+test('seguir privado pela tela: o botão vira "Solicitado" = pedido pendente', async () => {
+  const { api, pedidos } = telaCom([{ ok: true, botaoDepois: 'solicitado', privado: true }]);
+  const st = await api.seguir('privado');
   assert.equal(st.pedidoPendente, true);
   assert.equal(st.seguindo, false);
-  assert.equal(st.via, 'friendships/create');
-  assert.equal(pedidos.length, 2, 'não chama o legado quando o show já confirma');
+  assert.equal(st.via, 'botão Seguir');
+  assert.equal(pedidos[0].caminho, '/privado/');
+  assert.equal(pedidos[0].func.name, 'clicarPerfilNaPagina');
+  assert.deepEqual(pedidos[0].args[2], ['seguindo', 'solicitado']);
 });
 
-test('cancelar solicitação: só confirma com following E outgoing_request falsos', async () => {
-  const ok = apiCom([OK, NADA]);
-  const st = await ok.api.deixarDeSeguir('77', 'privado');
+test('cancelar solicitação: só confirma quando o botão volta a "Seguir"; senão para e avisa (sem insistir)', async () => {
+  const ok = telaCom([{ ok: true, botaoDepois: 'seguir' }]);
+  const st = await ok.api.deixarDeSeguir('privado');
   assert.equal(st.pedidoPendente, false);
-  assert.match(ok.pedidos[0].url, /friendships\/destroy\/77\/$/);
-
-  // 1.1.2: sem confirmação, confere o friendships/show uma 2ª vez (2,5 s depois) antes de tentar o legado.
-  const preso = apiCom([OK, PENDENTE, PENDENTE, OK, PENDENTE, PENDENTE]);
-  await assert.rejects(preso.api.deixarDeSeguir('77', 'privado'), (e) => e.tipo === 'mudanca_api' && /não confirmou/.test(e.message));
-  assert.match(preso.pedidos[3].url, /\/web\/friendships\/77\/unfollow\/$/, 'tenta o legado antes de desistir');
+  assert.deepEqual(ok.pedidos[0].args[2], ['seguir', 'seguir_de_volta']);
+  const preso = telaCom([{ ok: false, erro: 'depois do clique o botão ficou "solicitado"', passo: 'confirmação do botão' }]);
+  await assert.rejects(preso.api.deixarDeSeguir('privado'), (e) => e.tipo === 'mudanca_api' && /Parei sem insistir/.test(e.message) && e.seletor === 'perfil: confirmação do botão');
+  assert.equal(preso.pedidos.length, 1, 'uma tentativa só');
 });
 
 test('simulação: privados viram "Solicitado", contam no limite, e sem retorno em 3 dias a solicitação é cancelada', { timeout: 240_000 }, async () => {
   const inicio = Date.parse('2026-10-20T07:30:00Z'); // 04:30 SP
   // Todos privados: 1/3 aceita sem seguir de volta, 1/3 segue de volta (sem aceitar), 1/3 ignora.
   const ig = criarInstagramFalso({ totalSeguidores: 120, voltaSe: (n) => n % 3 === 0 });
-  for (const u of ig.usuarios) u.is_private = true;
+  for (const u of ig.usuarios) u.privado = true;
   ig.aceitaSe = (n) => n % 3 === 1;
   const cf = criarChromeFalso(ig);
   const ext = await iniciarExtensao(cf, inicio);
@@ -105,12 +99,12 @@ test('simulação: privados viram "Solicitado", contam no limite, e sem retorno 
   const e = ext.estado();
   const regs = Object.values(e.seguidos);
 
-  // Limite diário: 15 "seguir" por dia (solicitações contam)
-  const creates = ig.chamadas.filter((c) => c.caminho.startsWith('/api/v1/friendships/create/'));
-  assert.equal(creates.length, 75);
-  assert.ok(regs.length === 75);
+  // Limite diário: 20 "seguir" por dia (solicitações contam) — 1.2.0; a fila tem 120
+  const creates = ig.de('clique-seguir');
+  assert.equal(creates.length, 100);
+  assert.ok(regs.length === 100);
   const seguirHist = e.historico.filter((h) => h.acao === 'seguir');
-  assert.ok(seguirHist.length === 75 && seguirHist.every((h) => /^Solicitado \(perfil privado\) — confirmado/.test(h.resultado)));
+  assert.ok(seguirHist.length === 100 && seguirHist.every((h) => /^Solicitado \(perfil privado\) — confirmado/.test(h.resultado)));
 
   // Cancelamentos: só quem a extensão solicitou, após 3 dias, sem follow-back; confirmados no Instagram
   const canceladas = regs.filter((x) => x.solicitacaoCancelada);
@@ -130,7 +124,7 @@ test('simulação: privados viram "Solicitado", contam no limite, e sem retorno 
   for (const x of aceitos) { assert.ok(!x.solicitacaoCancelada); assert.equal(ig.sigo.has(x.id), false); }
 
   // Boas-vindas só para quem seguiu de volta; quem seguiu de volta nunca é cancelado
-  const idsDm = new Set(ig.dms.map((d) => d.id));
+  const idsDm = new Set(ig.dms.map((d) => d.username));
   for (const x of regs) {
     if (idsDm.has(x.id)) assert.ok(x.followBackEm, 'DM para quem não seguiu de volta');
     if (x.followBackEm) assert.notEqual(x.status, STATUS.DEIXADO);
@@ -142,9 +136,7 @@ test('simulação: privados viram "Solicitado", contam no limite, e sem retorno 
   assert.match(gerarCsv(e.historico), /Solicitado \(perfil privado\)/);
 
   // Nunca mexe em quem a extensão não seguiu/solicitou
-  for (const c of ig.chamadas.filter((x) => x.caminho.startsWith('/api/v1/friendships/destroy/'))) {
-    assert.ok(e.seguidos[c.caminho.split('/')[5]]);
-  }
+  for (const c of ig.de('clique-deixar')) assert.ok(e.seguidos[c.alvo]);
   mock.timers.reset();
 });
 
@@ -157,6 +149,6 @@ test('perfil de referência continua tendo de ser público (privado que não sig
   const r = await ext.mensagem({ tipo: 'buscarOrigem', username: 'perfilref' });
   assert.equal(r.ok, false);
   assert.match(r.erro, /PRIVADO/);
-  assert.equal(ig.chamadas.some((c) => c.caminho.includes('/followers/')), false);
+  assert.equal(ig.de('lista').length, 0);
   mock.timers.reset();
 });

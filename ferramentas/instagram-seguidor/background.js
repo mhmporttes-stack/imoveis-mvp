@@ -1,7 +1,8 @@
 // Service worker da extensão: agenda, fila, seguir / deixar de seguir, follow-back e DM.
-// Toda a comunicação com o Instagram passa por instagram-api.js.
+// Toda a comunicação com o Instagram passa por instagram-tela.js (1.2.0: só pela tela, clicando como o dono — nada de
+// API interna, cabeçalhos copiados ou cookies). Ligação com a tela "Extensões" do CRM: lib/crm-link.js.
 
-import { criarApiChrome, lerSessao, ErroInstagram, haJanelaParaTrabalhar, abrirJanelaTrabalho, situacaoJanelaTrabalho } from './instagram-api.js';
+import { criarTelaChrome, ErroInstagram, haJanelaParaTrabalhar, abrirJanelaTrabalho, situacaoJanelaTrabalho } from './instagram-tela.js';
 import { MINUTO, diaSP, janelaDoDia, dentroDaJanela, proximaAbertura, formatarSP } from './lib/tempo.js';
 import { planejarHorarios, decidirHorario, atrasoHumanoMs, atrasoDmMs } from './lib/agenda.js';
 import {
@@ -31,32 +32,44 @@ import {
   reabilitarDesistidasPorHtml,
 } from './lib/regras.js';
 import { normalizarEstado, virarDiaSeNecessario, registrarHistorico, resumoBusca } from './lib/estado.js';
-import { CARGA_JANELA_MS, CARGA_PAGINAS_MAX, CARGA_TENTATIVAS_MAX, interpretarAtividade, separarCarga, registroDaCarga } from './lib/carga-tres-dias.js';
+import { aplicarConfigDoCrm, resumoSaude } from './lib/crm-config.js';
+import { criarLigacaoCrmChrome, CRM_PADRAO, normalizarUrlCrm } from './lib/crm-link.js';
 
-const api = criarApiChrome();
+const api = criarTelaChrome();
+
+// 1.2.0 (EXT-1, dono, 2026-10-29): chave igs_… (gerada na tela Extensões do CRM) e URL do CRM ficam nas Opções.
+async function configCrm() {
+  const { crm } = await chrome.storage.local.get('crm');
+  return { baseUrl: (crm && crm.baseUrl) || CRM_PADRAO, key: (crm && crm.key) || '', version: chrome.runtime.getManifest().version };
+}
+const crmLink = criarLigacaoCrmChrome(configCrm);
 
 const ALARME_ACAO = 'acao'; // próxima ação agendada (one-shot)
-const ALARME_VERIFICAR = 'verificar'; // checagem de follow-back (a cada 2 min)
+const ALARME_VERIFICAR = 'verificar'; // conferência dos meus seguidores (padrão 10 min desde a 1.2.0; muda no CRM)
 const ALARME_VIGIA = 'vigia'; // rede de segurança (a cada 5 min): virada de dia, abertura da janela etc.
-const VARREDURA_COMPLETA_MS = 30 * MINUTO; // show_many em todos os seguidos, de 30 em 30 min
-// 1.1.4: com o show_many respondendo HTML, a varredura lê o botão de no máximo N perfis por rodada (30 min),
-// com intervalo humano entre eles — nunca uma rajada de visitas.
+const VARREDURA_COMPLETA_MS = 30 * MINUTO; // conferência completa de 30 em 30 min
+// Na conferência completa, quem não apareceu na minha lista é conferido um a um (perfil + pesquisa na minha lista),
+// no máximo N por rodada, com intervalo humano — nunca uma rajada de visitas.
 const PERFIS_POR_VARREDURA = 5;
-// 1.1.7: na conferência completa (30 min), páginas lidas da lista dos MEUS seguidores (mais recentes primeiro).
-// A cada 2 min só a 1ª página: quem seguiu de volta à noite, com o PC desligado ou antes de outras pessoas novas
-// ficava fora dela e, com show_many/show em HTML, nunca era visto — nenhuma DM saía.
-const PAGINAS_MEUS_SEGUIDORES = 4;
-// 1.1.5: DM com resposta HTML (não saiu): até 3 tentativas (agora, +30 min, +2 h) e então alerta no popup.
+// 1.2.0: quantos dos MEUS seguidores mais recentes a extensão lê na janela "Seguidores" (rápida / completa / máximo
+// procurando o 1º já conhecido).
+const MEUS_SEGUIDORES_RAPIDA = 12;
+const MEUS_SEGUIDORES_COMPLETA = 48;
+const MEUS_SEGUIDORES_MAX = 96;
+// 1.1.5: DM que não saiu: até 3 tentativas (agora, +30 min, +2 h) e então alerta no popup.
 const DM_MAX_TENTATIVAS_HTML = 3;
 const HORA_DM = 60 * MINUTO;
 const INTERVALO_MIN_ENTRE_DMS = 60 * 1000;
 const INTERVALO_REABASTECER_MS = 20 * MINUTO;
-// 1.1.8: boas-vindas para TODO seguidor novo. Se a 1ª página dos meus seguidores não tiver nenhum já conhecido, lê
-// mais páginas (até este total) procurando o ponto em que começam os antigos; sem achar, ninguém recebe DM.
-const PAGINAS_MAX_NOVOS_SEGUIDORES = 8;
+// 1.2.0: reabastecer lê mais 36 perfis da lista do perfil de referência (a lista da tela não tem "página"; relê do
+// topo até onde parou) e nunca passa deste total.
+const REABASTECER_LOTE = 36;
+const LISTA_ORIGEM_MAX = 1000;
 
 /** 1.1.8: todos os registros com DM de boas-vindas: follow-back (`seguidos`) e novos seguidores. */
 const registrosDm = (e) => [...Object.values(e.seguidos), ...Object.values(e.novosSeguidores || {})];
+/** Meu @: o das Opções, senão o lido na tela (link "Perfil" do menu do Instagram). */
+const meuUsuario = (e) => (e.config.meuUsuario || e.meuUsuario || '').toLowerCase();
 
 // ---------------------------------------------------------------- utilidades
 
@@ -64,7 +77,7 @@ let corrente = Promise.resolve();
 /** Executa operações uma de cada vez (evita duas rotinas mexendo no estado juntas). */
 function serializar(fn) {
   const p = corrente.then(fn, fn);
-  corrente = p.catch(() => {});
+  corrente = p.catch(() => {}); // o erro chega a quem chamou (p); aqui só mantém a fila andando
   return p;
 }
 
@@ -138,6 +151,9 @@ function tratarErro(e, err, contexto, username = '') {
     marcarSemJanela(e, true);
     return tipo;
   }
+  // 1.2.0: todo erro vai ao sinal de saúde do CRM (sem o @ da pessoa); parte da tela não achada, também.
+  crmLink.registrarErro(contexto, msg).catch(crmLink.engolido('registrar erro no sinal'));
+  if (err && err.seletor) crmLink.registrarSeletor(err.seletor, msg).catch(crmLink.engolido('registrar seletor no sinal'));
   const decisao = decidirPausa({ tipo, ehAcao: CONTEXTOS_DE_ACAO.has(contexto), recentes: e.errosRecentes || [], agora });
   if (tipo === 'limite' || tipo === 'aguarde') {
     e.errosRecentes = [...(e.errosRecentes || []).filter((t) => agora - t < JANELA_ERROS_MS), agora];
@@ -153,10 +169,10 @@ function tratarErro(e, err, contexto, username = '') {
     const jaEstava = e.semSessao;
     aplicarPausaPorErro(e, 'sessao', agora, msg);
     log(e, { username, acao: contexto, resultado: `Sessão não reconhecida pelo Instagram — pausado até entrar de novo (${msg})` });
-    if (!jaEstava) notificar('Instagram: sem sessão', 'O Instagram não reconheceu o login deste Chrome. Abra o instagram.com e entre de novo.');
+    if (!jaEstava) notificar('Instagram: sem sessão', 'O Instagram está pedindo login neste Chrome. Abra o instagram.com e entre de novo.');
   } else if (tipo === 'indisponivel') {
-    // 1.1.4: HTML na resposta da API → só registra; não pausa, não vira "sem sessão" nem alerta de mudança de API.
-    log(e, { username, acao: contexto, resultado: `checagem indisponível: ${msg}` });
+    // Leitura sem resposta útil: só registra; não pausa, não vira "sem sessão".
+    log(e, { username, acao: contexto, resultado: `leitura indisponível: ${msg}` });
   } else {
     log(e, { username, acao: contexto, resultado: `erro (${tipo}): ${msg}` });
     if (tipo === 'mudanca_api') {
@@ -166,8 +182,8 @@ function tratarErro(e, err, contexto, username = '') {
   return tipo;
 }
 
-// Interrompe a rodada sem perder o perfil da vez (o "sem_janela" não pausa: só espera).
-const bloqueante = (tipo) => tipo === 'limite' || tipo === 'aguarde' || tipo === 'sessao' || tipo === 'sem_janela';
+// Interrompe a rodada sem perder o perfil da vez (o "sem_janela" não pausa: só espera; "parado" = Parar tudo do CRM).
+const bloqueante = (tipo) => tipo === 'limite' || tipo === 'aguarde' || tipo === 'sessao' || tipo === 'sem_janela' || tipo === 'parado';
 
 /** Registra (uma vez por mudança) que não há janela do Chrome aberta para trabalhar. */
 function marcarSemJanela(e, sem) {
@@ -183,27 +199,66 @@ async function checarJanela(e) {
   return ha;
 }
 
-/** Confere a sessão no navegador (cookies). Pausa/retoma sozinha. */
+/**
+ * 1.2.0: sessão conferida na própria TELA do Instagram (a janela de trabalho está na página de login?), sem cookies.
+ * Pausa/retoma sozinha. Também lê o meu @ (link "Perfil" do menu), se as Opções não tiverem.
+ */
 async function checarSessao(e) {
-  const s = await lerSessao();
+  if (e.semSessao && e.sessaoRecheckEm && Date.now() < e.sessaoRecheckEm) return false; // recusada há pouco: espera
+  let s;
+  try {
+    s = await api.lerSessao();
+  } catch (err) {
+    const tipo = tratarErro(e, err, 'sessão');
+    return !bloqueante(tipo) && !e.semSessao;
+  }
   if (!s.logado) {
     if (!e.semSessao) {
       aplicarPausaPorErro(e, 'sessao', Date.now());
-      log(e, { acao: 'sessão', resultado: 'Sem sessão logada no instagram.com — pausado' });
+      log(e, { acao: 'sessão', resultado: 'Instagram pedindo login na janela de trabalho — pausado' });
       notificar('Instagram: sem sessão', 'Entre no instagram.com neste Chrome. A extensão volta sozinha.');
+    } else {
+      e.sessaoRecheckEm = Date.now() + 10 * MINUTO;
     }
     return false;
   }
   if (e.semSessao) {
-    // O Instagram recusou a sessão há pouco: espera um pouco antes de tentar de novo.
-    if (e.sessaoRecheckEm && Date.now() < e.sessaoRecheckEm) return false;
     e.semSessao = false;
     e.sessaoRecheckEm = null;
     if (e.alerta && e.alerta.tipo === 'sessao') e.alerta = null;
     log(e, { acao: 'sessão', resultado: 'Sessão do Instagram encontrada — retomando' });
   }
-  e.meuId = s.meuId;
+  if (s.meuUsuario) e.meuUsuario = s.meuUsuario;
   return true;
+}
+
+/**
+ * 1.2.0 (EXT-1): estado do CRM — "Parar tudo" e a configuração editada na tela Extensões. Consultado no começo de cada
+ * rodada e antes de cada ação (cache de 10 s). Sem chave: segue o painel local. Devolve true se está PARADO.
+ */
+async function paradoPeloCrm(e) {
+  const r = await crmLink.estado();
+  if (r.config) {
+    const ap = aplicarConfigDoCrm(e, r.config);
+    if (ap.mudou.length) {
+      log(e, { acao: 'configuração do CRM', resultado: `aplicada: seguir ${e.config.limiteDiario}/dia, deixar de seguir ${e.config.limiteUnfollowDiario}/dia, boas-vindas ${e.config.limiteDmDiario}/dia, conferir seguidores a cada ${e.config.verificarACadaMin} min, das ${e.config.inicioHora}h às ${e.config.fimHora}h` });
+      if (ap.limitesMudaram) e.agenda.limite = null; // replaneja o resto do dia
+      if (ap.verificarMudou) await chrome.alarms.create(ALARME_VERIFICAR, { periodInMinutes: e.config.verificarACadaMin });
+    }
+  }
+  if (r.outdated && r.latestVersion && e.avisoVersao !== r.latestVersion) {
+    e.avisoVersao = r.latestVersion;
+    notificar('Seguidor IG: versão nova', `A versão ${r.latestVersion} está no CRM (este PC roda a ${chrome.runtime.getManifest().version}). Abra o popup da extensão para baixar.`);
+  }
+  e.crm = { stopped: r.stopped === true, outdated: r.outdated === true, latestVersion: r.latestVersion || '', downloadUrl: r.downloadUrl || '', origem: r.origem, verificadoEm: Date.now() };
+  if (r.stopped && !e.paradoCrmDesde) { e.paradoCrmDesde = Date.now(); log(e, { acao: 'CRM', resultado: 'Parar tudo no CRM — a extensão não faz nada até Retomar' }); }
+  if (!r.stopped && e.paradoCrmDesde) { e.paradoCrmDesde = null; log(e, { acao: 'CRM', resultado: 'Retomada no CRM' }); }
+  return r.stopped === true;
+}
+
+/** Sinal de saúde ao CRM (no máximo a cada 2 min; com erro, na hora). */
+async function enviarSaude(e, c, { forcar = false } = {}) {
+  await crmLink.enviarSaude(resumoSaude(e, c, { paradoPeloCrm: Boolean(e.crm && e.crm.stopped) }), { forcar }).catch(crmLink.engolido('sinal de saúde'));
 }
 
 // ---------------------------------------------------------------- agenda do dia
@@ -292,6 +347,7 @@ async function processarDm(e, agora) {
     for (const r of prontas) r.dmAgendadaPara = e.ultimaDmEm + INTERVALO_MIN_ENTRE_DMS + atrasoHumanoMs() * 10;
     return 'ok';
   }
+  if (await paradoPeloCrm(e)) return 'parado'; // 1.2.0: Parar tudo do CRM, conferido antes de cada ação
   const r = prontas[0];
   // Espaça as demais (nenhuma rajada de DMs).
   prontas.slice(1).forEach((o, i) => { o.dmAgendadaPara = Math.max(o.dmAgendadaPara, agora + (i + 1) * (INTERVALO_MIN_ENTRE_DMS + atrasoDmMs() / 2)); });
@@ -300,19 +356,19 @@ async function processarDm(e, agora) {
   await salvar(e); // marca ANTES de enviar: garante "uma única vez"
   await pausaHumana();
   try {
-    const res = await api.enviarDm(r.id, cfg.mensagem, { username: r.username });
+    const res = await api.enviarDm(r.username, cfg.mensagem);
     r.dmEnviadaEm = Date.now();
-    if (res.digitacao) { r.dmDigitacaoTentadaEm = r.dmEnviadaEm; r.dmVia = 'digitacao'; }
+    r.dmDigitacaoTentadaEm = r.dmEnviadaEm;
+    r.dmVia = 'digitacao';
     e.ultimaDmEm = r.dmEnviadaEm;
     e.contadores.dms += 1;
     log(e, { username: r.username, acao: 'DM', resultado: `boas-vindas enviada (${res.modo})`, origem: r.origem });
     return 'ok';
   } catch (err) {
-    const status = err && err.status;
     const tipo = err instanceof ErroInstagram ? err.tipo : 'outro';
-    if (err && err.digitacao) r.dmDigitacaoTentadaEm = Date.now(); // 1.1.8: já passou pela digitação na tela da DM
+    if (err && err.digitacao) r.dmDigitacaoTentadaEm = Date.now();
     if (bloqueante(tipo)) {
-      // O Instagram recusou: não saiu. Reagenda para depois da pausa.
+      // Limite/sessão/sem janela antes do Enter: não saiu. Reagenda para depois da pausa.
       r.dmTentativaEm = null;
       tratarErro(e, err, 'DM', r.username);
       erroBoasVindas(e, `DM para @${r.username} adiada: ${err.message || err}`);
@@ -321,43 +377,31 @@ async function processarDm(e, agora) {
       return tipo;
     }
     if (tipo === 'nao_enviada') {
-      // 1.1.5: a API de DM devolveu a página HTML — certamente não saiu. Reagenda (30 min, depois 2 h); na 3ª
-      // falha desiste COM alerta no popup (nunca em silêncio). 1.1.8: antes de contar a falha, a extensão já tentou
-      // digitar na tela da DM (instagram-api.js) — 'nao_enviada' aqui = a digitação também não chegou ao Enter.
+      // Certamente não saiu (a tela não chegou ao Enter). Reagenda (30 min, depois 2 h); na 3ª falha desiste COM
+      // alerta no popup (nunca em silêncio).
       r.dmTentativaEm = null;
       r.dmFalhas = (r.dmFalhas || 0) + 1;
-      erroBoasVindas(e, `DM para @${r.username} não enviada (tentativa ${r.dmFalhas} de ${DM_MAX_TENTATIVAS_HTML}): ${err.digitacao ? `API respondeu HTML e a digitação não enviou — ${String(err.message).split('. DM não enviada')[0]}` : 'o Instagram respondeu a página HTML'}`);
+      if (err.seletor) crmLink.registrarSeletor(err.seletor, err.message).catch(crmLink.engolido('registrar seletor no sinal'));
+      crmLink.registrarErro('DM', err.message).catch(crmLink.engolido('registrar erro no sinal'));
+      erroBoasVindas(e, `DM para @${r.username} não enviada (tentativa ${r.dmFalhas} de ${DM_MAX_TENTATIVAS_HTML}): ${err.message}`);
       if (r.dmFalhas >= DM_MAX_TENTATIVAS_HTML) {
         r.dmDesistiu = true;
-        r.dmDesistiuPor = 'html';
-        const texto = `DM de boas-vindas não pôde ser enviada para @${r.username}: o Instagram respondeu a página HTML em vez de processar a mensagem${err.digitacao ? ' e a digitação na tela da DM também não conseguiu enviar' : ''} (${r.dmFalhas} tentativas). Envie manualmente pelo Instagram, se quiser.`;
+        r.dmDesistiuPor = 'tela';
+        const texto = `DM de boas-vindas não pôde ser enviada para @${r.username}: a tela da conversa não deixou digitar e enviar (${r.dmFalhas} tentativas). Envie manualmente pelo Instagram, se quiser.`;
         e.alerta = { tipo: 'dm', em: Date.now(), texto };
-        log(e, { username: r.username, acao: 'DM', resultado: `não enviada após ${r.dmFalhas} tentativas (resposta HTML) — desistindo, alerta no popup`, origem: r.origem });
+        log(e, { username: r.username, acao: 'DM', resultado: `não enviada após ${r.dmFalhas} tentativas — desistindo, alerta no popup`, origem: r.origem });
         notificar('Instagram: DM não enviada', texto.slice(0, 200));
       } else {
         const espera = r.dmFalhas === 1 ? 30 * MINUTO : 2 * HORA_DM;
         r.dmAgendadaPara = ajustarParaJanela(Date.now() + espera, Date.now(), cfg);
-        log(e, { username: r.username, acao: 'DM', resultado: `não enviada (Instagram respondeu HTML) — tentativa ${r.dmFalhas + 1} às ${formatarSP(r.dmAgendadaPara)}`, origem: r.origem });
+        log(e, { username: r.username, acao: 'DM', resultado: `não enviada (${err.message}) — tentativa ${r.dmFalhas + 1} às ${formatarSP(r.dmAgendadaPara)}`, origem: r.origem });
       }
-      return tipo;
-    }
-    if (tipo !== 'incerto' && status >= 400 && status < 500) {
-      r.dmTentativaEm = null;
-      r.dmFalhas = (r.dmFalhas || 0) + 1;
-      erroBoasVindas(e, `DM para @${r.username} recusada (tentativa ${r.dmFalhas} de 3): ${err.message}`);
-      if (r.dmFalhas >= 3) {
-        r.dmDesistiu = true;
-        log(e, { username: r.username, acao: 'DM', resultado: `falhou 3 vezes — desistindo (${err.message})`, origem: r.origem });
-      } else {
-        r.dmAgendadaPara = ajustarParaJanela(Date.now() + 15 * MINUTO, Date.now(), cfg);
-        log(e, { username: r.username, acao: 'DM', resultado: `recusada (${err.message}) — nova tentativa às ${formatarSP(r.dmAgendadaPara)}`, origem: r.origem });
-      }
-      if (tipo === 'mudanca_api') e.alerta = { tipo, em: Date.now(), texto: err.message };
       return tipo;
     }
     // Não dá para saber se saiu: nunca reenviar.
     r.dmIncerta = true;
     e.contadores.dmsIncertas = (e.contadores.dmsIncertas || 0) + 1; // 1.1.8: conta no teto diário (pode ter saído)
+    crmLink.registrarErro('DM', err.message || String(err)).catch(crmLink.engolido('registrar erro no sinal'));
     log(e, { username: r.username, acao: 'DM', resultado: `resultado incerto, não será repetida: ${err.message || err}`, origem: r.origem });
     erroBoasVindas(e, `DM para @${r.username} com resultado incerto (não será repetida — confira no Instagram): ${err.message || err}`);
     return tipo;
@@ -367,10 +411,11 @@ async function processarDm(e, agora) {
 async function processarSeguir(e, agora) {
   const decisao = replanejarSeAtrasado(e, 'follows', agora);
   if (decisao !== 'executar') return 'ok';
-  e.agenda.follows.shift(); // consome o horário
   const cfg = e.config;
-  if (e.contadores.seguidos >= cfg.limiteDiario) return 'ok';
-  if (e.suspensoSeguir === diaSP(agora)) return 'ok'; // falha de API hoje: só amanhã
+  if (e.contadores.seguidos >= cfg.limiteDiario) { e.agenda.follows.shift(); return 'ok'; }
+  if (e.suspensoSeguir === diaSP(agora)) { e.agenda.follows.shift(); return 'ok'; } // a tela não deixou seguir hoje: só amanhã
+  if (await paradoPeloCrm(e)) return 'parado'; // 1.2.0: Parar tudo do CRM (o horário fica para depois)
+  e.agenda.follows.shift(); // consome o horário
 
   for (let tentativa = 0; tentativa < 5; tentativa += 1) {
     const cand = e.fila.shift();
@@ -386,13 +431,13 @@ async function processarSeguir(e, agora) {
     await pausaHumana();
     let st;
     try {
-      st = await api.amizade(cand.id, cand.username);
+      st = await api.amizade(cand.username);
     } catch (err) {
       const tipo = tratarErro(e, err, 'checar antes de seguir', cand.username);
       if (bloqueante(tipo)) { e.fila.unshift(cand); return tipo; }
       if (tipo === 'indisponivel') {
-        // 1.1.4: checagem indisponível (API respondeu HTML e o botão do perfil não foi lido). O perfil volta para
-        // a fila sem ser marcado e o limite do dia não é tocado; o horário perdido é replanejado (1.1.1).
+        // Perfil não lido (botão não apareceu). O perfil volta para a fila sem ser marcado e o limite do dia não é
+        // tocado; o horário perdido é replanejado (1.1.1).
         e.fila.unshift(cand);
         return tipo;
       }
@@ -412,7 +457,7 @@ async function processarSeguir(e, agora) {
 
     await pausaHumana();
     try {
-      const r = await api.seguir(cand.id, cand.username);
+      const r = await api.seguir(cand.username);
       e.vistos[cand.id] = 'seguido';
       e.seguidos[cand.id] = {
         id: cand.id,
@@ -420,21 +465,21 @@ async function processarSeguir(e, agora) {
         origem: cand.origem,
         seguidoEm: Date.now(),
         status: statusAposSeguir(r), // perfil privado: "Solicitado" (pedido pendente) — conta no limite do dia
-        privado: Boolean(r.privado || cand.privado),
+        privado: Boolean(r.privado || st.privado || cand.privado),
       };
       e.contadores.seguidos += 1;
-      log(e, { username: cand.username, acao: 'seguir', resultado: `${rotuloSeguir(r)} — confirmado (${r.via})`, origem: cand.origem });
+      log(e, { username: cand.username, acao: 'seguir', resultado: `${rotuloSeguir(r)} — confirmado na tela (${r.via})`, origem: cand.origem });
       return 'ok';
     } catch (err) {
       const tipo = tratarErro(e, err, 'seguir', cand.username);
       if (bloqueante(tipo)) { e.fila.unshift(cand); return tipo; }
       if (tipo === 'mudanca_api' || tipo === 'indisponivel') {
-        // Resposta inesperada (ex.: HTML) mesmo após o endpoint legado: não é sucesso
-        // nem bloqueio. Suspende o SEGUIR até o fim do dia; o perfil volta para a fila.
+        // A tela não deixou seguir (botão não apareceu ou não mudou): para de insistir — SEGUIR suspenso até o fim do
+        // dia; o perfil volta para a fila.
         e.fila.unshift(cand);
         e.suspensoSeguir = diaSP(Date.now());
-        e.alerta = { tipo, em: Date.now(), texto: `SEGUIR suspenso até amanhã: o Instagram respondeu de forma inesperada. ${err.message}` };
-        notificar('Instagram: seguir suspenso hoje', 'O Instagram respondeu de forma inesperada ao seguir. Veja o diagnóstico no painel.');
+        e.alerta = { tipo, em: Date.now(), texto: `SEGUIR suspenso até amanhã: a tela do Instagram não deixou seguir. ${err.message}` };
+        notificar('Instagram: seguir suspenso hoje', 'A tela do Instagram não deixou seguir (botão não apareceu ou não mudou). Veja o painel.');
         return tipo;
       }
       e.vistos[cand.id] = `erro:${tipo}`;
@@ -468,10 +513,12 @@ function marcarFollowBack(e, r, agora) {
 async function processarDeixarDeSeguir(e, agora) {
   const decisao = replanejarSeAtrasado(e, 'unfollows', agora);
   if (decisao !== 'executar') return 'ok';
-  e.agenda.unfollows.shift();
   const cfg = e.config;
-  if (e.contadores.deixados >= cfg.limiteUnfollowDiario) return 'ok';
-  if (e.suspensoDeixar === diaSP(agora)) return 'ok';
+  if (e.contadores.deixados >= cfg.limiteUnfollowDiario) { e.agenda.unfollows.shift(); return 'ok'; }
+  if (e.suspensoDeixar === diaSP(agora)) { e.agenda.unfollows.shift(); return 'ok'; }
+  if (!escolherParaUnfollow(e.seguidos, agora, cfg.diasParaUnfollow)) { e.agenda.unfollows.shift(); return 'ok'; }
+  if (await paradoPeloCrm(e)) return 'parado'; // 1.2.0: Parar tudo do CRM
+  e.agenda.unfollows.shift();
 
   const excluir = new Set();
   for (let tentativa = 0; tentativa < 3; tentativa += 1) {
@@ -482,7 +529,8 @@ async function processarDeixarDeSeguir(e, agora) {
     await pausaHumana();
     let st;
     try {
-      st = await api.amizade(r.id, r.username);
+      // 1.2.0: botão do perfil + pesquisa do @ na MINHA lista de seguidores (o botão "Seguindo" não diz se ela me segue).
+      st = await api.amizade(r.username, { meuUsuario: meuUsuario(e) });
     } catch (err) {
       const tipo = tratarErro(e, err, 'checar antes de deixar de seguir', r.username);
       if (bloqueante(tipo) || tipo === 'indisponivel') return tipo;
@@ -490,8 +538,7 @@ async function processarDeixarDeSeguir(e, agora) {
     }
     if (st.meSegue) { marcarFollowBack(e, r, Date.now()); continue; }
     if (st.meSegue === undefined) {
-      // 1.1.4: lido pelo botão "Seguindo"/"Solicitado" (API respondeu HTML) — não diz se a pessoa me segue.
-      // Na dúvida não deixa de seguir (seria desfazer com quem seguiu de volta).
+      // Não deu para confirmar se a pessoa me segue: na dúvida não deixa de seguir (seria desfazer com quem seguiu de volta).
       log(e, { username: r.username, acao: 'deixar de seguir', resultado: `adiado: não deu para confirmar se segue de volta (${st.via || 'sem dado'})`, origem: r.origem });
       continue;
     }
@@ -506,9 +553,9 @@ async function processarDeixarDeSeguir(e, agora) {
 
     await pausaHumana();
     try {
-      // friendships/destroy também cancela a solicitação pendente; a API só confirma com
-      // following E outgoing_request falsos no friendships/show.
-      await api.deixarDeSeguir(r.id, r.username);
+      // "Seguindo" → "Deixar de seguir" também cancela a solicitação pendente ("Solicitado"); só confirma quando o
+      // botão do perfil volta a "Seguir".
+      await api.deixarDeSeguir(r.username);
       const cancelada = !st.seguindo && st.pedidoPendente;
       r.status = STATUS.DEIXADO;
       r.deixadoEm = Date.now();
@@ -520,7 +567,7 @@ async function processarDeixarDeSeguir(e, agora) {
       const tipo = tratarErro(e, err, 'deixar de seguir', r.username);
       if (tipo === 'mudanca_api') {
         e.suspensoDeixar = diaSP(Date.now());
-        e.alerta = { tipo, em: Date.now(), texto: `DEIXAR DE SEGUIR suspenso até amanhã: o Instagram respondeu de forma inesperada. ${err.message}` };
+        e.alerta = { tipo, em: Date.now(), texto: `DEIXAR DE SEGUIR suspenso até amanhã: a tela do Instagram não deixou. ${err.message}` };
       }
       return tipo;
     }
@@ -529,110 +576,48 @@ async function processarDeixarDeSeguir(e, agora) {
 }
 
 /**
- * 1.1.7: uma página da lista dos MEUS seguidores (mais recentes primeiro). 1ª página: o modo que funcionou da última
- * vez (v1 por padrão); se ele não der dados (HTML, mudança de API, lista vazia), tenta o outro (GraphQL do site — o
- * mesmo plano B da busca de origem). As páginas seguintes ficam no modo da 1ª (o cursor é de cada um).
- */
-async function paginaMeusSeguidores(e, cursor, modo) {
-  const ler = (m, c) => (m === 'graphql' ? api.paginaSeguidoresGraphql(e.meuId, c) : api.paginaSeguidores(e.meuId, c));
-  if (modo) return ler(modo, cursor);
-  const ordem = e.boasVindas && e.boasVindas.via === 'graphql' ? ['graphql', 'v1'] : ['v1', 'graphql'];
-  const falhas = [];
-  let vazia = null;
-  let erro = null;
-  for (const m of ordem) {
-    try {
-      const pagina = await ler(m, null);
-      if (pagina.usuarios.length) return pagina;
-      falhas.push(`${m}: lista vazia (${pagina.trecho || '—'})`);
-      vazia = vazia || pagina;
-    } catch (err) {
-      if (err instanceof ErroInstagram && bloqueante(err.tipo)) throw err; // limite/sessão/sem janela: decide quem chama
-      falhas.push(`${m}: ${err.message || err}`);
-      erro = err;
-    }
-  }
-  if (vazia && !erro) return vazia; // as duas vieram vazias, sem erro: não há o que conferir
-  const tipo = erro instanceof ErroInstagram ? erro.tipo : 'outro';
-  throw new ErroInstagram(tipo, `Lista dos meus seguidores indisponível — ${falhas.join(' | ')}`, { endpoint: 'meus seguidores' });
-}
-
-/**
- * Follow-back: a cada 2 min, a 1ª página dos meus seguidores; de 30 em 30 min (ou no botão "Conferir seguidores
- * agora"), a conferência completa: até PAGINAS_MEUS_SEGUIDORES páginas e, para quem faltar, show_many (ou, se ele
- * responder HTML, friendships/show / botão do perfil de poucos perfis).
+ * Follow-back e seguidores novos (1.2.0, pela tela): a cada rodada, os MEUS seguidores mais recentes na janela
+ * "Seguidores" (12; na conferência completa de 30 min, 48; até 96 procurando o 1º já conhecido). Na conferência completa,
+ * quem a extensão seguiu e não apareceu é conferido um a um (perfil + pesquisa na minha lista), no máximo 5.
  */
 async function verificarFollowBacks(e, agora, { forcarCompleta = false } = {}) {
+  const eu = meuUsuario(e);
+  if (!eu) {
+    erroBoasVindas(e, 'meu @ do Instagram ainda não conhecido — preencha "Seu @ no Instagram" nas Opções (ou deixe a janela de trabalho no instagram.com logado)');
+    return 'ok';
+  }
+  if (await paradoPeloCrm(e)) return 'parado';
   const ids = new Set(idsParaVerificarFollowBack(e.seguidos));
-  if (!e.meuId) return 'ok';
   const completa = forcarCompleta || !e.ultimaVarreduraEm || agora - e.ultimaVarreduraEm >= VARREDURA_COMPLETA_MS;
   if (completa) e.ultimaVarreduraEm = agora;
 
-  // 1) Meus seguidores mais recentes: pega follow-back em poucos minutos (e, na conferência completa, mais páginas).
-  // 1.1.8: a mesma leitura acha os seguidores NOVOS (boas-vindas para todos): lê até achar um já conhecido.
   const ms = e.meusSeguidores;
-  const lidos = [];
-  let achouConhecido = false;
-  let terminou = false; // leu até o fim da lista ou até o limite de páginas, sem erro
-  let cursor = null;
-  let modo = null;
-  for (let p = 0; p < PAGINAS_MAX_NOVOS_SEGUIDORES; p += 1) {
-    const paraFollowBack = p < (completa ? PAGINAS_MEUS_SEGUIDORES : 1) && ids.size;
-    const paraNovos = ms.linhaDeBaseEm && !achouConhecido;
-    if (p > 0 && !paraFollowBack && !paraNovos) break;
-    await pausaHumana();
-    let pagina;
-    try {
-      pagina = await paginaMeusSeguidores(e, cursor, modo);
-    } catch (err) {
-      const tipo = tratarErro(e, err, 'verificar follow-back');
-      erroBoasVindas(e, `conferir seguidores: ${err.message || err}`);
-      if (bloqueante(tipo)) return tipo;
-      break;
+  await pausaHumana();
+  let lista;
+  try {
+    lista = await api.listaSeguidores(eu, { quantos: completa ? MEUS_SEGUIDORES_COMPLETA : MEUS_SEGUIDORES_RAPIDA });
+    // Com linha de base, precisa achar um já conhecido (onde começam os antigos): lê mais, até o máximo.
+    if (ms.linhaDeBaseEm && !lista.fim && !lista.usuarios.some((u) => ms.conhecidos[u.pk])) {
+      await pausaHumana();
+      lista = await api.listaSeguidores(eu, { quantos: MEUS_SEGUIDORES_MAX });
     }
-    modo = pagina.via;
-    e.boasVindas = { ...(e.boasVindas || {}), ultimaChecagemEm: Date.now(), via: modo };
-    for (const u of pagina.usuarios) {
-      const id = String(u.pk ?? u.id ?? u.pk_id ?? '');
-      lidos.push(u);
-      if (ms.conhecidos[id]) achouConhecido = true;
-      if (ids.has(id)) { marcarFollowBack(e, e.seguidos[id], Date.now()); ids.delete(id); }
-    }
-    if (!pagina.proximo || !pagina.usuarios.length) { terminou = true; break; }
-    if (p === PAGINAS_MAX_NOVOS_SEGUIDORES - 1) terminou = true;
-    cursor = pagina.proximo;
+  } catch (err) {
+    const tipo = tratarErro(e, err, 'verificar follow-back');
+    erroBoasVindas(e, `conferir seguidores: ${err.message || err}`);
+    return bloqueante(tipo) ? tipo : 'ok';
   }
+  e.boasVindas = { ...(e.boasVindas || {}), ultimaChecagemEm: Date.now(), via: 'tela' };
+  const lidos = lista.usuarios;
+  const achouConhecido = lidos.some((u) => ms.conhecidos[u.pk]);
+  for (const u of lidos) {
+    if (ids.has(u.pk)) { marcarFollowBack(e, e.seguidos[u.pk], Date.now()); ids.delete(u.pk); }
+  }
+  const terminou = lista.fim || lidos.length >= MEUS_SEGUIDORES_MAX;
   if (lidos.length && (!ms.linhaDeBaseEm || achouConhecido || terminou)) registrarNovosSeguidores(e, lidos, Date.now());
 
-  // 2) Conferência completa por show_many para quem não apareceu nas páginas (ex.: solicitação aceita).
   if (completa && ids.size) {
-    const lista = [...ids];
-    for (let i = 0; i < lista.length; i += 50) {
-      await pausaHumana();
-      try {
-        const mapa = await api.amizadeVarios(lista.slice(i, i + 50));
-        for (const [id, st] of Object.entries(mapa)) {
-          const reg = e.seguidos[id];
-          if (!reg) continue;
-          if (atualizarSolicitacao(reg, st, Date.now())) {
-            log(e, { username: reg.username, acao: 'solicitação aceita', resultado: 'aceitou a solicitação (perfil privado)', origem: reg.origem });
-          }
-          if (st.meSegue === true) marcarFollowBack(e, reg, Date.now());
-        }
-      } catch (err) {
-        if (err instanceof ErroInstagram && err.tipo === 'indisponivel') {
-          // 1.1.4: show_many respondeu HTML. Não é sessão nem bloqueio e não gera alerta: segue pelo botão do perfil.
-          log(e, { acao: 'verificar follow-back', resultado: `checagem em lote indisponível (show_many respondeu HTML) — conferindo até ${PERFIS_POR_VARREDURA} perfis um a um` });
-          const r2 = await verificarPeloPerfil(e, lista);
-          if (r2 !== 'ok') return r2;
-          break;
-        }
-        const tipo = tratarErro(e, err, 'verificar follow-back (show_many)');
-        if (bloqueante(tipo)) return tipo;
-        break;
-      }
-      limparAlertaShowMany(e);
-    }
+    const r2 = await verificarPeloPerfil(e, [...ids]);
+    if (r2 !== 'ok') return r2;
   }
   return 'ok';
 }
@@ -644,7 +629,7 @@ async function verificarFollowBacks(e, agora, { forcarCompleta = false } = {}) {
  */
 function registrarNovosSeguidores(e, usuarios, agora) {
   const ms = e.meusSeguidores;
-  const r = detectarNovosSeguidores(usuarios, { conhecidos: ms.conhecidos, linhaDeBaseEm: ms.linhaDeBaseEm, meuId: e.meuId });
+  const r = detectarNovosSeguidores(usuarios, { conhecidos: ms.conhecidos, linhaDeBaseEm: ms.linhaDeBaseEm, meuId: meuUsuario(e) });
   for (const id of r.conhecer) if (!ms.conhecidos[id]) ms.conhecidos[id] = agora;
   if (r.linhaDeBase) {
     ms.linhaDeBaseEm = agora;
@@ -676,104 +661,22 @@ function registrarNovosSeguidores(e, usuarios, agora) {
 }
 
 /**
- * 1.1.9 (pedido do dono, 26/10): "puxar os últimos 3 dias hoje; depois só até a última conferida". Carga ÚNICA por
- * instalação (marca `e.carga3Dias.feitaEm`), inclusive para quem já tem a linha de base da 1.1.8: lê a atividade do
- * Instagram (notificações "começou a seguir você", com data) e agenda boas-vindas só para quem seguiu nas últimas 72 h
- * (contadas da 1ª tentativa), ainda sem DM — mesmo ritmo, janela e teto diário de processarDm. Sem a fonte com data
- * (HTML, formato desconhecido, data não confirmável): ninguém recebe DM por esta carga e o motivo fica no popup.
- * Limite/aguarde/sessão/sem janela: tenta de novo na próxima conferência (até CARGA_TENTATIVAS_MAX).
+ * 1.1.9 → 1.2.0: a carga única dos últimos 3 dias lia a ATIVIDADE do Instagram pela API interna (news/inbox), que a
+ * extensão não usa mais (decisão do dono, 29/10/2026: só pela tela). Instalação que ainda não fez a carga: ela fica
+ * registrada como indisponível — ninguém recebe DM por ela; os seguidores novos daqui para frente seguem normalmente.
  */
-async function cargaTresDias(e, agora) {
+function cargaTresDias(e) {
   const c3 = e.carga3Dias || {};
-  if (c3.feitaEm || !e.meuId) return 'ok';
-  const inicioEm = c3.inicioEm || agora;
-  const desde = inicioEm - CARGA_JANELA_MS;
-  const tentativas = (c3.tentativas || 0) + 1;
-  e.carga3Dias = { ...c3, inicioEm, desde, tentativas };
-  const encerrar = (extra) => { e.carga3Dias = { ...e.carga3Dias, feitaEm: Date.now(), ...extra }; };
-  const indisponivel = (motivo) => {
-    encerrar({ erro: motivo, encontrados: 0, agendados: 0 });
-    log(e, { acao: 'carga 3 dias', resultado: `Carga dos últimos 3 dias indisponível: ${motivo} — nenhuma DM por esta carga; seguem só os seguidores novos daqui para frente` });
-  };
-
-  const eventos = [];
-  const tot = { seguiu: 0, agrupados: 0, semData: 0 };
-  let parcial = null;
-  let maxId = null;
-  for (let p = 0; p < CARGA_PAGINAS_MAX; p += 1) {
-    await pausaHumana();
-    let j;
-    try {
-      j = await api.atividade(maxId);
-    } catch (err) {
-      const tipo = err instanceof ErroInstagram ? err.tipo : 'outro';
-      if (p > 0) { parcial = `a página ${p + 1} da atividade falhou (${String(err.message || err).slice(0, 160)})`; if (bloqueante(tipo)) tratarErro(e, err, 'carga 3 dias'); break; }
-      if (bloqueante(tipo) || tipo === 'aba') {
-        const msg = String(err.message || err).split(' [')[0];
-        if (tentativas >= CARGA_TENTATIVAS_MAX) { indisponivel(`${tentativas} tentativas sem resposta (${msg})`); return 'ok'; }
-        e.carga3Dias.ultimoErro = msg;
-        if (bloqueante(tipo)) tratarErro(e, err, 'carga 3 dias');
-        else log(e, { acao: 'carga 3 dias', resultado: `tentativa ${tentativas} falhou (${msg}) — tenta de novo na próxima conferência` });
-        return bloqueante(tipo) ? tipo : 'ok';
-      }
-      indisponivel(String(err.message || err).split(' [')[0].slice(0, 300));
-      return 'ok';
-    }
-    const r = interpretarAtividade(j, { agora: Date.now(), desde, meuId: e.meuId });
-    if (!r.ok) {
-      if (p > 0) { parcial = `a página ${p + 1} da atividade veio fora do formato`; break; }
-      indisponivel(r.motivo);
-      return 'ok';
-    }
-    eventos.push(...r.eventos);
-    tot.seguiu += r.seguiu; tot.agrupados += r.agrupados; tot.semData += r.semData;
-    const chegouAntes = r.maisAntigoEm != null && r.maisAntigoEm < desde; // já passou das 72 h: não precisa de mais páginas
-    if (chegouAntes) break;
-    if (!r.proximo) { parcial = `a atividade do Instagram só mostrou até ${r.maisAntigoEm ? formatarSP(r.maisAntigoEm) : 'agora'} — quem seguiu antes disso não aparece nela`; break; }
-    if (p === CARGA_PAGINAS_MAX - 1) { parcial = `lidas ${CARGA_PAGINAS_MAX} páginas da atividade sem chegar a 72 h atrás`; break; }
-    maxId = r.proximo;
-  }
-  if (tot.seguiu > 0 && tot.seguiu === tot.semData) {
-    indisponivel(`${tot.semData} notificações de "começou a seguir você" sem data confirmável`);
-    return 'ok';
-  }
-
-  const { encontrados, novos, followBack, jaTinham } = separarCarga(e, eventos);
-  let agendados = 0;
-  const agoraR = Date.now();
-  if (e.config.dmAtiva) {
-    novos.forEach((u, i) => {
-      const reg = registroDaCarga(u, agoraR, e.config, i);
-      e.novosSeguidores[reg.id] = reg;
-      agendados += 1;
-      log(e, { username: reg.username, acao: 'carga 3 dias', resultado: `seguiu em ${formatarSP(u.em)} — DM de boas-vindas agendada para ${formatarSP(reg.dmAgendadaPara)}`, origem: reg.origem });
-    });
-  }
-  for (const id of followBack) {
-    const reg = e.seguidos[id];
-    marcarFollowBack(e, reg, agoraR);
-    if (reg.dmAgendadaPara && !reg.dmCoberta && !reg.dmDesistiu) agendados += 1;
-  }
-  const notas = [];
-  if (!e.config.dmAtiva && novos.length) notas.push('DM desligada no painel — nenhuma agendada');
-  if (jaTinham) notas.push(`${jaTinham} já tinham boas-vindas`);
-  if (tot.agrupados) notas.push(`${tot.agrupados} notificações agrupadas sem a data de cada pessoa ficaram de fora`);
-  if (tot.semData) notas.push(`${tot.semData} sem data confirmável ficaram de fora`);
-  if (parcial) notas.push(`cobertura parcial: ${parcial}`);
-  encerrar({ erro: null, encontrados: encontrados.length, agendados, notas });
-  log(e, { acao: 'carga 3 dias', resultado: `Carga 3 dias: ${encontrados.length} encontrados, ${agendados} agendados${notas.length ? ` (${notas.join('; ')})` : ''}` });
+  if (c3.feitaEm) return 'ok';
+  const motivo = 'desde a versão 1.2.0 a extensão só age pela tela (a carga lia a atividade pela API interna do Instagram)';
+  e.carga3Dias = { ...c3, feitaEm: Date.now(), erro: motivo, encontrados: 0, agendados: 0 };
+  log(e, { acao: 'carga 3 dias', resultado: `Carga dos últimos 3 dias indisponível: ${motivo} — nenhuma DM por esta carga; seguem só os seguidores novos daqui para frente` });
   return 'ok';
 }
 
-/** O alerta antigo de "show_many respondeu de forma inesperada" some quando a checagem volta a funcionar. */
-function limparAlertaShowMany(e) {
-  if (e.alerta && e.alerta.tipo === 'mudanca_api' && /show_many/.test(e.alerta.texto || '')) e.alerta = null;
-}
-
 /**
- * 1.1.4: plano B da varredura — no máximo PERFIS_POR_VARREDURA seguidos, os menos conferidos primeiro, com
- * intervalo humano entre eles. 1.1.7: primeiro o friendships/show (diz se a pessoa me segue); só se ele responder
- * HTML, a leitura do botão do perfil (sem clicar) — o botão "Seguindo" não diz se a pessoa segue de volta.
+ * Conferência um a um (no máximo PERFIS_POR_VARREDURA seguidos, os menos conferidos primeiro, com intervalo humano):
+ * botão do perfil e, se ele não disser, pesquisa do @ na minha lista de seguidores.
  */
 async function verificarPeloPerfil(e, ids) {
   const regs = ids
@@ -781,25 +684,23 @@ async function verificarPeloPerfil(e, ids) {
     .filter((r) => r && r.username)
     .sort((a, b) => (a.checadoPerfilEm || 0) - (b.checadoPerfilEm || 0))
     .slice(0, PERFIS_POR_VARREDURA);
-  let conferidos = 0;
   for (const reg of regs) {
+    if (await paradoPeloCrm(e)) return 'parado';
     await pausaEntrePerfis();
     let st;
     try {
-      st = await api.amizade(reg.id, reg.username);
+      st = await api.amizade(reg.username, { meuUsuario: meuUsuario(e) });
     } catch (err) {
       const tipo = tratarErro(e, err, 'verificar follow-back (perfil)', reg.username);
       if (bloqueante(tipo)) return tipo;
       break; // leitura indisponível: tenta de novo na próxima varredura
     }
     reg.checadoPerfilEm = Date.now();
-    conferidos += 1;
     if (atualizarSolicitacao(reg, st, Date.now())) {
       log(e, { username: reg.username, acao: 'solicitação aceita', resultado: 'aceitou a solicitação (perfil privado)', origem: reg.origem });
     }
     if (st.meSegue === true) marcarFollowBack(e, reg, Date.now());
   }
-  if (conferidos) limparAlertaShowMany(e);
   return 'ok';
 }
 
@@ -811,6 +712,8 @@ async function agendarProximo(e, c) {
   let proxima = null;
   if (c.pausado) {
     proxima = { acao: 'Pausada manualmente', em: null };
+  } else if (e.crm && e.crm.stopped) {
+    proxima = { acao: 'Parada pelo CRM (Extensões › Parar tudo)', em: agora + MINUTO }; // confere de novo em 1 min
   } else if (e.pausaAte && agora < e.pausaAte) {
     proxima = { acao: 'Fim da pausa automática (24 h)', em: e.pausaAte };
   } else if (e.esfriarAte && agora < e.esfriarAte) {
@@ -875,10 +778,14 @@ function reabilitarDmsGetByParticipants(e, agora) {
   if (e.alerta && e.alerta.tipo === 'mudanca_api' && /get_by_participants|direct_v2/.test(e.alerta.texto || '')) e.alerta = null;
 }
 
+/** Pode agir agora, sem contar a sessão (que é conferida na tela logo depois)? */
+const podeAgirSemSessao = (e, c, agora) => estaAtiva({ ...e, semSessao: false }, c, agora);
+
 async function ciclo() {
   const e = await carregar();
   const c = await lerControle();
   const agora = Date.now();
+  const parado = await paradoPeloCrm(e); // 1.2.0: Parar tudo + configuração do CRM (antes de planejar o dia)
   prepararAgenda(e, agora);
 
   if (e.esfriarAte && agora >= e.esfriarAte) {
@@ -890,11 +797,10 @@ async function ciclo() {
     if (e.alerta && e.alerta.tipo === 'limite') e.alerta = null;
     log(e, { acao: 'pausa', resultado: 'pausa automática de 24 h encerrada — retomando' });
   }
-  await checarSessao(e);
   reabilitarDmsHtml(e, agora);
   reabilitarDmsGetByParticipants(e, agora);
 
-  if (estaAtiva(e, c, agora) && dentroDaJanela(agora, e.config) && (await checarJanela(e))) {
+  if (!parado && podeAgirSemSessao(e, c, agora) && dentroDaJanela(agora, e.config) && (await checarJanela(e)) && (await checarSessao(e))) {
     let r = await processarDm(e, agora);
     if (!bloqueante(r)) r = await processarSeguir(e, Date.now());
     if (!bloqueante(r)) r = await processarDeixarDeSeguir(e, Date.now());
@@ -909,12 +815,13 @@ async function ciclo() {
   }
   await agendarProximo(e, c);
   await salvar(e);
+  await enviarSaude(e, c);
 }
 
 /**
- * Checagem de follow-back (alarme de 2 min). `manual` (1.1.7, botão "Conferir seguidores agora"): faz a conferência
- * completa na hora (no máximo uma a cada 2 min) e devolve { feito, novos, texto } para o popup. Respeita a janela,
- * a pausa e a sessão como a checagem automática.
+ * Conferência dos meus seguidores (alarme; padrão 10 min, muda no CRM). `manual` (botão "Conferir seguidores agora"):
+ * faz a conferência completa na hora (no máximo uma a cada 2 min) e devolve { feito, novos, texto } para o popup.
+ * Respeita a janela, a pausa, a sessão e o Parar tudo do CRM como a checagem automática.
  */
 async function cicloVerificar({ manual = false } = {}) {
   const e = await carregar();
@@ -925,26 +832,28 @@ async function cicloVerificar({ manual = false } = {}) {
     const d2 = (n) => String(n).padStart(2, '0');
     return resposta(false, `Fora da janela de trabalho (${d2(e.config.inicioHora)}:00–${d2(e.config.fimHora)}:00): a conferência fica para a abertura.`);
   }
-  if (!estaAtiva(e, c, agora)) return resposta(false, 'Extensão pausada ou esperando o Instagram — retome para conferir.');
+  if (await paradoPeloCrm(e)) { await agendarProximo(e, c); await salvar(e); return resposta(false, 'Parada pelo CRM (Extensões › Parar tudo) — retome no CRM para conferir.'); }
+  if (!podeAgirSemSessao(e, c, agora)) return resposta(false, 'Extensão pausada ou esperando o Instagram — retome para conferir.');
   virarDiaSeNecessario(e, agora); // 1.1.8: o contador de seguidores novos do dia pode ser tocado aqui
-  if (!(await checarSessao(e))) { await agendarProximo(e, c); await salvar(e); return resposta(false, 'Sem sessão do Instagram neste Chrome — entre no instagram.com.'); }
   if (!(await checarJanela(e))) { await salvar(e); return resposta(false, 'Nenhuma janela do Chrome aberta — abra uma para conferir.'); }
+  if (!(await checarSessao(e))) { await agendarProximo(e, c); await salvar(e); return resposta(false, 'Sem sessão do Instagram neste Chrome — entre no instagram.com.'); }
   const comFollowBack = () => Object.values(e.seguidos).filter((r) => r.followBackEm).length;
   const antes = comFollowBack();
   const novosAntes = Object.keys(e.novosSeguidores).length;
   const erroAntes = e.boasVindas && e.boasVindas.ultimoErro;
   const forcar = manual && (!e.ultimaVarreduraEm || agora - e.ultimaVarreduraEm >= 2 * MINUTO);
   let r = await verificarFollowBacks(e, agora, { forcarCompleta: forcar });
-  if (r === 'ok') r = await cargaTresDias(e, Date.now()); // 1.1.9: uma vez por instalação
+  if (r === 'ok') r = cargaTresDias(e);
   await agendarProximo(e, c);
   await salvar(e);
+  await enviarSaude(e, c);
   if (!manual) return undefined;
   const novos = comFollowBack() - antes;
   const erroNovo = e.boasVindas.ultimoErro && e.boasVindas.ultimoErro !== erroAntes ? ` Erro: ${e.boasVindas.ultimoErro.texto}` : '';
   const novosSeg = Object.keys(e.novosSeguidores).length - novosAntes;
   const achados = (novos ? `${novos} ${novos === 1 ? 'novo follow-back' : 'novos follow-backs'} — DM agendada (sai em 1 a 3 min)` : 'nenhum follow-back novo')
     + (novosSeg ? `; ${novosSeg} ${novosSeg === 1 ? 'seguidor novo' : 'seguidores novos'} com boas-vindas agendada` : '');
-  const parou = r !== 'ok' ? ` O Instagram pediu para parar (${r}).` : '';
+  const parou = r !== 'ok' ? ` Parou (${r}).` : '';
   return resposta(true, `Conferido às ${formatarSP(Date.now()).slice(11, 16)}: ${achados}.${parou}${erroNovo}`, novos);
 }
 
@@ -953,9 +862,15 @@ async function buscarOrigem(username) {
   const c = await lerControle();
   const agora = Date.now();
   if (e.pausaAte && agora < e.pausaAte) throw new Error(`Pausado por limite do Instagram até ${formatarSP(e.pausaAte)}. Use "Retomar agora" se quiser tentar mesmo assim.`);
-  const sessao = await lerSessao();
+  if (await paradoPeloCrm(e)) { await salvar(e); throw new Error('Parada pelo CRM (Extensões › Parar tudo). Retome no CRM para buscar.'); }
+  let sessao;
+  try {
+    sessao = await api.lerSessao();
+  } catch (err) {
+    throw new Error(mensagemErroBusca(err));
+  }
   if (!sessao.logado) throw new Error('Sem sessão: entre no instagram.com neste Chrome e tente de novo.');
-  e.meuId = sessao.meuId;
+  if (sessao.meuUsuario) e.meuUsuario = sessao.meuUsuario;
 
   const cfg = e.config;
   let perfil;
@@ -963,7 +878,7 @@ async function buscarOrigem(username) {
     perfil = await api.buscarPerfil(username);
   } catch (err) {
     // Busca de origem é ação MANUAL de leitura: um erro aqui nunca pausa a extensão.
-    // Só registra e devolve a mensagem (com trecho da resposta) para o dono tentar de novo.
+    // Só registra e devolve a mensagem para o dono tentar de novo.
     const msg = mensagemErroBusca(err);
     log(e, { username: String(username).replace(/^@/, ''), acao: 'buscar origem', resultado: `falhou: ${msg}` });
     e.ultimaBusca = { em: Date.now(), origem: `@${String(username).replace(/^@/, '')}`, lidos: 0, adicionados: 0, pulados: {}, erro: msg };
@@ -985,65 +900,31 @@ async function buscarOrigem(username) {
     await registrarFalha(`${origem} é um perfil PRIVADO — o Instagram não mostra os seguidores dele para quem não o segue. Escolha um perfil público.`);
   }
 
-  let modo = 'v1';
-  let maxId = null;
-  let lidos = 0;
-  let adicionados = 0;
-  let paginas = 0;
-  const pulados = {};
-  let erro = null;
-  while (lidos < cfg.maxBusca) {
-    await pausaHumana();
-    let pagina;
-    try {
-      pagina = modo === 'v1' ? await api.paginaSeguidores(perfil.id, maxId) : await api.paginaSeguidoresGraphql(perfil.id, maxId);
-    } catch (err) {
-      if (paginas === 0 && modo === 'v1' && !bloqueante(err.tipo)) {
-        // v1 falhou logo na 1ª página: tenta o GraphQL do site.
-        log(e, { username: perfil.username, acao: 'buscar origem', resultado: `lista v1 falhou (${err.message}) — tentando GraphQL`, origem });
-        modo = 'graphql';
-        continue;
-      }
-      erro = new Error(`${perfil.privado ? `${origem} é um perfil PRIVADO — escolha um perfil público. ` : ''}${mensagemErroBusca(err)}`);
-      break;
-    }
-    if (paginas === 0 && pagina.usuarios.length === 0) {
-      if (modo === 'v1') {
-        log(e, { username: perfil.username, acao: 'buscar origem', resultado: `lista v1 veio vazia (${pagina.trecho}) — tentando GraphQL`, origem });
-        e.trechoV1 = pagina.trecho;
-        modo = 'graphql';
-        continue;
-      }
-      const total = perfil.seguidores != null ? ` (o perfil tem ${perfil.seguidores} seguidores)` : '';
-      const dica = perfil.privado ? ' É um perfil PRIVADO: escolha um perfil público.' : '';
-      erro = new Error(`O Instagram não devolveu nenhum seguidor de ${origem}${total}.${dica} Resposta v1: ${e.trechoV1 || '—'} | GraphQL: ${pagina.trecho}`);
-      break;
-    }
-    paginas += 1;
-    lidos += pagina.usuarios.length;
-    const { aceitos, pulados: p } = filtrarCandidatos(pagina.usuarios, {
-      meuId: e.meuId,
-      fila: e.fila,
-      vistos: e.vistos,
-      seguidos: e.seguidos,
-      pularPrivados: cfg.pularPrivados,
-      pularSemFoto: cfg.pularSemFoto,
-      origem,
-      agora: Date.now(),
-    });
-    e.fila.push(...aceitos);
-    adicionados += aceitos.length;
-    for (const [k, v] of Object.entries(p)) pulados[k] = (pulados[k] || 0) + v;
-    if (!pagina.proximo || !pagina.usuarios.length) { maxId = null; break; }
-    maxId = pagina.proximo;
+  await pausaHumana();
+  let lista;
+  try {
+    lista = await api.listaSeguidores(perfil.username, { quantos: cfg.maxBusca });
+  } catch (err) {
+    await registrarFalha(`${perfil.privado ? `${origem} é um perfil PRIVADO — escolha um perfil público. ` : ''}${mensagemErroBusca(err)}`);
   }
-  delete e.trechoV1;
+  if (!lista.usuarios.length) {
+    await registrarFalha(`A janela "Seguidores" de ${origem} não mostrou ninguém.${perfil.privado ? ' É um perfil PRIVADO: escolha um perfil público.' : ''}`);
+  }
+  const { aceitos, pulados } = filtrarCandidatos(lista.usuarios, {
+    meuId: meuUsuario(e),
+    fila: e.fila,
+    vistos: e.vistos,
+    seguidos: e.seguidos,
+    pularPrivados: cfg.pularPrivados,
+    pularSemFoto: cfg.pularSemFoto,
+    origem,
+    agora: Date.now(),
+  });
+  e.fila.push(...aceitos);
   e.origemAtual = origem;
-  e.ultimaBusca = { em: Date.now(), origem, lidos, adicionados, pulados, via: modo, erro: erro ? erro.message : null };
-  // Guarda onde a lista parou, para reabastecer a fila sozinha depois (mesmo perfil).
-  e.cursorOrigem = paginas > 0
-    ? { id: perfil.id, username: perfil.username, origem, modo, proximo: maxId, esgotado: !maxId, totais: { lidos, adicionados, pulados: { ...pulados } } }
-    : null;
+  e.ultimaBusca = { em: Date.now(), origem, lidos: lista.usuarios.length, adicionados: aceitos.length, pulados, via: 'tela', erro: null };
+  // Guarda até onde a lista foi lida, para reabastecer a fila sozinha depois (mesmo perfil).
+  e.cursorOrigem = { username: perfil.username, origem, lidos: lista.usuarios.length, esgotado: lista.fim, totais: { lidos: lista.usuarios.length, adicionados: aceitos.length, pulados: { ...pulados } } };
   log(e, { username: perfil.username, acao: 'buscar origem', resultado: resumoBusca(e.ultimaBusca), origem });
   await agendarProximo(e, c);
   await salvar(e);
@@ -1051,50 +932,44 @@ async function buscarOrigem(username) {
 }
 
 /**
- * Fila curta (menos que o limite do dia + margem): continua a lista de seguidores do
- * MESMO perfil de referência, devagar — no máximo 3 páginas por vez, com atraso humano
- * entre elas e de 20 em 20 min — até ter fila para ~3 dias.
+ * Fila curta (menos que o limite do dia + margem): continua a lista de seguidores do MESMO perfil de referência,
+ * devagar — mais REABASTECER_LOTE perfis por vez (a tela relê do topo até onde parou), de 20 em 20 min — até ter fila
+ * para ~3 dias.
  */
 async function reabastecerFila(e, agora) {
   const cfg = e.config;
   const cur = e.cursorOrigem;
-  if (!cur || cur.esgotado || !cur.proximo) return 'ok';
+  if (!cur || cur.esgotado || !cur.username) return 'ok';
   if (!precisaReabastecer(e.fila.length, cfg.limiteDiario)) return 'ok';
   if (e.ultimoReabastecimentoEm && agora - e.ultimoReabastecimentoEm < INTERVALO_REABASTECER_MS) return 'ok';
+  if (await paradoPeloCrm(e)) return 'parado';
   e.ultimoReabastecimentoEm = agora;
 
-  const alvo = alvoFila(cfg.limiteDiario);
-  let lidos = 0;
-  let adicionados = 0;
-  const pulados = {};
-  for (let i = 0; i < 3 && e.fila.length < alvo && cur.proximo; i += 1) {
-    await pausaHumana();
-    let pagina;
-    try {
-      pagina = cur.modo === 'graphql' ? await api.paginaSeguidoresGraphql(cur.id, cur.proximo) : await api.paginaSeguidores(cur.id, cur.proximo);
-    } catch (err) {
-      const tipo = tratarErro(e, err, 'reabastecer fila', cur.username);
-      if (bloqueante(tipo)) return tipo;
-      break;
-    }
-    lidos += pagina.usuarios.length;
-    const { aceitos, pulados: p } = filtrarCandidatos(pagina.usuarios, {
-      meuId: e.meuId, fila: e.fila, vistos: e.vistos, seguidos: e.seguidos,
-      pularPrivados: cfg.pularPrivados, pularSemFoto: cfg.pularSemFoto, origem: cur.origem, agora: Date.now(),
-    });
-    e.fila.push(...aceitos);
-    adicionados += aceitos.length;
-    for (const [k, v] of Object.entries(p)) pulados[k] = (pulados[k] || 0) + v;
-    cur.proximo = pagina.usuarios.length ? pagina.proximo : null;
+  const ate = Math.min(LISTA_ORIGEM_MAX, (cur.lidos || 0) + Math.max(REABASTECER_LOTE, alvoFila(cfg.limiteDiario) - e.fila.length));
+  await pausaHumana();
+  let lista;
+  try {
+    lista = await api.listaSeguidores(cur.username, { quantos: ate });
+  } catch (err) {
+    const tipo = tratarErro(e, err, 'reabastecer fila', cur.username);
+    return bloqueante(tipo) ? tipo : 'ok';
   }
-  if (!cur.proximo) cur.esgotado = true;
-  cur.totais.lidos += lidos;
-  cur.totais.adicionados += adicionados;
+  const novos = lista.usuarios.slice(cur.lidos || 0);
+  const { aceitos, pulados } = filtrarCandidatos(novos, {
+    meuId: meuUsuario(e), fila: e.fila, vistos: e.vistos, seguidos: e.seguidos,
+    pularPrivados: cfg.pularPrivados, pularSemFoto: cfg.pularSemFoto, origem: cur.origem, agora: Date.now(),
+  });
+  e.fila.push(...aceitos);
+  cur.lidos = Math.max(cur.lidos || 0, lista.usuarios.length);
+  if (lista.fim || !novos.length || cur.lidos >= LISTA_ORIGEM_MAX) cur.esgotado = true;
+  cur.totais = cur.totais || { lidos: 0, adicionados: 0, pulados: {} };
+  cur.totais.lidos += novos.length;
+  cur.totais.adicionados += aceitos.length;
   for (const [k, v] of Object.entries(pulados)) cur.totais.pulados[k] = (cur.totais.pulados[k] || 0) + v;
   log(e, {
     username: cur.username,
     acao: 'reabastecer fila',
-    resultado: `${resumoBusca({ origem: cur.origem, lidos, adicionados, pulados })} — fila agora ${e.fila.length}${cur.esgotado ? ' (lista deste perfil acabou: escolha outro perfil de referência)' : ''}`,
+    resultado: `${resumoBusca({ origem: cur.origem, lidos: novos.length, adicionados: aceitos.length, pulados })} — fila agora ${e.fila.length}${cur.esgotado ? ' (lista deste perfil acabou: escolha outro perfil de referência)' : ''}`,
     origem: cur.origem,
   });
   return 'ok';
@@ -1104,10 +979,11 @@ function mensagemErroBusca(err) {
   const tipo = err instanceof ErroInstagram ? err.tipo : 'outro';
   const msg = err && err.message ? err.message : String(err);
   const dica = {
-    sessao: ' → O Instagram não reconheceu o login: abra o instagram.com neste Chrome, confira se está logado e tente de novo.',
+    sessao: ' → O Instagram está pedindo login: abra o instagram.com neste Chrome, confira se está logado e tente de novo.',
     aguarde: ' → Espere alguns minutos e tente de novo (a extensão NÃO foi pausada).',
     limite: ' → Espere alguns minutos e tente de novo (a extensão NÃO foi pausada).',
     nao_encontrado: ' → Confira o @ digitado.',
+    sem_janela: ' → Abra uma janela do Chrome e tente de novo.',
   }[tipo] || ' → Tente de novo em alguns minutos.';
   return msg + dica;
 }
@@ -1118,16 +994,18 @@ function validarConfig(atual, nova) {
     const x = Math.round(Number(v));
     return Number.isFinite(x) ? Math.min(max, Math.max(min, x)) : padrao;
   };
-  if ('limiteDiario' in nova) n.limiteDiario = inteiro(nova.limiteDiario, 0, 50, atual.limiteDiario);
-  if ('limiteUnfollowDiario' in nova) n.limiteUnfollowDiario = inteiro(nova.limiteUnfollowDiario, 0, 30, atual.limiteUnfollowDiario);
+  // Faixas iguais às da tela Extensões do CRM (1.2.0); com a chave do CRM, os números de lá valem por cima destes.
+  if ('limiteDiario' in nova) n.limiteDiario = inteiro(nova.limiteDiario, 0, 40, atual.limiteDiario);
+  if ('limiteUnfollowDiario' in nova) n.limiteUnfollowDiario = inteiro(nova.limiteUnfollowDiario, 0, 40, atual.limiteUnfollowDiario);
   if ('diasParaUnfollow' in nova) n.diasParaUnfollow = inteiro(nova.diasParaUnfollow, 1, 30, atual.diasParaUnfollow);
-  if ('maxBusca' in nova) n.maxBusca = inteiro(nova.maxBusca, 25, 2000, atual.maxBusca);
+  if ('maxBusca' in nova) n.maxBusca = inteiro(nova.maxBusca, 25, 1000, atual.maxBusca);
   if ('intervaloMinimoMin' in nova) n.intervaloMinimoMin = inteiro(nova.intervaloMinimoMin, 5, 120, atual.intervaloMinimoMin);
   if ('pularPrivados' in nova) n.pularPrivados = Boolean(nova.pularPrivados);
   if ('pularSemFoto' in nova) n.pularSemFoto = Boolean(nova.pularSemFoto);
   if ('dmAtiva' in nova) n.dmAtiva = Boolean(nova.dmAtiva);
   if ('limiteDmDiario' in nova) n.limiteDmDiario = inteiro(nova.limiteDmDiario, 1, 100, atual.limiteDmDiario);
   if ('mensagem' in nova && String(nova.mensagem).trim()) n.mensagem = String(nova.mensagem);
+  if ('meuUsuario' in nova) n.meuUsuario = String(nova.meuUsuario || '').trim().replace(/^@/, '').toLowerCase().replace(/[^a-z0-9._]/g, '').slice(0, 30);
   return n;
 }
 
@@ -1135,7 +1013,9 @@ function validarConfig(atual, nova) {
 
 async function garantirAlarmes() {
   const cfg = (await carregar()).config;
-  if (!(await chrome.alarms.get(ALARME_VERIFICAR))) chrome.alarms.create(ALARME_VERIFICAR, { periodInMinutes: cfg.verificarACadaMin || 2 });
+  const verificar = await chrome.alarms.get(ALARME_VERIFICAR);
+  // 1.2.0: a conferência dos seguidores passou de 2 para 10 min (padrão; muda no CRM) — o alarme antigo é trocado.
+  if (!verificar || verificar.periodInMinutes !== (cfg.verificarACadaMin || 10)) chrome.alarms.create(ALARME_VERIFICAR, { periodInMinutes: cfg.verificarACadaMin || 10 });
   if (!(await chrome.alarms.get(ALARME_VIGIA))) chrome.alarms.create(ALARME_VIGIA, { periodInMinutes: 5 });
 }
 
@@ -1148,6 +1028,10 @@ chrome.runtime.onInstalled.addListener((detalhes) => {
       const antes = (await chrome.storage.local.get('estado')).estado;
       if (antes && (Number(antes.versao) || 1) < 2) {
         log(m, { acao: 'atualização', resultado: `versão 1.1.0: perfis privados passam a ser seguidos (Solicitado); "pular privados" ${m.config.pularPrivados ? 'continua ligado' : 'desligado'}; janela de trabalho própria no lugar da aba fixada` });
+        await salvar(m);
+      }
+      if (antes && (Number(antes.versao) || 1) < 3) {
+        log(m, { acao: 'atualização', resultado: `versão 1.2.0: só pela tela (sem API interna nem cookies); perfis identificados pelo @; seguir ${m.config.limiteDiario}/dia; linha de base dos seguidores lida de novo (sem DM para quem já segue); configuração e Parar tudo pela tela Extensões do CRM` });
         await salvar(m);
       }
       // A versão 1.0.0 pausava 24 h por um erro isolado na BUSCA de origem
@@ -1234,6 +1118,22 @@ chrome.runtime.onMessage.addListener((msg, _remetente, responder) => {
           await salvar(e);
         });
         return { ok: true };
+      case 'salvarCrm': {
+        // 1.2.0: URL do CRM + chave igs_… (tela Extensões do CRM). A chave nunca volta para a tela.
+        const { crm } = await chrome.storage.local.get('crm');
+        const key = String(msg.key || '').trim();
+        if (key && !key.startsWith('igs_')) return { ok: false, erro: 'A chave do Seguidor começa com igs_. Gere uma no CRM (Extensões).' };
+        let baseUrl;
+        try { baseUrl = normalizarUrlCrm(msg.baseUrl); } catch (err) { return { ok: false, erro: err.message }; }
+        await chrome.storage.local.set({ crm: { baseUrl, key: key || (crm && crm.key) || '' } });
+        const estado = await crmLink.estado({ forcar: true });
+        return { ok: true, origem: estado.origem, parado: estado.stopped === true };
+      }
+      case 'situacaoCrm': {
+        const { crm } = await chrome.storage.local.get('crm');
+        const estado = await crmLink.estado();
+        return { ok: true, baseUrl: (crm && crm.baseUrl) || CRM_PADRAO, temChave: Boolean(crm && crm.key), parado: estado.stopped === true, desatualizada: estado.outdated === true, versaoNova: estado.latestVersion || '', linkZip: estado.downloadUrl || '', origem: estado.origem, versao: chrome.runtime.getManifest().version };
+      }
       case 'abrirJanela':
         return abrirJanelaTrabalho();
       case 'situacaoJanela':
@@ -1254,7 +1154,7 @@ chrome.runtime.onMessage.addListener((msg, _remetente, responder) => {
 });
 
 // Ao acordar o service worker, confere se os alarmes periódicos existem.
-garantirAlarmes().catch(() => {});
+garantirAlarmes().catch(crmLink.engolido('conferir os alarmes'));
 
 // Exportado só para depuração no console do service worker (e para os testes
 // esperarem a fila de operações terminar).

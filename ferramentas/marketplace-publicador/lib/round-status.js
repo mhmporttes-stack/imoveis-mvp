@@ -25,4 +25,5 @@ export function roundStatus({ skipReason = "", skipDetail = "", fatalError = "",
 
 // Rodadas puladas que avisam o CRM (as demais — fora do horário, desligada, outra rodada/publicação em andamento — não
 // precisam: a rodada viva ou o horário explicam).
-export const SIGNALED_SKIPS = new Set(["pausado", "pausa_verificacao"]);
+// 1.10.0: "parado_crm" (Extensões › Parar tudo) também avisa — o monitor MKT-2g vê o motivo em vez de "sem sinal".
+export const SIGNALED_SKIPS = new Set(["pausado", "pausa_verificacao", "parado_crm"]);

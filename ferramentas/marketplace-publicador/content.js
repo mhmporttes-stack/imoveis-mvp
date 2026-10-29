@@ -23,7 +23,8 @@
   function progress(step) {
     currentStep = step;
     // Também mantém o service worker acordado durante a publicação.
-    chrome.runtime.sendMessage({ type: "mp-progress", step }).catch(() => {});
+    // 1.10.0: falha aqui é do próprio canal com o service worker (não dá para avisar por ele): fica no console da aba.
+    chrome.runtime.sendMessage({ type: "mp-progress", step }).catch((error) => console.warn("[marketplace] progresso não chegou ao service worker:", error?.message || error));
   }
 
   function pageText() {
@@ -279,7 +280,8 @@
       }
       notes.push(`"${typed}": campo ficou "${control.value ?? ""}" depois de escolher a opção ${index + 1}`);
     }
-    await clearLocation(control).catch(() => {});
+    // 1.10.0: falha ao limpar o campo vai ao sinal de saúde do CRM (antes sumia).
+    await clearLocation(control).catch((error) => chrome.runtime.sendMessage({ type: "mp-swallowed", context: "limpar o campo de localização", error: String(error?.message || error) }).catch((err) => console.warn("[marketplace]", err?.message || err)));
     throw new StepError(currentStep, `Localização não confirmada: o campo precisa ficar "${listing.city}, ${listing.state}". ${notes.join(" | ")}`);
   }
 

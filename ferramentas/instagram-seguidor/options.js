@@ -1,4 +1,4 @@
-import { lerTudo, enviar, statusAtual, textoProxima, contadoresHoje, textoAlerta, estaParada, retomarAgora, ligarBotaoConferir } from './painel-comum.js';
+import { lerTudo, enviar, statusAtual, textoProxima, contadoresHoje, textoAlerta, estaParada, retomarAgora, ligarBotaoConferir, renderAvisoCrm } from './painel-comum.js';
 import { formatarSP, diaSP } from './lib/tempo.js';
 import { gerarCsv, resumoBusca, resumoBoasVindas, resumoCargaTresDias } from './lib/estado.js';
 import { MENSAGEM_PADRAO, STATUS, idsParaVerificarFollowBack } from './lib/regras.js';
@@ -29,6 +29,7 @@ async function render() {
   $('cFollowBacks').textContent = k.followBacks;
   $('cDms').textContent = k.dms;
   $('tamFila').textContent = e.fila.length;
+  $('janelaHoras').textContent = `${String(e.config.inicioHora).padStart(2, '0')}:00–${String(e.config.fimHora).padStart(2, '0')}:00`;
   $('origemAtual').textContent = e.origemAtual || '—';
   const aguardando = idsParaVerificarFollowBack(e.seguidos).length;
   const solicitados = Object.values(e.seguidos).filter((r) => r.status === STATUS.SOLICITADO).length;
@@ -48,6 +49,7 @@ async function render() {
     for (const k2 of CAMPOS_NUM) $(k2).value = e.config[k2];
     for (const k2 of CAMPOS_BOOL) $(k2).checked = Boolean(e.config[k2]);
     $('mensagem').value = e.config.mensagem;
+    $('meuUsuario').value = e.config.meuUsuario ? `@${e.config.meuUsuario}` : '';
     configCarregada = true;
   }
 
@@ -71,7 +73,7 @@ async function render() {
 }
 
 $('btnSalvar').addEventListener('click', async () => {
-  const config = { mensagem: $('mensagem').value };
+  const config = { mensagem: $('mensagem').value, meuUsuario: $('meuUsuario').value };
   for (const k of CAMPOS_NUM) config[k] = Number($(k).value);
   for (const k of CAMPOS_BOOL) config[k] = $(k).checked;
   $('btnSalvar').disabled = true;
@@ -110,5 +112,35 @@ $('btnLimparAlerta').addEventListener('click', async () => { await enviar('limpa
 $('filtro').addEventListener('input', render);
 ligarBotaoConferir($('btnConferir'), $('resultadoConferir'));
 
+// 1.2.0: chave do CRM (tela Extensões). Endereço diferente do padrão pede a permissão do Chrome para ele.
+$('btnSalvarCrm').addEventListener('click', async () => {
+  const baseUrl = $('crmUrl').value.trim();
+  $('btnSalvarCrm').disabled = true;
+  try {
+    if (baseUrl && !/^https:\/\/www\.matheusmachadoimoveis\.com\.br\/?$/i.test(baseUrl)) {
+      const origem = new URL(/^https?:\/\//i.test(baseUrl) ? baseUrl : `https://${baseUrl}`).origin;
+      if (!(await chrome.permissions.request({ origins: [`${origem}/*`] }))) throw new Error('Sem permissão para acessar esse endereço.');
+    }
+    const r = await enviar('salvarCrm', { baseUrl, key: $('crmChave').value });
+    $('crmChave').value = '';
+    $('crmMsg').textContent = r.ok ? (r.origem === 'crm' ? `Ligada ao CRM${r.parado ? ' — está PARADA pelo CRM' : ''}.` : r.origem === 'chave_invalida' ? 'O CRM recusou a chave.' : r.origem === 'sem_chave' ? 'Salvo (sem chave).' : 'Salvo, mas o CRM não respondeu agora.') : `Erro: ${r.erro}`;
+  } catch (err) {
+    $('crmMsg').textContent = `Erro: ${err.message}`;
+  } finally {
+    $('btnSalvarCrm').disabled = false;
+    renderAvisoCrm($('avisoCrm'));
+  }
+});
+
+async function carregarCrm() {
+  const r = await enviar('situacaoCrm').catch((err) => ({ ok: false, erro: err.message }));
+  if (r && r.ok) {
+    $('crmUrl').value = r.baseUrl;
+    $('crmChave').placeholder = r.temChave ? 'chave salva — cole outra só se gerar nova' : 'cole a chave igs_… aqui';
+  }
+}
+
 chrome.storage.onChanged.addListener(render);
 render();
+carregarCrm();
+renderAvisoCrm($('avisoCrm'));

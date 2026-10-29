@@ -1,88 +1,140 @@
-// Simulador para os testes: um `chrome` falso (storage, alarms, cookies, tabs,
-// scripting, notifications, action, runtime) + um Instagram FALSO em memória.
-// Nada aqui fala com o Instagram de verdade.
+// Simulador para os testes: um `chrome` falso (storage, alarms, tabs, scripting, notifications, action, runtime) + uma
+// TELA do Instagram FALSA em memória (1.2.0: a extensão só lê/clica na tela — o simulador responde às funções
+// `...NaPagina` de instagram-tela.js pelo nome, com o endereço da aba). Nada aqui fala com o Instagram de verdade.
 
 import { mock } from 'node:test';
 
-export function criarInstagramFalso({ meuId = '999', referencia = 'perfilref', totalSeguidores = 120, voltaSe = (n) => n % 3 === 0, atrasoVolta = 40 * 60 * 1000 } = {}) {
+const FOTO_PADRAO = 'https://cdn/44884218_345707102882519_2446069589734326272_n.jpg';
+const usuarioDaUrl = (url) => decodeURIComponent((String(url || '').match(/instagram\.com\/([^/?#]+)\/?/) || [])[1] || '').toLowerCase();
+
+export function criarInstagramFalso({ meuUsuario = 'eu', referencia = 'perfilref', totalSeguidores = 120, voltaSe = (n) => n % 3 === 0, atrasoVolta = 40 * 60 * 1000 } = {}) {
   const usuarios = [];
   for (let n = 1; n <= totalSeguidores; n += 1) {
-    usuarios.push({
-      pk: String(1000 + n),
-      username: `pessoa${n}`,
-      is_private: n % 10 === 0,
-      profile_pic_url: n % 15 === 0 ? 'https://cdn/44884218_345707102882519_2446069589734326272_n.jpg' : `https://cdn/foto${n}.jpg`,
-      n,
-    });
+    usuarios.push({ username: `pessoa${n}`, privado: n % 10 === 0, foto: n % 15 === 0 ? FOTO_PADRAO : `https://cdn/foto${n}.jpg`, n });
   }
   const ig = {
-    meuId,
+    meuUsuario,
+    referencia,
     usuarios,
-    sigo: new Map(), // id -> desde
-    pendentes: new Map(), // id -> desde (solicitação para perfil privado, ainda não aceita)
+    logado: true,
+    sigo: new Map(), // @ -> desde
+    pendentes: new Map(), // @ -> desde (solicitação para perfil privado, ainda não aceita)
     aceitaSe: () => false, // (n) => true se o privado aceita a solicitação
     atrasoAceite: 30 * 60 * 1000,
-    destroyNaoCancela: false, // friendships/destroy não cancela a solicitação pendente
-    meSeguem: new Map(), // id -> desde
-    jaMeSeguiam: new Set(['1002']), // pessoa2 já me seguia antes
-    dms: [], // { id, texto, em }
-    chamadas: [], // { em, metodo, caminho }
-    falharProximoSeguir: null, // ex.: { status: 400, texto: '{"message":"feedback_required"}' }
-    falharPerfil: null, // resposta forçada para web_profile_info
+    meSeguem: new Map(), // @ -> desde
+    jaMeSeguiam: new Set(['pessoa2']), // pessoa2 já me seguia antes
+    dms: [], // { username, texto, em, via, visivel }
+    chamadas: [], // { em, tipo, alvo }
     perfilPrivado: false, // perfil de referência privado
-    createHtml: false, // friendships/create devolve a página HTML (sem seguir)
-    legadoFunciona: true, // /web/friendships/{id}/follow/ segue de verdade
-    showHtml: false, // 1.1.4: friendships/show devolve a página HTML
-    showManyHtml: false, // 1.1.4: friendships/show_many devolve a página HTML
-    leituraFalha: false,
-    dmHtml: false, // 1.1.5: broadcast/text devolve a página HTML // 1.1.4: a leitura do botão do perfil não acha o botão
-    sigoReferencia: false, // eu sigo o perfil de referência
-    v1Vazio: false, // friendships/{id}/followers devolve users: []
-    graphqlVazio: false, // GraphQL de seguidores devolve lista vazia
-    falharSeguidoresDeMim: 0, // quantas vezes a lista dos MEUS seguidores responde "aguarde"
-    meusSeguidoresHtml: false, // 1.1.7: a lista v1 dos MEUS seguidores devolve a página HTML
-    meusSeguidoresGraphqlFalha: false, // 1.1.7: o GraphQL dos MEUS seguidores também não responde dados
+    sigoReferencia: false,
+    bloqueioNoClique: null, // 'limite' | 'aguarde' — o próximo clique mostra o aviso do Instagram
+    aguardeNaLista: 0, // quantas leituras da lista mostram "Tente novamente mais tarde"
+    cliqueNaoMuda: false, // o botão do perfil não muda depois do clique (tela mudou)
+    leituraFalha: false, // o botão do perfil não aparece
+    listaNaoAbre: false, // a janela "Seguidores" não abre
+    minhaListaNaoAbre: false,
+    pesquisaFalha: false, // a pesquisa na minha lista não mostra resultado
+    listaVazia: false,
     voltaSe,
     atrasoVolta,
-    // 1.1.8: tela da DM (digitação). abre: o botão "Enviar mensagem" aparece; envia: o Enter manda a mensagem;
-    // aparece: a mensagem enviada aparece na conversa (confirmação).
+    // Tela da DM (digitação). abre: o botão "Enviar mensagem" aparece; envia: o Enter manda; aparece: confirma na conversa.
     dmTela: { abre: true, envia: true, aparece: true },
-    // 1.1.9: atividade (news/inbox). null = endpoint inexistente (404). Senão { modo: 'ok'|'html'|'sem_lista'|'aguarde',
-    // historias: [...story], porPagina, falhasAguarde }.
-    atividade: null,
   };
-  for (const id of ig.jaMeSeguiam) ig.meSeguem.set(id, 0);
-  // 1.1.7: outras pessoas (fora da extensão) que passam a me seguir — empurram os follow-backs para fora da 1ª página.
+  for (const u of ig.jaMeSeguiam) ig.meSeguem.set(u, 0);
   let outros = 0;
-  ig.novosSeguidoresDeFora = (n, em = Date.now()) => { for (let i = 0; i < n; i += 1) { outros += 1; ig.meSeguem.set(`9${String(outros).padStart(5, '0')}`, em + i); } };
-  const meusSeguidoresRecentes = () => [...ig.meSeguem.entries()].sort((a, b) => b[1] - a[1]).map(([id]) => id);
+  // Outras pessoas (fora da extensão) que passam a me seguir — empurram os follow-backs para baixo na minha lista.
+  ig.novosSeguidoresDeFora = (n, em = Date.now()) => { for (let i = 0; i < n; i += 1) { outros += 1; ig.meSeguem.set(`fora${outros}`, em + i); } };
+  const meusSeguidoresRecentes = () => [...ig.meSeguem.entries()].sort((a, b) => b[1] - a[1]).map(([u]) => u);
+  const acharUsuario = (u) => usuarios.find((x) => x.username === u);
+  ig.relacao = (u) => (ig.sigo.has(u) ? 'seguindo' : ig.pendentes.has(u) ? 'solicitado' : ig.meSeguem.has(u) ? 'seguir_de_volta' : 'seguir');
 
   function atualizarVoltas(agora) {
-    for (const [id, desde] of ig.pendentes) {
-      const u = usuarios.find((x) => x.pk === id);
-      if (u && ig.aceitaSe(u.n) && agora - desde >= ig.atrasoAceite) { ig.pendentes.delete(id); ig.sigo.set(id, desde); }
+    for (const [u, desde] of ig.pendentes) {
+      const x = acharUsuario(u);
+      if (x && ig.aceitaSe(x.n) && agora - desde >= ig.atrasoAceite) { ig.pendentes.delete(u); ig.sigo.set(u, desde); }
     }
-    // Seguir de volta vale para quem eu sigo E para quem tem solicitação minha pendente (privado).
-    for (const [id, desde] of [...ig.sigo, ...ig.pendentes]) {
-      const u = usuarios.find((x) => x.pk === id);
-      if (u && ig.voltaSe(u.n) && agora - desde >= ig.atrasoVolta && !ig.meSeguem.has(id)) ig.meSeguem.set(id, desde + ig.atrasoVolta);
+    for (const [u, desde] of [...ig.sigo, ...ig.pendentes]) {
+      const x = acharUsuario(u);
+      if (x && ig.voltaSe(x.n) && agora - desde >= ig.atrasoVolta && !ig.meSeguem.has(u)) ig.meSeguem.set(u, desde + ig.atrasoVolta);
     }
   }
 
-  // 1.1.8: tela da conversa simulada (as funções ...NaPagina de instagram-api.js).
-  const tela = { conversa: null, caixa: '' };
+  const tela = { conversa: null, caixa: '', pesquisa: '' };
   const normT = (t) => String(t || '').replace(/\s+/g, ' ').trim().toLowerCase();
-  const naConversa = (trecho) => ig.dms.filter((d) => d.id === tela.conversa && normT(d.texto).includes(normT(trecho))).length;
-  ig.telaDm = (nome, args, url) => {
-    ig.chamadas.push({ em: Date.now(), metodo: 'DM-TELA', caminho: nome });
-    if (nome === 'abrirConversaNaPagina') {
-      const usuario = decodeURIComponent((String(url || '').match(/instagram\.com\/([^/?#]+)\/?/) || [])[1] || '');
-      const u = usuarios.find((x) => x.username === usuario);
-      const pk = u ? u.pk : usuario.startsWith('x') && ig.meSeguem.has(usuario.slice(1)) ? usuario.slice(1) : null;
-      if (!ig.dmTela.abre || !pk) return { ok: false, erro: 'botão "Enviar mensagem" não apareceu no perfil' };
-      tela.conversa = pk;
-      tela.caixa = '';
-      return { ok: true };
+  const naConversa = (trecho, soVisiveis = false) => ig.dms.filter((d) => d.username === tela.conversa && (!soVisiveis || d.visivel !== false) && normT(d.texto).includes(normT(trecho))).length;
+
+  /** Responde a uma função `...NaPagina` (nome, argumentos, endereço da aba). */
+  ig.tela = (nome, args, url) => {
+    const agora = Date.now();
+    atualizarVoltas(agora);
+    const alvo = usuarioDaUrl(url);
+    const registrar = (tipo) => ig.chamadas.push({ em: agora, tipo, alvo, url });
+    if (!ig.logado && nome !== 'lerSessaoNaPagina') return { ok: false, bloqueio: 'sessao' };
+    switch (nome) {
+      case 'lerSessaoNaPagina':
+        registrar('sessao');
+        return { ok: true, logado: ig.logado, meuUsuario: ig.logado ? ig.meuUsuario : '' };
+      case 'lerPerfilNaPagina': {
+        registrar('leitura');
+        if (alvo === ig.referencia) return { ok: true, botao: ig.sigoReferencia ? 'seguindo' : 'seguir', privado: ig.perfilPrivado };
+        if (ig.leituraFalha) return { ok: false, erro: 'botão Seguir/Seguindo não apareceu' };
+        const x = acharUsuario(alvo);
+        if (!x && !ig.meSeguem.has(alvo)) return { ok: false, naoExiste: true };
+        return { ok: true, botao: ig.relacao(alvo), segueVoce: false, privado: Boolean(x && x.privado) };
+      }
+      case 'clicarPerfilNaPagina': {
+        const [passos] = args;
+        const seguir = passos.length === 1;
+        registrar(seguir ? 'clique-seguir' : 'clique-deixar');
+        if (ig.bloqueioNoClique) { const b = ig.bloqueioNoClique; ig.bloqueioNoClique = null; return { ok: false, bloqueio: b, aviso: 'Tente novamente mais tarde' }; }
+        if (ig.cliqueNaoMuda) return { ok: false, erro: 'depois do clique o botão ficou "seguir"', passo: 'confirmação do botão' };
+        const x = acharUsuario(alvo);
+        if (!x) return { ok: false, erro: 'botão não apareceu', passo: 'botão' };
+        if (seguir) {
+          if (x.privado) ig.pendentes.set(alvo, agora); else ig.sigo.set(alvo, agora);
+        } else {
+          ig.sigo.delete(alvo);
+          ig.pendentes.delete(alvo);
+        }
+        return { ok: true, botaoDepois: ig.relacao(alvo), privado: x.privado };
+      }
+      case 'lerListaNaPagina': {
+        const [{ quantos }] = args;
+        registrar(alvo === ig.meuUsuario ? 'lista-minha' : 'lista');
+        if (ig.aguardeNaLista > 0) { ig.aguardeNaLista -= 1; return { ok: false, bloqueio: 'aguarde', aviso: 'Tente novamente mais tarde' }; }
+        if (alvo === ig.meuUsuario) {
+          if (ig.minhaListaNaoAbre) return { ok: false, erro: 'a janela "Seguidores" não abriu' };
+          const todos = meusSeguidoresRecentes();
+          return { ok: true, usuarios: todos.slice(0, quantos).map((u) => ({ username: u, foto: '', relacao: ig.relacao(u) })), fim: todos.length <= quantos };
+        }
+        if (alvo === ig.referencia) {
+          if (ig.listaNaoAbre || (ig.perfilPrivado && !ig.sigoReferencia)) return { ok: false, erro: 'a janela "Seguidores" não abriu' };
+          if (ig.listaVazia) return { ok: true, usuarios: [], fim: true };
+          return { ok: true, usuarios: usuarios.slice(0, quantos).map((x) => ({ username: x.username, foto: x.foto, relacao: ig.relacao(x.username) })), fim: usuarios.length <= quantos };
+        }
+        return { ok: false, erro: 'a janela "Seguidores" não abriu' };
+      }
+      case 'focarPesquisaNaPagina':
+        registrar('pesquisa');
+        if (alvo !== ig.meuUsuario || ig.minhaListaNaoAbre) return { ok: false, erro: 'a janela "Seguidores" não abriu' };
+        tela.pesquisa = '';
+        return { ok: true, antes: 'lista' };
+      case 'escreverPesquisaNaPagina':
+        tela.pesquisa += args[0];
+        return { ok: true };
+      case 'resultadoPesquisaNaPagina':
+        if (ig.pesquisaFalha) return { ok: false, erro: 'a pesquisa não mostrou resultado' };
+        return { ok: true, encontrado: ig.meSeguem.has(String(args[0]).toLowerCase()) };
+      // --- DM (digitação) ---
+      case 'abrirConversaNaPagina': {
+        registrar('DM-TELA');
+        if (!ig.dmTela.abre || (!acharUsuario(alvo) && !ig.meSeguem.has(alvo))) return { ok: false, erro: 'botão "Enviar mensagem" não apareceu no perfil' };
+        tela.conversa = alvo;
+        tela.caixa = '';
+        return { ok: true };
+      }
+      default:
+        break;
     }
     if (!tela.conversa) return { ok: false, erro: 'caixa de mensagem sumiu' };
     if (nome === 'prepararCaixaNaPagina') { tela.caixa = ''; return { ok: true, contagem: naConversa(args[0]) }; }
@@ -93,144 +145,30 @@ export function criarInstagramFalso({ meuId = '999', referencia = 'perfilref', t
       return { ok: false, erro: 'o texto digitado não conferiu' };
     }
     if (nome === 'apertarEnterNaPagina') {
-      if (ig.dmTela.envia && tela.caixa) { ig.dms.push({ id: tela.conversa, texto: tela.caixa, em: Date.now(), via: 'digitacao', visivel: ig.dmTela.aparece }); tela.caixa = ''; }
+      if (ig.dmTela.envia && tela.caixa) { ig.dms.push({ username: tela.conversa, texto: tela.caixa, em: Date.now(), via: 'digitacao', visivel: ig.dmTela.aparece }); tela.caixa = ''; }
       return { ok: true };
     }
     if (nome === 'confirmarDmNaPagina') {
-      const vistas = ig.dms.filter((d) => d.id === tela.conversa && d.visivel !== false && normT(d.texto).includes(normT(args[0]))).length;
-      return vistas > args[1] ? { ok: true, confirmado: true } : { ok: false, confirmado: false, erro: 'a mensagem não apareceu na conversa em 12 s' };
+      return naConversa(args[0], true) > args[1] ? { ok: true, confirmado: true } : { ok: false, confirmado: false, erro: 'a mensagem não apareceu na conversa em 12 s' };
     }
     return { ok: false, erro: `função desconhecida ${nome}` };
   };
 
-  ig.responder = ({ url, metodo, corpo }) => {
-    const agora = Date.now();
-    atualizarVoltas(agora);
-    const u = new URL(url);
-    const caminho = u.pathname;
-    ig.chamadas.push({ em: agora, metodo, caminho });
-    const ok = (obj) => ({ status: 200, texto: JSON.stringify(obj) });
-    const params = new URLSearchParams(corpo || '');
-    let m;
-    if (caminho === '/api/v1/news/inbox/') {
-      const a = ig.atividade;
-      if (!a) return { status: 404, texto: '<html>not found</html>' };
-      if (a.falhasAguarde > 0) { a.falhasAguarde -= 1; return { status: 400, texto: '{"message":"Please wait a few minutes before you try again.","status":"fail"}' }; }
-      if (a.modo === 'html') return { status: 200, texto: '<!DOCTYPE html><html><head><title>Instagram</title></head></html>' };
-      if (a.modo === 'sem_lista') return ok({ counts: {}, status: 'ok' });
-      const porPagina = a.porPagina || 50;
-      const ini = Number(u.searchParams.get('max_id') || params.get('max_id') || 0);
-      const hist = a.historias || [];
-      return ok({ counts: {}, new_stories: [], old_stories: hist.slice(ini, ini + porPagina), ...(ini + porPagina < hist.length ? { next_max_id: String(ini + porPagina) } : {}), status: 'ok' });
-    }
-    if (caminho === '/api/v1/web/search/topsearch/') {
-      const q = u.searchParams.get('query');
-      return ok({ users: q === referencia ? [{ position: 0, user: { pk: '555', username: referencia, is_private: false } }] : [], status: 'ok' });
-    }
-    if (caminho === '/api/v1/users/web_profile_info/') {
-      if (ig.falharPerfil) return ig.falharPerfil;
-      if (u.searchParams.get('username') !== referencia) return { status: 404, texto: '{"message":"User not found","status":"fail"}' };
-      return ok({ data: { user: { id: '555', username: referencia, is_private: ig.perfilPrivado, followed_by_viewer: ig.sigoReferencia, edge_followed_by: { count: usuarios.length } } }, status: 'ok' });
-    }
-    if (caminho === '/graphql/query/') {
-      const vars = JSON.parse(u.searchParams.get('variables'));
-      if (vars.id === meuId) {
-        // 1.1.7: plano B da lista dos MEUS seguidores (mais recentes primeiro).
-        if (ig.meusSeguidoresGraphqlFalha) return { status: 200, texto: '<!DOCTYPE html><html><head><title>Instagram</title></head></html>' };
-        const todos = meusSeguidoresRecentes();
-        const ini = Number(vars.after || 0);
-        const pg = todos.slice(ini, ini + vars.first);
-        return ok({ data: { user: { edge_followed_by: {
-          count: todos.length,
-          page_info: { has_next_page: ini + vars.first < todos.length, end_cursor: String(ini + vars.first) },
-          edges: pg.map((id) => ({ node: { id, username: `x${id}`, is_private: false, followed_by_viewer: false, follows_viewer: true } })),
-        } } }, status: 'ok' });
-      }
-      const inicio = Number(vars.after || 0);
-      const pagina = ig.graphqlVazio ? [] : usuarios.slice(inicio, inicio + vars.first);
-      const fim = inicio + vars.first;
-      return ok({
-        data: { user: { edge_followed_by: {
-          count: usuarios.length,
-          page_info: { has_next_page: !ig.graphqlVazio && fim < usuarios.length, end_cursor: String(fim) },
-          edges: pagina.map((x) => ({ node: { id: x.pk, username: x.username, is_private: x.is_private, profile_pic_url: x.profile_pic_url, followed_by_viewer: false, follows_viewer: false } })),
-        } } },
-        status: 'ok',
-      });
-    }
-    if ((m = caminho.match(/^\/api\/v1\/friendships\/(\w+)\/followers\/$/))) {
-      if (m[1] === meuId) {
-        if (ig.falharSeguidoresDeMim > 0) { ig.falharSeguidoresDeMim -= 1; return { status: 400, texto: '{"message":"Please wait a few minutes before you try again.","status":"fail"}' }; }
-        if (ig.meusSeguidoresHtml) return { status: 200, texto: '<!DOCTYPE html><html><head><title>Instagram</title></head></html>' };
-        // Como o site: páginas de `count` (12), mais recentes primeiro, com next_max_id.
-        const todos = meusSeguidoresRecentes();
-        const ini = Number(u.searchParams.get('max_id') || 0);
-        const n = Number(u.searchParams.get('count') || 12);
-        const lista = todos.slice(ini, ini + n).map((id) => ({ pk: id, username: `x${id}` }));
-        return ok({ users: lista, next_max_id: ini + n < todos.length ? String(ini + n) : null, status: 'ok' });
-      }
-      if (ig.v1Vazio) return ok({ users: [], big_list: false, page_size: 12, status: 'ok' });
-      const inicio = Number(u.searchParams.get('max_id') || 0);
-      const n = Number(u.searchParams.get('count') || 12);
-      const pagina = usuarios.slice(inicio, inicio + n);
-      return ok({ users: pagina, next_max_id: inicio + n < usuarios.length ? String(inicio + n) : null, status: 'ok' });
-    }
-    const PAGINA_HTML = { status: 200, texto: '<!DOCTYPE html><html><head><title>Instagram</title></head></html>' };
-    if (ig.showHtml && caminho.startsWith('/api/v1/friendships/show/')) return PAGINA_HTML; // 1.1.4
-    if (ig.showManyHtml && caminho === '/api/v1/friendships/show_many/') return PAGINA_HTML; // 1.1.4 (caso real 24/10)
-    if ((m = caminho.match(/^\/api\/v1\/friendships\/show\/(\w+)\/$/))) {
-      const usr = usuarios.find((x) => x.pk === m[1]);
-      return ok({ following: ig.sigo.has(m[1]), followed_by: ig.meSeguem.has(m[1]), outgoing_request: ig.pendentes.has(m[1]), is_private: Boolean(usr && usr.is_private), status: 'ok' });
-    }
-    if (caminho === '/api/v1/friendships/show_many/') {
-      const mapa = {};
-      for (const id of (params.get('user_ids') || '').split(',')) mapa[id] = { following: ig.sigo.has(id), outgoing_request: ig.pendentes.has(id), followed_by: ig.meSeguem.has(id) };
-      return ok({ friendship_statuses: mapa, status: 'ok' });
-    }
-    if ((m = caminho.match(/^\/web\/friendships\/(\w+)\/(follow|unfollow)\/$/))) {
-      if (!ig.legadoFunciona) return { status: 200, texto: '<!DOCTYPE html><html><head><title>Instagram</title></head></html>' };
-      if (m[2] === 'follow') ig.sigo.set(m[1], agora);
-      else { ig.sigo.delete(m[1]); if (!ig.destroyNaoCancela) ig.pendentes.delete(m[1]); }
-      return ok({ result: m[2] === 'follow' ? 'following' : '', status: 'ok' });
-    }
-    if ((m = caminho.match(/^\/api\/v1\/friendships\/create\/(\w+)\/$/))) {
-      if (ig.falharProximoSeguir) { const f = ig.falharProximoSeguir; ig.falharProximoSeguir = null; return f; }
-      if (ig.createHtml) return { status: 200, texto: '<!DOCTYPE html><html><head><title>Instagram</title></head></html>' };
-      const alvo = usuarios.find((x) => x.pk === m[1]);
-      if (alvo && alvo.is_private) {
-        ig.pendentes.set(m[1], agora);
-        return ok({ friendship_status: { following: false, outgoing_request: true, is_private: true }, status: 'ok' });
-      }
-      ig.sigo.set(m[1], agora);
-      return ok({ friendship_status: { following: true, outgoing_request: false }, status: 'ok' });
-    }
-    if ((m = caminho.match(/^\/api\/v1\/friendships\/destroy\/(\w+)\/$/))) {
-      ig.sigo.delete(m[1]);
-      if (!ig.destroyNaoCancela) ig.pendentes.delete(m[1]);
-      return ok({ friendship_status: { following: false, outgoing_request: ig.pendentes.has(m[1]) }, status: 'ok' });
-    }
-    if (caminho === '/api/v1/direct_v2/threads/broadcast/text/') {
-      if (ig.dmHtml) return PAGINA_HTML; // 1.1.5: a API de DM devolve a página HTML (nada enviado)
-      const dest = JSON.parse(params.get('recipient_users'))[0][0];
-      ig.dms.push({ id: dest, texto: params.get('text'), em: agora });
-      return ok({ status: 'ok' });
-    }
-    return { status: 404, texto: '<html>not found</html>' };
-  };
+  /** Chamadas de um tipo (ex.: 'clique-seguir'). */
+  ig.de = (tipo) => ig.chamadas.filter((c) => c.tipo === tipo);
   return ig;
 }
 
-export function criarChromeFalso(ig, { logado = true, semJanelas = false } = {}) {
+export function criarChromeFalso(ig, { semJanelas = false } = {}) {
   const dados = {};
   // Janelas do Chrome: a do dono (id 1, com uma aba qualquer) + as criadas pela extensão.
   const janelas = semJanelas ? [] : [{ id: 1, type: 'normal', width: 1400, state: 'maximized', focused: true, tabs: [{ id: 11, url: 'https://exemplo.com/', status: 'complete', active: true }] }];
-  const registro = { criadas: [], focos: [], abasCriadas: 0, atualizacoesAba: [] };
+  const registro = { criadas: [], focos: [], abasCriadas: 0, atualizacoesAba: [], execucoes: 0, funcoes: [] };
   let proximoId = 100;
   const acharAba = (id) => { for (const w of janelas) { const t = w.tabs.find((x) => x.id === id); if (t) return { w, t }; } return null; };
   const alarmes = new Map();
   const ouvintes = { alarm: [], installed: [], startup: [], message: [], tabUpdated: [] };
   const notificacoes = [];
-  const sessao = { logado };
 
   const chrome = {
     storage: {
@@ -255,12 +193,6 @@ export function criarChromeFalso(ig, { logado = true, semJanelas = false } = {})
       async clear(nome) { return alarmes.delete(nome); },
       onAlarm: { addListener: (f) => ouvintes.alarm.push(f) },
     },
-    cookies: {
-      async get({ name }) {
-        if (!sessao.logado) return null;
-        return { sessionid: { value: 'x' }, ds_user_id: { value: ig.meuId }, csrftoken: { value: 'csrf-teste' } }[name] || null;
-      },
-    },
     windows: {
       async getAll() { return structuredClone(janelas); },
       async get(id) { const w = janelas.find((x) => x.id === id); if (!w) throw new Error(`No window with id: ${id}`); return structuredClone(w); },
@@ -283,48 +215,24 @@ export function criarChromeFalso(ig, { logado = true, semJanelas = false } = {})
       async executeScript({ target, args, func }) {
         const alvo = acharAba(target.tabId);
         if (!alvo) throw new Error(`No tab with id: ${target.tabId}`);
-        registro.execucoes = (registro.execucoes || 0) + 1;
+        registro.execucoes += 1;
+        registro.funcoes.push(func && func.name);
         if (alvo.w.id === 1) throw new Error('usou aba da janela do dono');
-        if (func && /NaPagina$/.test(func.name) && func.name !== 'lerEstadoNaPagina' && func.name !== 'clicarNaPagina' && func.name !== 'requisicaoNaPagina') {
-          return [{ result: ig.telaDm(func.name, args, alvo.t.url) }]; // 1.1.8: tela da DM
-        }
-        if (func && func.name === 'lerEstadoNaPagina') {
-          // 1.1.4: leitura do botão do perfil (sem clicar). O site web não mostra "Segue você" no simulador.
-          const usuario = decodeURIComponent((String(alvo.t.url || '').match(/instagram\.com\/([^/?#]+)\/?/) || [])[1] || '');
-          const u = ig.usuarios.find((x) => x.username === usuario);
-          ig.chamadas.push({ em: Date.now(), caminho: `leitura:${usuario}`, metodo: 'READ' });
-          if (!u || ig.leituraFalha) return [{ result: { ok: false, erro: 'botão Seguir/Seguindo não apareceu' } }];
-          const botao = ig.sigo.has(u.pk) ? 'seguindo' : ig.pendentes.has(u.pk) ? 'solicitado' : ig.meSeguem.has(u.pk) ? 'seguir_de_volta' : 'seguir';
-          return [{ result: { ok: true, botao, segueVoce: false, privado: Boolean(u.is_private) } }];
-        }
-        if (Array.isArray(args[0])) {
-          // 1.1.3: clique no botão do perfil (clicarNaPagina). Funciona quando o "legado" funcionaria.
-          const usuario = decodeURIComponent((String(alvo.t.url || '').match(/instagram\.com\/([^/?#]+)\/?/) || [])[1] || '');
-          const u = ig.usuarios.find((x) => x.username === usuario);
-          ig.chamadas.push({ caminho: `clique:${usuario}`, metodo: 'CLICK' });
-          if (!u || !ig.legadoFunciona) return [{ result: { ok: false, erro: 'botão "seguir" não apareceu (passo 1)' } }];
-          const seguir = args[0][0].includes('seguir');
-          if (seguir) { if (u.is_private) ig.pendentes.set(u.pk, Date.now()); else ig.sigo.set(u.pk, Date.now()); }
-          else { ig.sigo.delete(u.pk); if (!ig.destroyNaoCancela) ig.pendentes.delete(u.pk); }
-          return [{ result: { ok: true } }];
-        }
-        const [url, metodo, corpo, cabecalhos] = args;
-        if (Object.keys(cabecalhos).length === 0) return [{ result: ig.responder({ url, metodo, corpo }) }]; // página HTML (sem cabeçalhos de API)
-        if (!cabecalhos['x-csrftoken'] || cabecalhos['x-ig-app-id'] !== '936619743392459' || cabecalhos['x-requested-with'] !== 'XMLHttpRequest') {
-          return [{ result: { status: 403, texto: '{"message":"cabecalhos faltando"}' } }];
-        }
-        return [{ result: ig.responder({ url, metodo, corpo }) }];
+        if (!func || !/NaPagina$/.test(func.name)) throw new Error(`função inesperada na aba: ${func && func.name}`);
+        return [{ result: { origem: 'https://www.instagram.com', ...ig.tela(func.name, args || [], alvo.t.url) } }];
       },
     },
+    permissions: { async request() { return true; } },
     notifications: { create: (id, opc) => notificacoes.push({ id, ...opc, em: Date.now() }) },
     action: { async setBadgeText() {}, async setBadgeBackgroundColor() {} },
     runtime: {
+      getManifest: () => ({ version: '1.2.0' }),
       onInstalled: { addListener: (f) => ouvintes.installed.push(f) },
       onStartup: { addListener: (f) => ouvintes.startup.push(f) },
       onMessage: { addListener: (f) => ouvintes.message.push(f) },
     },
   };
-  return { chrome, dados, alarmes, ouvintes, notificacoes, sessao, janelas, registro };
+  return { chrome, dados, alarmes, ouvintes, notificacoes, janelas, registro };
 }
 
 /** Espera uma promise avançando o relógio falso aos poucos (para os atrasos de 1–4 s). */
@@ -342,10 +250,26 @@ export async function aguardar(promessa, passoMs = 1000, maxPassos = 100000) {
   return valor;
 }
 
-/** Carrega o background.js com o chrome falso e devolve funções de controle. */
-export async function iniciarExtensao(cf, inicio) {
+/**
+ * Carrega o background.js com o chrome falso e devolve funções de controle. `crm` (opcional): CRM falso
+ * { stopped, config, latestVersion } — com ele a extensão ganha chave e o fetch responde a /api/extensoes/*.
+ */
+export async function iniciarExtensao(cf, inicio, { crm = null } = {}) {
   mock.timers.enable({ apis: ['setTimeout', 'Date'], now: inicio });
   globalThis.chrome = cf.chrome;
+  const saude = [];
+  globalThis.fetch = async (url, opcoes = {}) => {
+    if (!crm) throw new Error('sem rede nos testes');
+    if (String(url).endsWith('/api/extensoes/estado')) {
+      return { ok: true, status: 200, json: async () => ({ ok: true, stopped: Boolean(crm.stopped), config: crm.config || {}, latestVersion: crm.latestVersion || '1.2.0', outdated: Boolean(crm.latestVersion && crm.latestVersion !== '1.2.0'), downloadUrl: 'https://crm/download' }) };
+    }
+    if (String(url).endsWith('/api/extensoes/saude')) {
+      saude.push(JSON.parse(opcoes.body));
+      return { ok: true, status: 200, json: async () => ({ ok: true }) };
+    }
+    return { ok: false, status: 404, json: async () => ({}) };
+  };
+  if (crm) cf.dados.crm = { baseUrl: 'https://www.matheusmachadoimoveis.com.br', key: 'igs_teste' };
   await import(`../../background.js?inst=${Math.random()}`);
   const ocioso = () => aguardar(globalThis.seguidorIG.ocioso());
   for (const f of cf.ouvintes.installed) f({ reason: 'install' });
@@ -371,5 +295,5 @@ export async function iniciarExtensao(cf, inicio) {
   }
 
   const estado = () => structuredClone(cf.dados.estado);
-  return { mensagem, avancarAte, estado, ocioso };
+  return { mensagem, avancarAte, estado, ocioso, saude };
 }

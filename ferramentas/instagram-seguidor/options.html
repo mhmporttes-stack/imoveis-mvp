@@ -20,6 +20,8 @@
     <span id="status" class="pilula ligada">…</span>
   </div>
 
+  <div id="avisoCrm" class="cartao alerta" hidden style="white-space:pre-line;word-break:break-word"></div>
+
   <div id="caixaAlerta" class="cartao alerta" hidden>
     <div class="linha entre">
       <strong>Atenção</strong>
@@ -46,7 +48,7 @@
     <div class="suave" style="margin-top:8px">
       Fila: <strong id="tamFila">0</strong> · origem atual: <span id="origemAtual">—</span> ·
       seguidos pela extensão aguardando retorno: <strong id="aguardando">0</strong> ·
-      janela: 05:00–22:00 (São Paulo)
+      janela: <span id="janelaHoras">05:00–22:00</span> (São Paulo)
     </div>
     <div id="boasVindas" style="margin-top:8px;white-space:pre-line;word-break:break-word">Boas-vindas: …</div>
     <div class="suave" id="carga3Dias" style="margin-top:6px;white-space:pre-line;word-break:break-word">Carga 3 dias: …</div>
@@ -65,11 +67,13 @@
   <div class="colunas">
     <div class="cartao">
       <h2>Configuração</h2>
-      <label class="campo"><span>Limite diário de SEGUIR</span><input type="number" id="limiteDiario" min="0" max="50"></label>
-      <label class="campo"><span>Máximo diário de DEIXAR DE SEGUIR</span><input type="number" id="limiteUnfollowDiario" min="0" max="30"></label>
+      <div class="suave" style="margin-bottom:6px">Com a chave do CRM, os limites de seguir, deixar de seguir, boas-vindas, o horário e o intervalo da conferência vêm da tela <strong>Extensões</strong> do CRM (valem por cima destes).</div>
+      <label class="campo"><span>Limite diário de SEGUIR</span><input type="number" id="limiteDiario" min="0" max="40"></label>
+      <label class="campo"><span>Máximo diário de DEIXAR DE SEGUIR</span><input type="number" id="limiteUnfollowDiario" min="0" max="40"></label>
       <label class="campo"><span>Deixar de seguir depois de (dias sem seguir de volta)</span><input type="number" id="diasParaUnfollow" min="1" max="30"></label>
-      <label class="campo"><span>Máximo de perfis lidos por busca de origem</span><input type="number" id="maxBusca" min="25" max="2000"></label>
+      <label class="campo"><span>Máximo de perfis lidos por busca de origem</span><input type="number" id="maxBusca" min="25" max="1000"></label>
       <label class="campo"><span>Máximo diário de DMs de boas-vindas (excedente sai no dia seguinte)</span><input type="number" id="limiteDmDiario" min="1" max="100"></label>
+      <label class="campo"><span>Seu @ no Instagram (vazio = a extensão lê na tela)</span><input type="text" id="meuUsuario" placeholder="@seuperfil" autocomplete="off"></label>
       <label class="opcao"><input type="checkbox" id="pularPrivados"> Pular perfis privados (desligado: envia solicitação — "Solicitado")</label>
       <label class="opcao"><input type="checkbox" id="pularSemFoto"> Pular contas sem foto</label>
       <label class="opcao"><input type="checkbox" id="dmAtiva"> Enviar DM de boas-vindas para todo seguidor novo</label>
@@ -79,7 +83,14 @@
       </div>
     </div>
     <div class="cartao">
-      <h2>Mensagem de boas-vindas (DM)</h2>
+      <h2>CRM (tela Extensões)</h2>
+      <label class="campo"><span>Endereço do CRM</span><input type="text" id="crmUrl" placeholder="https://www.matheusmachadoimoveis.com.br"></label>
+      <label class="campo"><span>Chave do Seguidor (igs_…, gerada no CRM em Extensões; aparece uma vez só)</span><input type="password" id="crmChave" autocomplete="off" placeholder="cole a chave nova aqui"></label>
+      <div class="linha" style="margin-top:8px">
+        <button id="btnSalvarCrm">Salvar chave</button>
+        <span class="suave" id="crmMsg"></span>
+      </div>
+      <h2 style="margin-top:14px">Mensagem de boas-vindas (DM)</h2>
       <textarea id="mensagem"></textarea>
       <div class="linha" style="margin-top:8px">
         <button id="btnRestaurarMsg" class="secundario">Restaurar texto original</button>

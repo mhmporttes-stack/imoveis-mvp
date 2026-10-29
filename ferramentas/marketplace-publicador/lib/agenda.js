@@ -32,9 +32,19 @@ export function saoPauloParts(now = new Date()) {
   return { dateKey: `${parts.year}-${parts.month}-${parts.day}`, hour: Number(parts.hour), minute: Number(parts.minute) };
 }
 
-export function isWithinWindow(now = new Date()) {
+// limits (1.10.0, EXT-1): números editados pelo dono na tela Extensões do CRM; sem eles, os padrões acima.
+export function publishLimits(limits = {}) {
+  const int = (value, fallback, min, max) => (Number.isInteger(Number(value)) && value !== null && value !== "" ? Math.min(max, Math.max(min, Number(value))) : fallback);
+  const startHour = int(limits?.publishStartHour, WINDOW_START_HOUR, 0, 23);
+  const endHour = int(limits?.publishEndHour, WINDOW_END_HOUR, 1, 24);
+  const ok = startHour < endHour;
+  return { dailyLimit: int(limits?.publishPerDay, DAILY_LIMIT, 0, 10), startHour: ok ? startHour : WINDOW_START_HOUR, endHour: ok ? endHour : WINDOW_END_HOUR };
+}
+
+export function isWithinWindow(now = new Date(), limits = {}) {
   const { hour } = saoPauloParts(now);
-  return hour >= WINDOW_START_HOUR && hour < WINDOW_END_HOUR;
+  const { startHour, endHour } = publishLimits(limits);
+  return hour >= startHour && hour < endHour;
 }
 
 // Publicações bem-sucedidas hoje.
@@ -58,16 +68,18 @@ export function nextIntervalMs(random = Math.random) {
 
 // Decide se este "tique" (alarme de 15 min ou botão "Verificar agora") pode consultar a fila.
 // chatBusy: a trava do Chat (chatLock, lib/chat-agenda.js) está viva — calculado pelo background (1.8.7).
-export function decideTick(state, now = new Date(), { chatBusy = false } = {}) {
+// stoppedByCrm (1.10.0): "Parar tudo" na tela Extensões do CRM. limits: publishLimits (CRM).
+export function decideTick(state, now = new Date(), { chatBusy = false, stoppedByCrm = false, limits = {} } = {}) {
   const s = { ...initialState(), ...(state || {}) };
   const t = now.getTime();
+  if (stoppedByCrm) return { action: "skip", reason: "parado_crm" };
   if (s.manualPause) return { action: "skip", reason: "pausado" };
   if (s.pausedUntil && new Date(s.pausedUntil).getTime() > t) return { action: "skip", reason: "pausa_verificacao" };
   if (s.running && t - new Date(s.running.startedAt).getTime() < STALE_RUN_MS) return { action: "skip", reason: "em_andamento" };
   // Chat do Marketplace lendo/enviando agora: a publicação espera (uma automação no Facebook por vez).
   if (chatBusy) return { action: "skip", reason: "chat_em_andamento" };
-  if (!isWithinWindow(now)) return { action: "skip", reason: "fora_do_horario" };
-  if (todayCount(s, now) >= DAILY_LIMIT) return { action: "skip", reason: "limite_diario" };
+  if (!isWithinWindow(now, limits)) return { action: "skip", reason: "fora_do_horario" };
+  if (todayCount(s, now) >= publishLimits(limits).dailyLimit) return { action: "skip", reason: "limite_diario" };
   if (todayAttempts(s, now) >= DAILY_ATTEMPT_LIMIT) return { action: "skip", reason: "limite_tentativas" };
   if (s.nextAllowedAt && new Date(s.nextAllowedAt).getTime() > t) return { action: "skip", reason: "intervalo" };
   return { action: "check", reason: null };
@@ -163,8 +175,9 @@ export const REASON_LABELS = {
   pausado: "Pausado por você",
   pausa_verificacao: "Pausado por verificação do Facebook",
   em_andamento: "Publicando agora",
-  fora_do_horario: "Fora do horário (08:00–20:00)",
-  limite_diario: "Limite de 3 publicações hoje atingido",
+  parado_crm: "Parado pelo CRM (Extensões › Parar tudo)",
+  fora_do_horario: "Fora do horário de publicação (padrão 08:00–20:00; muda na tela Extensões do CRM)",
+  limite_diario: "Limite de publicações de hoje atingido (padrão 3; muda na tela Extensões do CRM)",
   limite_tentativas: "Muitas tentativas hoje — volta amanhã",
   intervalo_tentativa: "CRM: aguardando alguns minutos desde a última tentativa",
   intervalo: "Aguardando o intervalo (2–5 min depois de publicar; 15–20 min depois de falha)",

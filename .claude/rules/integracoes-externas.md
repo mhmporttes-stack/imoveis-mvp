@@ -45,6 +45,12 @@ paths:
   - "lib/client-voice-audio*"
   - "components/ClientVoiceAudioSettings.jsx"
   - "app/api/admin/client-voice-audio/**"
+  - "ferramentas/instagram-seguidor/**"
+  - "lib/browser-extensions*"
+  - "app/api/extensoes/**"
+  - "app/api/admin/extensoes/**"
+  - "components/extensoes/**"
+  - "scripts/gerar-zips-extensoes.mjs"
 ---
 
 # Integrações externas
@@ -194,6 +200,12 @@ Toda fala espontânea passa pelas travas de `lib/alexa-service.js` (Alexa ativa,
 **[PENDENTE DE VALIDAÇÃO — conceito aprovado pelo dono em 2026-10-23, visual em ajuste] Pulso do CRM (HENRY-1 "Pulso").** Cards com eventos reais do CRM em volta do anel da tela cheia; só o dono, somente leitura, nasce desligado (`henry_voice_assistant.pulse`). Eventos, filtros (Particular/grupo/equipe fora, sem telefone/CPF) e parâmetros visuais só em `lib/henry-pulse-core.mjs` (+ `lib/henry-pulse.js`, rota `/api/admin/henry/pulse`, `components/henry/HenryPulse.jsx`); o pulso entra no anel real como `level`, nunca outro anel. Detalhe: `docs/BUSINESS_RULES.md` HENRY-1 "Pulso do CRM".
 
 **[REGRA OFICIAL DE NEGÓCIO — dono, 2026-10-23] Áudio com a voz clonada do dono para o cliente (VOZ-1).** Nota de voz (ElevenLabs, `voice_id` na tela) logo DEPOIS do link da SIM-AUTO-ENVIO (mesmo canal) e nas boas-vindas do lead novo da roleta (número do corretor que o recebeu). Modelo por momento × sexo do cliente (primeiro nome; dúvida/sem nome = neutro, nunca chuta), variáveis `{saudacao}`/`{primeiro_nome_cliente}`/`{primeiro_nome_corretor}`; só modelo aprovado; editar desaprova; nasce DESLIGADO. Nunca Não contactar/bloqueado; um por momento por cadastro (reserva `voice-audio:<momento>:<id>`); sem voz/créditos só pula o áudio; não é atendimento humano. Regras só em `lib/client-voice-audio-core.mjs` (+ `lib/client-voice-audio.js`); voz pelo `buildElevenLabsSpeechRequest` — não crie outro envio de áudio automático nem outra escolha de sexo por nome. Detalhe: `docs/BUSINESS_RULES.md` VOZ-1.
+
+## Extensões do Chrome do dono (EXT-1) — Seguidor do Instagram e Publicador do Marketplace
+
+**[REGRA OFICIAL DE NEGÓCIO — dono, 2026-10-29] Tela "Extensões" do CRM (EXT-1).** Só o admin geral **real** (`requireRealGeneralAdminApi`; página volta ao painel em "Alterar conta"). Por extensão: configuração editável que a extensão lê do CRM a cada rodada (`crm_settings` `browser_extension_config_<ext>`, sem migration, faixas fechadas em `lib/browser-extensions-core.mjs`), painel de saúde (versão no PC × versão do repositório, última rodada ok, erros 24 h, ações do dia × limite, pausas de 24 h, partes da tela não achadas), **Parar tudo / Retomar** (`browser_extensions_control`; as extensões consultam antes de cada ação) e link do zip mais novo (`/api/admin/extensoes/download`). Extensões falam só por `GET /api/extensoes/estado` e `POST /api/extensoes/saude`, com a chave pessoal de cada uma (`mkp_…` Marketplace; `igs_…` Seguidor, gerada na tela, só o hash guardado) e limite por IP; sinal sem dado de terceiros (`scrubThirdPartyText` + `limparTexto` na extensão). Zips sempre gerados do código (`scripts/gerar-zips-extensoes.mjs`; `tests/extensoes-zip.test.mjs` falha se o zip ≠ código/manifest). "Chrome Web Store não listada" (atualização automática) é passo do dono. Limites do dono (sempre): nada publicado/enviado sem o "sim" dele; nada de burlar defesas do Facebook/Instagram nem automação escondida; a extensão só faz o que ele faria clicando; "Não contactar"/bloqueados nunca recebem mensagem automática do CRM. Detalhe: `docs/BUSINESS_RULES.md` EXT-1.
+**[REGRA OFICIAL DE NEGÓCIO — dono, 2026-10-29] Seguidor do Instagram só pela tela (EXT-1b).** "A extensão só faz o que eu faria clicando": sem API interna do Instagram, sem copiar cabeçalhos da página (app-id/csrf/claim), sem endpoints GraphQL/legados e sem a permissão `cookies` — lê e clica na tela da janela de trabalho (perfil, janela "Seguidores", pesquisa nessa lista, conversa da DM), no ritmo configurado; quando a tela não deixa, **para e avisa** (nunca insiste por outro caminho). Funções mantidas: seguir, deixar de seguir, boas-vindas. Seguir por dia: **20** (faixa 0–40). Código único do contato com o Instagram: `ferramentas/instagram-seguidor/instagram-tela.js` (teste `tests/tela.test.mjs` trava qualquer volta de API/cabeçalho/cookie). Extensão 1.2.0.
+**[REGRA OFICIAL DE NEGÓCIO — dono, 2026-10-29] Boas-vindas do Instagram não consultam lista de exclusão do CRM (EXT-1c).** "Essa lista de não mandar mensagens cruzados com os clientes não contactar não tem nada a ver. Pode cancelar essa opção." A DM de boas-vindas não tem lista "Não mandar DM" nem cruza com "Não contactar"/telefones bloqueados do CRM (seguidor do Instagram não é cliente do CRM). Não implemente sem nova decisão.
 
 ## Push
 

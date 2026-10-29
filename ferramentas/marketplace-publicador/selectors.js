@@ -122,7 +122,10 @@
       // Aviso de criptografia de ponta a ponta sem o histórico (pede o PIN do Messenger).
       pinTexts: ["Insira seu PIN", "histórico de conversa está faltando", "restaurar o histórico", "Enter your PIN", "chat history is missing", "restore your chat history"],
       // Área das mensagens dentro da conversa (página ou janela de chat) e cada linha/bolha.
-      messageArea: '[role="main"] [role="grid"], [role="main"] [aria-label*="Mensagens"], [role="main"] [aria-label*="Messages"], [role="dialog"] [role="grid"], [role="dialog"] [aria-label*="Mensagens"], [role="complementary"] [role="grid"], [role="main"]',
+      messageArea: '[role="main"] [role="grid"], [role="main"] [aria-label*="Mensagens"], [role="main"] [aria-label*="Messages"], [role="dialog"] [role="grid"], [role="dialog"] [aria-label*="Mensagens"], [role="complementary"] [role="grid"]',
+      // 1.10.0 (EXT-1): o [role="main"] puro (a página inteira) saiu da lista acima. Se a área de mensagens só for achada
+      // por ele, a extensão PARA e avisa o CRM (selectorFailed) em vez de ler texto da página toda.
+      messageAreaGeneric: '[role="main"]',
       messageRows: '[role="row"], [data-testid="message-container"]',
       messageText: 'div[dir="auto"]',
       // Campo de escrever e botão enviar.
