@@ -8,11 +8,14 @@ import { subscribeClientPopups } from "@/components/client-popups/client-popup-b
 import {
   CLIENT_POPUP_KIND,
   CLIENT_POPUP_LABEL,
+  CLIENT_POPUP_TICK_MS,
   addClientPopupSeen,
+  advanceClientPopupTimers,
   clientPopupAge,
   clientPopupDetail,
   clientPopupStorageKey,
   mergeClientPopups,
+  overflowClientPopupKeys,
   parseClientPopupSeen,
   serializeClientPopupSeen,
   visibleClientPopups
@@ -21,13 +24,17 @@ import styles from "./ClientPopupStack.module.css";
 
 // Janelinha de CLIENTE NOVO (REGRA OFICIAL DE NEGÓCIO — dono, 2026-10-24, CLI-16). Complemento do som e do push (que não
 // mudam): cliente novo, transferido ou do Messenger que chegou para quem está vendo aparece no lado direito (no celular, uma
-// faixa no topo). Fica até um clique: EM CIMA abre o destino (ficha, Chat ou conversa do Marketplace); em QUALQUER outro
-// lugar fecha todas as visíveis (Esc também). Fechada não volta, nem ao recarregar ("visto" guardado neste aparelho).
-// Até 3 empilhadas (mais nova em cima) + "+N". Com a tela cheia do Henry aberta não aparece: espera na fila e aparece quando
-// ela fechar (sinal único useHenryFullscreen, regra do dono de 2026-10-23). Dados: o ciclo do NewClientSoundListener
-// (client-popup-bus), só com a página visível; escopo e regras no servidor (lib/client-popups.js).
+// faixa no topo). Some SOZINHA depois de ~7 s na tela (dono, 2026-10-29: "têm que sumir sozinhas e ficar apenas no ícone
+// de notificações") — o tempo pausa com o mouse/toque/foco em cima e com a aba oculta; o aviso do sino não é tocado. Antes
+// disso, um clique EM CIMA abre o destino (ficha, Chat ou conversa do Marketplace); em QUALQUER outro lugar fecha todas as
+// visíveis (Esc também). Saída (sozinha ou por clique) não volta, nem ao recarregar ("visto" guardado neste aparelho).
+// Até 3 empilhadas (mais nova em cima); as excedentes ficam só no sino (contadas no "+N" enquanto houver janelinha). Com a
+// tela cheia do Henry aberta não aparece: espera na fila e aparece quando ela fechar (sinal único useHenryFullscreen, regra
+// do dono de 2026-10-23). Dados: o ciclo do NewClientSoundListener (client-popup-bus), só com a página visível; escopo e
+// regras no servidor (lib/client-popups.js).
 
 const AGE_TICK_MS = 30 * 1000;
+const MAX_TICK_STEP_MS = 1000; // aba que o navegador congelou não "gasta" o tempo da janelinha de uma vez ao voltar
 const MORE_HREF = "/admin/simulacoes?needsFirstContact=1";
 
 function useIsMobile() {
@@ -68,8 +75,11 @@ export default function ClientPopupStack({ userId }) {
   const isMobile = useIsMobile();
   const [items, setItems] = useState([]);
   const [now, setNow] = useState(() => Date.now());
+  const [overflow, setOverflow] = useState(0);
   const seenRef = useRef(new Map());
   const stackRef = useRef(null);
+  const elapsedRef = useRef(new Map());
+  const pausedRef = useRef(false);
 
   const markSeen = useCallback((keys) => {
     if (!keys.length) return;
@@ -99,7 +109,20 @@ export default function ClientPopupStack({ userId }) {
     };
   }, [userId]);
 
-  const { visible, extra } = visibleClientPopups(items, { henryOpen });
+  const { visible } = visibleClientPopups(items, { henryOpen });
+
+  // Excedentes (além das 3): só no sino. Viram "vistas" na hora e entram na conta do "+N" deste grupo.
+  useEffect(() => {
+    const keys = overflowClientPopupKeys(items, { henryOpen });
+    if (!keys.length) return;
+    setOverflow((count) => count + keys.length);
+    markSeen(keys);
+  }, [items, henryOpen, markSeen]);
+
+  // Grupo terminou (nenhuma na tela): o "+N" recomeça do zero.
+  useEffect(() => {
+    if (!visible.length && !henryOpen) setOverflow(0);
+  }, [visible.length, henryOpen]);
 
   // "há X min" atualiza enquanto há janelinha na tela.
   useEffect(() => {
@@ -108,8 +131,36 @@ export default function ClientPopupStack({ userId }) {
     return () => window.clearInterval(timer);
   }, [visible.length]);
 
-  // Clique fora (ou Esc) fecha TODAS as visíveis. O clique segue normalmente para o que estava embaixo.
   const visibleKeys = visible.map((item) => item.key).join("|");
+
+  // Saída sozinha: ~7 s de tela por janelinha; pausa com mouse/toque/foco em cima e com a aba oculta.
+  useEffect(() => {
+    if (!visibleKeys) return undefined;
+    const keys = visibleKeys.split("|");
+    let last = Date.now();
+    const timer = window.setInterval(() => {
+      const current = Date.now();
+      const delta = Math.min(current - last, MAX_TICK_STEP_MS);
+      last = current;
+      const paused = pausedRef.current || document.visibilityState === "hidden";
+      const { elapsed, expired } = advanceClientPopupTimers(elapsedRef.current, keys, delta, { paused });
+      elapsedRef.current = elapsed;
+      if (expired.length) markSeen(expired);
+    }, CLIENT_POPUP_TICK_MS);
+    return () => window.clearInterval(timer);
+  }, [visibleKeys, markSeen]);
+
+  const pause = useCallback(() => { pausedRef.current = true; }, []);
+  const resume = useCallback(() => { pausedRef.current = false; }, []);
+  const resumeOnBlur = useCallback((event) => {
+    if (!stackRef.current?.contains(event.relatedTarget)) pausedRef.current = false;
+  }, []);
+  // Saiu da tela (venceu ou fechou): a pausa do mouse/toque não fica presa para o próximo grupo.
+  useEffect(() => {
+    if (!visibleKeys) pausedRef.current = false;
+  }, [visibleKeys]);
+
+  // Clique fora (ou Esc) fecha TODAS as visíveis. O clique segue normalmente para o que estava embaixo.
   useEffect(() => {
     if (!visibleKeys) return undefined;
     const keys = visibleKeys.split("|");
@@ -139,7 +190,21 @@ export default function ClientPopupStack({ userId }) {
   }, [items, markSeen, router]);
 
   if (!visible.length) return null;
-  return <ClientPopupStackView ref={stackRef} items={visible} extra={extra} isMobile={isMobile} now={now} onOpen={open} onMore={openMore} />;
+  return (
+    <ClientPopupStackView
+      ref={stackRef}
+      items={visible}
+      extra={overflow}
+      isMobile={isMobile}
+      now={now}
+      onOpen={open}
+      onMore={openMore}
+      onPointerEnter={pause}
+      onPointerLeave={resume}
+      onFocus={pause}
+      onBlur={resumeOnBlur}
+    />
+  );
 }
 
 const KIND_ICON = { [CLIENT_POPUP_KIND.NEW]: UserPlus, [CLIENT_POPUP_KIND.TRANSFER]: ArrowLeftRight, [CLIENT_POPUP_KIND.MESSENGER]: MessageCircle };
@@ -148,10 +213,14 @@ const KIND_ICON_TONE = { [CLIENT_POPUP_KIND.NEW]: "bg-info-soft text-info", [CLI
 const KIND_TEXT_TONE = { [CLIENT_POPUP_KIND.NEW]: "text-info", [CLIENT_POPUP_KIND.TRANSFER]: "text-warning", [CLIENT_POPUP_KIND.MESSENGER]: "text-brand" };
 
 // Só apresentação (usada também pela vitrine). items = já no formato do servidor; o mais novo primeiro.
-export function ClientPopupStackView({ ref, items = [], extra = 0, isMobile = false, now = Date.now(), onOpen, onMore }) {
+export function ClientPopupStackView({ ref, items = [], extra = 0, isMobile = false, now = Date.now(), onOpen, onMore, onPointerEnter, onPointerLeave, onFocus, onBlur }) {
   return (
     <div
       ref={ref}
+      onPointerEnter={onPointerEnter}
+      onPointerLeave={onPointerLeave}
+      onFocus={onFocus}
+      onBlur={onBlur}
       role="status"
       aria-live="polite"
       aria-atomic="false"

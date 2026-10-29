@@ -10,11 +10,14 @@ import {
   clientPopupWindowStart
 } from "../lib/client-popup-core.mjs";
 import {
+  CLIENT_POPUP_AUTO_DISMISS_MS,
   CLIENT_POPUP_SEEN_TTL_MS,
   addClientPopupSeen,
+  advanceClientPopupTimers,
   clientPopupAge,
   clientPopupDetail,
   mergeClientPopups,
+  overflowClientPopupKeys,
   parseClientPopupSeen,
   serializeClientPopupSeen,
   visibleClientPopups
@@ -147,6 +150,33 @@ test("tela: no máximo 3 + resumo; com a tela cheia do Henry nada aparece e a fi
   assert.equal(visibleClientPopups(items, { henryOpen: false }).visible.length, 3);
 });
 
+test("saída sozinha (dono, 2026-10-29): ~7 s de tela, pausa não gasta tempo, quem sai da tela esquece o tempo", () => {
+  assert.ok(CLIENT_POPUP_AUTO_DISMISS_MS >= 6000 && CLIENT_POPUP_AUTO_DISMISS_MS <= 8000);
+  let state = advanceClientPopupTimers(new Map(), ["a", "b"], 4000);
+  assert.deepEqual(state.expired, []);
+  // pausada (mouse/toque em cima, aba oculta): o tempo não anda
+  state = advanceClientPopupTimers(state.elapsed, ["a", "b"], 60000, { paused: true });
+  assert.deepEqual(state.expired, []);
+  assert.equal(state.elapsed.get("a"), 4000);
+  // "c" chegou agora: conta do zero; "b" saiu da tela e esquece
+  state = advanceClientPopupTimers(state.elapsed, ["c", "a"], CLIENT_POPUP_AUTO_DISMISS_MS - 4000);
+  assert.deepEqual(state.expired, ["a"]);
+  assert.deepEqual([...state.elapsed.keys()], ["c"]);
+  assert.deepEqual(advanceClientPopupTimers(new Map(), ["x"], Number.NaN).expired, []);
+});
+
+test("excedentes vão só para o sino: além das 3 viram vistas na hora e não voltam no próximo ciclo; Henry aberto não descarta", () => {
+  const items = ["1", "2", "3", "4", "5"].map((key, index) => ({ key, at: iso(index) }));
+  const overflow = overflowClientPopupKeys(items);
+  assert.deepEqual(overflow, ["4", "5"]);
+  assert.deepEqual(overflowClientPopupKeys(items, { henryOpen: true }), []);
+  assert.deepEqual(overflowClientPopupKeys(items.slice(0, 3)), []);
+  // expirou/excedeu = "visto" no aparelho: o mesmo item no polling seguinte não reaparece
+  const seen = addClientPopupSeen(new Map(), [...overflow, "1"], NOW);
+  const next = mergeClientPopups(items.slice(1, 3), items, new Set(seen.keys()));
+  assert.deepEqual(next.map((item) => item.key), ["2", "3"]);
+});
+
 test("visto: guarda, sobrevive ao recarregar, tolera lixo e expira em 24 h", () => {
   const seen = addClientPopupSeen(new Map(), ["a", "b"], NOW);
   const reloaded = parseClientPopupSeen(serializeClientPopupSeen(seen), NOW + 1000);
@@ -176,6 +206,10 @@ test("ligações: guard no servidor, mesmo ciclo do som, pausa oculta, Henry, fo
   assert.match(stack, /useHenryFullscreen\(/);
   assert.match(stack, /visibleClientPopups\(items, \{ henryOpen \}\)/);
   assert.match(stack, /addEventListener\("click", onClick, true\)/);
+  assert.match(stack, /advanceClientPopupTimers\(/);
+  assert.match(stack, /overflowClientPopupKeys\(items, \{ henryOpen \}\)/);
+  assert.match(stack, /document\.visibilityState === "hidden"/);
+  assert.doesNotMatch(stack, /crm-notifications\/.*read|markRead/);
   assert.doesNotMatch(stack, /setInterval\(\(\) => fetch|fetch\(/);
   const layout = read("app/admin/layout.jsx");
   assert.match(layout, /clientPopups=\{auth\.accountSwitchMode \? null :/);
