@@ -8,7 +8,7 @@ Dados enviados pelo dono: Jd. Santa Antonieta; casa desocupada, pronta para mora
 
 **No site desde 2026-10-29:** `properties` id `361178f3-6c77-4474-9efe-5ca0b1c9dcd6`, publicado, contato Fabio (corretor) salvo. Fotos no GitHub (commit 5e5fabb). Página: https://www.matheusmachadoimoveis.com.br/empreendimentos/361178f3-6c77-4474-9efe-5ca0b1c9dcd6
 
-**Marketplace:** na fila, aprovado (id 1941a6db).
+**Marketplace:** publicado em 2026-10-29 16:10 (id 1941a6db; saiu depois do conserto da extensão 1.9.10; link não capturado).
 
 **Instagram:** publicado e confirmado em 2026-10-29 (media 17916217779542959).
 
