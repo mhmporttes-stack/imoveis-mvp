@@ -11,6 +11,11 @@
 
 
 
+## 2026-10-29 — Roleta só do Marketplace (ROL-2k) (crm-editor) — branch `feat/roleta-so-marketplace`, NÃO publicado
+- **Pedido (REGRA OFICIAL):** Caroline Mayumi (gestora) na roleta do Marketplace com as mesmas regras dos corretores, SÓ no Marketplace.
+- **Feito:** coluna `admin_users.marketplace_roulette_only`; `pick_round_robin_broker` ganha `distribution_origin` (default `leads` = igual ao de antes; corpo conferido com o vivo em produção); só `distribute` (`lib/marketplace-chat.js`, exceto Messenger) passa `marketplace`; interruptor "Recebe só clientes do Marketplace" na edição de Gestão › Corretores. Migration `20261029120000_roleta_so_marketplace.sql` NÃO aplicada. Teste `tests/roleta-so-marketplace.test.mjs`.
+- **Pendente:** aplicar a migration, ligar a opção para a Caroline; ela precisa reconectar o WhatsApp (hoje em erro) para ser elegível.
+
 ## 2026-10-26 — Instagram 1.1.10: DM não parava mais em "mudança de API" (get_by_participants 404)
 - **Pedido/sintoma:** print do dono com o alerta "direct_v2/get_by_participants respondeu HTTP 404" e 0 DMs enviadas.
 - **Causa raiz:** `enviarDmPelaApi` (`ferramentas/instagram-seguidor/instagram-api.js`): broadcast/text recusado (4xx, nada saiu) → busca da conversa 404 em HTML virava `mudanca_api`, que não aciona a digitação (só `nao_enviada` aciona).
