@@ -59,7 +59,7 @@ PARAR E AVISAR SE: decisão de produto/negócio ou ação irreversível em dado 
 ENTREGA: ≤N linhas, decisão e números primeiro
 ```
 
-**Modelo por agente** (frontmatter `model:`/`effort:`, 2026-10-24, `docs/scout/economia-tokens-2026-10-24.md`): crm-editor opus; auditor-crm, analista-documental e designer-crm sonnet+high; tratamento-imagem e especialista-atendimento-web haiku (teste de 1 semana); demais sonnet. Auditoria de auth/banco/RLS: passe `model: opus` na chamada.
+**Modelo por agente** (frontmatter `model:`/`effort:`, 2026-10-24, `docs/scout/economia-tokens-2026-10-24.md`): crm-editor sonnet por padrão (2026-10-29, dono: economizar tokens; bug difícil ou auditoria: passe `model: opus` na chamada); auditor-crm e designer-crm sonnet+high; analista-documental, especialista-atendimento e performance-pc haiku; tratamento-imagem e especialista-atendimento-web haiku; demais sonnet. Auditoria de auth/banco/RLS: passe `model: opus` na chamada.
 
 ## Contexto mínimo por especialista (o que ler primeiro)
 | Agente | Ler primeiro (só a seção pertinente) |
