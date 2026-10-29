@@ -91,7 +91,7 @@ $env:GIT_CONFIG_COUNT = "1"
 $env:GIT_CONFIG_KEY_0 = "url.https://github.com/.insteadOf"
 $env:GIT_CONFIG_VALUE_0 = "ssh://git@github.com/"
 Push-Location $App
-& npm.cmd ci --omit=dev  # npm.cmd: o npm.ps1 é bloqueado pela política de execução do Windows
+& npm.cmd ci --omit=dev  # npm.cmd: o npm.ps1 e bloqueado pela politica de execucao do Windows
 $npmCode = $LASTEXITCODE
 Pop-Location
 if ($npmCode -ne 0) { Fail "npm ci falhou (codigo $npmCode). Veja as mensagens acima." }
