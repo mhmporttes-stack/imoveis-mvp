@@ -4,6 +4,14 @@ Código **COD4362** (só no selo de cima). Carrossel com 10 lâminas no modelo p
 
 Dados enviados pelo dono: Jd. Santa Antonieta; casa desocupada, pronta para morar; pintura nova; 2 dormitórios; sala ampla; cozinha americana; banheiro com box; área de serviço coberta; garagem coberta para 2 carros; quintal amplo; R$ 265.000,00; aceita financiamento; analisa proposta; analisa permuta até 50% do valor. Contato: corretor parceiro Fabio, +55 14 99602-7488.
 
+## Site / CRM
+
+**No site desde 2026-10-29:** `properties` id `361178f3-6c77-4474-9efe-5ca0b1c9dcd6`, publicado, contato Fabio (corretor) salvo. Fotos no GitHub (commit 5e5fabb). Página: https://www.matheusmachadoimoveis.com.br/empreendimentos/361178f3-6c77-4474-9efe-5ca0b1c9dcd6
+
+**Marketplace:** na fila, aprovado (id 1941a6db).
+
+**Instagram:** publicado e confirmado em 2026-10-29 (media 17916217779542959).
+
 ## Legenda
 
 Casa à venda no Jd. Santa Antonieta, em Marília 🏡
