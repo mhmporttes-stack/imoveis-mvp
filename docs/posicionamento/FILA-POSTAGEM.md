@@ -15,15 +15,19 @@ Regra do dono (2026-10-15):
 ## Para postar
 
 ### Carrossel claro
-- **Escolher entre o aluguel ou o meu 1º apê?** — `carrosseis/2026-10-15-aluguel-ou-primeiro-ape/` (7 lâminas)
+- (nenhum)
 
 ### Carrossel azul (escuro)
-- (nenhum)
+- **Financiar e pagar 2 imóveis? Tô fora** (quitar antes do prazo) — `carrosseis/2026-10-18-quitar-antes/` (7 lâminas, 3:4; capa com foto "pensativo" trocada em 2026-10-29)
+- **Nunca vi ninguém se arrepender de comprar cedo** — `carrosseis/2026-10-20-arrependeu-esperar/` (lâmina única)
 
 ### Imóvel
 - (nenhum)
 
 ## Publicados
+- NF-e ABI / Receita Federal (2026-10-23, azul) — dono confirmou em 2026-10-29
+- Não importa quem ganhar a eleição (2026-10-24) — dono confirmou em 2026-10-29
+- Escolher entre o aluguel ou o meu 1º apê (claro) — dono confirmou em 2026-10-29
 - Casa Maria Angélica (COD4361, imóvel) — Instagram, site e Marketplace em 2026-10-26
 - Casa Jd. Santa Antonieta (COD4362, imóvel) — Instagram, site e Marketplace em 2026-10-29
 - Apê Torres de Marília · Zona Norte (COD4360, imóvel) — Instagram, site e Marketplace em 2026-10-24
