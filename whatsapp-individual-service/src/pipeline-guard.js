@@ -146,8 +146,11 @@ export function describeNode(node) {
 }
 
 // Chave de mensagem que vale pedir ao celular: conversa individual (não grupo/status/broadcast/newsletter).
-export function placeholderKeyFor(msg) {
+// Nó "peer" (2026-10-24) fica fora: é protocolo do próprio celular (inclusive a RESPOSTA a este pedido), não conversa —
+// pedir o reenvio dele só gerava outra mensagem "peer" (caso do dono: conversa com o próprio número, message-extract.js).
+export function placeholderKeyFor(msg, node = null) {
   if (!msg || Number(msg.messageStubType) !== CIPHERTEXT_STUB) return null;
+  if (node?.attrs?.category === "peer") return null;
   const remoteJid = String(msg.key?.remoteJid || "");
   const id = String(msg.key?.id || "");
   if (!remoteJid || !id) return null;

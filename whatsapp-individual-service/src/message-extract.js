@@ -75,6 +75,31 @@ export function resolveChatPhone(msg, lidMap = new Map()) {
   return lidMap.get(normalizeLid(remoteJid)) || "";
 }
 
+// Conversa da sessão CONSIGO MESMA (2026-10-24, caso do dono: conversa com o próprio número cheia de "não decifrada").
+// O celular manda à própria conta mensagens de protocolo (categoria "peer": resposta ao pedido de reenvio do conteúdo,
+// sincronização...) e as do "Mensagens para você mesmo"; no Baileys 6.7.24 elas chegam fromMe com remoteJid = o PRÓPRIO
+// número/LID (decode-wa-message.js: sem `recipient`, chatId = from). Nunca é conversa com contato: não vai ao CRM.
+// self = { phone: "5514...", lids: Set("123@lid") } (ownIdentityFromCreds); nodeCategory = attrs.category do nó recebido.
+export function ownIdentityFromCreds(me = {}) {
+  const lids = new Set();
+  const lid = normalizeLid(me?.lid);
+  if (lid) lids.add(lid);
+  return { phone: phoneFromJid(me?.id), lids };
+}
+
+export function isSelfChatMessage(msg, { self = {}, lidMap = new Map(), nodeCategory = "" } = {}) {
+  if (nodeCategory === "peer") return true;
+  const remoteJid = String(msg?.key?.remoteJid || "");
+  if (!remoteJid) return false;
+  const phone = String(self?.phone || "");
+  const direct = phoneFromJid(remoteJid);
+  if (direct) return Boolean(phone) && direct === phone;
+  if (!isLidJid(remoteJid)) return false;
+  const lid = normalizeLid(remoteJid);
+  if (self?.lids?.has?.(lid)) return true;
+  return Boolean(phone) && lidMap.get(lid) === phone;
+}
+
 // Só conversa individual (1:1) e só texto (inclui legenda de foto/vídeo);
 // grupo (@g.us), lista de transmissão (@broadcast) e newsletter nunca viram
 // "cliente" no CRM — o JID deles não é um telefone e já causou lixo real

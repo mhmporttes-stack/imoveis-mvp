@@ -4,7 +4,7 @@ import QRCode from "qrcode";
 import { pendingWrites, useSupabaseAuthState } from "./auth-state.js";
 import { clearSessionCreds, requestMediaUploadTarget } from "./db.js";
 import { notifyChatEvent, notifyGroupEvent, notifyUndecryptedOwnMessage, notifyHistoryBatch, notifyLidResolved, notifyMessageStatus, notifyStatus, requestConnectEvents, requestLidCandidates } from "./webhook.js";
-import { extractChatEvent, extractTextMessage, extractUndecryptedOwnEvent, isLidJid, lidMappingFromContact, messageTimestampSeconds, lidMappingFromMessage, normalizeLid, phoneFromJid, upsertRoute } from "./message-extract.js";
+import { extractChatEvent, extractTextMessage, extractUndecryptedOwnEvent, isLidJid, isSelfChatMessage, ownIdentityFromCreds, lidMappingFromContact, messageTimestampSeconds, lidMappingFromMessage, normalizeLid, phoneFromJid, upsertRoute } from "./message-extract.js";
 import { normalizePairingNumber } from "./pairing-number.js";
 import { FORBIDDEN_LIMIT_CODE, configFromEnv, createReconnectController } from "./reconnect-policy.js";
 import { createCloseHandler, NEEDS_ATTENTION_PREFIX } from "./session-lifecycle.js";
@@ -628,6 +628,8 @@ function attachPipelineGuard(userId, entry, sock, diag) {
     } catch { /* sem prependListener: segue sem saber o nó */ }
   }
   const monitor = monitorMutex(sock.processingMutex, { currentNode: () => current });
+  // Categoria do nó de cada mensagem ("peer" = protocolo do próprio celular) para isSelfChat (2026-10-24).
+  entry.nodeCategoryOf = (id) => tracker.get(id)?.attrs?.category || "";
   const isCurrent = () => !retiredSockets.has(sock) && entry.sock === sock;
   const sendAck = async (node, errorCode) => {
     const stanza = buildAckStanza(node, { errorCode, meId: sock.authState?.creds?.me?.id || "" });
@@ -728,7 +730,7 @@ function attachPipelineGuard(userId, entry, sock, diag) {
         }, DECRYPT_NACK_DELAY_MS);
         timer.unref?.();
       }
-      const key = placeholderKeyFor(msg);
+      const key = placeholderKeyFor(msg, node);
       if (key && !requested.has(key.id) && !pending.has(key.id)) {
         pending.set(key.id, key);
         if (!placeholderTimer) {
@@ -815,6 +817,23 @@ async function onConnectionUpdate(userId, entry, sock, update) {
   }
 }
 
+// Conversa da sessão consigo mesma (protocolo do celular "peer" e "Mensagens para você mesmo") nunca vai ao CRM — regra
+// em isSelfChatMessage (message-extract.js), caso do dono 2026-10-24. O LID de um nó "peer" é o da própria conta:
+// guardado para reconhecer também a conversa consigo mesmo quando o Baileys não tem `me.lid`.
+function isSelfChat(userId, msg) {
+  const entry = sockets.get(userId);
+  if (!entry) return false;
+  const id = String(msg?.key?.id || "");
+  const nodeCategory = id && typeof entry.nodeCategoryOf === "function" ? entry.nodeCategoryOf(id) : "";
+  const self = ownIdentityFromCreds(entry.sock?.authState?.creds?.me || {});
+  // Aprendido por número: pareou outro número na mesma sessão -> começa do zero (o LID antigo vira contato).
+  if (!entry.selfLids || entry.selfLids.phone !== self.phone) entry.selfLids = { phone: self.phone, lids: new Set() };
+  const remoteLid = normalizeLid(msg?.key?.remoteJid);
+  if (nodeCategory === "peer" && msg?.key?.fromMe === true && remoteLid && entry.selfLids.lids.size < 20) entry.selfLids.lids.add(remoteLid);
+  for (const lid of entry.selfLids.lids) self.lids.add(lid);
+  return isSelfChatMessage(msg, { self, lidMap: lidMapFor(userId), nodeCategory });
+}
+
 // Extração da mensagem (inclusive conversas endereçadas por LID): ver
 // message-extract.js — usada tanto para mensagem em tempo real
 // (onMessagesUpsert) quanto para o histórico sincronizado (onHistorySync).
@@ -828,6 +847,7 @@ async function onMessagesUpsert(userId, messages, type) {
   for (const msg of messages || []) {
     const route = upsertRoute({ type, fromMe: Boolean(msg?.key?.fromMe), timestampMs: messageTimestampMs(msg), now });
     if (route === "skip") continue;
+    if (isSelfChat(userId, msg)) continue;
     if (route === "history") { historyItems.push(msg); continue; }
     const ownLid = unresolvedOwnLid(userId, msg);
     if (ownLid) {
@@ -1013,6 +1033,7 @@ async function onHistorySync(userId, messages, meta = {}) {
       const sentAt = messageTimestampMs(msg);
       if (!sentAt) counts.noTs += 1;
       if (sentAt < cutoff) { counts.old += 1; continue; }
+      if (isSelfChat(userId, msg)) { counts.skipped += 1; continue; }
       // Contato sem telefone conhecido (LID) não é mais descartado (2026-10-11, histórico vinha quase vazio): entra como
       // "lid:<id>" ("Número não identificado") e o CRM junta à conversa do telefone quando ele aparecer.
       const ownLid = unresolvedOwnLid(userId, msg);
