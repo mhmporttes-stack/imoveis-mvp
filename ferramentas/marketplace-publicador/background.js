@@ -80,7 +80,7 @@ chrome.runtime.onStartup.addListener(async () => {
 });
 chrome.alarms.onAlarm.addListener((alarm) => {
   if (alarm.name === ALARM) tick("alarme").catch((error) => console.warn("[marketplace] tique falhou:", error));
-  if (alarm.name === CHAT_ALARM) chatTick().catch((error) => console.warn("[marketplace] chat falhou:", error));
+  if (alarm.name === CHAT_ALARM) chatTick().catch((error) => console.warn("[marketplace] chat falhou:", error)).then(publishAfterChat);
   if (alarm.name === KEEP_AWAKE_ALARM) keepAwakeTick().catch((error) => console.warn("[marketplace] manter acordado falhou:", error));
 });
 // Opção "Manter acordado" mudou nas Opções: aplica na hora (sem esperar o próximo minuto).
@@ -454,6 +454,15 @@ async function tick(origin, onDecision = () => {}) {
     notify("Falha ao publicar no Marketplace", `${listing.title}: ${outcome.step} — ${outcome.error}`);
   }
   return { reason: outcome.ok ? "publicado" : "falhou" };
+}
+
+// 1.9.10: com o chat rodando a cada 1 min (1.9.9), o tique de 15 min da publicação quase sempre caía no meio de uma
+// rodada ("chat_em_andamento") e o anúncio aprovado ficava parado na fila. Agora, quando a publicação foi adiada pelo
+// chat, ela roda assim que a rodada do chat termina (a próxima rodada do chat espera: decideChatTick pula com `running`).
+async function publishAfterChat() {
+  const state = await loadState().catch(() => null);
+  if (state?.lastCheckResult !== "chat_em_andamento") return;
+  await tick("após o chat").catch((error) => console.warn("[marketplace] tique após o chat falhou:", error));
 }
 
 // Mensagens do popup/opções e progresso da aba.

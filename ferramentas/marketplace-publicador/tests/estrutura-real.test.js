@@ -424,3 +424,9 @@ test("1.9.2: leitura guarda o endereço direto da conversa; envio abre por ele, 
   const inboxSource = readFileSync(new URL("../inbox.js", import.meta.url), "utf8");
   assert.match(inboxSource, /by you/);
 });
+
+test("1.9.10: publicação adiada pelo chat roda logo que a rodada do chat termina", () => {
+  const bg = readFileSync(new URL("../background.js", import.meta.url), "utf8");
+  assert.match(bg, /alarm\.name === CHAT_ALARM\) chatTick\(\)[^\n]*\.then\(publishAfterChat\)/);
+  assert.match(bg, /async function publishAfterChat\(\) \{[\s\S]*?lastCheckResult !== "chat_em_andamento"[\s\S]*?tick\(/);
+});

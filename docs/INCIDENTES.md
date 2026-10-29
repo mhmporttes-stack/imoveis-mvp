@@ -40,6 +40,17 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-29 — Imóvel aprovado não sai no Marketplace
+- **Data:** 2026-10-29
+- **Sintoma:** anúncio aprovado fica "pending" na fila; extensão ligada e sincronizando o chat normalmente.
+- **Área:** Marketplace (extensão)
+- **Impacto:** nenhuma publicação automática no Marketplace enquanto o chat está ativo (desde a 1.9.9).
+- **Causa raiz:** tique de publicação (15 min) pulado com `chat_em_andamento` porque o chat roda a cada 1 min; nada o tentava de novo ao fim da rodada.
+- **Correção:** `publishAfterChat` em `ferramentas/marketplace-publicador/background.js` (1.9.10).
+- **Arquivos/commit:** `ferramentas/marketplace-publicador/background.js` — ver `git log`
+- **Prevenção/teste:** `tests/estrutura-real.test.js` (1.9.10). Paliativo sem atualizar: "Destravar sincronização" + "Verificar agora" no ícone da extensão.
+- **Status:** Monitorando (dono precisa instalar a 1.9.10)
+
 ### 2026-10-26 — "Não está indo mais as conversas antigas" do cliente transferido
 - **Data:** 2026-10-26
 - **Sintoma:** corretor que recebe cliente transferido (fila de clientes frios) não vê o que já foi conversado com o corretor anterior.

@@ -18,6 +18,11 @@ Pedido do dono: aba de indicadores econômicos oficiais, calculadora de correç�
 - **Banco:** migration `20261029120000_economic_indicators.sql` (4 tabelas + job pg_cron) — **NÃO aplicada** (decisão do dono). Sem ela a tela mostra o aviso de tabelas ausentes.
 - **Testes:** `tests/economic-indicators.test.mjs` (19, com respostas reais em `tests/fixtures/economic/`); `pnpm build` ok.
 
+## 2026-10-29 — Marketplace 1.9.10: anúncio aprovado parado na fila
+- **Pedido/sintoma:** dono: "a casa não foi publicada no marketplace" (COD4362 aprovado às 14:41, extensão viva, `claimed_at` nulo).
+- **Causa raiz:** desde a 1.9.9 o chat roda a cada 1 min (rodadas de até 10 min); o tique de publicação (alarme de 15 min) cai quase sempre durante uma rodada e `decideTick` pula com `chat_em_andamento`, sem nova tentativa ao fim da rodada.
+- **Correção:** `publishAfterChat` (`ferramentas/marketplace-publicador/background.js`): ao terminar a rodada do chat, se a última checagem foi `chat_em_andamento`, roda o tique na hora (o chat seguinte espera via `state.running`). Versão 1.9.10, zip atualizado. Teste estrutural em `tests/estrutura-real.test.js` (110 passam).
+
 ## 2026-10-26 — Instagram 1.1.10: DM não parava mais em "mudança de API" (get_by_participants 404)
 - **Pedido/sintoma:** print do dono com o alerta "direct_v2/get_by_participants respondeu HTTP 404" e 0 DMs enviadas.
 - **Causa raiz:** `enviarDmPelaApi` (`ferramentas/instagram-seguidor/instagram-api.js`): broadcast/text recusado (4xx, nada saiu) → busca da conversa 404 em HTML virava `mudanca_api`, que não aciona a digitação (só `nao_enviada` aciona).
