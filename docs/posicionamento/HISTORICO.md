@@ -2,6 +2,15 @@
 
 > Memória do agente `marketing-posicionamento`. Uma entrada por análise, **mais recente no topo**. Formato e índice: `.claude/skills/auditar-posicionamento/references/metodologia.md`. Compare sempre na mesma base de áreas.
 
+## 2026-10-29 — Publicações do GMN: regra 2/dia registrada e fila montada; NADA publicado
+- **Pedido do dono (repassado pelo despachante):** publicar o que estava no histórico, alternando 2 posts/dia (1 imóvel + 1 informativo). Regra registrada em `PERFIL.md` §"Google Meu Negócio — publicações".
+- **Publicação: NÃO feita.** As ferramentas do conector Windsor (`list_actions`, `get_data`, `execute_action`) não estavam disponíveis na sessão do agente; sem outro caminho (conforme a regra). Status no GMN: continua com os posts que já existiam antes desta data (não relido nesta sessão).
+- **Revisão dos posts aprovados em 02/10 (Posts 1–3):** nenhum havia sido publicado; textos mantidos, só a assinatura trocada para o nome oficial "Matheus Machado Corretor de Imóveis · CRECI 323106-F". Post 4 continua modelo (sem caso real).
+- **Fila de 7 dias (14 posts) em `rascunhos/gbp-fila.md`:** 7 imóveis do CRM (`properties`, publicados, "Pronto para morar", nenhum vendido; preço oculto em todos → fora do texto): COD4362, 4361, 4360, 4359, 4356, 4354, 4352; fotos reais (lâminas do carrossel, conferidas visualmente; URLs públicas com HTTP 200); link "Saiba mais" para a ficha `/empreendimentos/<id>` com UTM `gmn_post`. 7 informativos: Posts 1–3 aprovados + 4 rascunhos novos (FGTS, Registrato, planta x pronto, custos além da entrada).
+- **Medir:** impressões, cliques no site e leads com origem `gmn_post` no CRM 30 dias após o 1º post publicado. Falhou se, 30 dias após o início, impressões/30 dias não passarem de ~84 ou não houver nenhum clique no site.
+
+---
+
 ## 2026-10-02 — ALTERAÇÃO PUBLICADA no Google Meu Negócio (etapa 3: categoria adicional, aprovada pelo dono)
 Via Windsor `update_categories` (substitui as categorias), uma única chamada, aceita na 1ª tentativa; aprovação do dono nesta conversa.
 - **Antes:** principal `gcid:real_estate_agents` ("Agente imobiliário"); adicionais: nenhuma.

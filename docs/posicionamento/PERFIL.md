@@ -41,3 +41,10 @@ _(vazio — preenchido por `/concorrentes-marilia` com a fonte e a data em que c
 
 ## Passo a passo (dono, 2026-10-19)
 Sempre que pedir para o dono fazer algo em outra tela/app, dar o passo a passo **bem detalhado e facilitado**: onde fica cada botão (canto da tela, ícone, nome exato), um passo por linha, e o que ele deve ver depois. Resposta curta, mas o passo a passo completo.
+
+## Google Meu Negócio — publicações (dono, 2026-10-29)
+Mensagem do dono (repassada pelo despachante, literal): "Google meu negócio, você pode começar a publicar tudo que a gente tem aí no histórico. Aí você vai alternando duas publicações por dia, uma de um imóvel e outra uma publicação informativa." [INFORMADO]
+- **Ritmo:** 2 publicações por dia no GMN: 1 de imóvel + 1 informativa. Fila: `rascunhos/gbp-fila.md`.
+- **Alcance:** só posts (`create_local_post`). Não cobre responder avaliação, fotos da galeria, descrição, serviços, categorias, Facebook ou Instagram.
+- **Cuidados de política (sempre):** texto diferente em cada post (nada de repetir ou copiar); sem telefone, e-mail, WhatsApp ou @ no texto (contato vai no botão "Saiba mais"); sem promessa de crédito, "aprovação garantida" ou taxa; sem preço quando o imóvel está com preço oculto no CRM; só fotos reais do imóvel (nunca a capa com número da casa); imóvel só se continuar publicado e não vendido no CRM no dia; marca "Matheus Machado Corretor de Imóveis · CRECI 323106-F"; `language_code=pt-BR`; link com UTM `utm_campaign=gmn_post`.
+- **Execução:** cada publicação ainda passa pela trava de permissão da ferramenta (Windsor) na sessão; se a ferramenta pedir confirmação, o dono confirma. Falhou por permissão/plano: parar e avisar, sem outro caminho.
