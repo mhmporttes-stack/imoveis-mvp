@@ -3,15 +3,19 @@
 import { useEffect, useState } from "react";
 import { ArrowDownRight, ArrowRight, ArrowUpRight } from "lucide-react";
 import SceneTransitionLink from "@/components/motion/SceneTransitionLink";
+import { directionTone } from "@/lib/economic-indicators-core.mjs";
 
 // Card "Radar Econômico" (dono, 2026-10-29 — ECON-1), terceiro card da barra ao lado de Campeão da Semana / Melhor do
-// Dia. IPCA e INCC: última variação mensal + referência, seta neutra (sem cor de bom/ruim) e data da última atualização.
+// Dia. IPCA e INCC: última variação mensal + referência, seta colorida (queda verde, alta vermelha) e data da última atualização.
 // Só lê /api/admin/economic-indicators/radar (banco). Clique abre a aba.
 const REFRESH_MS = 30 * 60 * 1000;
 const DATE = new Intl.DateTimeFormat("pt-BR", { timeZone: "America/Sao_Paulo", day: "2-digit", month: "2-digit" });
 
-function Arrow({ direction }) {
-  const cls = "h-3.5 w-3.5 shrink-0 text-ink-2";
+const TONE_CLASS = { good: "text-success", bad: "text-danger", neutral: "text-ink-2" };
+
+// Dono, 2026-10-29: IPCA/INCC — queda verde, alta vermelha, estável neutra (ícone + aria-label, não só cor).
+function Arrow({ direction, code }) {
+  const cls = `h-3.5 w-3.5 shrink-0 ${TONE_CLASS[directionTone(code, direction)]}`;
   if (direction === "up") return <ArrowUpRight aria-label="alta" className={cls} />;
   if (direction === "down") return <ArrowDownRight aria-label="queda" className={cls} />;
   if (direction === "stable") return <ArrowRight aria-label="estável" className={cls} />;
@@ -57,7 +61,7 @@ export default function EconomicRadarCard({ className = "" }) {
               <span className="block truncate text-[11px] font-bold text-muted">{item.name}{item.reference ? ` · ${item.reference}` : ""}</span>
               <span className="flex items-center gap-1">
                 <b className="truncate text-sm font-extrabold text-ink lg:text-[17px]">{item.label || "—"}</b>
-                <Arrow direction={item.direction} />
+                <Arrow direction={item.direction} code={item.code} />
               </span>
             </span>
           ))}

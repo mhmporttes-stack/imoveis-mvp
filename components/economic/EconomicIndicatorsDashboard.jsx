@@ -12,6 +12,7 @@ import {
   ECON_INDICATORS,
   CORRECTION_CODES,
   compareLatest,
+  directionTone,
   formatValue,
   indicatorByCode,
   labelMonth,
@@ -36,10 +37,13 @@ function formatDateTime(value) {
   return value ? DATE_TIME.format(new Date(value)) : "—";
 }
 
-function Direction({ direction, className = "h-4 w-4" }) {
-  // Seta neutra (sem verde/vermelho): só indica o sentido, nunca se é bom ou ruim.
-  if (direction === "up") return <ArrowUpRight aria-label="alta" className={`${className} text-ink-2`} />;
-  if (direction === "down") return <ArrowDownRight aria-label="queda" className={`${className} text-ink-2`} />;
+const TONE_CLASS = { good: "text-success", bad: "text-danger", neutral: "text-ink-2" };
+
+function Direction({ direction, code = "", className = "h-4 w-4" }) {
+  // IPCA/INCC (dono, 2026-10-29): queda verde, alta vermelha. Demais indicadores: seta neutra.
+  const tone = TONE_CLASS[directionTone(code, direction)];
+  if (direction === "up") return <ArrowUpRight aria-label="alta" className={`${className} ${tone}`} />;
+  if (direction === "down") return <ArrowDownRight aria-label="queda" className={`${className} ${tone}`} />;
   if (direction === "stable") return <ArrowRight aria-label="estável" className={`${className} text-muted`} />;
   return null;
 }
@@ -61,7 +65,7 @@ function IndicatorCard({ item }) {
         <>
           <p className="flex items-baseline gap-1.5">
             <span className="text-xl font-black text-ink">{formatValue(indicator, item.latest.value)}</span>
-            {change ? <Direction direction={change.direction} /> : null}
+            {change ? <Direction direction={change.direction} code={item.code} /> : null}
             <span className="text-xs text-muted">{indicator.kind === "monthly_rate" ? "no mês" : ""}</span>
           </p>
           <p className="text-xs text-muted">Referência: <b className="text-ink-2">{item.latest.label}</b>{item.previous ? <> · anterior {formatValue(indicator, item.previous.value)}</> : null}</p>

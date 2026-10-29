@@ -11,6 +11,11 @@
 
 
 
+## 2026-10-29 — Admin geral sem "Entendi" nos alertas de supervisão (AL-ADM) + setas coloridas IPCA/INCC (crm-editor) — branch `fix/alertas-ok-setas-radar`, NÃO publicado
+
+- Dono: "Remova as mensagens de alerta que eu preciso ficar clicando em OK... só para Carol." Últimos 30 dias: admin recebeu Importantes "Cliente aguardando resposta" (67), `whatsapp_session_attention` (51), `whatsapp_false_connection` (34) — os mesmos que a gestora Caroline Mayumi (única "Carol", manager) recebe. `createAlertDeliveries` passa esses ao admin geral como Informativo (`quietImportantForAdmins`, `lib/crm-alerts-core.mjs`). Gestora/corretores sem mudança. Mantidos Importantes ao admin: serviço WhatsApp parado, Marketplace (extensão, envio, redistribuição), trava do Henry, WhatsApp de corretor desconectado (`whatsapp_disconnect_owner`), teste. Pendentes já gravados continuam até a ciência.
+- Radar/aba: IPCA e INCC queda verde, alta vermelha (`directionTone`, `lib/economic-indicators-core.mjs`); demais neutros. Teste `tests/alertas-admin-e-setas-radar.test.mjs`.
+
 ## 2026-10-29 — Indicadores Econômicos + Radar Econômico (ECON-1) (crm-editor) — branch `feat/indicadores-economicos`, NÃO publicado
 Pedido do dono: aba de indicadores econômicos oficiais, calculadora de correção, alertas e card "Radar Econômico" na barra.
 - **Novo:** `lib/economic-indicators-core.mjs`, `lib/economic-indicators.js`, rotas `app/api/admin/economic-indicators/*` (Zod + `requireAdminApi`), cron `app/api/cron/economic-indicators`, página `app/admin/indicadores-economicos`, `components/economic/*`; item no menu (todos os perfis, logo após Início); `TopRankingBadge` em três terços (lógica dos dois cards intacta; "Sua posição hoje" foi para a linha de baixo).
