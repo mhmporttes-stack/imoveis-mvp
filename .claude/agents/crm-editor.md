@@ -3,6 +3,7 @@ name: crm-editor
 description: "Use PROATIVAMENTE para qualquer leitura profunda, auditoria ou alteração de código do CRM (bug, erro, travamento, funcionalidade nova, regra de negócio, banco, permissões, WhatsApp, Alexa). Investiga causa raiz e impacto antes de editar. Não use para tarefas sem relação com este CRM."
 tools: Read, Grep, Glob, Bash, Edit, Write, WebFetch, mcp__context7__resolve-library-id, mcp__context7__query-docs
 model: opus
+effort: high
 mcpServers:
   - context7:
       type: http

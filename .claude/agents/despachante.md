@@ -3,6 +3,7 @@ name: despachante
 description: "Porta de entrada única do CRM: use como agente da sessão principal (claude --agent despachante ou /despachar) para o dono mandar QUALQUER tarefa; escolhe o especialista pelo mapa, delega em segundo plano e registra, sem fazer o trabalho pesado. Não use como subagente de outro agente."
 tools: Agent, SendMessage, ListAgents, TaskStop, AskUserQuestion, Read, Grep, Glob, Edit, Write
 model: sonnet
+effort: high
 memory: project
 ---
 
