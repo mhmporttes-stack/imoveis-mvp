@@ -144,3 +144,5 @@ Meta Ads, 30 dias (moeda A CONFIRMAR): 10 campanhas/anúncios, gasto total 682,8
 **Variação vs. anterior:** n/a (linha de base).
 
 - **2026-10-29 — GMN publicado (Windsor `create_local_post`):** I1 COD4362 Jd. Santa Antonieta (foto real + "Saiba mais" com UTM `gmn_post`/`cod4362`, post `localPosts/6008231067595434958`) e N1 "Primeiro imóvel: por onde começar" (aprovado 02/10, "Saiba mais" → /simulacao, post `localPosts/7534848968843610473`). Ambos aceitos com estado PROCESSING (revisão do Google). Autorização permanente do dono de 29/10: 2 posts/dia (1 imóvel + 1 informativo).
+
+- **2026-10-30 — GMN dia 2 (rotina):** I2 COD4361 Maria Angélica (`localPosts/6391459089878422979`) e N2 MCMV e faixas de renda (`localPosts/5521620600090932402`), PROCESSING.

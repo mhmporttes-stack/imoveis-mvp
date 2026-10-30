@@ -11,8 +11,8 @@
 |---|---|---|---|---|
 | I1 | 1 | Imóvel | COD4362 Jd. Santa Antonieta | PUBLICADO 2026-10-29 (localPosts/6008231067595434958) |
 | N1 | 1 | Informativa | Primeiro imóvel: por onde começar (Post 1 aprovado 02/10) | PUBLICADO 2026-10-29 (localPosts/7534848968843610473) |
-| I2 | 2 | Imóvel | COD4361 Maria Angélica | PUBLICADO 2026-10-30 (localPosts/1315227205854484962) |
-| N2 | 2 | Informativa | MCMV e faixas de renda (Post 2 aprovado 02/10) | PUBLICADO 2026-10-30 (localPosts/6583048777731154878) |
+| I2 | 2 | Imóvel | COD4361 Maria Angélica | PUBLICADO 2026-10-30 (localPosts/6391459089878422979) |
+| N2 | 2 | Informativa | MCMV e faixas de renda (Post 2 aprovado 02/10) | PUBLICADO 2026-10-30 (localPosts/5521620600090932402) |
 | I3 | 3 | Imóvel | COD4360 Torres de Marília | na fila |
 | N3 | 3 | Informativa | Documentação (Post 3 aprovado 02/10) | na fila |
 | I4 | 4 | Imóvel | COD4359 Nova Marília | na fila |
