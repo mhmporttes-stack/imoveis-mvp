@@ -6,12 +6,13 @@
 > Fotos: lâminas reais do carrossel do imóvel (foto do imóvel com rótulo do bairro/código), conferidas visualmente em 2026-10-29, URL pública com HTTP 200. Nunca a lâmina 1 (capa com texto grande e, na 4362, o número da casa).
 
 ## Status
+> **Automático (autorização permanente do dono, 2026-10-30):** 2 posts por dia, todo dia às 6h (Brasília), até a fila acabar (rotina agendada). Cada execução pega o próximo "na fila" de imóvel + o próximo informativo, reconfere no CRM, publica e atualiza esta tabela.
 | # | Dia | Tipo | Assunto | Status |
 |---|---|---|---|---|
 | I1 | 1 | Imóvel | COD4362 Jd. Santa Antonieta | PUBLICADO 2026-10-29 (localPosts/6008231067595434958) |
 | N1 | 1 | Informativa | Primeiro imóvel: por onde começar (Post 1 aprovado 02/10) | PUBLICADO 2026-10-29 (localPosts/7534848968843610473) |
-| I2 | 2 | Imóvel | COD4361 Maria Angélica | na fila |
-| N2 | 2 | Informativa | MCMV e faixas de renda (Post 2 aprovado 02/10) | na fila |
+| I2 | 2 | Imóvel | COD4361 Maria Angélica | PUBLICADO 2026-10-30 (localPosts/1315227205854484962) |
+| N2 | 2 | Informativa | MCMV e faixas de renda (Post 2 aprovado 02/10) | PUBLICADO 2026-10-30 (localPosts/6583048777731154878) |
 | I3 | 3 | Imóvel | COD4360 Torres de Marília | na fila |
 | N3 | 3 | Informativa | Documentação (Post 3 aprovado 02/10) | na fila |
 | I4 | 4 | Imóvel | COD4359 Nova Marília | na fila |
