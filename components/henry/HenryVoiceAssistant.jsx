@@ -67,6 +67,8 @@ import {
   nextSpontaneousItem,
   henryLatencyBreakdown,
   recordLevelThreshold,
+  nextNoiseFloor,
+  isWarmStreamUsable,
   triggeredTranscriptIntent,
   HENRY_PTT_RELEASE_GRACE_MS,
   HENRY_PTT_TAP_MS,
@@ -347,6 +349,7 @@ export default function HenryVoiceAssistant() {
   const outAnalyserRef = useRef(null);
   const outSourceRef = useRef(null); // voz do Henry → medidor do anel (captureStream, sem ir ao alto-falante)
   const micStreamRef = useRef(null);
+  const warmMicRef = useRef(null); // app de desktop: microfone aberto e parado, só para a gravação do pedido começar sem atraso
   const micMeterAnalyserRef = useRef(null);
   // Interrupção (dono, 2026-10-23): frase que está tocando, volume abaixado ("ducking") e detector de voz local (VAD).
   const currentClipRef = useRef({ text: "", prevText: "", startedAt: 0 });
@@ -2228,7 +2231,7 @@ export default function HenryVoiceAssistant() {
     abortRequest();
     setNotice("");
     setAudioSession("play-and-record");
-    const session = { chunks: [], startedAt: Date.now(), firstVoiceAt: 0, lastVoiceAt: 0, heardVoice: false, finished: false, discard: false, autoCut: false, prefix, continued, vad: false, floor: 0, floorReads: 0, loudTicks: 0, hold };
+    const session = { chunks: [], startedAt: Date.now(), firstVoiceAt: 0, lastVoiceAt: 0, heardVoice: false, finished: false, discard: false, autoCut: false, prefix, continued, vad: false, floor: 0, floorReads: 0, loudTicks: 0, hold, requestedAt: Date.now() };
     busyAtRef.current = Date.now();
     recordRef.current = session;
     setRecording(true);
@@ -2236,7 +2239,11 @@ export default function HenryVoiceAssistant() {
     startConversation();
     updatePhase("armed");
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } });
+      // App de desktop: o microfone já está aberto (aquecido enquanto o nome é ouvido) → clona a trilha na hora, sem reabrir o
+      // dispositivo (abrir a frio depois do nome custava centenas de ms e a frase começava cortada). Sem trilha viva: abre.
+      const warm = warmMicRef.current;
+      const warmUsable = Boolean(warm) && isWarmStreamUsable(warm.getTracks());
+      const stream = warmUsable ? warm.clone() : await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } });
       session.stream = stream;
       if (recordRef.current !== session) {
         stream.getTracks().forEach((track) => track.stop());
@@ -2251,6 +2258,7 @@ export default function HenryVoiceAssistant() {
       recorder.onstop = () => finishRecording(session);
       recorder.start(250);
       session.startedAt = Date.now();
+      henryDebug("captura", { openMs: session.startedAt - session.requestedAt, warm: warmUsable }); // só números
       const context = ensureAudioContext();
       if (context) {
         const analyser = context.createAnalyser();
@@ -2293,7 +2301,7 @@ export default function HenryVoiceAssistant() {
         const level = hasMeter ? levelFrom(session.analyser, meterBuffer) : 0;
         // Primeiros ~350 ms: só mede o ruído de fundo (o fim da fala dele no alto-falante não conta como o dono falando).
         if (hasMeter && now - session.startedAt < RECORD_START_GRACE_MS) {
-          session.floor = (session.floor * session.floorReads + level) / (session.floorReads + 1);
+          session.floor = nextNoiseFloor(session.floor, session.floorReads, level);
           session.floorReads += 1;
         } else {
           const loudNow = hasMeter && level >= recordLevelThreshold({ heardVoice: session.heardVoice, floor: session.floor });
@@ -3563,6 +3571,36 @@ export default function HenryVoiceAssistant() {
       if (typeof unsubscribe === "function") unsubscribe();
     };
   }, [active, desktopWake, desktopWakeWord, activateFromDesktop, pttOnly]);
+
+  // Microfone aquecido (só no app de desktop, só enquanto o nome é ouvido — mesma condição da escuta do nome acima). Nada é
+  // lido nem gravado daqui: a trilha só fica aberta; a gravação do pedido clona ela (startRecording). Caiu → abre a frio.
+  useEffect(() => {
+    const bridge = desktopBridgeRef.current;
+    if (!active || !desktopWake || !henryListenPolicy({ pttOnly }).desktopWake || !desktopCanWake(bridge) || !navigator.mediaDevices?.getUserMedia) return undefined;
+    let cancelled = false;
+    let stream = null;
+    navigator.mediaDevices
+      .getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } })
+      .then((opened) => {
+        if (cancelled) {
+          opened.getTracks().forEach((track) => track.stop());
+          return;
+        }
+        stream = opened;
+        warmMicRef.current = opened;
+        opened.getTracks().forEach((track) => {
+          track.onended = () => {
+            if (warmMicRef.current === opened) warmMicRef.current = null;
+          };
+        });
+      })
+      .catch(() => {}); // sem permissão: a gravação pede o microfone na hora, como antes
+    return () => {
+      cancelled = true;
+      if (warmMicRef.current === stream) warmMicRef.current = null;
+      stream?.getTracks().forEach((track) => track.stop());
+    };
+  }, [active, desktopWake, pttOnly]);
 
   const toggleMute = useCallback(() => {
     setMuted((current) => {
