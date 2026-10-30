@@ -40,6 +40,18 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-30 — Henry "só entende o final da frase" e erra metade das vezes
+- **Data:** 2026-10-30
+- **Sintoma:** "O Henry trava, em 50% das vezes não entende, e quando entende só entende o final da frase."
+- **Área:** Henry (voz) / captura no app de desktop
+- **Impacto:** o dono; todo pedido falado depois do nome ("Henry, ...") no app.
+- **Causa raiz:** (1) app de desktop: o microfone da página só abria DEPOIS do nome (getUserMedia a frio + MediaRecorder), sem pré-buffer — o começo da frase se perdia; (2) piso de ruído da gravação calculado pela média dos primeiros 350 ms, que já incluíam a voz do dono, subindo o limiar de voz até o teto (0,6). Dados (7 dias): 195 transcrições do Scribe para 228 pedidos ao modelo (23/10: 157 transcrições para 65 pedidos); fim da fala padrão 2,0 s.
+- **Correção:** microfone aquecido + clone da trilha na gravação; piso = mínimo lido; medição `[henry] captura`. Pré-buffer real fica como decisão do dono.
+- **Arquivos/commit:** `components/henry/HenryVoiceAssistant.jsx`, `lib/henry-voice-conversation.mjs` — branch `fix/henry-captura-voz`
+- **Prevenção/teste:** `tests/henry-captura.test.mjs`. Risco residual: não validado com microfone real.
+- **Status:** Monitorando
+
+
 ### 2026-10-29 — "Assumiu o 1º lugar" aparece às 12:00 em ponto, sem os minutos de liderança
 - **Data:** 2026-10-29
 - **Sintoma:** reconhecimento "Liderança do dia" sai no 1º tick das 12:00 (ex.: 10-25, 10-26, 10-29), ignorando "Minutos seguros de liderança" (10).
