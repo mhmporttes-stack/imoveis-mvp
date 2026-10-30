@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { createHash, timingSafeEqual } from "crypto";
 import { closeAllOpenDailyGoals, formatDailyGoalError, freezeDailyGoalPendingForActiveBrokers, freezeDailyGoalWalletForActiveBrokers } from "@/lib/daily-goal";
-import { recordClosedDayGoalMilestones } from "@/lib/celebrations";
+import { recordClosedDayGoalMilestones, recordClosedPeriodGoals } from "@/lib/celebrations";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -58,7 +58,14 @@ export async function GET(request) {
     } catch (celebrationError) {
       console.error("Falha ao registrar os reconhecimentos de meta batida do dia fechado.", celebrationError);
     }
-    return NextResponse.json({ ok: true, ...result, pendingFreeze, walletFreeze, celebrations });
+    // Meta SEMANAL/MENSAL do período que acabou de fechar (segunda-feira / dia 1), dono 2026-10-30. Nunca impede o fechamento.
+    let periodCelebrations = null;
+    try {
+      periodCelebrations = await recordClosedPeriodGoals();
+    } catch (celebrationError) {
+      console.error("Falha ao registrar os reconhecimentos de meta semanal/mensal.", celebrationError);
+    }
+    return NextResponse.json({ ok: true, ...result, pendingFreeze, walletFreeze, celebrations, periodCelebrations });
   } catch (error) {
     console.error("Falha ao fechar a Meta Diária.", error);
     return NextResponse.json({ error: formatDailyGoalError(error) }, { status: 500 });
