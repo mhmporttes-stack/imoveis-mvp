@@ -49,7 +49,7 @@ Copie o modelo abaixo (uma entrada por bloco):
 - **Correção:** sem mudança de conta (decisão do dono pendente: fluxo do período x carteira atual x igual ao Desempenho). Feito: janela extraída para `lib/daily-report-range.mjs` com testes (fuso, virada de dia/mês, ontem, 7/30, personalizado); linha do tempo avisa "Mostrando os 90 mais recentes de N"; rótulos dos dois cartões híbridos dizem "Dos cadastros do período, ...".
 - **Arquivos/commit:** `lib/daily-report-range.mjs`, `lib/daily-report.js`, `components/DailyReportDashboard.jsx` — branch `fix/relatorio-diario-prazo`
 - **Prevenção/teste:** `tests/daily-report-range.test.mjs`.
-- **Status:** Diagnosticado, definição dos cartões pendente do dono
+- **Status:** Resolvido (não publicado) — dono decidiu em 2026-10-30: cartões mostram "no período" e "carteira agora" lado a lado (`docs/CHANGELOG_AI.md`)
 
 ### 2026-10-30 — Relatório diário: ao filtrar por corretor, os números do topo não mudam
 - **Data:** 2026-10-30

@@ -29,6 +29,7 @@ const PERIODS = [
 const METRIC_CARDS = [
   {
     key: "newRegistrations",
+    nowLabel: "Em andamento agora",
     title: "Novos cadastros",
     description: "Clientes que entraram no funil",
     icon: Users,
@@ -137,6 +138,7 @@ export default function DailyReportDashboard({
   }, [period, startDate, endDate, selectedBrokerIds]);
 
   const metrics = report?.metrics || {};
+  const metricsNow = report?.metricsNow || {};
   const funnel = report?.funnel || [];
   const timeline = report?.timeline || [];
   const timelineTotal = Number(report?.timelineTotal || 0);
@@ -327,9 +329,14 @@ export default function DailyReportDashboard({
 
         <div className="grid gap-4 sm:grid-cols-2">
           {METRIC_CARDS.map((metric) => (
-            <MetricCard key={metric.key} metric={metric} value={display(metrics[metric.key])} />
+            <MetricCard key={metric.key} metric={metric} value={display(metrics[metric.key])} nowValue={display(metricsNow[metric.key])} />
           ))}
-          <MetricCard metric={SALES_CARD} value={display(metrics.salesCompleted)} className="sm:col-span-2" />
+          <MetricCard metric={SALES_CARD} value={display(metrics.salesCompleted)} nowValue={display(metricsNow.salesCompleted)} className="sm:col-span-2" />
+          <p className="text-xs font-semibold text-slate-500 sm:col-span-2">
+            <strong className="font-extrabold text-navy">No período</strong>: o que aconteceu no prazo escolhido.{" "}
+            <strong className="font-extrabold text-navy">Carteira agora</strong>: clientes que estão hoje nesse status (status atual),
+            no corretor/equipe selecionado, sem depender do prazo. Pode diferir do painel Desempenho, que conta o funil por coorte.
+          </p>
         </div>
       </div>
 
@@ -458,7 +465,7 @@ export default function DailyReportDashboard({
   );
 }
 
-function MetricCard({ metric, value, className = "" }) {
+function MetricCard({ metric, value, nowValue, className = "" }) {
   const Icon = metric.icon;
 
   return (
@@ -472,7 +479,16 @@ function MetricCard({ metric, value, className = "" }) {
           <Icon size={20} />
         </span>
       </div>
-      <p className="mt-5 text-4xl font-extrabold text-navy">{value}</p>
+      <div className="mt-5 grid grid-cols-2 gap-3">
+        <div>
+          <p className="text-4xl font-extrabold text-navy">{value}</p>
+          <p className="mt-1 text-[11px] font-extrabold uppercase tracking-[0.12em] text-slate-500">No período</p>
+        </div>
+        <div className="border-l border-navy/10 pl-3">
+          <p className="text-4xl font-extrabold text-brand">{nowValue}</p>
+          <p className="mt-1 text-[11px] font-extrabold uppercase tracking-[0.12em] text-slate-500">{metric.nowLabel || "Carteira agora"}</p>
+        </div>
+      </div>
     </article>
   );
 }

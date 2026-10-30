@@ -11,6 +11,14 @@
 
 
 
+## 2026-10-30 — Relatório diário: cartões com "no período" e "carteira agora" lado a lado (crm-editor) — branch `fix/relatorio-diario-prazo`, NÃO publicado
+
+- **[REGRA OFICIAL DE NEGÓCIO — dono, 2026-10-30]** Cada cartão de etapa mostra os dois números: "No período" (o que aconteceu no prazo escolhido, como antes) e "Carteira agora" (quantos clientes estão NESSA etapa hoje no escopo de quem olha, sem depender do prazo).
+- **Implementação:** `lib/daily-report-portfolio.mjs` (mapa cartão -> status atual) + `loadPortfolioNow` (`lib/daily-report.js`, contagem por consulta, mesmo escopo/corretor selecionado dos demais blocos, exclui Particular) -> `report.metricsNow`; `components/DailyReportDashboard.jsx` (dois números por cartão, rodapé explicando, "…" no carregamento).
+- **Definições:** é o STATUS ATUAL, não o funil cumulativo do Desempenho (MET-3/MET-4) — pode divergir, e a tela diz isso. Cadastros: o "agora" é "Em andamento agora" (MET-7 = `ACTIVE_CLIENT_STATUS_VALUES`), única carteira ativa já definida; não existe "total de cadastros agora" separado. Aguardando documentação = `documentation_pending`; Documentação pendente = `documents_pending`; Enviados para aprovação = `approval_pending`; Aprovados/Reprovados/Vendas = `approved`/`rejected`/`sale_completed`.
+- **Conferência (banco, somente leitura, escopo geral):** em andamento 2.044; aguardando documentação 18; documentação pendente 6; aprovação 5; aprovados 9; reprovados 4; vendas 1.
+- **Testes:** `tests/daily-report-portfolio.test.mjs`.
+
 ## 2026-10-30 — Relatório diário: prazo "Ontem" conferido com o banco; janela extraída e testada; aviso de lista cortada (crm-editor) — branch `fix/relatorio-diario-prazo`, NÃO publicado
 
 - **Pedido do dono:** "Ontem" mostra volume muito baixo, "não é um número real".
