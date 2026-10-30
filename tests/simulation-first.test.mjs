@@ -2,6 +2,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
+import { pickProtectedClientIds } from "../lib/whatsapp-attendance-core.mjs";
 import { SIMULATION_FIRST_DONE_MESSAGE, SIMULATION_FIRST_MESSAGE, isPresentationLinkMessage, requiresSimulationFirst, simulationFirstMessageFor } from "../lib/simulation-first-core.mjs";
 
 const base = { distribution_type: "round_robin", primary_monthly_income: 3100, status: "pending", created_at: "2026-10-09T14:00:00Z" };
@@ -33,6 +34,26 @@ test("Simulação realizada sem link: continua travando, mas o texto pede só o 
   assert.match(chat, /simulationFirstDone: Boolean\(simulationFirst\?\.done\)/);
   const ui = readFileSync(new URL("../components/WhatsappChat.jsx", import.meta.url), "utf8");
   assert.match(ui, /conversation\.simulationFirstDone[\s\S]{0,200}\? SIMULATION_FIRST_DONE_MESSAGE/);
+});
+
+test("responsável que já mandou mensagem ao cliente desde que o recebeu não é travado de novo (caso Taislane/Jennyfer, 2026-10-30)", () => {
+  // Transferida à mão em 14:29 (status Aguardando contato, fora da lista); 1ª mensagem 14:59; cliente respondeu e o
+  // status voltou a "Em atendimento" -> antes a trava reativava e recusava a 2ª mensagem.
+  const taislane = { ...base, status: "in_service", primary_monthly_income: 1800, created_at: "2026-10-06T19:33:26Z", responsible_changed_at: "2026-10-30T14:29:18Z" };
+  assert.equal(requiresSimulationFirst(taislane), true, "sem mensagem humana a trava continua (1ª mensagem = simulação)");
+  const conversations = [{ client_id: "c1", last_human_reply_at: "2026-10-30T14:59:29Z", assumed_at: null }];
+  const humanMessaged = pickProtectedClientIds(conversations, [{ id: "c1", ...taislane }], { messagesOnly: true }).has("c1");
+  assert.equal(humanMessaged, true);
+  assert.equal(requiresSimulationFirst(taislane, { humanMessaged }), false);
+  // Mensagem de um responsável ANTERIOR (antes de receber) ou só "Assumir atendimento" não libera.
+  const old = [{ client_id: "c1", last_human_reply_at: "2026-10-07T10:00:00Z", assumed_at: null }];
+  assert.equal(pickProtectedClientIds(old, [{ id: "c1", ...taislane }], { messagesOnly: true }).has("c1"), false);
+  const assumed = [{ client_id: "c1", last_human_reply_at: null, assumed_at: "2026-10-30T14:40:00Z" }];
+  assert.equal(pickProtectedClientIds(assumed, [{ id: "c1", ...taislane }], { messagesOnly: true }).has("c1"), false);
+  // A porta do Chat usa o mesmo sinal.
+  const chat = readFileSync(new URL("../lib/whatsapp-chat.js", import.meta.url), "utf8");
+  assert.match(chat, /pickProtectedClientIds\(replyRows, \[\{ id: conversation\.client_id[^\]]*\], \{ messagesOnly: true \}\)/);
+  assert.match(chat, /requiresSimulationFirst\(client, \{ humanMessaged \}\)/);
 });
 
 test("só o link da apresentação passa", () => {

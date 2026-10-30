@@ -11,6 +11,13 @@
 
 
 
+## 2026-10-30 — Chat: trava "1ª mensagem = simulação" não volta no meio da conversa (caso Taislane/Jennyfer) (crm-editor) — branch `fix/chat-trava-simulacao-thais`, NÃO publicado
+
+- **Sintoma (dono):** cliente transferida à Jennyfer; ela conversou uma vez e depois o Chat recusou a 2ª mensagem ("a primeira mensagem tem que ser a simulação").
+- **Causa raiz (banco, somente leitura):** transferência manual (Caroline, 14:29) -> `responsible_changed_at` refeito e status -> Aguardando contato (CLI-7c; fora de `SIMULATION_FIRST_STATUSES`) -> 1ª mensagem passou (14:59) -> cliente respondeu -> status voltou a Em atendimento (dentro da lista) -> `requiresSimulationFirst` verdadeiro de novo (roleta, renda 1.800, sem evento `presentation_sent`, recebido depois de 09/10). Não é regressão de WA-13c/FUN-15o/ROL-2j/limite de 80/h: o limite e `assertIndividualChatReplyOnly` não participaram (cliente respondeu, mensagem 15:03).
+- **Correção:** `requiresSimulationFirst(client, { humanMessaged })` (`lib/simulation-first-core.mjs`); `simulationFirstState` (`lib/whatsapp-chat.js`) calcula `humanMessaged` com `pickProtectedClientIds(..., { messagesOnly: true })`. Sem migration; sem liberação manual em produção (`simulation_first_waived_at` intocado).
+- **Teste:** `tests/simulation-first.test.mjs`. Outro cliente no mesmo estado hoje: 1.
+
 ## 2026-10-30 — Relatório diário: cartões com "no período" e "carteira agora" lado a lado (crm-editor) — branch `fix/relatorio-diario-prazo`, NÃO publicado
 
 - **[REGRA OFICIAL DE NEGÓCIO — dono, 2026-10-30]** Cada cartão de etapa mostra os dois números: "No período" (o que aconteceu no prazo escolhido, como antes) e "Carteira agora" (quantos clientes estão NESSA etapa hoje no escopo de quem olha, sem depender do prazo).
