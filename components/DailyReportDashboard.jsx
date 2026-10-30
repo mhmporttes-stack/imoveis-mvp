@@ -37,14 +37,14 @@ const METRIC_CARDS = [
   {
     key: "awaitingDocumentation",
     title: "Aguardando documentação",
-    description: "Clientes aguardando envio",
+    description: "Dos cadastros do período, quem ainda aguarda o envio",
     icon: Clock,
     tone: "amber"
   },
   {
     key: "documentsPending",
     title: "Documentação pendente",
-    description: "Documentos recebidos com ajustes",
+    description: "Dos cadastros do período, quem está com documentos para ajustar",
     icon: FileCheck2,
     tone: "slate"
   },
@@ -139,6 +139,7 @@ export default function DailyReportDashboard({
   const metrics = report?.metrics || {};
   const funnel = report?.funnel || [];
   const timeline = report?.timeline || [];
+  const timelineTotal = Number(report?.timelineTotal || 0);
   const brokerBreakdown = report?.brokerBreakdown || [];
   // Enquanto busca (troca de período/corretor) nenhum número do filtro anterior fica visível.
   const display = (value) => (loading ? "…" : report ? formatInteger(value) : "—");
@@ -430,6 +431,12 @@ export default function DailyReportDashboard({
             {!loading && !timeline.length && (
               <p className="rounded-2xl bg-blue-50 p-4 text-sm font-bold text-slate-600">
                 Nenhum movimento encontrado neste período.
+              </p>
+            )}
+
+            {!loading && timelineTotal > timeline.length && (
+              <p className="rounded-2xl bg-blue-50 p-4 text-sm font-bold text-slate-600">
+                Mostrando os {formatInteger(timeline.length)} movimentos mais recentes de {formatInteger(timelineTotal)} no período.
               </p>
             )}
 

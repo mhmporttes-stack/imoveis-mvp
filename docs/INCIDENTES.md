@@ -40,6 +40,17 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-30 — Relatório diário: "Ontem" mostra quase nada, "não é um número real"
+- **Data:** 2026-10-30
+- **Sintoma:** "o filtro do prazo parece que não funciona: quando coloca 'ontem' não aparece quase nada, volume muito baixo."
+- **Área:** Relatório diário / Funil
+- **Impacto:** leitura dos cartões por dono e gestora; nenhum dado errado.
+- **Causa raiz:** NÃO é a janela de datas (conferida: 29/10 = 03:00Z a 03:00Z, fim exclusivo, mesma janela em cadastros e histórico). Conferido no banco (somente leitura, 29/10 São Paulo): 3 cadastros e 136 mudanças de status (84 "Aguardando contato", 34 "Tentando contato", 11 "Em atendimento"; nenhuma para documentação/aprovação/aprovado/venda) — o relatório devolve exatamente isso (3 / 0 / 0 / 0). O que parece "baixo" é a DEFINIÇÃO: cartões de movimento por período (só contam quem ENTROU na etapa naquele dia) e dois cartões híbridos ("Aguardando documentação" e "Documentação pendente" = cadastros criados no período que HOJE estão nesse status), enquanto a carteira tem 20 e 6 clientes nesses status. Também diferem do painel Desempenho (coorte criados + prospectados + avançaram, `docs/METRICAS_FUNIL.md` MET-4). A linha do tempo mostrava só 90 movimentos sem avisar.
+- **Correção:** sem mudança de conta (decisão do dono pendente: fluxo do período x carteira atual x igual ao Desempenho). Feito: janela extraída para `lib/daily-report-range.mjs` com testes (fuso, virada de dia/mês, ontem, 7/30, personalizado); linha do tempo avisa "Mostrando os 90 mais recentes de N"; rótulos dos dois cartões híbridos dizem "Dos cadastros do período, ...".
+- **Arquivos/commit:** `lib/daily-report-range.mjs`, `lib/daily-report.js`, `components/DailyReportDashboard.jsx` — branch `fix/relatorio-diario-prazo`
+- **Prevenção/teste:** `tests/daily-report-range.test.mjs`.
+- **Status:** Diagnosticado, definição dos cartões pendente do dono
+
 ### 2026-10-30 — Relatório diário: ao filtrar por corretor, os números do topo não mudam
 - **Data:** 2026-10-30
 - **Sintoma:** "A Carol (gestora) coloca o prazo e depois seleciona um corretor; os cadastros realizados, aguardando documentação etc. continuam mostrando o total."

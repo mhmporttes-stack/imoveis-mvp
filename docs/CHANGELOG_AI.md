@@ -11,6 +11,13 @@
 
 
 
+## 2026-10-30 — Relatório diário: prazo "Ontem" conferido com o banco; janela extraída e testada; aviso de lista cortada (crm-editor) — branch `fix/relatorio-diario-prazo`, NÃO publicado
+
+- **Pedido do dono:** "Ontem" mostra volume muito baixo, "não é um número real".
+- **Achado:** a janela de datas está correta (São Paulo, início inclusivo, fim exclusivo). Banco x relatório para 29/10: 3 cadastros, 136 mudanças de status, 0 entradas em documentação/aprovação/aprovado — o relatório devolve o mesmo. O baixo vem da definição dos cartões (movimento do dia + dois cartões "cadastros do período com status atual"), diferente da carteira atual e do painel Desempenho. **Pendente do dono:** qual definição (fluxo do período, carteira atual ou igual ao Desempenho, MET-4).
+- **Mudança:** `lib/daily-report-range.mjs` (regra pura da janela, re-exportada por `lib/daily-report.js`), `timelineTotal` + aviso "Mostrando os 90 mais recentes de N", rótulos honestos nos cartões "Aguardando documentação"/"Documentação pendente". Nenhuma conta mudou.
+- **Testes:** `tests/daily-report-range.test.mjs`.
+
 ## 2026-10-30 — Chat Marketplace: alerta de mensagem nova (MKT-3) e "Levar para o WhatsApp" (MKT-4) (crm-editor) — branch `chat-mkt-melhorias`, NÃO publicado
 - Motivo (dono): 1ª resposta no Marketplace p50 ≈ 8 h contra ≈ 3 min no WhatsApp (44 conversas/30 dias).
 - MKT-3: `notifyMarketplaceInbound` na sincronização (só conversa já existente; nova segue no `new_client`); sino+push `marketplace_inbound` ao atribuído, sem atribuído admins+gestoras; 1 por conversa/10 min com reserva atômica `inbound_notified_at`. Exceção nova à AUT-9 registrada. Selo de não lidas: consulta única compartilhada a cada 20 s + ao voltar para o app.
