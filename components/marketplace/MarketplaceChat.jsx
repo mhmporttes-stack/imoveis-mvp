@@ -14,6 +14,9 @@ import { readViewerData, restoreViewerData, saveViewerData } from "@/components/
 import DeviceCacheRefreshing from "@/components/DeviceCacheRefreshing";
 import { MARKETPLACE_LIST_CACHE_PREFIX, MARKETPLACE_THREADS_CACHE_NAME } from "@/components/panel-cache-names";
 import { ManageShortcuts } from "@/components/WhatsappChatShortcuts";
+import { tabClasses } from "@/components/ui/Tabs";
+import ChatClosingPhrasesButton from "@/components/ChatClosingPhrasesButton";
+import { CHAT_WALLPAPER_STYLE } from "@/components/chat-wallpaper";
 import { MARKETPLACE_MEDIA_ACCEPT, MARKETPLACE_MEDIA_MAX_BYTES, MARKETPLACE_MEDIA_MIN_VERSION, MAX_INTERNAL_LENGTH, MAX_OUTBOUND_LENGTH, detectClientPhone, fillMarketplaceShortcut, marketplaceOfficialWhatsappText, marketplaceWhatsappInviteText, normalizeMarketplaceSearch, supportsMarketplaceMedia } from "@/lib/marketplace-chat-core.mjs";
 import { DO_NOT_CONTACT_STATUS } from "@/lib/do-not-contact-core.mjs";
 import ChatAttachmentTray, { filesFromTransfer, prepareImageFile, useChatAttachments } from "@/components/ChatAttachmentTray";
@@ -44,10 +47,12 @@ const MAX_CACHED_THREADS = 6;
 // Busca pelo nome (dono, 2026-10-29): caixa no topo da lista; o servidor procura (nome da conversa, nome do cliente
 // ligado e título do anúncio, sem acento/maiúscula) dentro do escopo. Resultado de busca não vai para o cache.
 const SEARCH_DEBOUNCE_MS = 350;
-const listQuery = (view, brokerId, search = "") => {
+// tab "waiting_us" = aba "Sem resposta" (WA-38); "all" não entra na URL (o nome do cache da lista padrão não muda).
+const listQuery = (view, brokerId, search = "", tab = "all") => {
   const params = new URLSearchParams({ view });
   if (brokerId) params.set("brokerId", brokerId);
   if (search) params.set("q", search);
+  if (tab === "waiting_us") params.set("tab", "waiting_us");
   return params.toString();
 };
 const readCachedThread = (viewerKey, id) => (id && readViewerData(viewerKey, MARKETPLACE_THREADS_CACHE_NAME)?.[id]) || null;
@@ -82,11 +87,11 @@ async function callApi(url, options = {}) {
 
 function Avatar({ name, photo }) {
   return (
-    <span className="relative inline-flex h-11 w-11 shrink-0">
+    <span className="relative inline-flex h-12 w-12 shrink-0">
       {photo ? (
-        <img src={photo} alt="" className="h-11 w-11 rounded-full object-cover" referrerPolicy="no-referrer" />
+        <img src={photo} alt="" className="h-12 w-12 rounded-full object-cover" referrerPolicy="no-referrer" />
       ) : (
-        <span className="inline-flex h-11 w-11 items-center justify-center rounded-full bg-info-soft text-sm font-semibold text-navy">{(name || "?").slice(0, 1).toUpperCase()}</span>
+        <span className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-[#DFE5E7] text-base font-bold text-[#54656F]">{(name || "?").slice(0, 1).toUpperCase()}</span>
       )}
       <MessengerBadge />
     </span>
@@ -358,6 +363,8 @@ export default function MarketplaceChat({ canEditSettings = false, canApprove = 
   const [deviceRestored, setDeviceRestored] = useState(false);
   const listAnsweredRef = useRef(false);
   const [view, setView] = useState("all");
+  // Aba "Sem resposta" (WA-38, dono 2026-10-30): última mensagem do cliente, sem encerramento curto/negativa; mais antigas no topo.
+  const [tab, setTab] = useState("all");
   const [brokerId, setBrokerId] = useState("");
   const [searchText, setSearchText] = useState("");
   const [search, setSearch] = useState("");
@@ -392,7 +399,7 @@ export default function MarketplaceChat({ canEditSettings = false, canApprove = 
   const slashQuery = !internal && text.startsWith("/") && !text.includes("\n") ? text.slice(1) : null;
   const selectedRef = useRef("");
   const viewKeyRef = useRef("");
-  viewKeyRef.current = `${view}:${brokerId}:${search}`;
+  viewKeyRef.current = `${view}:${brokerId}:${search}:${tab}`;
   const sectionRef = useRef(null);
   // Tela cheia como o Chat do WhatsApp (dono, 2026-10-22: "Remova a opção Sair embaixo, deixe como o Chat: a rolagem
   // deve rolar apenas as conversas"): sem rodapé, altura da janela e só a lista / as mensagens rolam.
@@ -408,8 +415,8 @@ export default function MarketplaceChat({ canEditSettings = false, canApprove = 
   useChatRowCascade({ sceneRef, rowsEnter, setRowsEnter, hasRows: list.conversations.length > 0, rowTag: "LI" });
 
   const loadList = useCallback(() => {
-    const query = listQuery(view, brokerId, search);
-    const key = `${view}:${brokerId}:${search}`;
+    const query = listQuery(view, brokerId, search, tab);
+    const key = `${view}:${brokerId}:${search}:${tab}`;
     callApi(`/api/admin/marketplace-chat/conversations?${query}`)
       .then((data) => {
         if (!search) saveViewerData(viewerKey, `${MARKETPLACE_LIST_CACHE_PREFIX}${query}`, { at: Date.now(), data });
@@ -423,7 +430,7 @@ export default function MarketplaceChat({ canEditSettings = false, canApprove = 
         setDeviceRestored(false);
         setError(loadError.message);
       });
-  }, [view, brokerId, search, viewerKey]);
+  }, [view, brokerId, search, tab, viewerKey]);
   useEffect(() => {
     const defaultName = `${MARKETPLACE_LIST_CACHE_PREFIX}${listQuery("all", "")}`;
     if (!viewerKey || readViewerData(viewerKey, defaultName)) return undefined;
@@ -431,7 +438,7 @@ export default function MarketplaceChat({ canEditSettings = false, canApprove = 
     restoreViewerData(viewerKey, MARKETPLACE_THREADS_CACHE_NAME);
     restoreViewerData(viewerKey, defaultName).then((restored) => {
       const saved = restored?.value?.data;
-      if (!alive || !saved || !Array.isArray(saved.conversations) || listAnsweredRef.current || viewKeyRef.current !== "all::") return;
+      if (!alive || !saved || !Array.isArray(saved.conversations) || listAnsweredRef.current || viewKeyRef.current !== "all:::all") return;
       setList((currentList) => (currentList.conversations.length ? currentList : saved));
       setDeviceRestored(true);
     });
@@ -451,7 +458,7 @@ export default function MarketplaceChat({ canEditSettings = false, canApprove = 
 
   useEffect(() => {
     // Ao trocar o filtro: mostra o que já estava guardado para ele e atualiza; recém-buscada não repete a busca.
-    const cached = search ? null : readViewerData(viewerKey, `${MARKETPLACE_LIST_CACHE_PREFIX}${listQuery(view, brokerId)}`);
+    const cached = search ? null : readViewerData(viewerKey, `${MARKETPLACE_LIST_CACHE_PREFIX}${listQuery(view, brokerId, "", tab)}`);
     if (cached?.data) setList(cached.data);
     if (!cached || Date.now() - cached.at > FRESH_MS) loadList();
     const timer = setInterval(() => document.visibilityState === "visible" && loadList(), LIST_REFRESH_MS);
@@ -652,12 +659,14 @@ export default function MarketplaceChat({ canEditSettings = false, canApprove = 
         <Card padding="none" className={`min-h-0 flex-col overflow-hidden max-md:rounded-none max-md:border-x-0 ${selectedId ? "hidden md:flex" : listBack ? "admin-motion-back flex" : "flex"}`}>
           {/* Busca pelo nome em destaque (dono, 2026-10-29), para todos os perfis; o seletor Todos/corretor/Roleta
               continua ao lado, para quem o servidor libera (`filters`). */}
-          <div className="shrink-0 space-y-1 border-b border-line p-2">
+          {/* Visual do Chat do WhatsApp (WA-38, dono 2026-10-30: "padronizar"): busca em pílula cinza, abas em pílula,
+              linhas com separador fino e contador verde. Só apresentação. */}
+          <div className="shrink-0 space-y-2 border-b border-[#E9EDEF] bg-white px-3 pb-2.5 pt-3">
             <div className="flex items-stretch gap-2">
               <div className="relative min-w-0 flex-1">
-                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" aria-hidden="true" />
+                <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[#54656F]" aria-hidden="true" />
                 <input type="search" enterKeyHint="search" autoComplete="off" aria-label="Buscar pelo nome do cliente"
-                  className={`${inputClasses} pl-9 pr-10 [&::-webkit-search-cancel-button]:hidden`}
+                  className="h-11 w-full rounded-full border border-transparent bg-[#F0F2F5] pl-10 pr-10 text-sm font-semibold text-[#111B21] outline-none placeholder:text-[#54656F] focus:border-brand focus:bg-white focus:ring-4 focus:ring-brand/10 [&::-webkit-search-cancel-button]:hidden"
                   placeholder="Buscar pelo nome do cliente" value={searchText} maxLength={80}
                   onChange={(event) => setSearchText(event.target.value)}
                   onKeyDown={(event) => { if (event.key === "Escape" && searchText) { event.preventDefault(); setSearchText(""); } }} />
@@ -669,7 +678,7 @@ export default function MarketplaceChat({ canEditSettings = false, canApprove = 
                 ) : null}
               </div>
               {list.filters?.length ? (
-                <select className="w-[38%] min-w-0 shrink-0 rounded-control border border-line px-2 py-1.5 text-sm" aria-label="Mostrar conversas de"
+                <select className="h-11 w-[38%] min-w-0 shrink-0 rounded-full border border-line bg-white px-3 text-sm font-bold text-navy outline-none focus:border-brand focus:ring-4 focus:ring-brand/10" aria-label="Mostrar conversas de"
                   value={brokerId || (view === "unassigned" ? ROULETTE : "")}
                   onChange={(event) => {
                     const value = event.target.value;
@@ -681,6 +690,13 @@ export default function MarketplaceChat({ canEditSettings = false, canApprove = 
                   {team.map((member) => <option key={member.id} value={member.id}>{member.name}</option>)}
                 </select>
               ) : null}
+            </div>
+            <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5">
+              {[{ key: "all", label: "Todas" }, { key: "waiting_us", label: list.waitingUs > 0 ? `Sem resposta (${list.waitingUs})` : "Sem resposta" }].map((item) => (
+                <button key={item.key} type="button" onClick={() => setTab(item.key)} aria-pressed={tab === item.key} className={tabClasses(tab === item.key, "sm")}>{item.label}</button>
+              ))}
+              {/* WA-38: mesma lista de encerramentos/negativas do Chat do WhatsApp — só admin geral e gestor (a rota confere). */}
+              {canAssign && tab === "waiting_us" ? <ChatClosingPhrasesButton onSaved={loadList} /> : null}
             </div>
             {searchTerm ? (
               <p role="status" className="px-1 text-xs text-muted">
@@ -696,23 +712,32 @@ export default function MarketplaceChat({ canEditSettings = false, canApprove = 
             return <p className={`shrink-0 border-b border-line px-3 py-1.5 text-xs ${read.stale ? "bg-warning-soft text-warning" : "text-muted"}`}>{read.text}</p>;
           })() : null}
           {!list.conversations.length && !searchPending ? (
-            <p className="shrink-0 p-4 text-sm text-muted">{searchTerm ? `Nenhuma conversa encontrada para “${searchText.trim()}”.` : "Nenhuma conversa do Marketplace ainda."}</p>
+            <p className="shrink-0 p-8 text-center text-sm font-bold text-muted">{searchTerm ? `Nenhuma conversa encontrada para “${searchText.trim()}”.` : tab === "waiting_us" ? "Nenhuma conversa neste filtro." : "Nenhuma conversa do Marketplace ainda."}</p>
           ) : null}
-          <ul data-chat-rows className="min-h-0 flex-1 divide-y divide-line overflow-y-auto overscroll-contain">
+          <ul data-chat-rows className="min-h-0 flex-1 overflow-y-auto overscroll-contain bg-white">
             {list.conversations.map((item) => (
               <li key={item.id}>
-                <button type="button" onClick={() => { setListBack(false); setSelectedId(item.id); }} className={`flex w-full items-center gap-3 px-3 py-3 text-left hover:bg-info-soft ${item.id === selectedId ? "bg-info-soft" : ""}`}>
-                  <Avatar name={item.contactName} photo={item.contactPhotoUrl} />
-                  <span className="min-w-0 flex-1">
-                    <span className="flex items-center gap-2">
-                      <span className="truncate font-semibold text-navy">{item.contactName}</span>
-                      <Badge tone={item.assignedName ? "info" : "warning"}>{firstName(item.assignedName) || "Roleta"}</Badge>
+                <button type="button" onClick={() => { setListBack(false); setSelectedId(item.id); }} className={`flex w-full items-stretch gap-3 pl-3 text-left transition hover:bg-[#F5F6F6] ${item.id === selectedId ? "bg-[#F0F2F5]" : "bg-white"}`}>
+                  <span className="shrink-0 self-center py-2.5"><Avatar name={item.contactName} photo={item.contactPhotoUrl} /></span>
+                  {/* Separador fino só a partir do texto (depois do avatar), como no Chat do WhatsApp */}
+                  <span className="min-w-0 flex-1 border-b border-[#E9EDEF] py-2.5 pr-3">
+                    <span className="flex items-baseline justify-between gap-2">
+                      <span className="flex min-w-0 items-center gap-1.5">
+                        <span className={`min-w-0 truncate text-[16px] leading-6 text-[#111B21] ${item.unreadCount ? "font-black" : "font-bold"}`}>{item.contactName}</span>
+                        <Badge tone={item.assignedName ? "info" : "warning"} className="shrink-0">{firstName(item.assignedName) || "Roleta"}</Badge>
+                      </span>
+                      {item.lastMessageAt ? <span className={`shrink-0 text-xs ${item.unreadCount ? "font-extrabold text-[#0A7D41]" : "font-semibold text-[#54656F]"}`}>{time.format(new Date(item.lastMessageAt))}</span> : null}
                     </span>
-                    <span className="block truncate text-xs text-muted">{isMessenger(item) ? MESSENGER_LABEL : item.listingTitle || "Anúncio não identificado"}</span>
-                    <span className="block truncate text-sm text-ink">{item.lastMessagePreview}</span>
-                    <span className="block text-xs text-muted">{item.awaitingApproval ? "Aguardando sua aprovação" : item.waiting ? "Aguardando corretor on-line" : item.assignedName || "Sem atendente"}{item.lastMessageAt ? ` · ${time.format(new Date(item.lastMessageAt))}` : ""}</span>
+                    <span className="flex items-center justify-between gap-2">
+                      <span className={`min-w-0 truncate text-[14px] leading-5 ${item.unreadCount ? "font-semibold text-[#111B21]" : "text-[#667781]"}`}>{item.lastMessagePreview}</span>
+                      {item.unreadCount ? <span className="grid h-5 min-w-5 shrink-0 place-items-center rounded-full bg-[#25D366] px-1.5 text-[11px] font-black text-[#0B2A17]" aria-label={`${item.unreadCount} não lidas`}>{item.unreadCount}</span> : null}
+                    </span>
+                    <span className="mt-0.5 block truncate text-[12px] leading-5 text-[#667781]">
+                      {isMessenger(item) ? MESSENGER_LABEL : item.listingTitle || "Anúncio não identificado"}
+                      {" · "}
+                      <span className={item.awaitingApproval || item.waiting ? "font-semibold text-amber-700" : ""}>{item.awaitingApproval ? "Aguardando sua aprovação" : item.waiting ? "Aguardando corretor on-line" : item.assignedName || "Sem atendente"}</span>
+                    </span>
                   </span>
-                  {item.unreadCount ? <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-success-strong px-1.5 text-2xs font-semibold text-white">{item.unreadCount}</span> : null}
                 </button>
               </li>
             ))}
@@ -726,16 +751,16 @@ export default function MarketplaceChat({ canEditSettings = false, canApprove = 
           <Card padding="none" className="flex min-h-0 flex-1 flex-col overflow-hidden max-md:rounded-none max-md:border-x-0">
             {/* Cabeçalho em duas linhas (dono, 2026-10-22: "organize" — o seletor cobria o selo no celular): 1) voltar, foto,
                 nome + corretor (ou "Roleta") e anúncio; 2) atribuir + cliente, ocupando a largura toda. */}
-            <div className="shrink-0 space-y-2 border-b border-line p-3">
+            <div className="shrink-0 space-y-2 border-b border-[#E9EDEF] bg-[#F0F2F5] px-3 py-2.5">
               <div className="flex items-center gap-3">
                 <Button size="icon" variant="ghost" className="shrink-0 md:hidden" aria-label="Voltar" onClick={() => { setListBack(true); setSelectedId(""); setThread(null); }}><ArrowLeft className="h-5 w-5" /></Button>
                 <Avatar name={conversation.contactName} photo={conversation.contactPhotoUrl} />
                 <div className="min-w-0 flex-1">
-                  <p className="flex min-w-0 items-center gap-2 font-semibold text-navy">
+                  <p className="flex min-w-0 items-center gap-2 text-[16px] font-bold text-[#111B21]">
                     <span className="truncate">{conversation.contactName}</span>
                     <Badge tone="info" className="shrink-0">{conversation.assignedName ? String(conversation.assignedName).split(" ")[0] : "Roleta"}</Badge>
                   </p>
-                  <p className="truncate text-xs text-muted">
+                  <p className="truncate text-xs text-[#54656F]">
                     {isMessenger(conversation) ? MESSENGER_LABEL : conversation.listingUrl ? <a className="text-brand underline" href={conversation.listingUrl} target="_blank" rel="noreferrer">{conversation.listingTitle || "Ver anúncio"}</a> : conversation.listingTitle || "Anúncio não identificado"}
                   </p>
                 </div>
@@ -782,7 +807,7 @@ export default function MarketplaceChat({ canEditSettings = false, canApprove = 
                 </p>
               )
             ) : null}
-            <div ref={messagesRef} key={selectedId} data-chat-wallpaper className="min-h-0 flex-1 space-y-2 overflow-y-auto overscroll-contain bg-mist p-3">
+            <div ref={messagesRef} key={selectedId} data-chat-wallpaper className="min-h-0 flex-1 space-y-1.5 overflow-y-auto overscroll-contain px-3 pb-4 pt-2 sm:px-[6%]" style={CHAT_WALLPAPER_STYLE}>
               {(thread.messages || []).map((message) => message.internal ? (
                 // Nota interna (MKT-2i): o mesmo visual da do Chat do WhatsApp — centralizada, azul tracejada e com cadeado.
                 <div key={message.id} className="flex justify-center">
@@ -794,9 +819,9 @@ export default function MarketplaceChat({ canEditSettings = false, canApprove = 
                 </div>
               ) : (
                 <div key={message.id} className={`flex ${message.direction === "outbound" ? "justify-end" : "justify-start"}`}>
-                  <div data-message-id={message.id} className={`max-w-[80%] rounded-card px-3 py-2 text-sm ${message.direction === "outbound" ? "bg-info-soft text-ink" : "bg-white text-ink"}`}>
+                  <div data-message-id={message.id} className={`min-w-[84px] max-w-[80%] rounded-lg px-2.5 py-1.5 text-[14px] leading-5 text-[#111B21] shadow-[0_1px_0.5px_rgba(11,20,26,0.13)] sm:max-w-[65%] ${message.direction === "outbound" ? "bg-[#D9FDD3]" : "bg-white"} ${message.canRetry ? "ring-1 ring-red-300" : ""}`}>
                     {message.direction === "outbound" ? (
-                      <p className="flex items-center gap-1.5 text-2xs font-medium text-muted">
+                      <p className="mb-0.5 flex items-center gap-1.5 truncate text-xs font-bold text-brand">
                         {message.senderName}
                         {message.automatic ? <Badge tone="info" data-auto-reply>{message.automaticLabel || "automática"}</Badge> : null}
                       </p>
@@ -807,7 +832,7 @@ export default function MarketplaceChat({ canEditSettings = false, canApprove = 
                         ? <a key={attachment.url} href={attachment.url} target="_blank" rel="noreferrer"><img src={attachment.url} alt="Anexo" className="mt-1 max-h-48 rounded" referrerPolicy="no-referrer" /></a>
                         : <a key={attachment.url} href={attachment.url} target="_blank" rel="noreferrer" className="block text-brand underline">{attachment.name || "Anexo"}</a>
                     ))}
-                    <p className="mt-1 text-2xs text-muted">
+                    <p className="mt-0.5 text-right text-[11px] font-medium text-[#54656F]">
                       {time.format(new Date(message.at))}
                       {message.direction === "outbound" && message.statusLabel ? ` · ${message.statusLabel}` : ""}
                       {message.error ? ` — ${message.error}` : ""}
@@ -833,7 +858,7 @@ export default function MarketplaceChat({ canEditSettings = false, canApprove = 
                 </div>
               </form>
             ) : (
-            <form onSubmit={send} className="chat-composer-safe relative shrink-0 border-t border-line p-3"
+            <form onSubmit={send} className="chat-composer-safe relative shrink-0 border-t border-[#E9EDEF] bg-[#F0F2F5] p-2.5"
               onDragOver={(event) => { if (event.dataTransfer?.types?.includes("Files")) event.preventDefault(); }}
               onDrop={(event) => { const files = filesFromTransfer(event.dataTransfer); if (files.length) { event.preventDefault(); addFiles(files); } }}>
               {slashQuery !== null ? <ShortcutPicker query={slashQuery} shortcuts={shortcuts} onPick={pickShortcut} onManage={canManageShortcuts ? () => setManagingShortcuts(true) : null} /> : null}

@@ -11,6 +11,15 @@
 
 
 
+## 2026-10-30 — Chats: aba "Sem resposta" sem encerramentos/negativas (WA-38) + visual do Marketplace igual ao do WhatsApp (crm-editor) — NÃO publicado
+
+- Pedido do dono (aprovado): renomear "Aguardando nós" → "Sem resposta" nos dois Chats; o antigo "Sem resposta" (WA-23, leu e não respondeu) virou "Leu e não respondeu". Encerramento curto ("ok", "obrigado", "👍", só emoji) ou negativa ("não tenho interesse", "já comprei", "pare de mandar") na última mensagem do cliente tira a conversa SÓ da aba e do contador — nada enviado, status/tags intactos, volta se o cliente escrever outra coisa.
+- Classificador puro `lib/chat-closing-message-core.mjs` (frase inteira/sequência de frases; negativa contida em mensagem curta; "?" mantém). Lista padrão tirada de leitura (somente SELECT) das mensagens recebidas em produção — contagens em `docs/BUSINESS_RULES.md` WA-38.
+- Lista editável (admin/gestor): tabela `chat_closing_phrases`, migration `20261030170000_chat_closing_phrases.sql` (**NÃO aplicada**; sem ela vale o padrão), `lib/chat-closing-phrases.js`, rota `/api/admin/chat-closing-phrases` (`requireBrokerManagementApi`), botão `components/ChatClosingPhrasesButton.jsx`.
+- WhatsApp: filtro `waiting_us` e `summary.waitingUs` em `lib/whatsapp-chat.js` (`SIBLING_COLUMNS` passou a trazer `last_message_preview`); os outros contadores (`awaitingReply`, Início, Henry) não mudaram. Marketplace: aba nova `?tab=waiting_us` + `waitingUs` em `listMarketplaceConversations`.
+- Visual do Chat do Marketplace no estilo do WhatsApp (só apresentação): busca em pílula, abas, linhas com separador fino e contador verde, cabeçalho cinza, fundo bege (movido para `components/chat-wallpaper.js`, compartilhado), bolhas verdes/brancas. Todas as funções preservadas (Levar para o WhatsApp, selo do corretor/Roleta, Messenger, nota interna, atalhos, anexos, aprovar, atribuir).
+- Testes: `tests/chat-closing-message.test.mjs`; suíte inteira sem falha nova (falhas pré-existentes iguais às da base).
+
 ## 2026-10-30 — Chat leve no celular (crm-editor) — branch `chat-leve`, NÃO publicado
 
 - Pedido do dono: "Chat mais leve no celular: dividir a tela e carregar as mensagens aos poucos". Só desempenho, nenhuma função removida.

@@ -75,6 +75,8 @@ import { SIMULATION_FIRST_DONE_MESSAGE } from "@/lib/simulation-first-core.mjs";
 import { OLDER_HISTORY_MAX_ROUNDS, OLDER_HISTORY_POLL_MS, OLDER_HISTORY_ROUND_GAP_MS, OLDER_HISTORY_WAIT_MS, olderHistoryMessage, planNextRound, roundPhase } from "@/lib/whatsapp-older-history-core.mjs";
 import { isAnalysisSkippedBatch } from "@/lib/cca-submission-core.mjs";
 import { tabClasses } from "@/components/ui/Tabs";
+import ChatClosingPhrasesButton from "@/components/ChatClosingPhrasesButton";
+import { CHAT_WALLPAPER_STYLE } from "@/components/chat-wallpaper";
 
 // Desempenho (2026-10-12): partes que só aparecem depois de um toque (abas Visão geral/Campanhas/Corretores, Guia de
 // Atendimento, Documentos do cliente) são baixadas sob demanda — a lista de conversas abre sem esperar esse código.
@@ -92,9 +94,11 @@ const FILTERS = [
   { key: "personal", label: "Corretores" },
   { key: "official", label: "Oficial" },
   { key: "unread", label: "Não lidas" },
-  // "Aguardando nós" (2026-10-10): última mensagem do cliente — esperando a nossa resposta.
-  { key: "waiting_us", label: "Aguardando nós" },
-  { key: "awaiting", label: "Sem resposta" },
+  // "Sem resposta" (ex-"Aguardando nós", WA-38, dono 2026-10-30): última mensagem do cliente — esperando a nossa resposta;
+  // encerramento curto/negativa do cliente fica fora (lista editável, lib/chat-closing-message-core.mjs).
+  { key: "waiting_us", label: "Sem resposta" },
+  // "Leu e não respondeu" (WA-23; até 2026-10-30 se chamava "Sem resposta"): nossa última mensagem foi lida e o cliente não respondeu.
+  { key: "awaiting", label: "Leu e não respondeu" },
   { key: "in_service", label: "Em atendimento" },
   { key: "silent", label: "Sem retorno" },
   { key: "finished", label: "Arquivadas" },
@@ -123,19 +127,7 @@ const MEDIA_LABELS = {
   unsupported: "Mensagem não suportada"
 };
 
-// Aparência "como no WhatsApp" (pedido do dono, 2026-10-09) — só apresentação.
-// Fundo bege com desenhos de traço bem sutis (SVG próprio, inline, sem asset de terceiros).
-const CHAT_WALLPAPER_SVG = "<svg xmlns='http://www.w3.org/2000/svg' width='260' height='260' viewBox='0 0 260 260'><g fill='none' stroke='#8C7E66' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round' opacity='.16'>"
-  + "<path d='M22 56 40 40l18 16v20H22Z M34 76V64h12v12'/>"
-  + "<circle cx='160' cy='32' r='8'/><path d='M168 32h24m-8 0v8m6-8v6'/>"
-  + "<path d='M98 104h36a8 8 0 0 1 8 8v16a8 8 0 0 1-8 8h-22l-10 8v-8h-4a8 8 0 0 1-8-8v-16a8 8 0 0 1 8-8Z'/>"
-  + "<path d='M214 116c-6-8-18-2-12 8l12 12 12-12c6-10-6-16-12-8Z'/>"
-  + "<path d='m44 156 4 9 10 1-7 7 2 10-9-5-9 5 2-10-7-7 10-1Z'/>"
-  + "<rect x='160' y='180' width='22' height='38' rx='4'/><path d='M168 212h6'/>"
-  + "<path d='M84 222a10 10 0 0 1 18-6 8 8 0 0 1 14 6 7 7 0 0 1-2 14H86a7 7 0 0 1-2-14Z'/>"
-  + "<circle cx='116' cy='44' r='2'/><circle cx='226' cy='70' r='2'/><circle cx='22' cy='116' r='2'/><circle cx='134' cy='170' r='2'/><circle cx='234' cy='236' r='2'/>"
-  + "</g></svg>";
-const CHAT_WALLPAPER_STYLE = { backgroundColor: "#EFEAE2", backgroundImage: `url("data:image/svg+xml,${encodeURIComponent(CHAT_WALLPAPER_SVG)}")`, backgroundSize: "260px 260px" };
+// Fundo bege do Chat: components/chat-wallpaper.js (compartilhado com o Chat do Marketplace).
 
 // Prévia da lista: o servidor grava "[Imagem]", "[Áudio]"… quando a última mensagem é mídia sem legenda.
 // Aqui só troca o rótulo técnico por ícone + texto, como no WhatsApp.
@@ -629,7 +621,7 @@ export default function WhatsappChat({ canManage = false, canEditRules = false, 
             filter={filter}
             loading={listLoading}
             onFilter={setFilter}
-            filterLabels={{ ...Object.fromEntries(mySlots.filter((item) => item.label).map((item) => [`slot${item.slot}`, `Número ${item.slot} · ${item.label}`])), ...(summary.waitingUs > 0 ? { waiting_us: `Aguardando nós (${summary.waitingUs})` } : {}) }}
+            filterLabels={{ ...Object.fromEntries(mySlots.filter((item) => item.label).map((item) => [`slot${item.slot}`, `Número ${item.slot} · ${item.label}`])), ...(summary.waitingUs > 0 ? { waiting_us: `Sem resposta (${summary.waitingUs})` } : {}) }}
             clientStatus={clientStatus}
             onClientStatus={setClientStatus}
             canSeeArchived={canSeeArchived}
@@ -643,6 +635,8 @@ export default function WhatsappChat({ canManage = false, canEditRules = false, 
             hasMore={listHasMore}
             loadingMore={listLoadingMore}
             onLoadMore={loadMoreList}
+            canConfigureClosing={canManage}
+            onClosingSaved={() => loadList({ silent: true })}
           />
 
           <div className={`${selectedId ? "admin-motion-detail flex" : "hidden lg:flex"} min-h-0 min-w-0 flex-col border-line lg:border-l`}>
@@ -739,7 +733,7 @@ function listPageIsFull(count, filter) {
   return count >= 100 || (["awaiting", "silent", "private_unseen"].includes(filter) && count > 0);
 }
 
-function ConversationList({ className, conversations, error, filter, filterLabels = {}, loading, onFilter, onSearch, onSelect, search, selectedId, totalUnread, clientStatus = "", onClientStatus = () => {}, canSeeArchived = false, currentUserId = "", mineScope = null, hasMore = false, loadingMore = false, onLoadMore = () => {} }) {
+function ConversationList({ className, conversations, error, filter, filterLabels = {}, loading, onFilter, onSearch, onSelect, search, selectedId, totalUnread, clientStatus = "", onClientStatus = () => {}, canSeeArchived = false, currentUserId = "", mineScope = null, hasMore = false, loadingMore = false, onLoadMore = () => {}, canConfigureClosing = false, onClosingSaved = () => {} }) {
   const [previewId, setPreviewId] = useState("");
   // Função estável para as linhas (memo): sempre chama o onSelect mais recente.
   const onSelectRef = useRef(onSelect);
@@ -800,6 +794,8 @@ function ConversationList({ className, conversations, error, filter, filterLabel
               {filterLabels[item.key] || item.label}
             </button>
           ))}
+          {/* WA-38: lista de encerramentos/negativas da aba "Sem resposta" — só admin geral e gestor (a rota confere). */}
+          {canConfigureClosing && filter === "waiting_us" ? <ChatClosingPhrasesButton onSaved={onClosingSaved} /> : null}
         </div>
         {/* Particular → "Não lidas" (pedido do dono, 2026-10-11): o que EU ainda não abri (leitura por pessoa). */}
         {/* Grupos (pedido do dono, 2026-10-11): grupos do WhatsApp dos corretores — só para o dono. */}
@@ -1331,7 +1327,7 @@ function Thread({ canManage, canEditRules, currentUserId, mySlots = [], onOpenCl
     onChanged();
   }
 
-  // "Marcar como resolvida" (2026-10-10): sai de "Aguardando nós", "Sem resposta" e "Sem retorno" sem arquivar.
+  // "Marcar como resolvida" (2026-10-10): sai de "Sem resposta", "Leu e não respondeu" e "Sem retorno" sem arquivar.
   async function setResolved(resolved) {
     await fetch(`/api/admin/whatsapp-chat/conversations/${conversation.id}`, {
       method: "PATCH",
