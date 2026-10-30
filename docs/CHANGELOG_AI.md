@@ -24,6 +24,13 @@
 - **Validação:** `pnpm build` ok; `node --test` whatsapp*/chat*/brand-assets/global-pollers/painel-velocidade-etapa3 + teste novo: só as 3 falhas que já existem em `origin/main` (`chat-reply-preview`, `whatsapp-conversation-per-session` stubs, `whatsapp-service-lease` runtime).
 - **Risco/observação:** resumo do Chat ganhou 1 leitura de 1 linha (`whatsapp_service_lease`) por consulta — sem polling novo. O pedido chamou a aba de "Sem resposta", mas esse nome já é a WA-23 (outra regra): mantido "Aguardando nós" — confirmar com o dono se quer renomear. "Tentar de novo" vale para texto; mídia segue com o "Tentar de novo" da fila de anexos.
 
+## 2026-10-30 — Relatório diário: filtro por corretor vale para todos os números e o gestor só vê a própria equipe (crm-editor) — branch `fix/relatorio-diario-filtro-corretor`, NÃO publicado
+
+- **Pedido do dono:** a gestora filtra por corretor e os números abaixo (cadastros, aguardando documentação...) continuavam o total.
+- **Causa:** `getDailyReport` só respeitava `brokerIds` para admin geral; para gestor ignorava a seleção e o histórico de status nem era limitado à equipe. Ver `docs/INCIDENTES.md`.
+- **Mudança:** `lib/daily-report-scope.mjs` (regra pura: admin = tudo ou o escolhido; gestor = equipe ou um/mais da equipe, fora dela = 403; corretor = só ele), usada por cadastros, histórico (junção com o responsável do cliente), tabela "Por corretor". Consultas paginadas (antes cortavam em 1000) e nomes em lotes. Tela: "…" durante o carregamento, número limpo em erro, linha "Corretor: ..." no cabeçalho. Definições de métricas não mudaram. Cron `daily-report` (admin completo) inalterado.
+- **Testes:** `tests/daily-report-scope.test.mjs`.
+
 ## 2026-10-30 — Henry: aperte para falar começa no keydown e música audível enquanto ele fala (crm-editor) — branch `fix/henry-ptt-musica`, NÃO publicado
 
 - **Pedido do dono:** (1) segurando Enter ele só entendia o final da frase; (2) a música ficava praticamente muda quando o Henry falava.

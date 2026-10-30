@@ -40,6 +40,17 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-10-30 — Relatório diário: ao filtrar por corretor, os números do topo não mudam
+- **Data:** 2026-10-30
+- **Sintoma:** "A Carol (gestora) coloca o prazo e depois seleciona um corretor; os cadastros realizados, aguardando documentação etc. continuam mostrando o total."
+- **Área:** Permissões / Relatório diário
+- **Impacto:** todo gestor no Relatório diário (admin geral não era afetado). Além do filtro ignorado, o gestor via o histórico de status de TODOS os clientes da empresa (movimentos, documentação, aprovação, aprovados, vendas), não só os da equipe.
+- **Causa raiz:** `lib/daily-report.js` só aplicava `brokerIds` para admin geral; para gestor o escopo caía em `applyResponsibleUserScope` (equipe inteira, sem o corretor escolhido) e `loadScopedClientIds` devolvia `null` (histórico sem filtro nenhum). A tabela "Por corretor" também ignorava a seleção do gestor. Agravante: consultas sem paginação (corte silencioso em 1000 linhas) e lista de ids de cliente na URL.
+- **Correção:** uma só decisão de escopo (`lib/daily-report-scope.mjs`) para cadastros, funil, conversões, linha do tempo e tabela; histórico filtrado pelo corretor responsável do cliente (junção), consultas paginadas; corretor fora da equipe = 403; tela mostra "…" enquanto carrega e limpa o número se falhar.
+- **Arquivos/commit:** `lib/daily-report.js`, `lib/daily-report-scope.mjs`, `app/api/daily-report/route.js`, `components/DailyReportDashboard.jsx` — branch `fix/relatorio-diario-filtro-corretor`
+- **Prevenção/teste:** `tests/daily-report-scope.test.mjs`. Risco residual: filtro por junção (`scope.responsible_user_id`) conferido só pelo padrão já usado em `lib/whatsapp-chat.js`; validar com a Carol após publicar.
+- **Status:** Resolvido (não publicado)
+
 ### 2026-10-30 — Henry "só entende o final da frase" e erra metade das vezes
 - **Data:** 2026-10-30
 - **Sintoma:** "O Henry trava, em 50% das vezes não entende, e quando entende só entende o final da frase."
