@@ -71,12 +71,16 @@ import {
   isWarmStreamUsable,
   triggeredTranscriptIntent,
   HENRY_PTT_RELEASE_GRACE_MS,
+  HENRY_PTT_TAIL_MS,
   HENRY_PTT_TAP_MS,
   HENRY_VOICE_MUTE_KEY,
   henrySpeechSilenced,
   henryVoicePlayable,
   isPushToTalkRelease,
   pushToTalkKeyAction,
+  pttKeydownPhase,
+  liveStartedLate,
+  shouldWarmMic,
   pushToTalkReleaseAction,
   henryRingHoldReady,
   henryRingPressAction,
@@ -102,7 +106,7 @@ import {
   henryListenPolicy,
   readHenryPttOnly
 } from "@/lib/henry-voice-conversation.mjs";
-import { HENRY_SPOTIFY_RAMP_DELAY_MS, SPOTIFY_DUCK_VOLUME, speechDuckAction, speechDuckLevel, spotifyRampPlan, spotifyRestoreStep, spotifyUserMemoryFor } from "@/lib/henry-spotify-core.mjs";
+import { HENRY_MUSIC_DUCK_RATIO_DEFAULT, HENRY_SPOTIFY_RAMP_DELAY_MS, clampMusicDuckRatio, speechDuckAction, speechDuckLevel, spotifyRampPlan, spotifyRestoreStep, spotifyUserMemoryFor } from "@/lib/henry-spotify-core.mjs";
 import { ELEVENLABS_REALTIME_SAMPLE_RATE, henryReserveVoiceChain, pickBestBrowserVoice, pronounceForSpeech, splitSentences } from "@/lib/henry-voice-providers.mjs";
 import { HENRY_WAIT_PHRASES, MUSIC_TOPIC, ackToneDurationMs, henryAckContext, henryMusicIntent, isAckPhrase, mergeHenryMusic, musicQueryFromText, narrationWarmBatches, normalizeHenryScene, pickListenAck, pickWaitPhrase, rememberPhrase, shouldAcknowledgeHeard, shouldNarrate, spotifyDeviceRequestKind, waitPhrasesToSynthesize } from "@/lib/henry-voice-narration.mjs";
 import { HENRY_LISTEN_PROMPTS, henryGreetingRequest, isHenryGreeting, pickVariant, rememberVariant } from "@/lib/henry-voice-persona.mjs";
@@ -405,6 +409,7 @@ export default function HenryVoiceAssistant() {
   const warmedAtRef = useRef(0);
   const [recording, setRecording] = useState(false);
   const [recordHeard, setRecordHeard] = useState(false); // já ouviu voz nesta gravação: "pode continuar"
+  const musicDuckRatioRef = useRef(HENRY_MUSIC_DUCK_RATIO_DEFAULT); // "Volume da música enquanto o Henry fala" (fração do volume do dono)
   const endWaitMsRef = useRef(RECORD_SILENCE_MS); // "Tempo de espera do fim da fala" (Voz e personalidade)
   const [hasRecorder, setHasRecorder] = useState(false);
   const [recognitionFailed, setRecognitionFailed] = useState(false);
@@ -535,6 +540,7 @@ export default function HenryVoiceAssistant() {
     const onEndWait = (event) => {
       if (Number.isFinite(event?.detail?.ms)) endWaitMsRef.current = event.detail.ms;
       if (typeof event?.detail?.listenAck === "boolean") listenAckRef.current = event.detail.listenAck;
+      if (Number.isFinite(event?.detail?.musicDuckRatio)) musicDuckRatioRef.current = clampMusicDuckRatio(event.detail.musicDuckRatio);
     };
     window.addEventListener(HENRY_END_WAIT_EVENT, onEndWait);
     return () => window.removeEventListener(HENRY_END_WAIT_EVENT, onEndWait);
@@ -578,6 +584,7 @@ export default function HenryVoiceAssistant() {
         if (Number.isFinite(data?.browserRate)) browserRateRef.current = data.browserRate;
         if (Number.isFinite(data?.endWaitMs)) endWaitMsRef.current = data.endWaitMs;
         listenAckRef.current = data?.listenAck !== false;
+        if (Number.isFinite(data?.musicDuckRatio)) musicDuckRatioRef.current = clampMusicDuckRatio(data.musicDuckRatio);
         pttShortcutRef.current = resolvePttShortcut(data?.style?.pttShortcut);
         narrationKeyRef.current = typeof data?.narrationKey === "string" ? data.narrationKey : "";
         // Memória do dia (REGRA OFICIAL, dono 2026-10-22): a conversa de hoje volta ao abrir/recarregar (só texto).
@@ -719,7 +726,7 @@ export default function HenryVoiceAssistant() {
       reset();
     }
   }, []);
-  // Abaixa a música (~15%) ao acordar com ela tocando; volta sozinha em ~30 s sem atividade (segurança).
+  // Abaixa a música (fração do volume do dono, padrão 30%) ao acordar com ela tocando; volta sozinha em ~30 s sem atividade (segurança).
   const duckSpotifyVolume = useCallback(() => {
     if (!musicPlaying()) return;
     const duck = spotifyDuckRef.current;
@@ -727,14 +734,14 @@ export default function HenryVoiceAssistant() {
     duck.timer = window.setTimeout(restoreSpotifyVolume, MUSIC_DUCK_SAFETY_MS);
     if (duck.previous !== null || duck.pending) return;
     duck.pending = true;
-    duck.promise = fetch("/api/admin/henry/spotify/player", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "duck", ...spotifyUserFields() }) })
+    duck.promise = fetch("/api/admin/henry/spotify/player", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "duck", ratio: musicDuckRatioRef.current, ...spotifyUserFields() }) })
       .then((response) => (response.ok ? response.json() : null))
       .then((data) => {
         const current = spotifyDuckRef.current;
         current.pending = false;
         if (data?.ducked && Number.isInteger(data.previous)) {
           current.previous = data.previous;
-          current.level = Number.isInteger(data.level) ? data.level : SPOTIFY_DUCK_VOLUME;
+          current.level = Number.isInteger(data.level) ? data.level : speechDuckLevel(data.previous, musicDuckRatioRef.current);
           rememberSpotifyUser(current.previous, current.level);
         }
       })
@@ -755,7 +762,7 @@ export default function HenryVoiceAssistant() {
     if (action === "back") {
       spotifyRampRef.current += 1; // para a subida
       duck.ramping = false;
-      const level = speechDuckLevel(duck.previous);
+      const level = speechDuckLevel(duck.previous, musicDuckRatioRef.current);
       const expect = Number.isInteger(duck.level) ? duck.level : null;
       duck.level = level;
       rememberSpotifyUser(duck.previous, level);
@@ -764,14 +771,14 @@ export default function HenryVoiceAssistant() {
       return;
     }
     duck.pending = true;
-    duck.promise = fetch("/api/admin/henry/spotify/player", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "duck", speech: true, ...spotifyUserFields() }) })
+    duck.promise = fetch("/api/admin/henry/spotify/player", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "duck", speech: true, ratio: musicDuckRatioRef.current, ...spotifyUserFields() }) })
       .then((response) => (response.ok ? response.json() : null))
       .then((data) => {
         const current = spotifyDuckRef.current;
         current.pending = false;
         if (data?.ducked && Number.isInteger(data.previous)) {
           current.previous = data.previous;
-          current.level = Number.isInteger(data.level) ? data.level : speechDuckLevel(data.previous);
+          current.level = Number.isInteger(data.level) ? data.level : speechDuckLevel(data.previous, musicDuckRatioRef.current);
           rememberSpotifyUser(current.previous, current.level);
         }
       })
@@ -2007,6 +2014,7 @@ export default function HenryVoiceAssistant() {
       sink.gain.value = 0; // o processador só roda ligado à saída; ganho zero = nada no alto-falante
       processor.onaudioprocess = (event) => {
         if (live.closed || live.committing || live.state.failed || live.sentSamples >= maxSamples) return;
+        if (!live.firstAudioAt) live.firstAudioAt = Date.now() - Math.round((event.inputBuffer.duration || 0) * 1000); // 1º áudio que chegou (para saber se perdeu o começo)
         const pcm = downsampleToPcm16(event.inputBuffer.getChannelData(0), context.sampleRate, ELEVENLABS_REALTIME_SAMPLE_RATE);
         if (!pcm.length) return;
         const item = { samples: pcm.length, message: JSON.stringify({ message_type: "input_audio_chunk", audio_base_64: pcm16ToBase64(pcm), commit: false, sample_rate: ELEVENLABS_REALTIME_SAMPLE_RATE }) };
@@ -2135,9 +2143,16 @@ export default function HenryVoiceAssistant() {
     const type = String(rawType).split(";")[0].trim().toLowerCase() || "audio/mp4";
     const blob = session.chunks.length ? new Blob(session.chunks, { type }) : null;
     session.chunks = [];
-    const live = session.live;
+    let live = session.live;
     session.live = null;
     setLiveText("");
+    // Transcrição ao vivo que só começou a receber áudio depois da gravação perdeu o começo da frase: a gravação (inteira,
+    // desde o aperto) é que vale (dono, 2026-10-30: "só entende o final da frase").
+    if (live && !session.discard && liveStartedLate({ recorderStartedAt: session.startedAt, firstAudioAt: live.firstAudioAt })) {
+      henryDebug("ao_vivo", { reason: "comecou_tarde" });
+      closeLiveTranscription(live, { ok: false });
+      live = null;
+    }
     if (session.discard || !blob || !blob.size || durationMs < RECORD_MIN_MS) {
       closeLiveTranscription(live, { ok: false });
       // Continuação depois de um corte sem voz nova: vale o trecho que já tinha (nunca "Não ouvi"/"Não entendi").
@@ -3572,11 +3587,12 @@ export default function HenryVoiceAssistant() {
     };
   }, [active, desktopWake, desktopWakeWord, activateFromDesktop, pttOnly]);
 
-  // Microfone aquecido (só no app de desktop, só enquanto o nome é ouvido — mesma condição da escuta do nome acima). Nada é
-  // lido nem gravado daqui: a trilha só fica aberta; a gravação do pedido clona ela (startRecording). Caiu → abre a frio.
+  // Microfone aquecido (só no app de desktop, com a escuta ligada — shouldWarmMic). Nada é lido nem gravado daqui: a trilha
+  // só fica aberta; a gravação do pedido (nome OU aperte-para-falar) clona ela (startRecording). Caiu → abre a frio.
   useEffect(() => {
-    const bridge = desktopBridgeRef.current;
-    if (!active || !desktopWake || !henryListenPolicy({ pttOnly }).desktopWake || !desktopCanWake(bridge) || !navigator.mediaDevices?.getUserMedia) return undefined;
+    // Dono, 2026-10-30: o aperte-para-falar começa no instante do keydown — por isso o microfone fica aquecido no app em
+    // qualquer modo (com o nome, sem o nome, "Só quando eu apertar"), não só enquanto o nome é ouvido (shouldWarmMic).
+    if (!shouldWarmMic({ active, muted, recordMode, desktopApp }) || !navigator.mediaDevices?.getUserMedia) return undefined;
     let cancelled = false;
     let stream = null;
     navigator.mediaDevices
@@ -3600,7 +3616,7 @@ export default function HenryVoiceAssistant() {
       if (warmMicRef.current === stream) warmMicRef.current = null;
       stream?.getTracks().forEach((track) => track.stop());
     };
-  }, [active, desktopWake, pttOnly]);
+  }, [active, muted, recordMode, desktopApp]);
 
   const toggleMute = useCallback(() => {
     setMuted((current) => {
@@ -3682,6 +3698,7 @@ export default function HenryVoiceAssistant() {
   // Regras puras em lib/henry-voice-conversation.mjs (pushToTalkKeyAction, isPushToTalkRelease, pushToTalkReleaseAction).
   const pttRef = useRef({ active: false, source: "", startedAt: 0, mode: "", wasRecording: false });
   const pttKeysRef = useRef({ ctrl: false, shift: false });
+  const pttTailRef = useRef(0);
   const beginPushToTalk = useCallback((source) => {
     if (pttRef.current.active || lockRef.current.locked) return false;
     const record = recordModeRef.current;
@@ -3695,9 +3712,23 @@ export default function HenryVoiceAssistant() {
     const continuing = !record && Boolean(speechHeld.graceTimer) && speechHeld.holding && Boolean(speechHeld.transcript);
     window.clearTimeout(speechHeld.graceTimer);
     speechHeld.graceTimer = 0;
+    window.clearTimeout(pttTailRef.current);
+    pttTailRef.current = 0;
     pttRef.current = { active: true, source, startedAt: Date.now(), mode: record ? "record" : "speech", wasRecording: Boolean(recordRef.current) };
     setPttHolding(true);
     setNotice("");
+    // Reconhecimento do navegador (Chrome): liga ANTES de qualquer outra coisa — cada ms do começo da frase conta
+    // (dono, 2026-10-30). O acumulador começa já, sem esperar o nome nem o fim da fala.
+    if (!record) {
+      sessionOpenRef.current = true;
+      if (!continuing) {
+        if (speechHeld.begin) speechHeld.begin();
+        else speechHeld.transcript = startPttTranscript();
+      }
+      speechHeld.holding = true;
+      speechHeld.releasing = false;
+      startListeningRef.current?.();
+    }
     if (source !== "pointer") setExpanded(true);
     warmServer();
     unlockAudio();
@@ -3715,17 +3746,8 @@ export default function HenryVoiceAssistant() {
       startRecording({ hold: true, live: true });
       return true;
     }
-    stopSpeaking();
+    stopSpeaking(); // barge-in: se o Henry fala, a fala dele é cortada e o pedido do dono começa (reconhecimento já ligado acima)
     abortRequest();
-    sessionOpenRef.current = true;
-    // Acumulador ANTES de ligar o reconhecimento ("Só quando eu apertar": ele só liga com o aperto valendo).
-    if (!continuing) {
-      if (speechHeld.begin) speechHeld.begin();
-      else speechHeld.transcript = startPttTranscript();
-    }
-    speechHeld.holding = true;
-    speechHeld.releasing = false;
-    startListeningRef.current?.();
     fetch("/api/admin/henry", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ mode: "claim", deviceId: deviceIdRef.current }) }).catch(() => {});
     startConversation({ sound: true });
     listenAgain();
@@ -3745,8 +3767,14 @@ export default function HenryVoiceAssistant() {
       if (!session) return;
       // Soltou depois de 300 ms = fim da fala. Clique curto: como antes — já gravando, envia; senão segue ouvindo com o
       // fim da fala automático.
-      if (action === "send" || ptt.wasRecording) stopRecording(false);
-      else session.hold = false;
+      // Cauda curta (HENRY_PTT_TAIL_MS): a última sílaba não é cortada; apertar de novo na cauda continua o mesmo pedido.
+      if (action === "send" || ptt.wasRecording) {
+        window.clearTimeout(pttTailRef.current);
+        pttTailRef.current = window.setTimeout(() => {
+          pttTailRef.current = 0;
+          if (recordRef.current === session) stopRecording(false);
+        }, HENRY_PTT_TAIL_MS);
+      } else session.hold = false;
       return;
     }
     const speech = pttSpeechRef.current;
@@ -3796,12 +3824,13 @@ export default function HenryVoiceAssistant() {
     const onDown = (event) => {
       trackModifiers(event, true);
       const ptt = pttRef.current;
-      if (ptt.active) {
+      const phase = pttKeydownPhase({ active: ptt.active, repeat: event.repeat, defaultPrevented: event.defaultPrevented });
+      if (phase === "held") {
         // Segurando: a repetição da tecla não faz nada (nem Enter de formulário, nem a tecla do atalho de fala).
         if (ptt.source !== "pointer" && (event.key === "Enter" || event.code === "KeyH" || (ptt.source === "custom" && isPttShortcutKey(pttShortcutRef.current, event.code)))) event.preventDefault();
         return;
       }
-      if (event.defaultPrevented || event.repeat) return;
+      if (phase !== "press") return;
       const action = pushToTalkKeyAction({
         key: event.key,
         code: event.code,

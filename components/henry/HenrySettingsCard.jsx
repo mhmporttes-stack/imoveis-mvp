@@ -259,7 +259,7 @@ export default function HenrySettingsCard() {
   );
 }
 
-const STYLE_FIELDS = ["voice", "elevenVoice", "tone", "speed", "endWait", "listenAck", "details", "address", "rockMusic", "sertanejoMusic", "morningPlaylist"];
+const STYLE_FIELDS = ["voice", "elevenVoice", "tone", "speed", "endWait", "listenAck", "musicDuck", "details", "address", "rockMusic", "sertanejoMusic", "morningPlaylist"];
 const TEXT_FIELDS = ["details", "address", "rockMusic", "sertanejoMusic", "morningPlaylist"];
 
 // Só o que mudou em relação ao salvo (a voz padrão do servidor pode não estar na lista e não é reenviada).
@@ -351,7 +351,7 @@ function HenryVoiceStyleSection({ saved, options, serverVoice, provider = "brows
       onSaved(data.style);
       setForm({ ...data.style });
       // O Henry desta página passa a usar o novo tempo de espera do fim da fala sem recarregar.
-      if (Number.isFinite(data?.endWaitMs)) window.dispatchEvent(new CustomEvent(HENRY_END_WAIT_EVENT, { detail: { ms: data.endWaitMs, listenAck: data.listenAck !== false } }));
+      if (Number.isFinite(data?.endWaitMs)) window.dispatchEvent(new CustomEvent(HENRY_END_WAIT_EVENT, { detail: { ms: data.endWaitMs, listenAck: data.listenAck !== false, musicDuckRatio: data.musicDuckRatio } }));
       setMessage({ tone: "ok", text: "Salvo. Vale a partir da próxima fala do Henry (recarregue a página para a voz do navegador)." });
     } catch (saveError) {
       setMessage({ tone: "error", text: saveError?.message || "Não foi possível salvar." });
@@ -575,6 +575,17 @@ function HenryVoiceStyleSection({ saved, options, serverVoice, provider = "brows
           <Field label="Confirmar que ouviu" hint="Logo que você termina de falar, ele faz um som curto, um “Uhum” ou um “Já te falo” enquanto busca a resposta.">
             <select className={inputClasses} value={form.listenAck || "on"} onChange={update("listenAck")}>
               {options.listenAcks.map((item) => (
+                <option key={item.id} value={item.id}>
+                  {item.label}
+                </option>
+              ))}
+            </select>
+          </Field>
+        ) : null}
+        {options.musicDucks?.length ? (
+          <Field label="Volume da música enquanto o Henry fala" hint="Parte do volume que você deixou no Spotify. Nunca fica mudo: o mínimo é 20%.">
+            <select className={inputClasses} value={form.musicDuck || "30"} onChange={update("musicDuck")}>
+              {options.musicDucks.map((item) => (
                 <option key={item.id} value={item.id}>
                   {item.label}
                 </option>

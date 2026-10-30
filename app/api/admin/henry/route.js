@@ -26,7 +26,7 @@ import {
   warmHenryReport
 } from "@/lib/henry-voice";
 import { HENRY_FALLBACK_REPLY, HENRY_MAX_QUESTION_LENGTH, parseHenryImage, safeHenryReply, shouldUseHenryImage } from "@/lib/henry-voice-core.mjs";
-import { henryBrowserRate, henryEndWaitMs, henryListenAckOn, henryStyleOptions, parseHenryStylePatch } from "@/lib/henry-voice-style.mjs";
+import { henryBrowserRate, henryEndWaitMs, henryListenAckOn, henryMusicDuckRatio, henryStyleOptions, parseHenryStylePatch } from "@/lib/henry-voice-style.mjs";
 import { splitForSpeech } from "@/lib/henry-voice-conversation.mjs";
 import { parseHenryPulsePatch } from "@/lib/henry-pulse-core.mjs";
 import { henryInitialProgress } from "@/lib/henry-voice-narration.mjs";
@@ -119,6 +119,7 @@ export async function GET(request) {
       browserRate: henryBrowserRate(style),
       endWaitMs: henryEndWaitMs(style), // tempo de espera do fim da fala (gravação e parcial do navegador)
       listenAck: henryListenAckOn(style), // "Confirmar que ouviu" (som/interjeição/frase curta depois do fim da fala)
+      musicDuckRatio: henryMusicDuckRatio(style), // "Volume da música enquanto o Henry fala" (fração do volume do dono)
       options: henryStyleOptions({ defaultVoice: henryDefaultVoice() }),
       elevenVoices,
       elevenVoicesError,
@@ -159,7 +160,7 @@ export async function PUT(request) {
   if (!Object.keys(patch).length) return NextResponse.json({ error: "Informe enabled, vision, webSearch e/ou style." }, { status: 400 });
   try {
     const saved = await setHenrySettings(auth, patch);
-    return NextResponse.json({ ...saved, browserRate: henryBrowserRate(saved.style), endWaitMs: henryEndWaitMs(saved.style), listenAck: henryListenAckOn(saved.style) });
+    return NextResponse.json({ ...saved, browserRate: henryBrowserRate(saved.style), endWaitMs: henryEndWaitMs(saved.style), listenAck: henryListenAckOn(saved.style), musicDuckRatio: henryMusicDuckRatio(saved.style) });
   } catch (error) {
     console.error("[henry] falha ao salvar a configuração:", error?.message || error);
     return NextResponse.json({ error: "Não foi possível salvar a configuração do Henry." }, { status: 500 });

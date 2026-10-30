@@ -11,6 +11,14 @@
 
 
 
+## 2026-10-30 — Henry: aperte para falar começa no keydown e música audível enquanto ele fala (crm-editor) — branch `fix/henry-ptt-musica`, NÃO publicado
+
+- **Pedido do dono:** (1) segurando Enter ele só entendia o final da frase; (2) a música ficava praticamente muda quando o Henry falava.
+- **Causa (1):** o microfone só era aquecido no app enquanto o nome era ouvido; em "Só quando eu apertar" (ou com o nome desligado) o Enter abria o dispositivo a frio e o começo se perdia; além disso a transcrição ao vivo (Scribe), que começa um pouco depois da gravação, valia mais que a gravação inteira. **Correção:** `shouldWarmMic` (app: sempre aquecido com a escuta ligada), cauda de 250 ms no keyup, `pttKeydownPhase` (auto-repeat), reconhecimento do Chrome ligado primeiro, `liveStartedLate` (ao vivo atrasado > 250 ms cai para a gravação).
+- **Causa (2):** escuta baixava para 15 absoluto e a fala para 25% do volume. **Correção:** fração única do volume do dono (padrão 30%, mínimo 20%), configurável em "Voz e personalidade" (`style.musicDuck`), descida ~250 ms (`spotifyFadePlan`), subida ~500 ms. Rota `/api/admin/henry/spotify/player` recebe `ratio` (travado por `clampMusicDuckRatio`).
+- **Arquivos:** `components/henry/HenryVoiceAssistant.jsx`, `HenrySettingsCard.jsx`, `lib/henry-voice-conversation.mjs`, `lib/henry-spotify-core.mjs`, `lib/henry-spotify.js`, `lib/henry-voice-style.mjs`, `app/api/admin/henry/route.js`, `app/api/admin/henry/spotify/player/route.js`; testes `tests/henry-ptt-musica.test.mjs` (novo) e ajustes em `henry-push-to-talk`/`henry-voice-style`.
+- **Risco/observação:** "Só quando eu apertar" no app agora mantém o microfone aberto e parado (nada lido/gravado) para não perder o começo; no Chrome com essa opção o reconhecimento só liga no aperto (latência do navegador, não resolvida); celular abre o microfone a frio de propósito (iOS). Sem migration.
+
 ## 2026-10-30 — Reconhecimentos: meta semanal/mensal (opção B), dias seguidos e liderança em sequência (RAN-9c) (crm-editor) — branch `feat/animacoes-sequencias`, NÃO publicado
 - Dono: "faça a semanal e mensal também. Adicione dias seguidos antes da semana [...] 'esse é o terceiro dia de meta batida'. Ou se o corretor encerrou 2 ou 4 dias em primeiro, uma mensagem de manhã: 'você manteve a liderança diária durante 4 dias seguidos, vamos buscar o quinto...'".
 - Semanal/mensal: soma do período fechado (prospecção + pendentes, cada um no teto, com compensação entre dias) pela mesma `dailyGoalOverallProgress`; `closeDailyGoalDay` passa a gravar `pending_done/pending_total` (meta do dia inalterada); avaliação na segunda-feira/dia 1 (antes saía "de segunda até hoje", já na terça: saiu 21 e 23/10) pelo cron `daily-goal-close` (`recordClosedPeriodGoals`) e no acesso do corretor.

@@ -124,10 +124,10 @@ test("mudo bloqueia toda fala; chamados/avisos esperam com mudo ou microfone des
   assert.equal(readHenryVoiceMuted({ getItem: () => { throw new Error("bloqueado"); } }), false);
 });
 
-test("música: fala do Henry abaixa para 25% do volume atual, num passo só", async () => {
-  assert.equal(HENRY_SPEECH_DUCK_RATIO, 0.25);
-  assert.equal(speechDuckLevel(80), 20);
-  assert.equal(speechDuckLevel(50), 13);
+test("música: fala do Henry abaixa para 30% do volume atual (dono, 2026-10-30), num passo quando sem fade", async () => {
+  assert.equal(HENRY_SPEECH_DUCK_RATIO, 0.3);
+  assert.equal(speechDuckLevel(80), 24);
+  assert.equal(speechDuckLevel(50), 15);
   assert.equal(speechDuckLevel(2), 1);
   assert.equal(speechDuckAction({ musicPlaying: true }), "duck");
   assert.equal(speechDuckAction({ musicPlaying: false }), "none");
@@ -142,17 +142,17 @@ test("música: fala do Henry abaixa para 25% do volume atual, num passo só", as
   };
   const tokens = { getAccessToken: async () => "t" };
   const ducked = await duckSpotifyVolume({ fetchImpl, tokens, ratio: HENRY_SPEECH_DUCK_RATIO });
-  assert.deepEqual(ducked, { ducked: true, previous: 80, level: 20 });
+  assert.deepEqual(ducked, { ducked: true, previous: 80, level: 24 });
   assert.equal(calls.filter((call) => call.startsWith("PUT")).length, 1);
-  assert.ok(calls.some((call) => call.includes("volume_percent=20")));
+  assert.ok(calls.some((call) => call.includes("volume_percent=24")));
 });
 
-test("música: subida gradual em passos crescentes até o volume de antes (~2,5 s)", () => {
+test("música: subida gradual em passos crescentes até o volume de antes (~0,5 s)", () => {
   const plan = spotifyRampPlan({ from: 20, to: 80 });
-  assert.equal(plan.length, 5);
-  assert.deepEqual(plan.map((step) => step.volume), [32, 44, 56, 68, 80]);
+  assert.equal(plan.length, 4);
+  assert.deepEqual(plan.map((step) => step.volume), [35, 50, 65, 80]);
   assert.equal(plan[0].atMs, 0);
-  assert.equal(plan[plan.length - 1].atMs, 2500);
+  assert.equal(plan[plan.length - 1].atMs, 500);
   for (let index = 1; index < plan.length; index += 1) assert.ok(plan[index].volume > plan[index - 1].volume && plan[index].atMs > plan[index - 1].atMs);
   assert.deepEqual(spotifyRampPlan({ from: 20, to: 22 }).map((step) => step.volume), [21, 22]); // sem passos repetidos
   assert.deepEqual(spotifyRampPlan({ from: 50, to: 50 }), []);
