@@ -385,7 +385,7 @@ export function createHenryBrain({ ctx, size, radius, small = false, reduced = f
     const sc = R * 1.7, Dd = 4.2;
     if (ph === -1 || ph === 0) proj(G, sc, Dd);
     proj(T, sc, Dd); proj(RC, sc, Dd); proj(thal, sc, Dd);
-    const { SX, SY, W: Wv, SD } = G, scanP = (s / 5.6) % 1, scanY = cy - 0.8 * R + 1.6 * R * scanP, band = 0.1 * R;
+    const { SX, SY, W: Wv, SD } = G;
     // ignição das regiões (ondas): amplitude por região
     const Ia = [0, 0, 0, 0, 0, 0, 0], P = BRA.PER, tm = ((se % P) + P) % P;
     for (const [t0, r, amp] of BR_IGN) { const tau = ((tm - t0) % P + P) % P; if (tau < 4) { const a = amp * Math.min(1, tau / 0.2) * Math.exp(-tau / 0.95); if (a > Ia[r]) Ia[r] = a; } }
@@ -406,7 +406,7 @@ export function createHenryBrain({ ctx, size, radius, small = false, reduced = f
       const lv = [new Path2D(), new Path2D(), new Path2D(), new Path2D()], sp = [];
       for (let k = 0; k < nodes.n; k++) {
         const i = nodes.i[k], w = Wv[i]; if (w < 0.13 && (k & 1)) continue;
-        const x = SX[i], y = SY[i], rg = nodes.reg[k], bo = Ia[rg] * nodes.rw[k], sw = nClamp(1 - Math.abs(y - scanY) / band), lit = bo + 0.7 * sw * sw, tw = 0.8 + 0.2 * Math.sin(s * 1.5 + nodes.ph[k]);
+        const x = SX[i], y = SY[i], rg = nodes.reg[k], bo = Ia[rg] * nodes.rw[k], lit = bo, tw = 0.8 + 0.2 * Math.sin(s * 1.5 + nodes.ph[k]);
         const a = (0.2 + 0.7 * w + 0.7 * lit) * tw, r = (0.5 + 0.65 * w) * nodes.sz[k] * NU * (1 + 0.8 * lit) * (w < 0.34 ? 1.2 : 1), p = lv[a > 0.85 ? 3 : a > 0.6 ? 2 : a > 0.35 ? 1 : 0];
         p.moveTo(x + r, y); p.arc(x, y, r, 0, 6.2832);
         if (w > 0.34 && ((k & 3) === 0 || lit > 0.2)) sp.push(x, y, (7 + 6 * w + 16 * lit) * NU, Math.min(1, 0.3 + 0.35 * w + 0.5 * lit) * tw, csTone(y), 0);
@@ -456,15 +456,7 @@ export function createHenryBrain({ ctx, size, radius, small = false, reduced = f
       for (const q of byBase[bi] || []) pulse(q, uu, env(u));
     }
     if (!reduced) tr.forEach((q, i) => { const a = B.amb[i], tau = (s + a.off) % a.per, dur = 1.7; if (tau >= dur) return; const u = tau / dur; pulse(q, u, 0.5 * env(u)); });
-    // varredura holográfica: cauda suave acima + linha brilhante
-    const sw = Math.sqrt(Math.max(0, 0.935 * 0.935 * R * R - (scanY - cy) * (scanY - cy)));
-    if (sw > 4) {
-      const tg = ctx.createLinearGradient(0, scanY - 0.25 * R, 0, scanY); tg.addColorStop(0, "rgba(79,195,224,0)"); tg.addColorStop(1, "rgba(120,220,245,0.09)");
-      ctx.globalAlpha = K; ctx.fillStyle = tg; ctx.fillRect(cx - R, scanY - 0.25 * R, R * 2, 0.25 * R);
-      const lg = ctx.createLinearGradient(cx - sw, 0, cx + sw, 0);
-      lg.addColorStop(0, "rgba(191,241,255,0)"); lg.addColorStop(0.25, "rgba(191,241,255,0.4)"); lg.addColorStop(0.5, "rgba(255,255,255,0.8)"); lg.addColorStop(0.75, "rgba(191,241,255,0.4)"); lg.addColorStop(1, "rgba(191,241,255,0)");
-      ctx.strokeStyle = lg; ctx.lineWidth = 1.2; ctx.globalAlpha = 0.8 * K; ctx.beginPath(); ctx.moveTo(cx - sw, scanY); ctx.lineTo(cx + sw, scanY); ctx.stroke();
-    }
+    // (dono, 2026-10-30: a linha de varredura que descia sobre o cérebro foi removida — fica só o cérebro)
     ctx.restore();
   }
 
