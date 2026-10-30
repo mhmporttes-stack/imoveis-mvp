@@ -1,6 +1,6 @@
 "use client";
 
-import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import dynamic from "next/dynamic";
 import { createPortal } from "react-dom";
@@ -741,6 +741,10 @@ function listPageIsFull(count, filter) {
 
 function ConversationList({ className, conversations, error, filter, filterLabels = {}, loading, onFilter, onSearch, onSelect, search, selectedId, totalUnread, clientStatus = "", onClientStatus = () => {}, canSeeArchived = false, currentUserId = "", mineScope = null, hasMore = false, loadingMore = false, onLoadMore = () => {} }) {
   const [previewId, setPreviewId] = useState("");
+  // Função estável para as linhas (memo): sempre chama o onSelect mais recente.
+  const onSelectRef = useRef(onSelect);
+  onSelectRef.current = onSelect;
+  const selectRow = useCallback((id) => onSelectRef.current(id), []);
   // Particular → "Mídias" (dono, 2026-10-23, WA-35): galeria de todas as conversas particulares, no lugar da lista.
   const [mediaView, setMediaView] = useState(false);
   const showMedia = mediaView && isPrivateFilter(filter);
@@ -840,7 +844,7 @@ function ConversationList({ className, conversations, error, filter, filterLabel
           </p>
         ) : null}
         {conversations.map((conversation) => (
-          <ConversationRow key={conversation.id} conversation={conversation} currentUserId={currentUserId} selected={isSameConversation(conversation, selectedId)} onSelect={() => onSelect(conversation.id)} onPreview={() => setPreviewId(conversation.id)} />
+          <ConversationRow key={conversation.id} conversation={conversation} currentUserId={currentUserId} selected={isSameConversation(conversation, selectedId)} onSelect={selectRow} onPreview={setPreviewId} />
         ))}
         {previewId ? <ConversationPreviewModal conversationId={previewId} onClose={() => setPreviewId("")} onOpen={() => { const id = previewId; setPreviewId(""); onSelect(id); }} /> : null}
         {!loading && conversations.length && hasMore ? (
@@ -1026,7 +1030,8 @@ function firstNameOf(name) {
   return String(name || "").trim().split(/\s+/)[0] || "";
 }
 
-function ConversationRow({ conversation, currentUserId = "", selected, onSelect, onPreview = null }) {
+// memo (2026-10-30, Chat leve): onSelect/onPreview recebem o id (funções estáveis da lista).
+const ConversationRow = memo(function ConversationRow({ conversation, currentUserId = "", selected, onSelect, onPreview = null }) {
   // Particular: "não vista por mim" (seenByMe === false) também aparece em destaque, com bolinha verde.
   const unseenByMe = conversation.seenByMe === false;
   const unread = conversation.unreadCount > 0 || unseenByMe;
@@ -1041,18 +1046,18 @@ function ConversationRow({ conversation, currentUserId = "", selected, onSelect,
     if (!onPreview) return;
     pressed.current = false;
     clearTimeout(pressTimer.current);
-    pressTimer.current = setTimeout(() => { pressed.current = true; onPreview(); }, 500);
+    pressTimer.current = setTimeout(() => { pressed.current = true; onPreview(conversation.id); }, 500);
   };
   const cancelPress = () => clearTimeout(pressTimer.current);
   return (
     <button
       type="button"
-      onClick={(event) => { if (pressed.current) { event.preventDefault(); pressed.current = false; return; } onSelect(); }}
+      onClick={(event) => { if (pressed.current) { event.preventDefault(); pressed.current = false; return; } onSelect(conversation.id); }}
       onPointerDown={startPress}
       onPointerUp={cancelPress}
       onPointerLeave={cancelPress}
       onPointerMove={(event) => { if (Math.abs(event.movementY) > 4 || Math.abs(event.movementX) > 4) cancelPress(); }}
-      onContextMenu={(event) => { if (!onPreview) return; event.preventDefault(); cancelPress(); pressed.current = false; onPreview(); }}
+      onContextMenu={(event) => { if (!onPreview) return; event.preventDefault(); cancelPress(); pressed.current = false; onPreview(conversation.id); }}
       style={{ WebkitTouchCallout: "none", WebkitUserSelect: "none", userSelect: "none" }}
       title={impaired ? `${phone} - ${impaired === "silent" ? "WhatsApp conectado, mas sem receber" : "WhatsApp desconectado"}` : phone}
       className={`flex w-full items-stretch gap-3 pl-3 text-left transition ${impaired ? (selected ? "bg-rose-100 hover:bg-rose-100" : "bg-rose-50 hover:bg-rose-100") : `hover:bg-[#F5F6F6] ${selected ? "bg-[#F0F2F5]" : "bg-white"}`}`}
@@ -1105,7 +1110,7 @@ function ConversationRow({ conversation, currentUserId = "", selected, onSelect,
       </span>
     </button>
   );
-}
+});
 
 function Thread({ canManage, canEditRules, currentUserId, mySlots = [], onOpenClientSlot = null, detail, error, guideOpen, insertRequest, infoAlways, infoOpen, onBack, onChanged, onDeleted, onSetGuideOpen, onToggleInfo }) {
   const [assuming, setAssuming] = useState(false);
@@ -1126,6 +1131,7 @@ function Thread({ canManage, canEditRules, currentUserId, mySlots = [], onOpenCl
   const menuRef = useRef(null);
   const scrollRef = useRef(null);
   const lastCountRef = useRef(0);
+  const olderAnchorRef = useRef(null);
   const conversation = detail?.conversation;
   // Mensagens mais antigas que as 100 da página (2026-10-12): carregadas sob demanda e somadas às da página — a
   // atualização em tempo real troca a página, mas não perde estas.
@@ -1143,6 +1149,9 @@ function Thread({ canManage, canEditRules, currentUserId, mySlots = [], onOpenCl
     const id = conversation?.id;
     const first = messages[0];
     if (!id || !first?.at) return;
+    // Guarda a posição: as anteriores entram no topo sem a tela "pular" (restaurada no useLayoutEffect abaixo).
+    const element = scrollRef.current;
+    olderAnchorRef.current = element ? { firstId: first.id, height: element.scrollHeight, top: element.scrollTop } : null;
     setOlder((current) => ({ ...(current.id === id ? current : { id, messages: [], hasMore: null }), id, loading: true, error: "" }));
     try {
       const response = await fetch(`/api/admin/whatsapp-chat/conversations/${id}?before=${encodeURIComponent(first.at)}`, { cache: "no-store" });
@@ -1162,7 +1171,10 @@ function Thread({ canManage, canEditRules, currentUserId, mySlots = [], onOpenCl
   const phoneArrivedRef = useRef(null);
   phoneArrivedRef.current = () => { onChanged?.(); if (!crmHasMore) loadOlderFromCrm(); };
   // Foto/nome do contato para o player de áudio (estilo WhatsApp).
-  const audioContact = conversation ? { name: displayName(conversation), photoUrl: conversation.photoUrl || "" } : null;
+  const audioName = conversation ? displayName(conversation) : "";
+  const audioPhoto = conversation?.photoUrl || "";
+  // useMemo (2026-10-30, Chat leve): mesmo objeto entre renders para as bolhas (memo) não redesenharem à toa.
+  const audioContact = useMemo(() => (conversation ? { name: audioName, photoUrl: audioPhoto } : null), [Boolean(conversation), audioName, audioPhoto]);
   const byId = new Map(messages.map((message) => [message.id, message]));
   const byRefId = new Map(messages.filter((message) => message.refId).map((message) => [message.refId, message]));
   const showAssume = Boolean(conversation) && !conversation.privateLocked && !conversation.archivedReadOnly && conversation.assignedUserId !== currentUserId && conversation.status !== "finished";
@@ -1218,7 +1230,11 @@ function Thread({ canManage, canEditRules, currentUserId, mySlots = [], onOpenCl
   }
 
   // "Tentar de novo" (WA-37): mesma rota do compositor; a mensagem que falhou continua registrada (auditoria).
-  async function retryFailedMessage(message) {
+  // Referência estável para as bolhas (memo); sempre executa a versão atual de retryFailedMessageNow.
+  const retryRef = useRef(null);
+  retryRef.current = retryFailedMessageNow;
+  const retryFailedMessage = useCallback((message) => retryRef.current(message), []);
+  async function retryFailedMessageNow(message) {
     setReactionError("");
     try {
       const response = await fetch(`/api/admin/whatsapp-chat/conversations/${conversation.id}/messages`, {
@@ -1286,7 +1302,25 @@ function Thread({ canManage, canEditRules, currentUserId, mySlots = [], onOpenCl
 
   useEffect(() => {
     lastCountRef.current = "";
+    olderAnchorRef.current = null;
   }, [conversation?.id]);
+
+  // Mensagens anteriores entraram no topo: mantém na tela a mensagem que a pessoa estava lendo.
+  useLayoutEffect(() => {
+    const anchor = olderAnchorRef.current;
+    const element = scrollRef.current;
+    if (!anchor || !element || messages[0]?.id === anchor.firstId) return;
+    olderAnchorRef.current = null;
+    element.scrollTop = element.scrollHeight - anchor.height + anchor.top;
+  }, [messages]);
+
+  // Rolar até perto do topo carrega as anteriores (o botão "Ver mensagens anteriores" continua).
+  const olderLoading = Boolean(olderOwn?.loading);
+  const olderFailed = Boolean(olderOwn?.error);
+  const onThreadScroll = useCallback((event) => {
+    if (event.currentTarget.scrollTop > 120 || !crmHasMore || olderLoading || olderFailed) return;
+    loadOlderFromCrm();
+  }, [crmHasMore, olderLoading, olderFailed, loadOlderFromCrm]);
 
   async function changeStatus(status) {
     await fetch(`/api/admin/whatsapp-chat/conversations/${conversation.id}`, {
@@ -1582,7 +1616,7 @@ function Thread({ canManage, canEditRules, currentUserId, mySlots = [], onOpenCl
 
       {conversation.summaryAvailable && !conversation.privateLocked ? <ConversationSummaryBar key={conversation.id} conversation={conversation} /> : null}
 
-      <div ref={scrollRef} data-chat-wallpaper className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 pb-4 pt-2 sm:px-[6%]" style={CHAT_WALLPAPER_STYLE}>
+      <div ref={scrollRef} onScroll={onThreadScroll} data-chat-wallpaper className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 pb-4 pt-2 sm:px-[6%]" style={CHAT_WALLPAPER_STYLE}>
         {reactionError ? <p role="alert" className="mt-2 rounded-xl bg-red-50 p-2 text-xs font-bold text-red-700">{reactionError}</p> : null}
         {/* FUN-15o (dono, 2026-10-26): cliente transferido — conversa anterior (oficial e números do corretor anterior)
             no topo, SOMENTE LEITURA. Quem vê e o corte: servidor (getCooledChatHistory); a conversa aberta não se repete. */}
@@ -1881,7 +1915,8 @@ function LinkPreviewCard({ preview, outbound }) {
   );
 }
 
-function MessageBubble({ message, first = true, quoted, onOpenActions, contact = null, canInternal = false, transcription = false, onRetry = null }) {
+// memo (2026-10-30, Chat leve): digitar na busca/rolar a lista não redesenha as bolhas que não mudaram.
+const MessageBubble = memo(function MessageBubble({ message, first = true, quoted, onOpenActions, contact = null, canInternal = false, transcription = false, onRetry = null }) {
   const hasActions = message.internal ? canInternal : (message.canReply || message.canReact || message.canEdit || message.canDelete || Boolean(message.body) || canInternal);
   const trigger = useMessageActionTrigger((point) => onOpenActions({ message, ...point }), hasActions);
   const linkPreview = useLinkPreview(message);
@@ -2006,7 +2041,7 @@ function MessageBubble({ message, first = true, quoted, onOpenActions, contact =
       {hasActions && !outbound ? <MessageMoreButton onOpen={(point) => onOpenActions({ message, ...point })} /> : null}
     </div>
   );
-}
+});
 
 // "Tentar de novo" (WA-37): reenvia o MESMO texto pela rota de sempre (todas as travas do servidor valem de novo).
 function RetrySendButton({ message, onRetry }) {

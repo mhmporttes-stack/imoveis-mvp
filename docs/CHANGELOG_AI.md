@@ -11,6 +11,13 @@
 
 
 
+## 2026-10-30 — Chat leve no celular (crm-editor) — branch `chat-leve`, NÃO publicado
+
+- Pedido do dono: "Chat mais leve no celular: dividir a tela e carregar as mensagens aos poucos". Só desempenho, nenhuma função removida.
+- `components/WhatsappChat.jsx` já era dividido (lista `ConversationList`/`ConversationRow`, `Thread`, `Composer` com estado próprio — digitar não redesenhava a tela). Ganho real: `MessageBubble` e `ConversationRow` viraram `memo` com props estáveis (`selectRow`/`setPreviewId` recebendo o id, `audioContact` em `useMemo`, `retryFailedMessage` estável por ref) — digitar na busca/filtrar não redesenha mais as bolhas da conversa aberta nem as linhas iguais.
+- Mensagens: `MESSAGE_PAGE_SIZE` 100 → 50 (`lib/whatsapp-chat.js`; a API `?before=` e o formato de resposta já existiam). Rolar até perto do topo carrega as anteriores sozinho (o botão "Ver mensagens anteriores" continua) e a posição de leitura é mantida (`olderAnchorRef` + `useLayoutEffect`).
+- Imagens/miniaturas já tinham `loading="lazy"`; vídeos `preload="metadata"`. Virtualização NÃO feita (alturas variáveis + âncora de rolagem = risco).
+- Trava: `tests/chat-leve.test.mjs`.
 ## 2026-10-30 — Chat: trava "1ª mensagem = simulação" não volta no meio da conversa (caso Taislane/Jennyfer) (crm-editor) — branch `fix/chat-trava-simulacao-thais`, NÃO publicado
 
 - **Sintoma (dono):** cliente transferida à Jennyfer; ela conversou uma vez e depois o Chat recusou a 2ª mensagem ("a primeira mensagem tem que ser a simulação").
