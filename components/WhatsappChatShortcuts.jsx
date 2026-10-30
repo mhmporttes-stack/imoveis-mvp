@@ -156,6 +156,8 @@ export function ManageShortcuts({ onClose }) {
   const [label, setLabel] = useState("");
   const [body, setBody] = useState("");
   const [file, setFile] = useState(null);
+  // "Pacote da equipe" (WA-37): o gestor pode criar atalho só para a equipe dele; o do administrador geral é para todos.
+  const [teamOnly, setTeamOnly] = useState(false);
 
   const load = useCallback(async () => {
     const response = await fetch("/api/admin/whatsapp-chat/shortcuts?all=1", { cache: "no-store" });
@@ -178,6 +180,7 @@ export function ManageShortcuts({ onClose }) {
       form.append("body", body);
       form.append("channel", kind === "text" ? channel : "whatsapp");
       if (file) form.append("file", file);
+      if (teamOnly) form.append("teamOnly", "1");
       const response = await fetch("/api/admin/whatsapp-chat/shortcuts", { method: "POST", body: form });
       const data = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(data.error || "Não foi possível criar o atalho.");
@@ -225,7 +228,7 @@ export function ManageShortcuts({ onClose }) {
                 <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-blue-50 text-brand"><Icon className="h-4 w-4" /></span>
                 <span className="min-w-0 flex-1">
                   <span className="block truncate text-sm font-extrabold text-navy">{item.label}</span>
-                  <span className="block truncate text-[11px] font-bold text-muted">{KIND_LABEL[item.kind]}{item.mediaName ? ` · ${item.mediaName}` : ""}</span>
+                  <span className="block truncate text-[11px] font-bold text-muted">{KIND_LABEL[item.kind]}{item.mediaName ? ` · ${item.mediaName}` : ""}{item.teamOnly ? " · Só da equipe" : ""}</span>
                 </span>
                 {item.kind === "text" ? (
                   <select value={item.channel || "whatsapp"} onChange={(event) => changeChannel(item, event.target.value)} aria-label={`Onde aparece ${item.label}`} className="h-8 max-w-[9rem] shrink-0 rounded-lg border border-line bg-white px-1 text-[11px] font-bold text-navy">
@@ -250,6 +253,11 @@ export function ManageShortcuts({ onClose }) {
             </select>
           ) : null}
           {kind === "text" && channel !== "whatsapp" ? <p className="text-[11px] font-bold text-muted">No Marketplace o texto é colado na caixa para editar. Use [nome], [anúncio] e [corretor] para preencher sozinho. Até 2.000 caracteres.</p> : null}
+          {channel === "whatsapp" || kind !== "text" ? <p className="text-[11px] font-bold text-muted">No WhatsApp, [nome], [empreendimento] e [corretor] são preenchidos sozinhos no envio (sem o dado, a palavra some).</p> : null}
+          <label className="flex min-h-9 items-center gap-2 text-xs font-bold text-navy">
+            <input type="checkbox" checked={teamOnly} onChange={(event) => setTeamOnly(event.target.checked)} className="h-4 w-4" />
+            Só para a minha equipe (gestor) — atalho do administrador geral aparece para todos
+          </label>
           <textarea value={body} onChange={(event) => setBody(event.target.value)} rows={3} placeholder={kind === "text" ? "Texto da mensagem" : "Legenda / mensagem (opcional)"} className="w-full rounded-xl border border-line px-3 py-2 text-sm font-semibold text-navy outline-none focus:border-brand" />
           {needsFile ? (
             <input type="file" accept={kind === "image" ? "image/jpeg,image/png" : ".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt"} onChange={(event) => setFile(event.target.files?.[0] || null)} className="block w-full text-xs font-bold text-muted" />

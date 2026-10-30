@@ -16,6 +16,13 @@
 - MKT-3: `notifyMarketplaceInbound` na sincronização (só conversa já existente; nova segue no `new_client`); sino+push `marketplace_inbound` ao atribuído, sem atribuído admins+gestoras; 1 por conversa/10 min com reserva atômica `inbound_notified_at`. Exceção nova à AUT-9 registrada. Selo de não lidas: consulta única compartilhada a cada 20 s + ao voltar para o app.
 - MKT-4: botão "Levar para o WhatsApp" (cola texto, nunca envia); telefone detectado → "Criar/vincular cliente" (`linkMarketplaceConversationWhatsapp`, rota `whatsapp-link`) reaproveitando validação, Não contactar, cadastro do Marketplace e gravação da ficha; abre o Chat do WhatsApp.
 - Migration `20261030150000_marketplace_inbound_notice.sql` **não aplicada** (coluna + tipo no gatilho do sino). Teste `tests/marketplace-alerta-whatsapp.test.mjs`. Falha pré-existente em `tests/marketplace-chat-core.test.mjs` (lista `DIAGNOSTIC_KINDS` ganhou tipos `ig_*`), não tocada.
+## 2026-10-30 — Chat do WhatsApp: Aguardando nós com contador, Me lembre, atalhos com variáveis/equipe, Sugerir resposta, falha de envio clara (WA-37) (crm-editor) — branch `chat-wa-melhorias`, NÃO publicado
+
+- **Pedido do dono:** itens 1-4 e 6 do pacote do Chat (dados de 30 dias: 21% sem resposta, p90 > 17 h, falhas = serviço fora, queda de 7 h sem aviso).
+- **Reaproveitado:** aba "Aguardando nós" e selo de espera (WA-24), "/" de atalhos e botão de atalhos (mantido, pedido do dono), `whatsapp_chat_shortcuts`, Agenda (`calendar_activities` + cron de aviso), IA do resumo (`lib/ai-chat-assist.js` + `ai_usage_log`), lease/Central da WA-22, `insertRequest`/`setText` do compositor.
+- **Novo:** `lib/whatsapp-chat-assist-core.mjs`, `components/WhatsappChatAssistBar.jsx`, rota `suggest-reply`, `isWhatsappServiceDown`/`notifyWhatsappServiceUnreachable`, migration `20261030120000` (coluna `team_manager_id`, NÃO aplicada). Regra em `docs/BUSINESS_RULES.md` WA-37 e `.claude/rules/integracoes-externas.md`.
+- **Validação:** `pnpm build` ok; `node --test` whatsapp*/chat*/brand-assets/global-pollers/painel-velocidade-etapa3 + teste novo: só as 3 falhas que já existem em `origin/main` (`chat-reply-preview`, `whatsapp-conversation-per-session` stubs, `whatsapp-service-lease` runtime).
+- **Risco/observação:** resumo do Chat ganhou 1 leitura de 1 linha (`whatsapp_service_lease`) por consulta — sem polling novo. O pedido chamou a aba de "Sem resposta", mas esse nome já é a WA-23 (outra regra): mantido "Aguardando nós" — confirmar com o dono se quer renomear. "Tentar de novo" vale para texto; mídia segue com o "Tentar de novo" da fila de anexos.
 
 ## 2026-10-30 — Henry: aperte para falar começa no keydown e música audível enquanto ele fala (crm-editor) — branch `fix/henry-ptt-musica`, NÃO publicado
 

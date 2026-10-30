@@ -16,7 +16,7 @@ export async function GET(request) {
     const params = new URL(request.url).searchParams;
     const all = params.get("all") === "1";
     const chat = all ? "" : params.get("chat") === "marketplace" ? "marketplace" : "whatsapp";
-    return NextResponse.json({ shortcuts: await listChatShortcuts({ includeInactive: all, chat }) });
+    return NextResponse.json({ shortcuts: await listChatShortcuts({ includeInactive: all, chat }, auth) });
   } catch (error) {
     return chatErrorResponse(error);
   }
@@ -34,6 +34,7 @@ export async function POST(request) {
       kind: String(form.get("kind") || ""),
       body: String(form.get("body") || ""),
       channel: String(form.get("channel") || "whatsapp"),
+      teamOnly: form.get("teamOnly") === "1",
       file: file && typeof file !== "string" ? { buffer: Buffer.from(await file.arrayBuffer()), mimeType: file.type, fileName: file.name } : null
     }, auth);
     return NextResponse.json({ shortcut }, { status: 201 });

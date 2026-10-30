@@ -63,6 +63,8 @@ import StatusReasonDialog from "@/components/clients/StatusReasonDialog";
 import CooledChatHistory from "@/components/cooled/CooledChatHistory";
 import { EmojiPicker, MessageActionsMenu, useMessageActionTrigger } from "@/components/WhatsappMessageActions";
 import { useWhatsappChatSummary } from "@/components/useWhatsappChatSummary";
+import WhatsappChatAssistBar from "@/components/WhatsappChatAssistBar";
+import { isServiceCommError } from "@/lib/whatsapp-chat-assist-core.mjs";
 import { forgetChatDetail, readChatView, restoreChatView, saveChatDetail, saveChatView } from "@/components/chat-view-cache";
 import DeviceCacheRefreshing from "@/components/DeviceCacheRefreshing";
 import { CLIENT_STATUS, CLIENT_STATUS_OPTIONS } from "@/lib/client-status";
@@ -606,6 +608,8 @@ export default function WhatsappChat({ canManage = false, canEditRules = false, 
   return (
     <section className={`container-page scroll-mt-[72px] ${appMode ? "chat-app-root" : ""}`} ref={sectionRef}>
       <DeviceCacheRefreshing show={deviceRestored} />
+      {/* WA-37 (dono, 2026-10-30): serviço do WhatsApp individual sem renovar o lease (mesma régua do alerta WA-22). */}
+      {summary.serviceDown ? <p role="alert" className="mb-3 max-md:mx-3 rounded-2xl border border-red-200 bg-red-50 px-4 py-2.5 text-sm font-extrabold text-red-700">WhatsApp fora do ar — avisamos quando voltar. Mensagens não enviadas podem ser reenviadas com “Tentar de novo”.</p> : null}
       {openError ? <p className="mb-3 max-md:mx-3 rounded-2xl border border-red-100 bg-red-50 px-4 py-3 text-sm font-bold text-red-700">{openError}</p> : null}
       {contactWarning ? (
         <p role="status" className="mb-3 max-md:mx-3 flex items-start justify-between gap-3 rounded-2xl border border-amber-100 bg-amber-50 px-4 py-2.5 text-xs font-bold text-amber-800">
@@ -625,7 +629,7 @@ export default function WhatsappChat({ canManage = false, canEditRules = false, 
             filter={filter}
             loading={listLoading}
             onFilter={setFilter}
-            filterLabels={Object.fromEntries(mySlots.filter((item) => item.label).map((item) => [`slot${item.slot}`, `Número ${item.slot} · ${item.label}`]))}
+            filterLabels={{ ...Object.fromEntries(mySlots.filter((item) => item.label).map((item) => [`slot${item.slot}`, `Número ${item.slot} · ${item.label}`])), ...(summary.waitingUs > 0 ? { waiting_us: `Aguardando nós (${summary.waitingUs})` } : {}) }}
             clientStatus={clientStatus}
             onClientStatus={setClientStatus}
             canSeeArchived={canSeeArchived}
@@ -731,7 +735,8 @@ function isSameConversation(item, id) {
 
 // Página cheia = pode haver mais. Filtros de espera são filtrados depois no servidor (página pode vir menor).
 function listPageIsFull(count, filter) {
-  return count >= 100 || (["awaiting", "waiting_us", "silent", "private_unseen"].includes(filter) && count > 0);
+  if (filter === "waiting_us") return false; // WA-37: página única, quem espera há mais tempo no topo.
+  return count >= 100 || (["awaiting", "silent", "private_unseen"].includes(filter) && count > 0);
 }
 
 function ConversationList({ className, conversations, error, filter, filterLabels = {}, loading, onFilter, onSearch, onSelect, search, selectedId, totalUnread, clientStatus = "", onClientStatus = () => {}, canSeeArchived = false, currentUserId = "", mineScope = null, hasMore = false, loadingMore = false, onLoadMore = () => {} }) {
@@ -1212,6 +1217,22 @@ function Thread({ canManage, canEditRules, currentUserId, mySlots = [], onOpenCl
     }
   }
 
+  // "Tentar de novo" (WA-37): mesma rota do compositor; a mensagem que falhou continua registrada (auditoria).
+  async function retryFailedMessage(message) {
+    setReactionError("");
+    try {
+      const response = await fetch(`/api/admin/whatsapp-chat/conversations/${conversation.id}/messages`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: message.body })
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.error || "Não foi possível enviar a mensagem.");
+      onChanged();
+    } catch (failure) {
+      setReactionError(isServiceCommError(failure.message) ? "WhatsApp fora do ar — avisamos quando voltar. Tente de novo em alguns minutos." : failure.message);
+    }
+  }
+
   // Editar e apagar para todos: mesma API nos 3 ambientes; a permissão é
   // conferida de novo no servidor.
   async function deleteForEveryone(message) {
@@ -1588,7 +1609,7 @@ function Thread({ canManage, canEditRules, currentUserId, mySlots = [], onOpenCl
             <span className="rounded-lg bg-white px-3 py-1 text-xs font-semibold text-[#54656F] shadow-[0_1px_0.5px_rgba(11,20,26,0.13)]">{row.label}</span>
           </div>
         ) : (
-          <MessageBubble key={row.key} message={row.message} first={row.first} quoted={row.message.internalReplyTo ? byId.get(row.message.internalReplyTo) : byRefId.get(row.message.replyToMessageId)} onOpenActions={setActionTarget} contact={audioContact} canInternal={Boolean(conversation.canInternal)} transcription={Boolean(conversation.transcriptionAvailable)} />
+          <MessageBubble key={row.key} message={row.message} first={row.first} quoted={row.message.internalReplyTo ? byId.get(row.message.internalReplyTo) : byRefId.get(row.message.replyToMessageId)} onOpenActions={setActionTarget} contact={audioContact} canInternal={Boolean(conversation.canInternal)} transcription={Boolean(conversation.transcriptionAvailable)} onRetry={conversation.archivedReadOnly || conversation.isGroup ? null : retryFailedMessage} />
         )))}
         {!rows.length ? <p className="mx-auto mt-8 w-fit rounded-lg bg-white/90 px-4 py-2 text-center text-sm font-semibold text-[#54656F]">{conversation.privateLocked ? "Conversa particular. Para usar este contato no CRM, tire-o de Particular." : "Nenhuma mensagem nesta conversa."}</p> : null}
       </div>
@@ -1860,7 +1881,7 @@ function LinkPreviewCard({ preview, outbound }) {
   );
 }
 
-function MessageBubble({ message, first = true, quoted, onOpenActions, contact = null, canInternal = false, transcription = false }) {
+function MessageBubble({ message, first = true, quoted, onOpenActions, contact = null, canInternal = false, transcription = false, onRetry = null }) {
   const hasActions = message.internal ? canInternal : (message.canReply || message.canReact || message.canEdit || message.canDelete || Boolean(message.body) || canInternal);
   const trigger = useMessageActionTrigger((point) => onOpenActions({ message, ...point }), hasActions);
   const linkPreview = useLinkPreview(message);
@@ -1978,11 +1999,22 @@ function MessageBubble({ message, first = true, quoted, onOpenActions, contact =
           <p className="mt-1 flex items-start gap-1 text-[11px] font-bold text-red-700">
             <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
             <span>Não enviada{message.errorMessage ? ` — ${message.errorMessage}` : ""}{message.errorCode ? ` (código ${message.errorCode})` : ""}</span>
+            {onRetry && message.type === "text" && message.senderType === "user" && message.body ? <RetrySendButton message={message} onRetry={onRetry} /> : null}
           </p>
         ) : null}
       </div>
       {hasActions && !outbound ? <MessageMoreButton onOpen={(point) => onOpenActions({ message, ...point })} /> : null}
     </div>
+  );
+}
+
+// "Tentar de novo" (WA-37): reenvia o MESMO texto pela rota de sempre (todas as travas do servidor valem de novo).
+function RetrySendButton({ message, onRetry }) {
+  const [busy, setBusy] = useState(false);
+  return (
+    <button type="button" disabled={busy} onClick={async () => { setBusy(true); try { await onRetry(message); } finally { setBusy(false); } }} className="ml-1 shrink-0 underline disabled:opacity-50">
+      {busy ? "Enviando…" : "Tentar de novo"}
+    </button>
   );
 }
 
@@ -2939,7 +2971,8 @@ function Composer({ canManage, conversation, insertRequest = null, internalReque
 
   return (
     <div className="border-t border-[#E9EDEF] bg-[#F6F5F3] px-2 pb-2 pt-2 sm:px-3" onDragOver={(event) => { if (event.dataTransfer?.types?.includes("Files")) event.preventDefault(); }} onDrop={dropFiles}>
-      {shownError ? <p className="mb-2 rounded-xl border border-red-100 bg-red-50 px-3 py-2 text-xs font-bold text-red-700">{shownError}</p> : null}
+      {shownError ? <p className="mb-2 rounded-xl border border-red-100 bg-red-50 px-3 py-2 text-xs font-bold text-red-700">{isServiceCommError(shownError) ? "WhatsApp fora do ar — avisamos quando voltar. A mensagem não saiu: toque em “Tentar de novo” nela." : shownError}</p> : null}
+      {!editTarget && !internalMode && !conversation.archivedReadOnly ? <WhatsappChatAssistBar conversation={conversation} disabled={sending} onSuggestion={(value) => { setText(value); textareaRef.current?.focus(); }} /> : null}
       {replyTo ? <div className="mb-2 flex items-center gap-2 rounded-xl border-l-2 border-brand bg-blue-50 px-3 py-2 text-xs text-navy"><Reply className="h-4 w-4 shrink-0" /><span className="min-w-0 flex-1 truncate">Respondendo: {replyTo.body || MEDIA_LABELS[replyTo.type] || "Mensagem"}</span><button type="button" onClick={onClearReply} aria-label="Cancelar resposta" className="grid h-8 w-8 place-items-center"><X className="h-4 w-4" /></button></div> : null}
       {editTarget ? <div className="mb-2 flex items-center gap-2 rounded-xl border-l-2 border-amber-500 bg-amber-50 px-3 py-2 text-xs text-navy"><Pencil className="h-4 w-4 shrink-0 text-amber-600" /><span className="min-w-0 flex-1 truncate">Editando: {editTarget.body}</span><button type="button" onClick={() => { onClearEdit(); setText(""); }} aria-label="Cancelar edição" className="grid h-8 w-8 place-items-center"><X className="h-4 w-4" /></button></div> : null}
       {progress ? <p className="mb-2 flex items-center gap-2 px-1 text-xs font-bold text-brand"><Loader2 className="h-3.5 w-3.5 animate-spin" />{progress}</p> : null}
