@@ -23,6 +23,7 @@ export async function GET(request) {
     return NextResponse.json({ report });
   } catch (error) {
     console.error("Erro ao carregar relatorio diario:", error);
-    return NextResponse.json({ error: formatDailyReportError(error) }, { status: 400 });
+    // Corretor fora do escopo de quem pede = 403 (DailyReportScopeError); o resto segue 400.
+    return NextResponse.json({ error: formatDailyReportError(error) }, { status: error?.status === 403 ? 403 : 400 });
   }
 }

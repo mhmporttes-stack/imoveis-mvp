@@ -140,6 +140,10 @@ export default function DailyReportDashboard({
   const funnel = report?.funnel || [];
   const timeline = report?.timeline || [];
   const brokerBreakdown = report?.brokerBreakdown || [];
+  // Enquanto busca (troca de período/corretor) nenhum número do filtro anterior fica visível.
+  const display = (value) => (loading ? "…" : report ? formatInteger(value) : "—");
+  const dataClass = loading ? "opacity-50 transition-opacity" : "transition-opacity";
+  const selectedBrokerNames = brokerOptions.filter((broker) => selectedBrokerIds.includes(broker.id)).map((broker) => broker.name);
 
   async function loadReport(signal) {
     setLoading(true);
@@ -159,6 +163,8 @@ export default function DailyReportDashboard({
       setReport(payload.report);
     } catch (requestError) {
       if (requestError.name !== "AbortError") {
+        // Falhou: não deixa na tela os números do filtro anterior como se fossem deste.
+        setReport(null);
         setError(requestError.message || "Não foi possível carregar o relatório.");
       }
     } finally {
@@ -183,6 +189,11 @@ export default function DailyReportDashboard({
             <h2 className={`mt-2 text-3xl font-extrabold md:text-4xl ${presentationMode ? "text-white" : "text-navy"}`}>
               {report?.range?.title || "Relatório diário"}
             </h2>
+            {canFilterBrokers && selectedBrokerNames.length > 0 && (
+              <p className={`mt-1 text-sm font-extrabold ${presentationMode ? "text-blue-100" : "text-brand"}`}>
+                Corretor: {selectedBrokerNames.join(", ")}
+              </p>
+            )}
             <p className={`mt-2 max-w-3xl text-base ${presentationMode ? "text-white/75" : "text-slate-600"}`}>
               Acompanhe cadastros, documentação, aprovações e conversões com dados reais do Supabase.
             </p>
@@ -303,10 +314,10 @@ export default function DailyReportDashboard({
         </div>
       )}
 
-      <div className="grid gap-5 xl:grid-cols-[1.05fr_1.95fr]">
+      <div className="grid gap-5 xl:grid-cols-[1.05fr_1.95fr]" aria-busy={loading}>
         <article className="flex min-h-[260px] items-center justify-center rounded-panel border border-brand/15 bg-gradient-to-br from-navy to-[#184a84] p-6 text-center text-white shadow-soft md:p-8">
           <div>
-            <h3 className="text-7xl font-black leading-none md:text-8xl">{formatInteger(metrics.newRegistrations)}</h3>
+            <h3 className="text-7xl font-black leading-none md:text-8xl">{display(metrics.newRegistrations)}</h3>
             <p className="mt-5 text-sm font-extrabold uppercase tracking-[0.35em] text-white/80 md:text-base">
               Cadastros realizados
             </p>
@@ -315,13 +326,13 @@ export default function DailyReportDashboard({
 
         <div className="grid gap-4 sm:grid-cols-2">
           {METRIC_CARDS.map((metric) => (
-            <MetricCard key={metric.key} metric={metric} value={metrics[metric.key]} />
+            <MetricCard key={metric.key} metric={metric} value={display(metrics[metric.key])} />
           ))}
-          <MetricCard metric={SALES_CARD} value={metrics.salesCompleted} className="sm:col-span-2" />
+          <MetricCard metric={SALES_CARD} value={display(metrics.salesCompleted)} className="sm:col-span-2" />
         </div>
       </div>
 
-      <div className="grid gap-5 lg:grid-cols-[1.2fr_0.8fr]">
+      <div className={`grid gap-5 lg:grid-cols-[1.2fr_0.8fr] ${dataClass}`} aria-busy={loading}>
         <article className="rounded-panel border border-navy/10 bg-white p-5 shadow-soft md:p-7">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
@@ -342,14 +353,14 @@ export default function DailyReportDashboard({
                   <div className="flex items-center justify-between gap-3 text-sm">
                     <span className="font-extrabold text-navy">{item.label}</span>
                     <span className="font-extrabold text-brand">
-                      {formatInteger(item.value)}
-                      {conversion !== null && <span className="ml-2 text-slate-500">({formatPercent(conversion)})</span>}
+                      {display(item.value)}
+                      {!loading && conversion !== null && <span className="ml-2 text-slate-500">({formatPercent(conversion)})</span>}
                     </span>
                   </div>
                   <div className="h-3 overflow-hidden rounded-full bg-blue-50">
                     <div
                       className="h-full rounded-full bg-gradient-to-r from-navy to-brand transition-[width] motion-reduce:transition-none"
-                      style={{ width: `${Math.max(6, (item.value / max) * 100)}%` }}
+                      style={{ width: `${loading ? 6 : Math.max(6, (item.value / max) * 100)}%` }}
                     />
                   </div>
                 </div>
@@ -362,15 +373,15 @@ export default function DailyReportDashboard({
           <p className="text-xs font-extrabold uppercase tracking-[0.35em] text-brand">Conversões</p>
           <h3 className="mt-2 text-2xl font-extrabold text-navy">Taxas principais</h3>
           <div className="mt-6 space-y-3">
-            <ConversionRow label="Cadastro para documentação" value={report?.conversions?.documentation} />
-            <ConversionRow label="Documentação para análise" value={report?.conversions?.approvalSubmission} />
-            <ConversionRow label="Análise para aprovação" value={report?.conversions?.approval} />
+            <ConversionRow label="Cadastro para documentação" value={report?.conversions?.documentation} loading={loading} />
+            <ConversionRow label="Documentação para análise" value={report?.conversions?.approvalSubmission} loading={loading} />
+            <ConversionRow label="Análise para aprovação" value={report?.conversions?.approval} loading={loading} />
           </div>
         </article>
       </div>
 
       {!presentationMode && brokerBreakdown.length > 1 && (
-        <article className="overflow-hidden rounded-panel border border-navy/10 bg-white shadow-soft">
+        <article className={`overflow-hidden rounded-panel border border-navy/10 bg-white shadow-soft ${dataClass}`} aria-busy={loading}>
           <div className="flex items-center justify-between gap-4 p-5 md:p-7 md:pb-0">
             <div>
               <p className="text-xs font-extrabold uppercase tracking-[0.35em] text-brand">Detalhamento</p>
@@ -388,11 +399,11 @@ export default function DailyReportDashboard({
                 {brokerBreakdown.map((row) => (
                   <tr key={row.brokerId} className="border-t border-line text-sm font-bold text-navy">
                     <Td>{row.brokerName}</Td>
-                    <Td>{formatInteger(row.metrics.clientsToday)}</Td>
-                    <Td>{formatInteger(row.metrics.awaitingAction)}</Td>
-                    <Td>{formatInteger(row.metrics.activitiesToday)}</Td>
-                    <Td>{formatInteger(row.metrics.overdueActivities)}</Td>
-                    <Td>{formatInteger(row.metrics.completedActivities)}</Td>
+                    <Td>{display(row.metrics.clientsToday)}</Td>
+                    <Td>{display(row.metrics.awaitingAction)}</Td>
+                    <Td>{display(row.metrics.activitiesToday)}</Td>
+                    <Td>{display(row.metrics.overdueActivities)}</Td>
+                    <Td>{display(row.metrics.completedActivities)}</Td>
                   </tr>
                 ))}
               </tbody>
@@ -402,7 +413,7 @@ export default function DailyReportDashboard({
       )}
 
       {!presentationMode && (
-        <article className="rounded-panel border border-navy/10 bg-white p-5 shadow-soft md:p-7">
+        <article className={`rounded-panel border border-navy/10 bg-white p-5 shadow-soft md:p-7 ${dataClass}`} aria-busy={loading}>
           <div className="flex items-center justify-between gap-4">
             <div>
               <p className="text-xs font-extrabold uppercase tracking-[0.35em] text-brand">Linha do tempo</p>
@@ -412,13 +423,17 @@ export default function DailyReportDashboard({
           </div>
 
           <div className="mt-6 space-y-3">
-            {!timeline.length && (
+            {loading && (
+              <p className="rounded-2xl bg-blue-50 p-4 text-sm font-bold text-slate-600">Carregando…</p>
+            )}
+
+            {!loading && !timeline.length && (
               <p className="rounded-2xl bg-blue-50 p-4 text-sm font-bold text-slate-600">
                 Nenhum movimento encontrado neste período.
               </p>
             )}
 
-            {timeline.map((event) => (
+            {!loading && timeline.map((event) => (
               <div key={event.id} className="flex flex-col gap-2 rounded-2xl border border-navy/10 p-4 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                   <p className="font-extrabold text-navy">{event.title}</p>
@@ -450,7 +465,7 @@ function MetricCard({ metric, value, className = "" }) {
           <Icon size={20} />
         </span>
       </div>
-      <p className="mt-5 text-4xl font-extrabold text-navy">{formatInteger(value)}</p>
+      <p className="mt-5 text-4xl font-extrabold text-navy">{value}</p>
     </article>
   );
 }
@@ -469,15 +484,15 @@ function DateField({ label, value, onChange }) {
   );
 }
 
-function ConversionRow({ label, value }) {
-  const percentage = value === null || value === undefined ? null : value;
+function ConversionRow({ label, value, loading = false }) {
+  const percentage = loading || value === null || value === undefined ? null : value;
   const improved = percentage !== null && percentage >= 0.5;
 
   return (
     <div className="flex items-center justify-between gap-4 rounded-2xl border border-navy/10 p-4">
       <span className="text-sm font-extrabold text-navy">{label}</span>
       <span className="inline-flex items-center gap-2 text-sm font-extrabold text-brand">
-        {percentage === null ? "Sem base" : formatPercent(percentage)}
+        {loading ? "…" : percentage === null ? "Sem base" : formatPercent(percentage)}
         {percentage !== null && (improved ? <ArrowUp size={16} /> : <ArrowDown size={16} />)}
       </span>
     </div>
