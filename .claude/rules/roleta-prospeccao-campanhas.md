@@ -76,7 +76,7 @@ Dois fluxos distintos, não confundir:
 
 **[REGRA OFICIAL DE NEGÓCIO — dono, 2026-10-29] ROL-2k Roleta só do Marketplace.** "Adicione a Caroline Mayumi na roleta dos clientes do Marketplace seguindo as mesmas regras dos corretores" — escolha do dono: SÓ no Marketplace. Opção por pessoa `admin_users.marketplace_roulette_only` ("Recebe só clientes do Marketplace", edição em Gestão › Corretores, rota `PATCH /api/admin-users/[id]` com `requireBrokerManagementApi`; gestor só edita corretor/associado). Com `lead_distribution_enabled = false` a pessoa entra SÓ no sorteio do Marketplace (`distribute` → `assignRoundRobinLead({ origin: "marketplace" })` → `pick_round_robin_broker(..., distribution_origin)`), com todas as regras (on-line, ROL-2d/2e/2f/2h/2j); nunca em leads novos, Chat, anúncio, fila de espera comum, Fluxos, Messenger, reserva `assign_round_robin_lead` nem clientes frios (`listOnlineRouletteBrokerIds` inalterado). Origem nova só por decisão do dono. Migration `20261029120000` (NÃO aplicada; sem ela tudo segue como antes). Testes `tests/roleta-so-marketplace.test.mjs`.
 
-**Marketplace do Facebook (MKT-2 a MKT-2n):** regras em `.claude/rules/marketplace-chat.md`.
+**Marketplace do Facebook (MKT-2 a MKT-2n, MKT-3 alerta de mensagem nova e MKT-4 "Levar para o WhatsApp", dono 2026-10-30):** regras em `.claude/rules/marketplace-chat.md`.
 
 
 **[REGRA OFICIAL DE NEGÓCIO — dono, 2026-10-08] Não atendeu em 5 min e ninguém mais on-line → fila de espera.** O cliente sai de quem não atendeu (ainda Aguardando simulação, sem WhatsApp/Chat — quem está conversando fica com ele) e fica com o dono na fila de espera; o próximo corretor on-line o recebe, nunca quem o perdeu. A entrega pela fila reinicia o prazo de 5 min. Ver `docs/BUSINESS_RULES.md` ROL-4a.

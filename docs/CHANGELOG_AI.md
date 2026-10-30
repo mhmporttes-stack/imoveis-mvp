@@ -11,6 +11,12 @@
 
 
 
+## 2026-10-30 — Chat Marketplace: alerta de mensagem nova (MKT-3) e "Levar para o WhatsApp" (MKT-4) (crm-editor) — branch `chat-mkt-melhorias`, NÃO publicado
+- Motivo (dono): 1ª resposta no Marketplace p50 ≈ 8 h contra ≈ 3 min no WhatsApp (44 conversas/30 dias).
+- MKT-3: `notifyMarketplaceInbound` na sincronização (só conversa já existente; nova segue no `new_client`); sino+push `marketplace_inbound` ao atribuído, sem atribuído admins+gestoras; 1 por conversa/10 min com reserva atômica `inbound_notified_at`. Exceção nova à AUT-9 registrada. Selo de não lidas: consulta única compartilhada a cada 20 s + ao voltar para o app.
+- MKT-4: botão "Levar para o WhatsApp" (cola texto, nunca envia); telefone detectado → "Criar/vincular cliente" (`linkMarketplaceConversationWhatsapp`, rota `whatsapp-link`) reaproveitando validação, Não contactar, cadastro do Marketplace e gravação da ficha; abre o Chat do WhatsApp.
+- Migration `20261030150000_marketplace_inbound_notice.sql` **não aplicada** (coluna + tipo no gatilho do sino). Teste `tests/marketplace-alerta-whatsapp.test.mjs`. Falha pré-existente em `tests/marketplace-chat-core.test.mjs` (lista `DIAGNOSTIC_KINDS` ganhou tipos `ig_*`), não tocada.
+
 ## 2026-10-30 — Henry: aperte para falar começa no keydown e música audível enquanto ele fala (crm-editor) — branch `fix/henry-ptt-musica`, NÃO publicado
 
 - **Pedido do dono:** (1) segurando Enter ele só entendia o final da frase; (2) a música ficava praticamente muda quando o Henry falava.

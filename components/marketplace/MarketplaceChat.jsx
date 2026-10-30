@@ -14,7 +14,8 @@ import { readViewerData, restoreViewerData, saveViewerData } from "@/components/
 import DeviceCacheRefreshing from "@/components/DeviceCacheRefreshing";
 import { MARKETPLACE_LIST_CACHE_PREFIX, MARKETPLACE_THREADS_CACHE_NAME } from "@/components/panel-cache-names";
 import { ManageShortcuts } from "@/components/WhatsappChatShortcuts";
-import { MARKETPLACE_MEDIA_ACCEPT, MARKETPLACE_MEDIA_MAX_BYTES, MARKETPLACE_MEDIA_MIN_VERSION, MAX_INTERNAL_LENGTH, MAX_OUTBOUND_LENGTH, fillMarketplaceShortcut, marketplaceOfficialWhatsappText, normalizeMarketplaceSearch, supportsMarketplaceMedia } from "@/lib/marketplace-chat-core.mjs";
+import { MARKETPLACE_MEDIA_ACCEPT, MARKETPLACE_MEDIA_MAX_BYTES, MARKETPLACE_MEDIA_MIN_VERSION, MAX_INTERNAL_LENGTH, MAX_OUTBOUND_LENGTH, detectClientPhone, fillMarketplaceShortcut, marketplaceOfficialWhatsappText, marketplaceWhatsappInviteText, normalizeMarketplaceSearch, supportsMarketplaceMedia } from "@/lib/marketplace-chat-core.mjs";
+import { DO_NOT_CONTACT_STATUS } from "@/lib/do-not-contact-core.mjs";
 import ChatAttachmentTray, { filesFromTransfer, prepareImageFile, useChatAttachments } from "@/components/ChatAttachmentTray";
 import { sendAttachmentsInOrder, sendingProgressLabel } from "@/lib/chat-attachments-core.mjs";
 import { toWhatsAppDigits, formatBrazilianPhone } from "@/lib/phone-utils";
@@ -314,6 +315,42 @@ function ClientWhatsappBar({ client, onSaved, onError }) {
   );
 }
 
+// "Criar/vincular cliente" (MKT-4, dono 2026-10-30): o cliente mandou um telefone na conversa. O corretor confere nome e
+// número; o servidor (/whatsapp-link → linkMarketplaceConversationWhatsapp) cria o cliente se faltar, grava o WhatsApp pelo
+// mesmo caminho da ficha e recusa Não contactar. Depois abre a conversa no Chat do WhatsApp. Nunca envia mensagem.
+function DetectedPhoneOffer({ conversation, phone, onDone, onError }) {
+  const router = useRouter();
+  const [name, setName] = useState(conversation.client?.name || conversation.contactName || "");
+  const [value, setValue] = useState(formatBrazilianPhone(phone) || phone);
+  const [busy, setBusy] = useState(false);
+  async function link(event) {
+    event.preventDefault();
+    if (busy) return;
+    setBusy(true);
+    onError("");
+    try {
+      const result = await callApi(`/api/admin/marketplace-chat/conversations/${conversation.id}/whatsapp-link`, { method: "POST", body: JSON.stringify({ name, phone: value }) });
+      onDone();
+      router.push(`/admin/chat?client=${encodeURIComponent(result.clientId)}`);
+    } catch (linkError) {
+      onError(linkError.message);
+      setBusy(false);
+    }
+  }
+  return (
+    <form onSubmit={link} data-detected-phone className="flex shrink-0 flex-wrap items-center gap-2 border-b border-line bg-info-soft px-3 py-2">
+      <p className="w-full text-xs font-semibold text-ink">O cliente mandou um telefone. {conversation.clientId ? "Vincular ao cliente" : "Criar o cliente"} e abrir no WhatsApp?</p>
+      {!conversation.clientId ? (
+        <input aria-label="Nome do cliente" className={`${inputClasses} min-w-0 flex-1`} value={name} onChange={(event) => setName(event.target.value)} placeholder="Nome do cliente" />
+      ) : null}
+      <input aria-label="WhatsApp do cliente" type="tel" className={`${inputClasses} min-w-0 flex-1`} value={value} onChange={(event) => setValue(event.target.value)} />
+      <Button size="sm" type="submit" loading={busy} disabled={!value.trim() || (!conversation.clientId && name.trim().length < 2)}>
+        <Phone className="h-4 w-4" aria-hidden="true" /> {conversation.clientId ? "Vincular cliente" : "Criar cliente"}
+      </Button>
+    </form>
+  );
+}
+
 export default function MarketplaceChat({ canEditSettings = false, canApprove = false, canAssign = false, canManageShortcuts = false, viewerName = "", team = [], viewerKey = "", initialConversationId = "" }) {
   const [list, setList] = useState(() => readViewerData(viewerKey, `${MARKETPLACE_LIST_CACHE_PREFIX}${listQuery("all", "")}`)?.data || { ready: true, conversations: [], filters: [] });
   // Lista guardada NO APARELHO (app aberto do zero, dono 2026-10-26 — components/device-view-cache.js): aparece logo depois
@@ -589,7 +626,16 @@ export default function MarketplaceChat({ canEditSettings = false, canApprove = 
     }
   }
 
+  // "Levar para o WhatsApp" (MKT-4, dono 2026-10-30): cola o pedido do telefone na caixa — o corretor revisa e envia.
+  function pasteWhatsappInvite() {
+    pasteIntoComposer(marketplaceWhatsappInviteText({ contactName: thread?.conversation?.contactName }));
+  }
+
   const conversation = thread?.conversation;
+  // Telefone mandado pelo cliente (MKT-4): oferta "Criar/vincular cliente" só se o cliente ainda não tem WhatsApp e não é
+  // Não contactar (o servidor confere de novo).
+  const detectedPhone = conversation && !conversation.client?.phoneNormalized && conversation.client?.status !== DO_NOT_CONTACT_STATUS
+    && !(conversation.clientId && !conversation.client) ? detectClientPhone(thread?.messages || []) : "";
   // Busca digitada ainda sem a resposta do servidor (debounce + ida ao servidor): "Buscando…", sem estado vazio falso.
   const searchTerm = normalizeMarketplaceSearch(searchText);
   const searchPending = searchTerm !== (list.search || "");
@@ -709,6 +755,10 @@ export default function MarketplaceChat({ canEditSettings = false, canApprove = 
                 ) : (
                   <Button size="sm" variant="secondary" className="shrink-0" onClick={addToCrm}>Adicionar ao CRM</Button>
                 )}
+                {/* "Levar para o WhatsApp" (MKT-4): cola o pedido do telefone na caixa; nunca envia sozinho. */}
+                {!conversation.client?.phoneNormalized && conversation.client?.status !== DO_NOT_CONTACT_STATUS ? (
+                  <Button size="sm" variant="secondary" className="shrink-0" onClick={pasteWhatsappInvite} data-whatsapp-invite>Levar para o WhatsApp</Button>
+                ) : null}
                 {conversation.client ? <ClientWhatsappBar key={conversation.client.id} client={conversation.client} onSaved={() => loadThread(selectedId)} onError={setError} /> : null}
               </div>
             </div>
@@ -719,6 +769,7 @@ export default function MarketplaceChat({ canEditSettings = false, canApprove = 
                 Mensagem não entregue — reenviando automaticamente
               </p>
             ) : null}
+            {detectedPhone ? <DetectedPhoneOffer key={`${conversation.id}:${detectedPhone}`} conversation={conversation} phone={detectedPhone} onDone={() => loadThread(selectedId)} onError={setError} /> : null}
             {isMessenger(conversation) && conversation.messengerWindow ? (
               conversation.messengerWindow.open ? (
                 <p role="status" data-messenger-window className="shrink-0 border-b border-line px-3 py-1.5 text-xs text-muted">
