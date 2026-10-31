@@ -34,7 +34,9 @@ test("demais casos continuam só respondendo", () => {
 test("a exceção entra na trava do envio e no estado da tela (sem o 'enviar pelo celular')", () => {
   const chat = read("lib/whatsapp-chat.js");
   assert.match(chat, /if \(!inbound\?\.length && !\(await distributionFirstMessageAllowed\(conversation, sessionUserId\)\)\)/);
-  assert.match(chat, /state\.awaitingCustomer = !\(anyInbound \|\| \[\]\)\.length && !\(await distributionFirstMessageAllowed\(conversation, awaitingOwner\)\);/);
+  assert.match(chat, /\(anyInbound \|\| \[\]\)\.length \? \{ allowed: true, disconnectedOnly: false \} : await firstMessageAccess\(conversation, awaitingOwner\)/);
+  assert.match(chat, /state\.awaitingCustomer = !firstMessage\.allowed;/);
+  assert.match(chat, /return \(await firstMessageAccess\(conversation, sessionOwnerId\)\)\.allowed;/);
   // Proteção mantida para o resto.
   assert.match(chat, /code: "CHAT_REPLY_ONLY"/);
   assert.match(chat, /code: "CHAT_HOURLY_CAP"/);

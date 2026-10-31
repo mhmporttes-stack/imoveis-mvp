@@ -65,6 +65,7 @@ import { EmojiPicker, MessageActionsMenu, useMessageActionTrigger } from "@/comp
 import { useWhatsappChatSummary } from "@/components/useWhatsappChatSummary";
 import WhatsappChatAssistBar from "@/components/WhatsappChatAssistBar";
 import { isServiceCommError } from "@/lib/whatsapp-chat-assist-core.mjs";
+import { awaitingCustomerNotice } from "@/lib/distribution-first-message-core.mjs";
 import { forgetChatDetail, readChatView, restoreChatView, saveChatDetail, saveChatView } from "@/components/chat-view-cache";
 import DeviceCacheRefreshing from "@/components/DeviceCacheRefreshing";
 import { CLIENT_STATUS, CLIENT_STATUS_OPTIONS } from "@/lib/client-status";
@@ -1652,7 +1653,7 @@ function Thread({ canManage, canEditRules, currentUserId, mySlots = [], onOpenCl
       ) : (
         // chat-composer-safe: no app "Chat" da tela inicial a caixa fica acima do traço do iPhone (app/globals.css).
         <div className="chat-composer-safe">
-          <Composer canManage={canManage} conversation={conversation} insertRequest={insertRequest} internalRequest={internalRequest} replyTo={replyTo} onClearReply={() => setReplyTo(null)} editTarget={editTarget} onClearEdit={() => setEditTarget(null)} onSent={onChanged} />
+          <Composer canManage={canManage} currentUserId={currentUserId} conversation={conversation} insertRequest={insertRequest} internalRequest={internalRequest} replyTo={replyTo} onClearReply={() => setReplyTo(null)} editTarget={editTarget} onClearEdit={() => setEditTarget(null)} onSent={onChanged} />
         </div>
       )}
 
@@ -2737,7 +2738,7 @@ async function prepareChatAttachment(file) {
   return { file: prepared, kind, previewUrl: previewable ? URL.createObjectURL(prepared) : "", asGif: false, asSticker: kind === "webp", acceptsCaption: kind !== "webp" };
 }
 
-function Composer({ canManage, conversation, insertRequest = null, internalRequest = 0, replyTo, onClearReply, editTarget = null, onClearEdit = () => {}, onSent }) {
+function Composer({ canManage, currentUserId = "", conversation, insertRequest = null, internalRequest = 0, replyTo, onClearReply, editTarget = null, onClearEdit = () => {}, onSent }) {
   const [text, setText] = useState("");
   // "/atalho" (2026-10-10): só quando o campo inteiro é "/" + palavra (sem anexo, resposta ou edição).
   const slashMatch = /^\/(\S{0,30})$/.exec(text);
@@ -2985,6 +2986,8 @@ function Composer({ canManage, conversation, insertRequest = null, internalReque
   // Número oficial com a janela de 24 h fechada: texto livre bloqueado, o corretor segue pelo celular.
   const windowClosed = !conversation.sessionUserId && conversation.window?.open === false;
   const awaiting = (conversation.awaitingCustomer === true || individualOff || windowClosed) && !editTarget;
+  // Bloqueada só porque o WhatsApp do corretor está desconectado: aviso próprio (não é "o cliente não escreveu").
+  const disconnectedNotice = conversation.awaitingReason === "disconnected" ? awaitingCustomerNotice({ disconnected: true, isOwner: !conversation.sessionUserId || conversation.sessionUserId === currentUserId }) : null;
   const customerDigits = isUnknownNumber(conversation.phone) ? "" : String(conversation.phone || "").replace(/\D/g, "");
   const phoneSendHref = customerDigits ? `https://wa.me/${customerDigits}${text.trim() ? `?text=${encodeURIComponent(text.trim())}` : ""}` : "";
   // Link para o cliente te chamar: SEMPRE o número oficial (dono, 2026-10-09) — o atendimento segue pelo Chat.
@@ -3015,13 +3018,18 @@ function Composer({ canManage, conversation, insertRequest = null, internalReque
               <p className="font-black">A janela de 24 horas deste cliente fechou.</p>
               <p className="mt-0.5">Pelo número oficial só dá para responder até 24 h depois da última mensagem do cliente. Escreva o texto abaixo e toque no botão verde para enviar pelo WhatsApp do celular.</p>
             </>
+          ) : disconnectedNotice ? (
+            <>
+              <p className="font-black">{disconnectedNotice.title}</p>
+              <p className="mt-0.5">{disconnectedNotice.body}</p>
+            </>
           ) : (
             <>
               <p className="font-black">Este cliente ainda não escreveu para você.</p>
               <p className="mt-0.5">Pelo CRM só é possível responder quem já mandou mensagem. Escreva o texto abaixo e toque no botão verde: o WhatsApp do celular abre com a mensagem pronta e você só envia. Ou peça para o cliente te chamar.</p>
             </>
           )}
-          {callLink ?<button type="button" onClick={copyCallLink} className="mt-1.5 inline-flex min-h-9 items-center rounded-full border border-amber-300 bg-white px-3 text-xs font-extrabold text-navy hover:border-brand">Copiar link para o cliente te chamar</button> : null}
+          {callLink && !disconnectedNotice ?<button type="button" onClick={copyCallLink} className="mt-1.5 inline-flex min-h-9 items-center rounded-full border border-amber-300 bg-white px-3 text-xs font-extrabold text-navy hover:border-brand">Copiar link para o cliente te chamar</button> : null}
         </div>
       ) : null}
 

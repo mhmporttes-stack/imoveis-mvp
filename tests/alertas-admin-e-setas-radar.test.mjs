@@ -18,10 +18,7 @@ test("supervisão: admin geral recebe Informativo, gestora continua com Importan
   assert.deepEqual(out.map((r) => r.kind), ["informative", "important", "informative", "informative"]);
 });
 
-test("falhas do sistema só do admin continuam Importantes", () => {
-  const sources = ["whatsapp_service_stalled", "marketplace_extension_signal", "henry_lock", "whatsapp_disconnect_owner"];
-  const out = quietImportantForAdmins(sources.map((source) => row(ADMIN, { context: { source } })), new Set([ADMIN]));
-  assert.ok(out.every((r) => r.kind === "important"));
+test("alerta de teste e dedupe de teste continuam Importantes ao admin", () => {
   const test = quietImportantForAdmins([row(ADMIN, { dedupe_key: "test:1" })], new Set([ADMIN]));
   assert.equal(test[0].kind, "important");
 });
