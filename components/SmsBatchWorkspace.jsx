@@ -237,6 +237,19 @@ export default function SmsBatchWorkspace({ initial = null, initialError = "" })
     };
   }, [resume, flush, reload]);
 
+  const loadMore = async () => {
+    setBusyId("more");
+    try {
+      await call("POST", { action: "more" });
+      await reload();
+      setTab("send");
+    } catch (moreError) {
+      notify(moreError.message, "danger");
+    } finally {
+      setBusyId("");
+    }
+  };
+
   const confirmSecond = (entry) => {
     writeJson(QUEUE_KEY, [...readJson(QUEUE_KEY, []), { id: entry.id, name: entry.name, kind: 2 }]);
     setOfflineCount(readJson(QUEUE_KEY, []).length);
@@ -427,11 +440,18 @@ export default function SmsBatchWorkspace({ initial = null, initialError = "" })
             ))}
           </ul>
         ) : (
-          <EmptyState
-            icon={MessageSquareText}
-            title={wa.state === "checking" ? "Conferindo os telefones…" : progress.remaining ? "Nenhum contato disponível agora" : "Meta de hoje concluída"}
-            description={progress.remaining ? (isTeam ? "Todos os contatos da base já tiveram alguma tentativa de contato." : "Não há contato livre agora: os demais já tiveram contato ou estão reservados para outro corretor.") : "Amanhã a lista libera mais contatos."}
-          />
+          <>
+            <EmptyState
+              icon={MessageSquareText}
+              title={wa.state === "checking" ? "Conferindo os telefones…" : progress.remaining ? "Nenhum contato disponível agora" : "Meta de hoje concluída"}
+              description={progress.remaining ? (isTeam ? "Todos os contatos da base já tiveram alguma tentativa de contato." : "Não há contato livre agora: os demais já tiveram contato ou estão reservados para outro corretor.") : "Quer mais? Carregue outros 50 contatos da base que nunca tiveram tentativa."}
+            />
+            {!progress.remaining ? (
+              <Button variant="primary" size="lg" block className="mt-3" loading={busyId === "more"} onClick={loadMore}>
+                Carregar mais 50 contatos
+              </Button>
+            ) : null}
+          </>
         )
       ) : null}
 
