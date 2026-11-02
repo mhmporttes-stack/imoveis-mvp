@@ -94,6 +94,8 @@ export default function SmsBatchWorkspace({ initial = null, initialError = "" })
   const [draft, setDraft] = useState({ template: initial?.settings?.template || "", template2: initial?.settings?.template2 || "", templateBroker: initial?.settings?.templateBroker || "", limit: String(initial?.settings?.limit || 50) });
   const [brokerFilter, setBrokerFilter] = useState("");
   const [savingSettings, setSavingSettings] = useState(false);
+  // Cartão some na hora ao tocar em "Enviar" (volume mais rápido); volta se o SMS não chegou a ser aberto.
+  const [hiddenIds, setHiddenIds] = useState([]);
   const [notify, toastElement] = useToast();
   const [confirmAction, confirmElement] = useConfirm();
   const flushing = useRef(false);
@@ -181,6 +183,9 @@ export default function SmsBatchWorkspace({ initial = null, initialError = "" })
   const resume = useCallback(() => {
     if (document.visibilityState === "hidden") return;
     const awaiting = readJson(AWAITING_KEY, null);
+    if (awaiting && Date.now() - awaiting.at <= MIN_AWAY_MS) {
+      setHiddenIds((current) => current.filter((id) => id !== `${awaiting.kind || 1}:${awaiting.id}`));
+    }
     if (awaiting && Date.now() - awaiting.at > MIN_AWAY_MS) {
       writeJson(AWAITING_KEY, null);
       writeJson(QUEUE_KEY, [...readJson(QUEUE_KEY, []), { id: awaiting.id, name: awaiting.name, kind: awaiting.kind || 1 }]);
@@ -212,7 +217,10 @@ export default function SmsBatchWorkspace({ initial = null, initialError = "" })
     };
   }, [resume, flush, reload]);
 
-  const onTapSend = (item, kind) => writeJson(AWAITING_KEY, { id: item.id, name: item.firstName || item.name, kind, at: Date.now() });
+  const onTapSend = (item, kind) => {
+    writeJson(AWAITING_KEY, { id: item.id, name: item.firstName || item.name, kind, at: Date.now() });
+    setHiddenIds((current) => [...current, `${kind}:${item.id}`]);
+  };
 
   const undoLast = async () => {
     const current = undo;
@@ -332,7 +340,7 @@ export default function SmsBatchWorkspace({ initial = null, initialError = "" })
       {tab === "send" ? (
         items.length ? (
           <ul className="space-y-3">
-            {items.map((item) => (
+            {items.filter((item) => !hiddenIds.includes(`1:${item.id}`)).map((item) => (
               <li key={item.id}>
                 <Card padding="md">
                   <p className="text-lg font-extrabold leading-tight text-ink">{item.name || "Sem nome"}</p>
@@ -354,7 +362,7 @@ export default function SmsBatchWorkspace({ initial = null, initialError = "" })
       {tab === "second" ? (
         awaiting.length ? (
           <ul className="space-y-3">
-            {awaiting.map((entry) => (
+            {awaiting.filter((entry) => !hiddenIds.includes(`2:${entry.id}`)).map((entry) => (
               <li key={entry.id}>
                 <Card padding="md">
                   <p className="text-lg font-extrabold leading-tight text-ink">{entry.name || "Sem nome"}</p>

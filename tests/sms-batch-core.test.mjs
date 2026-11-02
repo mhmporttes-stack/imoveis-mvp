@@ -98,7 +98,7 @@ test("href sms: mantém as quebras de linha do texto como %0A", () => {
 test("2ª mensagem padrão: texto do dono, com o aviso SAIR e emoji; editável", () => {
   assert.equal(validateSmsTemplate(SMS_BATCH_DEFAULT_TEMPLATE_2, { second: true }), null);
   assert.match(SMS_BATCH_DEFAULT_TEMPLATE_2, /^Saber seu poder de compra é o primeiro passo para sair do aluguel\./);
-  assert.match(SMS_BATCH_DEFAULT_TEMPLATE_2, /\nCaso você já tenha comprado seu imóvel, responda SAIR\.\n\nQue você tenha um dia abençoado 🙏🏼$/);
+  assert.match(SMS_BATCH_DEFAULT_TEMPLATE_2, /\nCaso vc já tenha comprado seu imóvel, responda SAIR\.\n\nQue vc tenha um dia abençoado 🙏🏼$/);
   const href = buildSmsHrefs("+5514999998888", renderSmsText(SMS_BATCH_DEFAULT_TEMPLATE_2, { name: "Ana", greeting: "Bom dia" })).primary;
   assert.equal(decodeURIComponent(href.split("&body=")[1]), SMS_BATCH_DEFAULT_TEMPLATE_2);
   assert.match(validateSmsTemplate("Sem aviso", { second: true }), /SAIR/);
