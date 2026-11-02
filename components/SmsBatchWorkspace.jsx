@@ -189,7 +189,11 @@ export default function SmsBatchWorkspace({ initial = null, initialError = "" })
               ...current,
               // 1ª enviada: o cartão já entra em "Aguardando 2ª" (com a 2ª pronta), sem esperar a lista recarregar.
               done: sentItem && result.sendId && result2 ? [{ id: result.sendId, name: sentItem.name, phoneMasked: sentItem.phoneMasked, sentAt: new Date().toISOString(), secondAt: new Date().toISOString(), state: "complete" }, ...current.done] : current.done,
-              awaiting: sentItem && result.sendId && !result2 ? [...current.awaiting, { id: result.sendId, name: sentItem.name, phoneMasked: sentItem.phoneMasked, sentAt: new Date().toISOString(), state: "awaiting", href: sentItem.secondHref, fallbackHref: sentItem.secondFallbackHref, resendHref: sentItem.href }] : current.awaiting,
+              awaiting: sentItem && result.sendId && !result2
+                ? (current.awaiting.some((row) => row.contactId === entry.id)
+                  ? current.awaiting.map((row) => (row.contactId === entry.id ? { ...row, id: result.sendId, pending: false } : row))
+                  : [...current.awaiting, { id: result.sendId, contactId: entry.id, name: sentItem.name, phoneMasked: sentItem.phoneMasked, sentAt: new Date().toISOString(), state: "awaiting", href: sentItem.secondHref, fallbackHref: sentItem.secondFallbackHref, resendHref: sentItem.href }])
+                : current.awaiting,
               items: current.items.filter((item) => item.id !== entry.id),
               progress: { ...current.progress, sentToday: current.progress.sentToday + 1, remaining: Math.max(0, current.progress.remaining - 1) },
               metrics: { ...current.metrics, total: { ...current.metrics.total, sent: current.metrics.total.sent + 1, sent2: current.metrics.total.sent2 + (result2 ? 1 : 0) } }
@@ -205,7 +209,7 @@ export default function SmsBatchWorkspace({ initial = null, initialError = "" })
         } catch (sendError) {
           if (sendError.status === 409) {
             // Já gravado/indisponível (ex.: o mesmo toque entrou duas vezes): o contato sai da lista, sem alarme e sem voltar.
-            setData((current) => (current ? { ...current, items: current.items.filter((item) => item.id !== entry.id) } : current));
+            setData((current) => (current ? { ...current, items: current.items.filter((item) => item.id !== entry.id), awaiting: current.awaiting.filter((row) => row.contactId !== entry.id) } : current));
             return "discard";
           }
           if (sendError.status) {
@@ -329,6 +333,13 @@ export default function SmsBatchWorkspace({ initial = null, initialError = "" })
     }
     setOfflineCount(readJson(QUEUE_KEY, []).length);
     setHiddenIds((current) => [...current, `${kind}:${item.id}`]);
+    // Modo separado: o cartão já entra em "Aguardando 2ª" no toque (com a 2ª pronta). Os botões de retorno liberam quando a
+    // gravação devolver o id do envio.
+    if (!together) {
+      setData((current) => (current && !current.awaiting.some((row) => row.contactId === item.id)
+        ? { ...current, awaiting: [...current.awaiting, { id: `tmp:${item.id}`, contactId: item.id, pending: true, name: item.name, phoneMasked: item.phoneMasked, sentAt: new Date().toISOString(), state: "awaiting", href: item.secondHref, fallbackHref: item.secondFallbackHref, resendHref: item.href }] }
+        : current));
+    }
     flush();
   };
 
@@ -459,12 +470,6 @@ export default function SmsBatchWorkspace({ initial = null, initialError = "" })
         </div>
       </div>
 
-      {offlineCount ? (
-        <p className="flex items-center gap-2 rounded-control border border-info-line bg-info-soft px-3 py-2 text-sm text-info" role="status">
-          <WifiOff className="h-4 w-4 shrink-0" aria-hidden="true" />
-          {offlineCount} envio(s) serão marcados quando a internet voltar.
-        </p>
-      ) : null}
 
       {wa.state === "checking" ? (
         <p className="rounded-control border border-info-line bg-info-soft px-3 py-2 text-[13px] leading-5 text-info" role="status">
@@ -561,19 +566,19 @@ export default function SmsBatchWorkspace({ initial = null, initialError = "" })
                   {openedIds.includes(entry.id) ? (
                     <p className="mt-2 rounded-control bg-surface-muted px-3 py-2 text-sm font-semibold text-ink">2ª aberta no Mensagens. Deu certo?</p>
                   ) : null}
-                  <Button variant="primary" size="lg" block className="mt-2" onClick={() => confirmSecond(entry)}>
+                  <Button variant="primary" size="lg" block className="mt-2" disabled={entry.pending} onClick={() => confirmSecond(entry)}>
                     Mensagem enviada
                   </Button>
                   <a href={entry.resendHref} className="mt-2 flex min-h-12 w-full items-center justify-center gap-2 rounded-control border border-line text-base font-bold text-ink active:brightness-95">
                     Enviar 1ª novamente
                   </a>
-                  <Button variant="secondary" size="lg" block className="mt-1" loading={busyId === entry.id} onClick={() => markInvalid(entry, "nonexistent")}>
+                  <Button variant="secondary" size="lg" block className="mt-1" loading={busyId === entry.id} disabled={entry.pending} onClick={() => markInvalid(entry, "nonexistent")}>
                     Número não existe
                   </Button>
-                  <Button variant="secondary" size="lg" block className="mt-1" loading={busyId === entry.id} onClick={() => markInvalid(entry, "inactive")}>
+                  <Button variant="secondary" size="lg" block className="mt-1" loading={busyId === entry.id} disabled={entry.pending} onClick={() => markInvalid(entry, "inactive")}>
                     Número não ativo
                   </Button>
-                  <Button variant="danger-ghost" size="lg" block className="mt-1" loading={busyId === entry.id} onClick={() => optOut(entry)}>
+                  <Button variant="danger-ghost" size="lg" block className="mt-1" loading={busyId === entry.id} disabled={entry.pending} onClick={() => optOut(entry)}>
                     Respondeu SAIR
                   </Button>
                 </Card>
