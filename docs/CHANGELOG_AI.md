@@ -28,6 +28,11 @@
 - Mudou: `lib/simulation-auto-send-core.mjs` (`buildAutoSendCtaMessage`, `sendOfficialSimulation`, texto da linha do tempo com o formato), `lib/simulation-auto-send.js` (`sendOfficial`), `lib/whatsapp-master.js` (`metaRejected` só em resposta de erro da Meta), `lib/whatsapp-form-reminder.js` (`sendReservedAutomationMessage` aceita `body`/`extraMetadata` devolvidos pelo envio). Individual, janela fechada, roteamento e travas não mudaram. A prévia Open Graph de `/s/<token>` (PRES-18) já existia.
 - Testes: `tests/simulation-auto-send-cta.test.mjs` (novo). Envio real não testado (proibido). Falhas antigas de outros testes não relacionadas (14 arquivos, iguais antes e depois).
 - Risco/observação: (1) cadastro com telefone diferente do WhatsApp que escreveu no Oficial continua sem achar a conversa (usar o código "MM-…" é decisão do dono, registrada como PENDENTE); (2) o pendente do #C7547 será tentado de novo pelo cron por até 72 h assim que algum número do dono voltar; (3) formato aceito pela Meta só se confirma no primeiro envio real (fallback em texto cobre recusa).
+
+## 2026-11-02 — Botão "Enviar simulação" no card do cliente (crm-editor) — branch `feat/botao-enviar-simulacao`, NÃO publicado
+- Dono pediu botão "Enviar simulação" do mesmo tamanho do "WhatsApp". Regra e canais: `docs/BUSINESS_RULES.md` PRES-19 (2026-11-02). Reusa a rota `/api/admin/simulacoes/<id>/apresentacao` (`enviar-preparar`/`enviar-registrar`); nenhum envio novo.
+- Novo: `components/clients/ClientCardSendSimulationButton.jsx`, `lib/client-card-send-simulation-core.mjs`, `tests/client-card-send-simulation.test.mjs`. Ajustes mínimos: rodapé de `ClientCard.jsx` (linha 1 com WhatsApp + Enviar simulação; sm+ numa linha) e `useClientList.js` (expõe `waState` e `notify`).
+- Risco/observação: `tests/client-card-whatsapp-chat.test.mjs` (4 testes sobre `openWhatsApp`) já falha neste ponto da base (a função é `async` com `await`; não tocada). Envio real e produção não testados. Possível conflito de merge com `feat/whatsapp-fora-abre-app` em `useClientList.js`/`ClientCard.jsx` (linhas do return e do rodapé).
 - **Autor:** Claude (crm-editor)
 
 ## 2026-11-02 — Menu "Mais" do app não mostrava o Lote de SMS: versão nova aplicada ao abrir o "Mais" + atalho no Início (crm-editor) — branch `fix/menu-lote-sms-app`, NÃO publicado
