@@ -11,6 +11,12 @@
 
 
 
+## 2026-11-02 — Lote de SMS: textos do dono (1ª e 2ª mensagem) e aba "Aguardando 2ª" (crm-editor) — branch `feat/lote-sms-2-mensagens`, NÃO publicado
+- Dono definiu os textos: 1ª mensagem com `[Saudação]` (função única `getTimeGreeting()`), `[nome]` e `[link]` (campanha "SMS - Lote da base"); 2ª mensagem (poder de compra, com o "responda SAIR") enviada depois da 1ª. **[REGRA OFICIAL]** em `docs/BUSINESS_RULES.md` PRO-18, com nota de risco: a 1ª não traz opt-out (LGPD, contato frio) — texto não alterado.
+- Mudou: `lib/sms-batch-core.mjs` (textos padrão, `[Saudação]`, `smsSecondSkipReason`, `groupSmsConversations`, métricas da 2ª), `lib/sms-batch.js` (`markSmsSecondSent`, desfazer da 2ª, `sms_batch_template_2`), `app/api/admin/lote-sms/route.js` (ação `sent-2`), `components/SmsBatchWorkspace.jsx` (abas Para enviar / Aguardando 2ª / Enviados, cartão do topo com 1ª e 2ª), migration `20261102140000_sms_batch_second.sql` (**NÃO aplicada**, check do `event` com `sent_2`), testes em `tests/sms-batch-core.test.mjs`.
+- Risco/observação: sem a migration nova a 2ª recusa o envio com aviso (a 1ª segue normal). Não toquei em menu/PWA. Saudação é montada ao carregar a lista (lista com mais de 10 min é refeita ao voltar ao app). Envio real não testado.
+- **Autor:** Claude (crm-editor)
+
 ## 2026-11-02 — Lote de SMS: link do cadastro por SMS, por toque no iPhone (crm-editor) — branch `feat/lote-sms`, NÃO publicado
 - Dono: prospectar sem mídia paga; depois corrigiu: só contatos da BASE com NENHUMA tentativa de contato (não quem já preencheu o formulário) e começar pelo app do celular. **[REGRA OFICIAL]** em `docs/BUSINESS_RULES.md` PRO-18.
 - Novo: `/admin/lote-sms` (menu GESTÃO, admin geral e gestor), `lib/sms-batch-core.mjs` (elegibilidade única, texto, href `sms:` iOS, medição), `lib/sms-batch.js`, `app/api/admin/lote-sms/route.js`, `components/SmsBatchWorkspace.jsx`, migration `20261102120000_sms_batch_sends.sql` (**NÃO aplicada** — DECISÃO NECESSÁRIA). Reaproveita campanhas (campanha "SMS - Lote da base", link curto `/c/<código>`, `campaign_link_views`, `client_origins`) e `do-not-contact-core`.

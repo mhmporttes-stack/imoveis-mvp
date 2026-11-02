@@ -4,10 +4,12 @@ import { readFileSync } from "node:fs";
 import {
   SMS_BATCH_DEFAULT_LIMIT,
   SMS_BATCH_DEFAULT_TEMPLATE,
+  SMS_BATCH_DEFAULT_TEMPLATE_2,
   SMS_BATCH_TEMPLATE_MAX_CHARS,
   SMS_SKIP_REASON,
   buildSmsHrefs,
   buildSmsMetrics,
+  groupSmsConversations,
   isSmsEligible,
   maskSmsPhone,
   normalizeSmsLimit,
@@ -15,6 +17,7 @@ import {
   renderSmsText,
   smsFirstName,
   smsRemainingToday,
+  smsSecondSkipReason,
   smsSkipReason,
   spDayStartIso,
   validateSmsTemplate
@@ -49,31 +52,89 @@ test("telefone mascarado parcialmente", () => {
   assert.equal(maskSmsPhone("123"), "");
 });
 
-test("texto padrão: só o 1º nome, link, opt-out SAIR, dentro do limite e sem preço/promessa", () => {
+test("1ª mensagem padrão: texto do dono, saudação, 1º nome, link e quebras de linha", () => {
   assert.equal(validateSmsTemplate(SMS_BATCH_DEFAULT_TEMPLATE), null);
-  const text = renderSmsText(SMS_BATCH_DEFAULT_TEMPLATE, { name: "MARIA APARECIDA souza", link: LINK });
-  assert.match(text, /^Oi, Maria! Aqui é o Matheus Machado, Corretor de Imóveis, de Marília\./);
-  assert.ok(text.includes(LINK) && /responda SAIR\.$/.test(text));
-  assert.ok(text.length <= SMS_BATCH_TEMPLATE_MAX_CHARS + 10, `tamanho ${text.length}`);
-  assert.doesNotMatch(text, /R\$|aprova|garant/i);
-  assert.doesNotMatch(text, /Aparecida|Souza/);
+  const text = renderSmsText(SMS_BATCH_DEFAULT_TEMPLATE, { name: "MARIA APARECIDA souza", link: LINK, greeting: "Boa tarde" });
+  assert.match(text, /^Boa tarde Maria, tudo bem \?\n\nMeu nome é Matheus Machado, sou Corretor de Imóveis\.\n/);
+  assert.match(text, /Quer saber o quanto a Caixa aprova para você comprar seu imóvel\?/);
+  assert.ok(text.endsWith(`sem compromisso:\n\n${LINK}`));
+  assert.doesNotMatch(text, /Aparecida|Souza|\[/);
+  assert.ok(text.length <= SMS_BATCH_TEMPLATE_MAX_CHARS, `tamanho ${text.length}`);
+  assert.doesNotMatch(text, /R\$|garant/i);
 });
 
-test("sem nome confiável o texto começa com Olá!", () => {
+test("saudação vem de fora (getTimeGreeting, única) e vale para Bom dia, Boa tarde e Boa noite", () => {
+  for (const greeting of ["Bom dia", "Boa tarde", "Boa noite"]) {
+    assert.ok(renderSmsText(SMS_BATCH_DEFAULT_TEMPLATE, { name: "Ana", link: LINK, greeting }).startsWith(`${greeting} Ana, tudo bem ?`), greeting);
+  }
+  assert.ok(renderSmsText("[saudacao] [nome]!", { name: "Ana", greeting: "Bom dia" }).startsWith("Bom dia Ana"));
+  const lib = readFileSync(new URL("../lib/sms-batch.js", import.meta.url), "utf8");
+  assert.match(lib, /import \{ getTimeGreeting \} from "\.\/daily-report"/);
+  assert.match(lib, /greeting = getTimeGreeting\(\)/);
+  const core = readFileSync(new URL("../lib/sms-batch-core.mjs", import.meta.url), "utf8");
+  assert.doesNotMatch(core, /["']Bom dia["']|["']Boa noite["']/, "a decisão por horário é só do getTimeGreeting");
+});
+
+test("sem nome confiável: \"[Saudação], tudo bem ?\"", () => {
   for (const name of ["", "   ", "11999998888", "Cliente WhatsApp", "A", "Sem nome", null]) {
     assert.equal(smsFirstName(name), "", String(name));
-    const text = renderSmsText(SMS_BATCH_DEFAULT_TEMPLATE, { name, link: LINK });
-    assert.match(text, /^Olá! Aqui é o Matheus Machado/, String(name));
+    const text = renderSmsText(SMS_BATCH_DEFAULT_TEMPLATE, { name, link: LINK, greeting: "Boa noite" });
+    assert.match(text, /^Boa noite, tudo bem \?\n\nMeu nome é Matheus Machado/, String(name));
     assert.doesNotMatch(text, /\[nome\]|\[link\]/);
   }
+  assert.match(renderSmsText("Oi, [nome]! veja [link]", { name: "", link: LINK }), /^Olá! veja /);
 });
 
-test("texto editável precisa de [link] e do aviso SAIR e respeita o tamanho", () => {
-  assert.match(validateSmsTemplate("Oi [nome], veja [link]"), /SAIR/);
+test("href sms: mantém as quebras de linha do texto como %0A", () => {
+  const text = renderSmsText(SMS_BATCH_DEFAULT_TEMPLATE, { name: "Ana", link: LINK, greeting: "Bom dia" });
+  const { primary, fallback } = buildSmsHrefs("(14) 99999-8888", text);
+  assert.ok(primary.startsWith("sms:+5514999998888&body=Bom%20dia%20Ana%2C%20tudo%20bem%20%3F%0A%0AMeu%20nome"), primary.slice(0, 90));
+  assert.equal(primary.includes("\n"), false);
+  assert.equal((primary.match(/%0A/g) || []).length, 7);
+  assert.ok(fallback.startsWith("sms:+5514999998888?body="));
+  assert.equal(decodeURIComponent(primary.split("&body=")[1]), text);
+});
+
+test("2ª mensagem padrão: texto do dono, com o aviso SAIR e emoji; editável", () => {
+  assert.equal(validateSmsTemplate(SMS_BATCH_DEFAULT_TEMPLATE_2, { second: true }), null);
+  assert.match(SMS_BATCH_DEFAULT_TEMPLATE_2, /^Saber seu poder de compra é o primeiro passo para sair do aluguel\./);
+  assert.match(SMS_BATCH_DEFAULT_TEMPLATE_2, /\nCaso você já tenha comprado seu imóvel, responda SAIR\.\n\nQue você tenha um dia abençoado 🙏🏼$/);
+  const href = buildSmsHrefs("+5514999998888", renderSmsText(SMS_BATCH_DEFAULT_TEMPLATE_2, { name: "Ana", greeting: "Bom dia" })).primary;
+  assert.equal(decodeURIComponent(href.split("&body=")[1]), SMS_BATCH_DEFAULT_TEMPLATE_2);
+  assert.match(validateSmsTemplate("Sem aviso", { second: true }), /SAIR/);
+});
+
+test("validação do texto da 1ª: precisa de [link] e respeita o tamanho", () => {
   assert.match(validateSmsTemplate("Oi [nome], responda SAIR"), /\[link\]/);
-  assert.match(validateSmsTemplate(`${"a".repeat(300)} [link] SAIR`), /caracteres/);
+  assert.match(validateSmsTemplate(`${"a".repeat(600)} [link]`), /caracteres/);
   assert.match(validateSmsTemplate(""), /Escreva/);
-  assert.equal(validateSmsTemplate("Oi [nome]! [link] Para parar, responda SAIR."), null);
+  assert.equal(validateSmsTemplate("[Saudação] [nome]! [link]"), null);
+});
+
+test("2ª mensagem: só depois da 1ª, uma vez, nunca para SAIR nem Não contactar", () => {
+  assert.equal(smsSecondSkipReason({}), SMS_SKIP_REASON.NO_FIRST);
+  assert.equal(smsSecondSkipReason({ firstSent: true }), null);
+  assert.equal(smsSecondSkipReason({ firstSent: true, secondSent: true }), SMS_SKIP_REASON.SECOND_SENT);
+  assert.equal(smsSecondSkipReason({ firstSent: true, optedOut: true }), SMS_SKIP_REASON.OPTED_OUT);
+  assert.equal(smsSecondSkipReason({ firstSent: true, doNotContact: true }), SMS_SKIP_REASON.DO_NOT_CONTACT);
+  assert.equal(smsSecondSkipReason({ firstSent: true, secondSent: true, optedOut: true }), SMS_SKIP_REASON.OPTED_OUT);
+});
+
+test("abas: Aguardando 2ª (1ª enviada, sem 2ª) e Enviados (2ª enviada, SAIR ou Não contactar); um telefone = um cartão", () => {
+  const row = (id, phone, event, at, extra = {}) => ({ id, phone_normalized: phone, event, created_at: at, contact_id: `c-${phone}`, name: `N${phone.slice(-2)}`, contactStatus: "recent_attempt", ...extra });
+  const { awaiting, done } = groupSmsConversations([
+    row("s2", "+5514999990002", "sent", "2026-11-02T10:00:00Z"),
+    row("s1", "+5514999990001", "sent", "2026-11-02T09:00:00Z"),
+    row("s3", "+5514999990003", "sent", "2026-11-02T11:00:00Z"),
+    row("t3", "+5514999990003", "sent_2", "2026-11-02T12:00:00Z"),
+    row("s4", "+5514999990004", "sent", "2026-11-02T11:30:00Z"),
+    row("o4", "+5514999990004", "opt_out", "2026-11-02T12:30:00Z"),
+    row("s5", "+5514999990005", "sent", "2026-11-02T11:40:00Z", { contactStatus: "do_not_contact" }),
+    row("s1b", "5514999990001", "sent", "2026-11-02T09:05:00Z")
+  ]);
+  assert.deepEqual(awaiting.map((entry) => entry.sendId), ["s1", "s2"]);
+  assert.deepEqual(awaiting.map((entry) => entry.state), ["awaiting", "awaiting"]);
+  assert.deepEqual(done.map((entry) => [entry.sendId, entry.state]).sort(), [["s3", "complete"], ["s4", "opt_out"], ["s5", "opt_out"]]);
 });
 
 test("elegível: contato da base, celular válido, nenhuma tentativa em canal nenhum", () => {
@@ -140,11 +201,12 @@ test("medição por dia e total: enviados, cliques, cadastros e taxa", () => {
   const now = new Date("2026-11-02T15:00:00Z");
   const metrics = buildSmsMetrics({
     sends: [{ created_at: "2026-11-02T13:00:00Z" }, { created_at: "2026-11-02T14:00:00Z" }, { created_at: "2026-11-01T14:00:00Z" }, { created_at: "2026-11-01T14:10:00Z" }],
+    sends2: [{ created_at: "2026-11-02T14:20:00Z" }],
     views: [{ created_at: "2026-11-02T14:30:00Z" }],
     signups: [{ created_at: "2026-11-02T14:40:00Z" }]
   }, { days: 3, now });
-  assert.deepEqual(metrics.total, { sent: 4, clicks: 1, signups: 1, rate: 0.25 });
-  assert.deepEqual(metrics.byDay[0], { day: "2026-11-02", sent: 2, clicks: 1, signups: 1, rate: 0.5 });
+  assert.deepEqual(metrics.total, { sent: 4, sent2: 1, clicks: 1, signups: 1, rate: 0.25 });
+  assert.deepEqual(metrics.byDay[0], { day: "2026-11-02", sent: 2, sent2: 1, clicks: 1, signups: 1, rate: 0.5 });
   assert.equal(metrics.byDay[1].sent, 2);
   assert.equal(metrics.byDay[2].rate, null);
   assert.equal(buildSmsMetrics().total.rate, null);
@@ -168,7 +230,7 @@ test("escopo: rota e página só para admin geral e gestor; toda ação confere 
   const page = readFileSync(new URL("../app/admin/lote-sms/page.jsx", import.meta.url), "utf8");
   assert.match(page, /await requireBrokerManagementPage\(\)/);
   const lib = readFileSync(new URL("../lib/sms-batch.js", import.meta.url), "utf8");
-  for (const fn of ["loadSmsBatch", "markSmsSent", "undoSmsSent", "markSmsOptOut", "saveSmsBatchSettings"]) {
+  for (const fn of ["loadSmsBatch", "markSmsSent", "markSmsSecondSent", "undoSmsSent", "markSmsOptOut", "saveSmsBatchSettings"]) {
     assert.match(lib, new RegExp(`export async function ${fn}\\([^)]*\\) \\{\\n  assertGeneralAdminOrManager\\(auth\\);`), fn);
   }
   // Tentativa do SMS não é atividade de corretor: sem last_broker_id, sem user_id no histórico, nada de pontuação.
