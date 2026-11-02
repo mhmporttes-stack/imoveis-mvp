@@ -507,7 +507,7 @@ export default function SmsBatchWorkspace({ initial = null, initialError = "" })
         options={[
           { value: "send", label: `Para enviar (${visibleItems.length})` },
           { value: "second", label: `Aguardando 2ª (${visibleAwaiting.length})` },
-          { value: "sent", label: `Enviados (${done.filter((row) => row.state !== "invalid").length})` },
+          { value: "sent", label: `Enviados (${done.filter((row) => row.state !== "invalid").length}${data.doneCapped ? "+" : ""})` },
           { value: "invalid", label: `Inexistentes (${done.filter((row) => row.state === "invalid").length})` },
           ...(isTeam ? [{ value: "nowa", label: `Sem WhatsApp (${noWhatsapp?.total || 0})` }] : []),
           { value: "results", label: isTeam ? "Resultados e textos" : "Meus resultados" }
