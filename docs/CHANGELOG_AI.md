@@ -11,10 +11,18 @@
 
 
 
+<<<<<<< HEAD
 ## 2026-11-02 — Menu "Mais" do app não mostrava o Lote de SMS: versão nova aplicada ao abrir o "Mais" + atalho no Início (crm-editor) — branch `fix/menu-lote-sms-app`, NÃO publicado
 - Diagnóstico completo em `docs/INCIDENTES.md` (2026-11-02): sem cache de menu/HTML no service worker; o app aberto no iPhone rodava o JS antigo e a versão nova só entra em troca de tela/toque em link (PWA-CACHE/regra de 2026-10-26).
 - Mudou: abrir o "Mais" com versão pendente recarrega e reabre a folha (`applyPendingUpdateOnMenuOpen`, gatilho `menu-open`; nunca digitando; sair/voltar segue sem recarregar). Atalho "Lote de SMS" no Início (admin geral e gestor; página continua com `requireBrokerManagementPage`). Docs: `docs/pwa-admin.md`. Testes: `tests/menu-lote-sms.test.mjs`, `tests/pwa-update-policy.test.mjs`.
 - Risco/observação: `tests/painel-inicio.test.mjs` ("Início: primeiro item do menu…") já falhava antes (regex não conhece `ECONOMIC_INDICATORS_ITEM` em `getAdminMenuGroups`) — fora do escopo, não corrigido.
+=======
+## 2026-11-02 — Lote de SMS: textos do dono (1ª e 2ª mensagem) e aba "Aguardando 2ª" (crm-editor) — branch `feat/lote-sms-2-mensagens`, NÃO publicado
+- Dono definiu os textos: 1ª mensagem com `[Saudação]` (função única `getTimeGreeting()`), `[nome]` e `[link]` (campanha "SMS - Lote da base"); 2ª mensagem (poder de compra, com o "responda SAIR") enviada depois da 1ª. **[REGRA OFICIAL]** em `docs/BUSINESS_RULES.md` PRO-18, com nota de risco: a 1ª não traz opt-out (LGPD, contato frio) — texto não alterado.
+- Mudou: `lib/sms-batch-core.mjs` (textos padrão, `[Saudação]`, `smsSecondSkipReason`, `groupSmsConversations`, métricas da 2ª), `lib/sms-batch.js` (`markSmsSecondSent`, desfazer da 2ª, `sms_batch_template_2`), `app/api/admin/lote-sms/route.js` (ação `sent-2`), `components/SmsBatchWorkspace.jsx` (abas Para enviar / Aguardando 2ª / Enviados, cartão do topo com 1ª e 2ª), migration `20261102140000_sms_batch_second.sql` (**NÃO aplicada**, check do `event` com `sent_2`), testes em `tests/sms-batch-core.test.mjs`.
+- Risco/observação: sem a migration nova a 2ª recusa o envio com aviso (a 1ª segue normal). Não toquei em menu/PWA. Saudação é montada ao carregar a lista (lista com mais de 10 min é refeita ao voltar ao app). Envio real não testado.
+- **Autor:** Claude (crm-editor)
+>>>>>>> origin/feat/lote-sms-2-mensagens
 
 ## 2026-11-02 — Lote de SMS: link do cadastro por SMS, por toque no iPhone (crm-editor) — branch `feat/lote-sms`, NÃO publicado
 - Dono: prospectar sem mídia paga; depois corrigiu: só contatos da BASE com NENHUMA tentativa de contato (não quem já preencheu o formulário) e começar pelo app do celular. **[REGRA OFICIAL]** em `docs/BUSINESS_RULES.md` PRO-18.
