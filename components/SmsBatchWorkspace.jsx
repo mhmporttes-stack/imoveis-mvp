@@ -455,7 +455,16 @@ export default function SmsBatchWorkspace({ initial = null, initialError = "" })
       <KpiGrid label="Resultados do Lote de SMS">
         <Kpi label="Enviados" value={metrics.total.sent + metrics.total.sent2} hint={`1ª: ${metrics.total.sent} · 2ª: ${metrics.total.sent2}`} />
         <Kpi label="Cliques no link" value={metrics.total.clicks} hint={`${metrics.byDay[0]?.clicks || 0} hoje`} />
-        <Kpi label="Cadastros" value={metrics.total.signups} hint={`${metrics.byDay[0]?.signups || 0} hoje`} tone="accent" />
+        <div
+          role="button"
+          tabIndex={0}
+          className="cursor-pointer rounded-card active:brightness-95"
+          aria-label="Ver os cadastros"
+          onClick={() => { setTab("results"); setTimeout(() => document.getElementById("sms-signups")?.scrollIntoView({ behavior: "smooth", block: "start" }), 50); }}
+          onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); event.currentTarget.click(); } }}
+        >
+          <Kpi label="Cadastros" value={metrics.total.signups} hint={`${metrics.byDay[0]?.signups || 0} hoje · toque para ver`} tone="accent" />
+        </div>
         <Kpi label="Simulações enviadas" value={metrics.total.simulations || 0} hint="dos cadastros destes links" />
         <Kpi label="Taxa" value={percent(metrics.total.rate)} hint="cadastros ÷ 1ª enviada" />
       </KpiGrid>
@@ -662,7 +671,7 @@ export default function SmsBatchWorkspace({ initial = null, initialError = "" })
 
       {tab === "results" ? (
         <div className="space-y-4">
-          <Card title="Quem preencheu o formulário" note={`${data.signups?.length || 0} cliente(s)`}>
+          <Card id="sms-signups" title="Quem preencheu o formulário" note={`${data.signups?.length || 0} cliente(s)`}>
             {data.signups?.length ? (
               <ul className="divide-y divide-line">
                 {data.signups.map((row) => (
@@ -671,7 +680,7 @@ export default function SmsBatchWorkspace({ initial = null, initialError = "" })
                       <p className="truncate text-base font-bold text-ink">{row.name}</p>
                       <p className="text-sm tabular-nums text-muted">{row.phone} · {timeLabel(row.at)}</p>
                     </div>
-                    <Button href={row.href} variant="secondary" size="md">Abrir cliente</Button>
+                    {row.href ? <Button href={row.href} variant="secondary" size="md">Abrir cliente</Button> : null}
                   </li>
                 ))}
               </ul>

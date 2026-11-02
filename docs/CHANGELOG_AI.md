@@ -6625,3 +6625,4 @@ Pedido do dono (prints do iPhone, PWA/Safari), só apresentação — nenhuma re
 - 2026-11-02: Lote de SMS: gravar a 1ª é idempotente (mesmo toque duas vezes não dá erro e o cartão não volta); 409 sai da lista em silêncio.
 - 2026-11-02: Lote de SMS: fila de gravação não trava mais (timeout de 15 s na gravação e rodada pendurada liberada após 20 s).
 - 2026-11-02: Lote de SMS (modo separado): o toque na 1ª já leva o cartão a Aguardando 2ª; aviso de internet removido.
+- 2026-11-02: Lote de SMS: toque no cartão Cadastros abre a lista de quem preencheu (inclui cadastro cujo cliente já não existe, para bater com o contador).
