@@ -415,6 +415,10 @@ export default function SmsBatchWorkspace({ initial = null, initialError = "" })
         </p>
       ) : null}
 
+      <Button variant={tab === "results" ? "primary" : "secondary"} size="lg" block onClick={() => { setTab("results"); window.scrollTo({ top: 0, behavior: "smooth" }); }}>
+        Resultados do disparo
+      </Button>
+
       <Tabs
         label="Seções do Lote de SMS"
         value={tab}
