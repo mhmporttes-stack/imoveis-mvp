@@ -71,6 +71,7 @@ const adminGroups = [
       { href: "/admin/corretores", label: "Corretores", key: "brokers" },
       { href: "/admin?area=gestao", label: "Empreendimentos", key: "management-properties" },
       { href: "/admin/gerador-de-links", label: "Gerador de Links", key: "campaign-links" },
+      { href: "/admin/lote-sms", label: "Lote de SMS", key: "sms-batch" },
       { href: "/admin/minha-jornada", label: "Minha Jornada", key: "client-journey" },
       { href: "/admin/automacoes", label: "Automações", key: "automations", activeKeys: ["whatsapp-master"] },
       { href: "/admin/guia-atendimento", label: "Guia de Atendimento", key: "attendance-guide" },
@@ -178,6 +179,7 @@ const ownerGroups = [
       { href: "/admin/depoimentos", label: "Depoimentos", key: "testimonials" },
       { href: "/admin/corretores", label: "Corretores", key: "brokers" },
       { href: "/admin/gerador-de-links", label: "Gerador de Links", key: "campaign-links" },
+      { href: "/admin/lote-sms", label: "Lote de SMS", key: "sms-batch" },
       // Publicador do Facebook Marketplace (MKT-1, dono, 2026-10-20): só o admin geral.
       { href: "/admin/marketplace", label: "Marketplace", key: "marketplace" },
       // Extensões do Chrome do dono (EXT-1, dono, 2026-10-29): só o admin geral real (a página confere).
@@ -265,6 +267,7 @@ const PATH_KEYS = [
   ["/admin/depoimentos", "testimonials"],
   ["/admin/corretores", "brokers"],
   ["/admin/gerador-de-links", "campaign-links"],
+  ["/admin/lote-sms", "sms-batch"],
   ["/admin/marketplace", "marketplace"],
   ["/admin/extensoes", "extensions"],
   ["/admin/documentacao/regras", "document-rules"],

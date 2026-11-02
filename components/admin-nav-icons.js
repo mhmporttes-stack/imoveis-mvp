@@ -1,5 +1,5 @@
 import {
-  BarChart3, BookOpen, Building, Building2, Calculator, CalendarDays, CircleDot, FileText, GraduationCap, House, HousePlus, Link2,
+  BarChart3, BookOpen, Building, Building2, Calculator, CalendarDays, CircleDot, FileText, GraduationCap, House, HousePlus, Link2, MessageSquareText,
   Megaphone, MessageCircle, Puzzle, MessageSquarePlus, MessageSquareQuote, Mic, Radar, RotateCcw, Route, Search, ShieldCheck, Snowflake,
   BrainCircuit, LineChart, Store, Target, Trophy, UserCheck, UserRoundPlus, Users, UsersRound, Wallet, Zap
 } from "lucide-react";
@@ -29,6 +29,7 @@ export const ADMIN_NAV_ICONS = {
   "properties-catalog": House,
   brokers: UsersRound,
   "campaign-links": Link2,
+  "sms-batch": MessageSquareText,
   "client-journey": Route,
   automations: Zap,
   "attendance-guide": BookOpen,

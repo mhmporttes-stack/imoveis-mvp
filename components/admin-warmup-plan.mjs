@@ -16,7 +16,9 @@ export const ROUTE_ONLY_PATHS = new Map([
   // Início: números do mês (consulta pesada) e tela em construção por outra frente em 2026-10-22.
   ["/admin/inicio", "números do mês pesados; tela em construção"],
   // Alexa: configuração do dono, fala/integração externa — não vale a pena montar à toa.
-  ["/admin/alexa", "integração externa (Alexa)"]
+  ["/admin/alexa", "integração externa (Alexa)"],
+  // Lote de SMS (2026-11-02): abrir a tela cria a campanha "SMS" na primeira vez e reconfere a base inteira.
+  ["/admin/lote-sms", "abrir a tela pode criar a campanha de origem e varre a base"]
 ]);
 
 // Janelas: a tela pré-carregada vale 5 min no navegador (staleTimes do Next), então a barra/cabeçalho é refeita no máximo

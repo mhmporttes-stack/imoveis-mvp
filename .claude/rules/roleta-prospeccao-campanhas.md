@@ -116,6 +116,8 @@ Dois fluxos distintos, não confundir:
 
 `getTimeGreeting()` (`lib/daily-report.js`) é a fonte única da saudação por horário (bom dia/boa tarde/boa noite) usada nas mensagens — não duplique essa lógica num novo arquivo (já existiu uma cópia divergente em `daily-goal.js`, corrigida).
 
+**[REGRA OFICIAL DE NEGÓCIO — dono, 2026-11-02] Lote de SMS (PRO-18).** Link do cadastro por SMS, por toque no iPhone (`/admin/lote-sms`, só admin geral e gestor), a contatos da BASE que **nunca tiveram tentativa de contato** (sem rodada, reivindicação, mensagem ou cliente com o telefone); texto com identificação e "responda SAIR" obrigatório; SAIR → Não contactar nas linhas irmãs pelo caminho único; o SMS enviado conta como tentativa (`sms_batch_sends` + `recent_attempt` 30 dias) sem ser atividade de corretor nem tocar Meta Diária/pontuação. Elegibilidade só em `smsSkipReason` (`lib/sms-batch-core.mjs`) — não crie outra. Origem = campanha "SMS - Lote da base" do Gerador de Links. Detalhe: `docs/BUSINESS_RULES.md` PRO-18.
+
 ## Campanhas / Gerador de Links
 
 Especificação completa em `docs/spec-gerador-de-links.md`. Resumo: **Gestão → Gerador de Links** cria URLs de campanha vinculadas a uma regra de distribuição (roleta ou corretor específico); o cadastro que chega por essa URL registra a origem permanentemente (`campaigns`, `campaign_link_views`) e ganha tag automática. **O cadastro convencional sem link de campanha permanece 100% inalterado** — não altere o fluxo padrão ao mexer em campanhas.

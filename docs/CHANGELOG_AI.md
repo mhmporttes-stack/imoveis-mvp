@@ -11,6 +11,13 @@
 
 
 
+## 2026-11-02 — Lote de SMS: link do cadastro por SMS, por toque no iPhone (crm-editor) — branch `feat/lote-sms`, NÃO publicado
+- Dono: prospectar sem mídia paga; depois corrigiu: só contatos da BASE com NENHUMA tentativa de contato (não quem já preencheu o formulário) e começar pelo app do celular. **[REGRA OFICIAL]** em `docs/BUSINESS_RULES.md` PRO-18.
+- Novo: `/admin/lote-sms` (menu GESTÃO, admin geral e gestor), `lib/sms-batch-core.mjs` (elegibilidade única, texto, href `sms:` iOS, medição), `lib/sms-batch.js`, `app/api/admin/lote-sms/route.js`, `components/SmsBatchWorkspace.jsx`, migration `20261102120000_sms_batch_sends.sql` (**NÃO aplicada** — DECISÃO NECESSÁRIA). Reaproveita campanhas (campanha "SMS - Lote da base", link curto `/c/<código>`, `campaign_link_views`, `client_origins`) e `do-not-contact-core`.
+- Ajustes mínimos em `components/AdminMenu.jsx`, `admin-nav-icons.js`, `admin-warmup-plan.mjs` (tela só de rota no pré-carregamento: abrir cria a campanha). Testes: `tests/sms-batch-core.test.mjs`.
+- Risco/observação: sem a migration a tela mostra aviso e não oferece ninguém. Envio real de SMS e gravação em produção não foram testados. Versão larga (site) fica para depois.
+- **Autor:** Claude (crm-editor)
+
 ## 2026-10-31 — Dono sem "Entendi" em alertas de infraestrutura (AL-ADM) + textos "WhatsApp fora do ar" e Chat desconectado (crm-editor) — branch `fix/alertas-dono-sem-ok-textos`, NÃO publicado
 - Dono (print "WhatsApp fora do ar", 1 de 3): "REMOVA esses alertas para mim." **[REGRA OFICIAL]** O admin geral não é mais bloqueado por alerta de infraestrutura/operação: serviço do WhatsApp parado e fora do ar, WhatsApp de corretor desconectado (`whatsapp_connection_self`, `whatsapp_disconnect_owner`), extensão do Marketplace sem sinal, resposta do Marketplace não enviada, redistribuição do Marketplace, trava do Henry, número pausado/problema de fila da Meta Diária — chegam como Informativo (sino/Central, sem modal). Soma-se aos 3 de 29/10. Gestora e corretores sem mudança.
 - Ainda bloqueiam o dono: motivo do cliente que esfriou (FUN-15, é uma resposta dele), novidade do Manual e alerta de teste; 2FA/segurança não passa pela Central (não muda). Lista única `ADMIN_QUIET_SOURCES` (`lib/crm-alerts-core.mjs`), aplicada na gravação (`createAlertDeliveries`) e na LEITURA (`listMyPendingAlerts`/`listMyAlertHistory`, perfil `admin`): os alertas já gravados como Importante e pendentes (os 3 do print) deixam de bloquear sem apagar nem alterar registro. Push: o que já declarava `push_kind` (WA-20, MKT-2g, HENRY-LOCK) mantém o push único por episódio; nenhum push novo.
