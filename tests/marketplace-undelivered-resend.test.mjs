@@ -81,15 +81,15 @@ test("conferência: pedido leva verify + knownSame a partir da 2ª tentativa", (
 });
 
 test("alerta no chat do corretor: Mensagem não entregue — reenviando automaticamente; parada com motivo", () => {
-  const base = { direction: "outbound", sender_user_id: "u1" };
+  const base = { direction: "outbound", sender_user_id: "u1", created_at: ago(30) };
   assert.equal(isUndeliveredRetrying({ ...base, status: "queued", attempts: 2, error: "x" }), true);
   assert.equal(isUndeliveredRetrying({ ...base, status: "sending", attempts: 2 }), true);
   assert.equal(isUndeliveredRetrying({ ...base, status: "queued", attempts: 0 }), false, "1º envio na fila não é falha");
   assert.equal(isUndeliveredRetrying({ ...base, status: "sending", attempts: 1 }), false);
   assert.equal(outboundStatusView({ ...base, status: "queued", attempts: 3, error: "x" }).statusLabel, UNDELIVERED_LABEL);
-  assert.equal(outboundStatusView({ ...base, status: "failed", error: "[reenvio parado: conversa_bloqueada] x" }).statusLabel, "Não enviada — o Facebook bloqueou ou encerrou esta conversa");
-  assert.equal(outboundStatusView({ ...base, status: "failed", error: "[reenvio parado: nao_contactar]" }).statusLabel, "Não enviada — cliente em Não contactar");
-  assert.equal(outboundStatusView({ ...base, status: "failed", error: "outra coisa" }).statusLabel, "Não enviada");
+  assert.equal(outboundStatusView({ ...base, status: "failed", error: "[reenvio parado: conversa_bloqueada] x" }, { now }).statusLabel, "Não enviada — o Facebook bloqueou ou encerrou esta conversa");
+  assert.equal(outboundStatusView({ ...base, status: "failed", error: "[reenvio parado: nao_contactar]" }, { now }).statusLabel, "Não enviada — cliente em Não contactar");
+  assert.equal(outboundStatusView({ ...base, status: "failed", error: "outra coisa" }, { now }).statusLabel, "Não sei se foi enviada — confira no Facebook", "erro desconhecido = incerto, nunca reenvio cego");
   const chat = readFileSync(new URL("../components/marketplace/MarketplaceChat.jsx", import.meta.url), "utf8");
   assert.match(chat, /data-undelivered-notice/);
   assert.match(chat, /message\.undelivered/);
