@@ -381,7 +381,7 @@ export default function SmsBatchWorkspace({ initial = null, initialError = "" })
   const progressPercent = progress.limit ? Math.min(100, Math.round((progress.sentToday / progress.limit) * 100)) : 0;
 
   return (
-    <div className="space-y-4 pb-32">
+    <div className="space-y-4 pb-32" data-no-reveal="">
       <p className="rounded-control border border-warning-line bg-warning-soft px-3 py-2 text-[13px] leading-5 text-warning">{data.notice}</p>
 
       {!isTeam ? (
