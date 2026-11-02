@@ -563,6 +563,23 @@ export default function SmsBatchWorkspace({ initial = null, initialError = "" })
 
       {tab === "results" ? (
         <div className="space-y-4">
+          <Card title="Quem preencheu o formulário" note={`${data.signups?.length || 0} cliente(s)`}>
+            {data.signups?.length ? (
+              <ul className="divide-y divide-line">
+                {data.signups.map((row) => (
+                  <li key={row.id} className="flex items-center justify-between gap-3 py-2">
+                    <div className="min-w-0">
+                      <p className="truncate text-base font-bold text-ink">{row.name}</p>
+                      <p className="text-sm tabular-nums text-muted">{row.phone} · {timeLabel(row.at)}</p>
+                    </div>
+                    <Button href={row.href} variant="secondary" size="md">Abrir cliente</Button>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="text-sm text-muted">Ninguém preencheu o formulário ainda.</p>
+            )}
+          </Card>
           {isTeam && data.brokers?.length ? (
             <Card title="Por corretor" note="lotes dos corretores">
               <div className="overflow-x-auto">

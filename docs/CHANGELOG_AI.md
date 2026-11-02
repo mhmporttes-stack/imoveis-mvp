@@ -6606,3 +6606,4 @@ Pedido do dono (prints do iPhone, PWA/Safari), só apresentação — nenhuma re
 - 2026-11-02: Lote de SMS mais rápido: checagem de WhatsApp desligada por padrão (SMS_BATCH_WA_CHECK=1 liga), 1ª enviada entra em Aguardando 2ª sem recarregar, escritas em paralelo.
 - 2026-11-02: Lote de SMS: 2ª mensagem termina com "abençoado!" (sem emoji: a operadora barrava o SMS com emoji).
 - 2026-11-02: Lote de SMS: botão "Carregar mais 50 contatos" ao zerar a meta (extra do dia em crm_settings; elegibilidade inalterada: base sem nenhuma tentativa).
+- 2026-11-02: Lote de SMS: aba Resultados lista quem preencheu o formulário (telefone + Abrir cliente).
