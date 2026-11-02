@@ -15,6 +15,8 @@ import { PROPERTY_PREFERENCE_STATUS } from "@/lib/property-preference-display";
 import { persistCampaignId, readStoredCampaignId } from "@/lib/campaign-link-client";
 import { incomeBracketLabel } from "@/lib/meta-pixel-shared";
 import { trackMetaLead } from "@/lib/meta-pixel-client";
+import { trackGoogleAdsLead } from "@/lib/google-ads-client.mjs";
+import { currentAdAttribution } from "@/lib/ad-click-attribution.mjs";
 import {
   FORM_WHATSAPP_FALLBACK_MS,
   buildReceiveContactQuery,
@@ -193,7 +195,7 @@ export default function SimulationForm({ brokerRefOverride = "", journeySelected
           campaignId,
           metaEventId: eventId,
           attribution: {
-            ...Object.fromEntries(["utm_source", "utm_medium", "utm_campaign", "utm_content", "utm_term"].map(key => [key, searchParams.get(key) || ""])),
+            ...currentAdAttribution(searchParams),
             ...(journeySelected ? { journey_selected: journeySelected } : {})
           }
         })
@@ -225,6 +227,8 @@ export default function SimulationForm({ brokerRefOverride = "", journeySelected
       // "Recebemos" com o botão de reserva só aparece se a troca de app não acontecer (~3 s com a página visível) ou nos
       // estados espera/indisponível da WA-10. O convite de preferências de imóvel não aparece neste caminho.
       setOpeningWhatsapp(true);
+      // Conversão do Google Ads: só aqui (cadastro novo gravado), uma vez por cadastro, ANTES de sair para o WhatsApp (espera ≤300 ms).
+      if (data.isNewRegistration !== false) await trackGoogleAdsLead({ id: data.registrationId });
       await openWhatsappOrFallback(nextContext);
     } catch {
       setSubmitError("Não foi possível enviar seus dados. Verifique sua conexão e tente novamente.");

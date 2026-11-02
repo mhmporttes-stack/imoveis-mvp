@@ -124,6 +124,8 @@ Dois fluxos distintos, não confundir:
 
 Especificação completa em `docs/spec-gerador-de-links.md`. Resumo: **Gestão → Gerador de Links** cria URLs de campanha vinculadas a uma regra de distribuição (roleta ou corretor específico); o cadastro que chega por essa URL registra a origem permanentemente (`campaigns`, `campaign_link_views`) e ganha tag automática. **O cadastro convencional sem link de campanha permanece 100% inalterado** — não altere o fluxo padrão ao mexer em campanhas.
 
+**[REGRA OFICIAL DE NEGÓCIO — dono, 2026-11-02] Google Ads — Aplicativos (CAM-6).** Link do anúncio `…/simulacao?utm_source=google&utm_medium=cpc&utm_campaign=apps-marilia&…` (+ `gclid`): a origem "Google Ads — Aplicativos" e a etiqueta automática "Google Ads" são decididas no SERVIDOR (`buildLeadOrigin`, `isGoogleAdsAttribution`; `gclid`/`gbraid`/`wbraid` gravados em `client_origins.source_metadata`, sem migration); distribuição pela roleta inalterada (link geral). Conversão do Google Ads só por `trackGoogleAdsLead` (`lib/google-ads-client.mjs`): uma vez por cadastro novo, no sucesso do último botão e antes do WhatsApp; não crie outro disparo nem mande dado pessoal. Parâmetros de anúncio: `lib/ad-click-attribution.mjs` (cookie `mm_ad_attr`, 90 dias). Detalhe e DECISÃO NECESSÁRIA (consentimento): `docs/TRAFEGO_GOOGLE_ADS.md`, `docs/BUSINESS_RULES.md` CAM-6.
+
 ## Automações que tocam clientes de prospecção
 
 Clientes desta fila também são alvo do motor de automações (`lib/crm-automations.js`) — a trava contra notificar cliente arquivado/não-contactar (`OUTREACH_TRIGGER_TYPES`/`OUTREACH_NEGATIVE_STATUSES`) é descrita em `.claude/rules/automacoes-notificacoes.md`; qualquer mudança na fila de prospecção que afete `client.status` deve considerar esse motor também.
