@@ -154,8 +154,9 @@ export default function SmsBatchWorkspace({ initial = null, initialError = "" })
     flushing.current = true;
     try {
       let queue = readJson(QUEUE_KEY, []);
-      while (queue.length) {
-        const entry = queue[0];
+      const sameEntry = (a, b) => a.id === b.id && (a.kind || 1) === (b.kind || 1);
+      // Um envio da fila: "done" (gravado), "discard" (recusado pelo servidor) ou "offline" (sem internet: fica na fila).
+      const processEntry = async (entry) => {
         const second = entry.kind === 2;
         try {
           const result = await call("POST", second ? { action: "sent-2", sendId: entry.id } : { action: "sent", contactId: entry.id });
@@ -168,8 +169,6 @@ export default function SmsBatchWorkspace({ initial = null, initialError = "" })
               result2 = null;
             }
           }
-          queue = queue.slice(1);
-          writeJson(QUEUE_KEY, queue);
           setData((current) => {
             if (!current) return current;
             const sentItem = !second ? current.items.find((item) => item.id === entry.id) : null;
@@ -198,17 +197,24 @@ export default function SmsBatchWorkspace({ initial = null, initialError = "" })
             undoTimer.current = setTimeout(() => setUndo(null), UNDO_MS);
           }
           // A 1ª enviada já entrou em "Aguardando 2ª" localmente (sem recarregar a lista).
+          return "done";
         } catch (sendError) {
           if (sendError.status) {
             // O servidor recusou (ex.: contato já não está disponível): descarta e avisa.
-            queue = queue.slice(1);
-            writeJson(QUEUE_KEY, queue);
             setHiddenIds((current) => current.filter((id) => id !== `${second ? 2 : 1}:${entry.id}`));
             notify(`${entry.name || "Contato"}: ${sendError.message}`, "danger");
-          } else {
-            break; // sem internet: tenta de novo quando voltar
+            return "discard";
           }
+          return "offline"; // sem internet: tenta de novo quando voltar
         }
+      };
+      // Vários ao mesmo tempo (3 por vez): a fila esvazia bem mais rápido do que um por um.
+      while (queue.length) {
+        const batch = queue.slice(0, 3);
+        const outcomes = await Promise.all(batch.map(processEntry));
+        queue = queue.filter((entry) => !batch.some((item, index) => sameEntry(item, entry) && outcomes[index] !== "offline"));
+        writeJson(QUEUE_KEY, queue);
+        if (outcomes.includes("offline")) break;
       }
       setOfflineCount(readJson(QUEUE_KEY, []).length);
     } finally {
@@ -398,8 +404,12 @@ export default function SmsBatchWorkspace({ initial = null, initialError = "" })
   const isTeam = data.scope === "team";
   const wa = data.whatsapp || { state: "ok" };
   const noWhatsapp = data.noWhatsapp;
-  const progressPercent = progress.limit ? Math.min(100, Math.round((progress.sentToday / progress.limit) * 100)) : 0;
 
+  // Contagem na hora: o toque em Enviar já desconta (a gravação segue na fila, em segundo plano).
+  const tappedNow = items.filter((item) => hiddenIds.includes(`1:${item.id}`)).length;
+  const visibleItems = items.filter((item) => !hiddenIds.includes(`1:${item.id}`));
+  const progressPercent = progress.limit ? Math.min(100, Math.round(((progress.sentToday + tappedNow) / progress.limit) * 100)) : 0;
+  const visibleAwaiting = awaiting.filter((entry) => !hiddenIds.includes(`2:${entry.id}`));
   return (
     <div className="space-y-4 pb-32" data-no-reveal="">
       <p className="rounded-control border border-warning-line bg-warning-soft px-3 py-2 text-[13px] leading-5 text-warning">{data.notice}</p>
@@ -420,8 +430,8 @@ export default function SmsBatchWorkspace({ initial = null, initialError = "" })
 
       <div>
         <div className="mb-1 flex items-baseline justify-between text-sm font-bold text-ink">
-          <span>{progress.sentToday} de {progress.limit} hoje</span>
-          <span className="text-xs font-semibold text-muted">{progress.remaining} para enviar</span>
+          <span>{progress.sentToday + tappedNow} de {progress.limit} hoje</span>
+          <span className="text-xs font-semibold text-muted">{Math.max(0, progress.remaining - tappedNow)} para enviar</span>
         </div>
         <div className="h-3 overflow-hidden rounded-full bg-neutral-soft" role="progressbar" aria-valuemin={0} aria-valuemax={progress.limit} aria-valuenow={progress.sentToday} aria-label="1ª mensagem enviada hoje">
           <div className="h-full rounded-full bg-accent-strong transition-[width] duration-300" style={{ width: `${progressPercent}%` }} />
@@ -460,8 +470,8 @@ export default function SmsBatchWorkspace({ initial = null, initialError = "" })
         value={tab}
         onChange={setTab}
         options={[
-          { value: "send", label: `Para enviar (${items.length})` },
-          { value: "second", label: `Aguardando 2ª (${awaiting.length})` },
+          { value: "send", label: `Para enviar (${visibleItems.length})` },
+          { value: "second", label: `Aguardando 2ª (${visibleAwaiting.length})` },
           { value: "sent", label: `Enviados (${done.filter((row) => row.state !== "invalid").length})` },
           { value: "invalid", label: `Inexistentes (${done.filter((row) => row.state === "invalid").length})` },
           ...(isTeam ? [{ value: "nowa", label: `Sem WhatsApp (${noWhatsapp?.total || 0})` }] : []),
@@ -474,7 +484,7 @@ export default function SmsBatchWorkspace({ initial = null, initialError = "" })
           <Button variant="secondary" size="lg" block loading={busyId === "more"} onClick={loadMore}>
             Carregar mais 50 contatos
           </Button>
-          {items.length ? (
+          {visibleItems.length ? (
             <Button variant="danger-ghost" size="lg" block loading={busyId === "reset"} onClick={resetList}>
               Já enviei estes: zerar e trazer 50 novos
             </Button>
@@ -490,9 +500,9 @@ export default function SmsBatchWorkspace({ initial = null, initialError = "" })
       ) : null}
 
       {tab === "send" ? (
-        items.length ? (
+        visibleItems.length ? (
           <ul className="space-y-3">
-            {items.filter((item) => !hiddenIds.includes(`1:${item.id}`)).map((item) => (
+            {visibleItems.map((item) => (
               <li key={item.id}>
                 <Card padding="md">
                   <p className="text-lg font-extrabold leading-tight text-ink">{item.name || "Sem nome"}</p>
@@ -519,9 +529,9 @@ export default function SmsBatchWorkspace({ initial = null, initialError = "" })
       ) : null}
 
       {tab === "second" ? (
-        awaiting.length ? (
+        visibleAwaiting.length ? (
           <ul className="space-y-3">
-            {awaiting.filter((entry) => !hiddenIds.includes(`2:${entry.id}`)).map((entry) => (
+            {visibleAwaiting.map((entry) => (
               <li key={entry.id}>
                 <Card padding="md">
                   <p className="text-lg font-extrabold leading-tight text-ink">{entry.name || "Sem nome"}</p>
