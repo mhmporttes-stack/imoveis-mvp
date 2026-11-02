@@ -27,6 +27,7 @@ import { CLIENT_STATUS, clientStatusLabel, isAwaitingSimulationStatus } from "@/
 import { hasSimulationData, incomeTypeLabel, formatCurrency } from "@/lib/simulation-registration-format";
 import { formatMoneyBR } from "@/lib/simulation-list-utils";
 import StatusOptions from "./StatusOptions";
+import ClientCardSendSimulationButton from "./ClientCardSendSimulationButton";
 import { ApprovedSceneLayer, approvedPulseClass, transferOutClass, useStatusChangeScene } from "@/components/motion/ProductScenes";
 import { useBasicMode, useWhatsappBlocked } from "@/components/WhatsappAccessProvider";
 import { clientPhone, formatAgo, getUrgencySignal, initialsOf } from "./client-format";
@@ -163,10 +164,15 @@ export default function ClientCard({ client, activities, responsibleName, respon
       {/* Dono, 2026-10-22: botões com metade da altura (24px visíveis); a área de toque segue ≥ 44px pelo ::before (COMPACT_BUTTON). */}
       {/* Uma linha só (crítica de 2026-10-22): no celular o "…" caía sozinho numa linha extra — agora os botões ficam mais
           justos (gap e respiro menores abaixo de sm) e o "…" nunca quebra. */}
-      <footer className="mt-auto flex flex-nowrap items-center gap-1.5 border-t border-line px-3.5 py-1.5 sm:gap-2 sm:px-4">
+      {/* Dono, 2026-11-02: "Enviar simulação" ao lado do WhatsApp, mesmo tamanho. No celular os dois dividem a primeira linha
+          e Simulação/Lista/… vão para a segunda; a partir de sm tudo volta a uma linha só (sm:contents). */}
+      <footer className="mt-auto flex flex-wrap items-center gap-1.5 border-t border-line px-3.5 py-1.5 sm:flex-nowrap sm:gap-2 sm:px-4">
+        <div className="flex w-full items-center gap-1.5 empty:hidden sm:contents [&>button]:flex-1 sm:[&>button]:flex-none">
         {whatsappBlocked ? null : <Button size="sm" className={COMPACT_BUTTON} onClick={() => list.openWhatsApp(client)} disabled={busy}>
           <MessageCircle className="h-3.5 w-3.5" aria-hidden="true" /> WhatsApp
         </Button>}
+        <ClientCardSendSimulationButton client={client} list={list} confirmAction={confirmAction} whatsappBlocked={whatsappBlocked} busy={busy} className={COMPACT_BUTTON} />
+        </div>
         {/* Pedido do dono (2026-10-07): o botão do card abre os valores (renomeado "Simulação"); "Agendar" foi para o menu. */}
         <Button size="sm" variant="secondary" className={COMPACT_BUTTON} onClick={() => list.openValues(client)} disabled={busy}>
           <Calculator className="h-3.5 w-3.5" aria-hidden="true" /> Simulação

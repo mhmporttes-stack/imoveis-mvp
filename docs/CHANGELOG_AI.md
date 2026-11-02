@@ -11,6 +11,12 @@
 
 
 
+## 2026-11-02 — Botão "Enviar simulação" no card do cliente (crm-editor) — branch `feat/botao-enviar-simulacao`, NÃO publicado
+- Dono pediu botão "Enviar simulação" do mesmo tamanho do "WhatsApp". Regra e canais: `docs/BUSINESS_RULES.md` PRES-19 (2026-11-02). Reusa a rota `/api/admin/simulacoes/<id>/apresentacao` (`enviar-preparar`/`enviar-registrar`); nenhum envio novo.
+- Novo: `components/clients/ClientCardSendSimulationButton.jsx`, `lib/client-card-send-simulation-core.mjs`, `tests/client-card-send-simulation.test.mjs`. Ajustes mínimos: rodapé de `ClientCard.jsx` (linha 1 com WhatsApp + Enviar simulação; sm+ numa linha) e `useClientList.js` (expõe `waState` e `notify`).
+- Risco/observação: `tests/client-card-whatsapp-chat.test.mjs` (4 testes sobre `openWhatsApp`) já falha neste ponto da base (a função é `async` com `await`; não tocada). Envio real e produção não testados. Possível conflito de merge com `feat/whatsapp-fora-abre-app` em `useClientList.js`/`ClientCard.jsx` (linhas do return e do rodapé).
+- **Autor:** Claude (crm-editor)
+
 ## 2026-11-02 — Menu "Mais" do app não mostrava o Lote de SMS: versão nova aplicada ao abrir o "Mais" + atalho no Início (crm-editor) — branch `fix/menu-lote-sms-app`, NÃO publicado
 - Diagnóstico completo em `docs/INCIDENTES.md` (2026-11-02): sem cache de menu/HTML no service worker; o app aberto no iPhone rodava o JS antigo e a versão nova só entra em troca de tela/toque em link (PWA-CACHE/regra de 2026-10-26).
 - Mudou: abrir o "Mais" com versão pendente recarrega e reabre a folha (`applyPendingUpdateOnMenuOpen`, gatilho `menu-open`; nunca digitando; sair/voltar segue sem recarregar). Atalho "Lote de SMS" no Início (admin geral e gestor; página continua com `requireBrokerManagementPage`). Docs: `docs/pwa-admin.md`. Testes: `tests/menu-lote-sms.test.mjs`, `tests/pwa-update-policy.test.mjs`.

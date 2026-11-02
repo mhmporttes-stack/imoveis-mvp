@@ -1015,6 +1015,8 @@ export function useClientList({
     // estado
     filters, searchInput, page, pageSize, items: displayItems, total, totalPages, counters, pendingClientsCount,
     transferExit, loading, loadError, deviceRestored, localTags, busyClientId: busyClientId || (chatNavPending ? openingChatClientId : ""), reasonTarget, receivedDateTarget, docsListTarget, canMarkSalePaid, responsibleProfiles, responsibleProfileMap, transferTargets,
+    // estado do WhatsApp do corretor + aviso (usados pelo botão "Enviar simulação" do card)
+    waState, notify,
     // filtros e paginação
     setSearchInput, updateFilters, resetFilters, goToPage, changePageSize, fetchClients,
     // ações
