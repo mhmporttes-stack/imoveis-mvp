@@ -12,11 +12,13 @@
 
 export const UPDATE_ACTIONS = Object.freeze({ NONE: "none", RELOAD: "reload", HARD_NAVIGATE: "hard-navigate" });
 
-// trigger: "visible" (voltou ao app) | "hidden" (saiu do app) | "link-click" | "route-change" | "controller-change"
+// - Abrir a folha "Mais" (menu do celular) com versão nova pendente aplica a versão e reabre a folha (2026-11-02: o menu
+//   fica no JavaScript da versão antiga; item novo como "Lote de SMS" só aparecia depois de uma troca de tela).
+// trigger: "visible" (voltou ao app) | "hidden" (saiu do app) | "link-click" | "route-change" | "menu-open" | "controller-change"
 export function decideUpdateAction({ pending = false, trigger = "", typing = false } = {}) {
   if (!pending) return UPDATE_ACTIONS.NONE;
   if (trigger === "link-click") return UPDATE_ACTIONS.HARD_NAVIGATE;
-  if (trigger === "route-change") return typing ? UPDATE_ACTIONS.NONE : UPDATE_ACTIONS.RELOAD;
+  if (trigger === "route-change" || trigger === "menu-open") return typing ? UPDATE_ACTIONS.NONE : UPDATE_ACTIONS.RELOAD;
   // "visible", "hidden", "controller-change" e qualquer outro: espera a próxima troca de tela.
   return UPDATE_ACTIONS.NONE;
 }

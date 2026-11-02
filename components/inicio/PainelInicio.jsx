@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { AlertTriangle, CalendarDays, ChevronRight, ClipboardCheck, FileClock, MessageCircle, Timer, TrendingUp, UserRoundPlus, Users } from "lucide-react";
+import { AlertTriangle, CalendarDays, ChevronRight, ClipboardCheck, FileClock, MessageCircle, MessageSquareText, Timer, TrendingUp, UserRoundPlus, Users } from "lucide-react";
 import Card from "@/components/ui/Card";
 import Kpi, { KpiGrid } from "@/components/ui/Kpi";
 import Skeleton from "@/components/ui/Skeleton";
@@ -299,16 +299,31 @@ export function InicioDono({ owner }) {
   );
 }
 
+// Atalho do Lote de SMS (2026-11-02): segundo caminho até a tela, só admin geral e gestor (a página confere de novo).
+export function InicioAtalhoLoteSms() {
+  return (
+    <Link href="/admin/lote-sms" className="flex min-h-touch items-center gap-3 rounded-card border border-line bg-white p-3 text-sm font-semibold text-ink hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent sm:p-4">
+      <MessageSquareText size={20} className="shrink-0 text-accent" aria-hidden="true" />
+      <span className="min-w-0 flex-1">
+        Lote de SMS
+        <span className="block text-xs font-medium text-muted">Enviar o link do cadastro por SMS a quem ainda não teve contato</span>
+      </span>
+      <ChevronRight className="h-4 w-4 shrink-0 text-faint" aria-hidden="true" />
+    </Link>
+  );
+}
+
 // Composição da tela — a mesma na página real (app/admin/inicio/page.jsx, com o mês chegando por streaming) e na
 // vitrine. `monthKpis` e `funnel` são os blocos do mês já prontos (ou o carregando).
 // Admin geral (INI-5): `ownerSummary` substitui o resumo (sem botões) e `ownerDetail` (Atenções + Equipe) entra logo abaixo
 // dos indicadores — os dois chegam por streaming na página real.
-export default function PainelInicio({ data, monthKpis = null, funnel = null, ownerSummary = null, ownerDetail = null }) {
+export default function PainelInicio({ data, monthKpis = null, funnel = null, ownerSummary = null, ownerDetail = null, smsBatch = false }) {
   return (
     <div className="container-page space-y-4 sm:space-y-5">
       <h1 className="sr-only">Início</h1>
       {ownerSummary || <InicioAssistente assistant={data.assistant} chatAvailable={data.chatAvailable} />}
       <InicioIndicadores kpis={data.kpis} month={monthKpis} />
+      {smsBatch ? <InicioAtalhoLoteSms /> : null}
       {ownerDetail}
       <div className="grid gap-4 sm:gap-5 lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
         {funnel}

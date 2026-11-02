@@ -40,6 +40,17 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-11-02 — "Lote de SMS" não aparece na tela "Mais" do app (iPhone) mesmo depois de publicado
+- **Data:** 2026-11-02
+- **Sintoma:** dono (iPhone, app instalado): item novo do menu (GESTÃO/CADASTROS) publicado e no ar, mas a folha "Mais" segue sem ele, "mesmo fechando e abrindo o app".
+- **Área:** Frontend / PWA
+- **Impacto:** qualquer item novo de menu demora a aparecer no app já aberto; dono e gestor.
+- **Causa raiz:** NÃO é cache servido nem lista que descarta a chave: `getAdminMenuGroups` (fonte única do menu lateral e do "Mais") devolve o item para admin geral e gestor (teste novo executa a função real); `/admin` é `networkOnly` no service worker (HTML nunca guardado), `/_next/static` tem hash no nome (arquivo novo = endereço novo) e `CACHE_VERSION` já é carimbada a cada build. O menu é JavaScript do cliente: o app aberto/suspenso no iPhone continua com o JS da versão antiga, e a versão nova (regra de 2026-10-26: sair/voltar nunca recarrega) só entrava no próximo toque num link ou troca de tela via `router.push` — abrir a folha "Mais" e olhar não é nenhum dos dois. "Fechar" no iOS (voltar à tela inicial) só suspende o app; só descartar o app no seletor ou o iOS liberar a memória abre do zero. Não foi possível reproduzir no aparelho (sem acesso): conclusão por leitura de código e dos cabeçalhos de produção (`sw.js` novo no ar).
+- **Correção:** abrir a folha "Mais" com versão nova pendente aplica a versão (recarrega, nunca com campo sendo digitado) e a folha reabre sozinha (`applyPendingUpdateOnMenuOpen` em `components/PwaLifecycle.jsx`, gatilho `menu-open` em `components/pwa-update-policy.mjs`). Segundo caminho: atalho "Lote de SMS" no Início para admin geral e gestor (`InicioAtalhoLoteSms`). Sair/voltar continua sem recarregar.
+- **Arquivos/commit:** `components/AdminBottomNav.jsx`, `components/PwaLifecycle.jsx`, `components/pwa-update-policy.mjs`, `components/inicio/PainelInicio.jsx`, `app/admin/inicio/page.jsx` — branch `fix/menu-lote-sms-app`
+- **Prevenção/teste:** `tests/menu-lote-sms.test.mjs` (menu por perfil com a função real), `tests/pwa-update-policy.test.mjs`.
+- **Status:** Resolvido (não publicado). Limite: a versão só vira "pendente" ~4 s depois de voltar ao app; abrir o "Mais" antes disso ainda mostra o menu antigo (reabrir resolve).
+
 ### 2026-10-30 — Relatório diário: "Ontem" mostra quase nada, "não é um número real"
 - **Data:** 2026-10-30
 - **Sintoma:** "o filtro do prazo parece que não funciona: quando coloca 'ontem' não aparece quase nada, volume muito baixo."

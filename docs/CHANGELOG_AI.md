@@ -11,6 +11,11 @@
 
 
 
+## 2026-11-02 — Menu "Mais" do app não mostrava o Lote de SMS: versão nova aplicada ao abrir o "Mais" + atalho no Início (crm-editor) — branch `fix/menu-lote-sms-app`, NÃO publicado
+- Diagnóstico completo em `docs/INCIDENTES.md` (2026-11-02): sem cache de menu/HTML no service worker; o app aberto no iPhone rodava o JS antigo e a versão nova só entra em troca de tela/toque em link (PWA-CACHE/regra de 2026-10-26).
+- Mudou: abrir o "Mais" com versão pendente recarrega e reabre a folha (`applyPendingUpdateOnMenuOpen`, gatilho `menu-open`; nunca digitando; sair/voltar segue sem recarregar). Atalho "Lote de SMS" no Início (admin geral e gestor; página continua com `requireBrokerManagementPage`). Docs: `docs/pwa-admin.md`. Testes: `tests/menu-lote-sms.test.mjs`, `tests/pwa-update-policy.test.mjs`.
+- Risco/observação: `tests/painel-inicio.test.mjs` ("Início: primeiro item do menu…") já falhava antes (regex não conhece `ECONOMIC_INDICATORS_ITEM` em `getAdminMenuGroups`) — fora do escopo, não corrigido.
+
 ## 2026-11-02 — Lote de SMS: link do cadastro por SMS, por toque no iPhone (crm-editor) — branch `feat/lote-sms`, NÃO publicado
 - Dono: prospectar sem mídia paga; depois corrigiu: só contatos da BASE com NENHUMA tentativa de contato (não quem já preencheu o formulário) e começar pelo app do celular. **[REGRA OFICIAL]** em `docs/BUSINESS_RULES.md` PRO-18.
 - Novo: `/admin/lote-sms` (menu GESTÃO, admin geral e gestor), `lib/sms-batch-core.mjs` (elegibilidade única, texto, href `sms:` iOS, medição), `lib/sms-batch.js`, `app/api/admin/lote-sms/route.js`, `components/SmsBatchWorkspace.jsx`, migration `20261102120000_sms_batch_sends.sql` (**NÃO aplicada** — DECISÃO NECESSÁRIA). Reaproveita campanhas (campanha "SMS - Lote da base", link curto `/c/<código>`, `campaign_link_views`, `client_origins`) e `do-not-contact-core`.

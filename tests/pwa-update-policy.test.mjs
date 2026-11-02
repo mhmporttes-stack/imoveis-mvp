@@ -21,6 +21,12 @@ test("versão nova entra na próxima troca de tela", () => {
   assert.equal(decideUpdateAction({ pending: true, trigger: "route-change", typing: true }), UPDATE_ACTIONS.NONE);
 });
 
+test("abrir a folha Mais com versão pendente aplica a versão (menu atual); digitando ou sem pendência, não", () => {
+  assert.equal(decideUpdateAction({ pending: true, trigger: "menu-open" }), UPDATE_ACTIONS.RELOAD);
+  assert.equal(decideUpdateAction({ pending: true, trigger: "menu-open", typing: true }), UPDATE_ACTIONS.NONE);
+  assert.equal(decideUpdateAction({ pending: false, trigger: "menu-open" }), UPDATE_ACTIONS.NONE);
+});
+
 test("sem versão pendente nada acontece", () => {
   for (const trigger of ["visible", "hidden", "link-click", "route-change"]) {
     assert.equal(decideUpdateAction({ pending: false, trigger }), UPDATE_ACTIONS.NONE, trigger);
@@ -51,9 +57,10 @@ test("link do próprio painel vira abertura completa; os demais seguem normais",
 test("PwaLifecycle não tem mais recarga automática ao sair/voltar", () => {
   const pwa = fs.readFileSync(path.join(root, "components/PwaLifecycle.jsx"), "utf8");
   assert.doesNotMatch(pwa, /reloadIfAway|reloadOnReturn/);
-  // Toda recarga passa pela regra pura (link → abertura completa; troca de rota → recarga).
+  // Toda recarga passa pela regra pura (link → abertura completa; troca de rota → recarga; abrir o "Mais" → recarga).
   const reloads = pwa.match(/window\.location\.(reload|assign)\(/g) || [];
-  assert.equal(reloads.length, 2);
+  assert.equal(reloads.length, 3);
+  assert.match(pwa, /trigger: "menu-open", typing: userIsTyping\(\)/);
   assert.match(pwa, /window\.addEventListener\("click", handleLinkClick, true\)/);
   // O service worker continua assumindo sozinho (o caminho de atualização segue funcionando).
   const sw = fs.readFileSync(path.join(root, "public/sw.js"), "utf8");

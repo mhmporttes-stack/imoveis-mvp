@@ -2,7 +2,7 @@ import { Suspense } from "react";
 import { requireAdminPage } from "@/lib/admin-auth";
 import { getPainelInicio, getPainelInicioMes } from "@/lib/painel-inicio";
 import { getPainelInicioDono } from "@/lib/painel-inicio-dono";
-import { isGeneralAdminAuth } from "@/lib/admin-profiles";
+import { isGeneralAdminAuth, isManagerProfile } from "@/lib/admin-profiles";
 import { InicioCacheSaver } from "@/components/inicio/InicioDeviceCache";
 import { INICIO_DAY_CACHE_NAME, INICIO_MONTH_CACHE_NAME, INICIO_OWNER_CACHE_NAME } from "@/components/panel-cache-names";
 import PainelInicio, { InicioAssistente, InicioDono, InicioDonoCarregando, InicioFunil, InicioFunilCarregando, InicioFunilErro, InicioKpisMes, InicioKpisMesCarregando } from "@/components/inicio/PainelInicio";
@@ -70,6 +70,7 @@ export default async function InicioPage() {
     <main className="min-h-screen bg-mist pb-14 pt-3 md:pt-6">
       <PainelInicio
         data={data}
+        smsBatch={isGeneralAdminAuth(auth) || isManagerProfile(auth.profile)}
         monthKpis={<Suspense fallback={<InicioKpisMesCarregando />}><MonthKpis monthPromise={monthPromise} /></Suspense>}
         funnel={<Suspense fallback={<InicioFunilCarregando />}><MonthFunnel monthPromise={monthPromise} /></Suspense>}
         ownerSummary={ownerPromise ? (

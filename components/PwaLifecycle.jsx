@@ -23,6 +23,24 @@ function userIsTyping() {
   return Boolean(isField && String(element.value ?? element.textContent ?? "").length > 0);
 }
 
+// Chave de sessão: a folha "Mais" reabre sozinha depois de a versão nova ser aplicada ao abri-la (AdminBottomNav).
+export const REOPEN_MORE_KEY = "mm-reopen-more-sheet";
+
+// Abrir a folha "Mais" com versão nova pendente: aplica a versão (recarrega) para o menu mostrar os itens novos.
+// Devolve true quando recarregou (quem chamou não abre a folha agora; ela reabre após o recarregamento).
+export function applyPendingUpdateOnMenuOpen() {
+  if (typeof window === "undefined" || updateReloading) return false;
+  if (decideUpdateAction({ pending: updatePending, trigger: "menu-open", typing: userIsTyping() }) !== UPDATE_ACTIONS.RELOAD) return false;
+  updateReloading = true;
+  try {
+    window.sessionStorage.setItem(REOPEN_MORE_KEY, "1");
+  } catch {
+    // Sem sessionStorage: recarrega do mesmo jeito; a folha só não reabre sozinha.
+  }
+  window.location.reload();
+  return true;
+}
+
 export default function PwaLifecycle() {
   const [updateReady, setUpdateReady] = useState(() => updatePending);
   const pathname = usePathname();

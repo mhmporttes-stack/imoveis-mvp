@@ -16,6 +16,7 @@ import { cx } from "@/components/ui/cx";
 import { useCrmBadgeCounts } from "@/components/useCrmBadgeCounts";
 import { MarketplaceChatIcon } from "@/components/marketplace/MarketplaceChatShortcut";
 import { useMarketplaceUnreadCount } from "@/components/marketplace/MarketplaceNavBadge";
+import { REOPEN_MORE_KEY, applyPendingUpdateOnMenuOpen } from "@/components/PwaLifecycle";
 import { useLiveChatHidden } from "@/components/WhatsappAccessProvider";
 import { hiddenNavKeys } from "@/lib/whatsapp-access-core.mjs";
 
@@ -92,6 +93,17 @@ export default function AdminBottomNav({ isAdmin = false, isBroker = false, isAs
   const hiddenKeys = hiddenNavKeys({ blocked: whatsappBlocked, chatHidden, isBrokerOrAssociate: (isBroker || isAssociate) && !isManager && !isAdmin });
   const destinations = destinationsFor(flags).filter((item) => !hiddenKeys.has(item.key));
   const activeKey = destinations.find((item) => item.match(pathname))?.key || "";
+
+  // Versão nova aplicada ao abrir o "Mais" (applyPendingUpdateOnMenuOpen): a folha volta aberta, já com o menu atual.
+  useEffect(() => {
+    try {
+      if (window.sessionStorage.getItem(REOPEN_MORE_KEY) !== "1") return;
+      window.sessionStorage.removeItem(REOPEN_MORE_KEY);
+      setMoreOpen(true);
+    } catch {
+      // Sem sessionStorage: a folha só não reabre sozinha.
+    }
+  }, []);
 
   // Reserva o espaço da barra no fim da página (ver --admin-bottom-nav-space
   // em app/globals.css) enquanto ela estiver montada.
@@ -245,7 +257,7 @@ export default function AdminBottomNav({ isAdmin = false, isBroker = false, isAs
           <li className="flex">
             <button
               type="button"
-              onClick={() => setMoreOpen(true)}
+              onClick={() => { if (!applyPendingUpdateOnMenuOpen()) setMoreOpen(true); }}
               aria-haspopup="dialog"
               aria-expanded={moreOpen}
               className={cx(
