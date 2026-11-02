@@ -299,7 +299,7 @@ export function InicioDono({ owner }) {
   );
 }
 
-// Atalho do Lote de SMS (2026-11-02): segundo caminho até a tela, só admin geral e gestor (a página confere de novo).
+// Atalho do Lote de SMS (2026-11-02): segundo caminho até a tela, admin geral, gestor e corretor (a página e a API conferem de novo).
 export function InicioAtalhoLoteSms() {
   return (
     <Link href="/admin/lote-sms" className="flex min-h-touch items-center gap-3 rounded-card border border-line bg-white p-3 text-sm font-semibold text-ink hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent sm:p-4">

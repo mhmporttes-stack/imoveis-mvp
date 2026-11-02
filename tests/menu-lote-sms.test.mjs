@@ -16,12 +16,13 @@ const getAdminMenuGroups = new Function("hiddenNavKeys", "withAcademyMenuGroup",
 
 const keys = (flags) => getAdminMenuGroups(flags).flatMap((group) => group.items.map((item) => item.key));
 
-test("admin geral e gestor veem o Lote de SMS (menu lateral e Mais); corretor e associado não", () => {
-  assert.ok(keys({ isAdmin: true }).includes("sms-batch"));
-  assert.ok(keys({ isManager: true, isBroker: true }).includes("sms-batch"));
-  assert.ok(keys({ isManager: true }).includes("sms-batch"));
-  assert.ok(!keys({ isBroker: true }).includes("sms-batch"));
-  assert.ok(!keys({ isAssociate: true, isBroker: true }).includes("sms-batch"));
+test("admin geral, gestor e corretor veem o Lote de SMS (menu lateral e Mais), cada um UMA vez; associado não (dono, 2026-11-02)", () => {
+  const count = (flags) => keys(flags).filter((key) => key === "sms-batch").length;
+  assert.equal(count({ isAdmin: true }), 1);
+  assert.equal(count({ isManager: true, isBroker: true }), 1);
+  assert.equal(count({ isManager: true }), 1);
+  assert.equal(count({ isBroker: true }), 1);
+  assert.equal(count({ isAssociate: true, isBroker: true }), 0);
 });
 
 test("o Lote de SMS aponta para a rota e tem ícone e chave de rota ativa", () => {
@@ -38,13 +39,13 @@ test("a folha Mais mostra todos os itens do menu que não estão na barra (sem l
   assert.ok(!/sms-batch/.test(nav), "barra não deve listar o item à mão");
 });
 
-test("Início: atalho do Lote de SMS só para admin geral e gestor; a página do Lote continua protegida", () => {
+test("Início: atalho do Lote de SMS para admin geral, gestor e corretor (decisão única smsBatchScope); a página do Lote continua protegida", () => {
   const page = read("app/admin/inicio/page.jsx");
-  assert.match(page, /smsBatch=\{isGeneralAdminAuth\(auth\) \|\| isManagerProfile\(auth\.profile\)\}/);
+  assert.match(page, /smsBatch=\{Boolean\(smsBatchScope\(/);
   const inicio = read("components/inicio/PainelInicio.jsx");
   assert.match(inicio, /\{smsBatch \? <InicioAtalhoLoteSms \/> : null\}/);
   assert.match(inicio, /href="\/admin\/lote-sms"/);
-  assert.match(read("app/admin/lote-sms/page.jsx"), /await requireBrokerManagementPage\(\)/);
+  assert.match(read("app/admin/lote-sms/page.jsx"), /await requirePerformancePage\(\)/);
 });
 
 test("Mais aplica a versão pendente e reabre a folha", () => {
