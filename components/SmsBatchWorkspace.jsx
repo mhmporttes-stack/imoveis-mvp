@@ -54,8 +54,9 @@ const LOAD_TIMEOUT_MS = 45000;
 const MAX_AUTO_CHECKS = 30;
 
 async function call(method, body, query = "") {
-  const controller = method === "GET" ? new AbortController() : null;
-  const timer = controller ? setTimeout(() => controller.abort(), LOAD_TIMEOUT_MS) : null;
+  // GET: 45 s; gravação (POST): 15 s — um pedido que o iOS deixou pendurado ao ir para o segundo plano não trava a fila.
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), method === "GET" ? LOAD_TIMEOUT_MS : 15000);
   let response;
   try {
     response = await fetch(`/api/admin/lote-sms${query}`, {
@@ -64,7 +65,7 @@ async function call(method, body, query = "") {
       body: body ? JSON.stringify(body) : undefined,
       cache: "no-store",
       keepalive: method === "POST", // a gravação termina mesmo se o app for para o segundo plano (abrindo o Mensagens)
-      signal: controller?.signal
+      signal: controller.signal
     });
   } catch (fetchError) {
     if (fetchError?.name === "AbortError") throw new Error("A lista demorou para carregar. Toque em \"Tentar de novo\".");
@@ -109,7 +110,7 @@ export default function SmsBatchWorkspace({ initial = null, initialError = "" })
   }, []);
   const [notify, toastElement] = useToast();
   const [confirmAction, confirmElement] = useConfirm();
-  const flushing = useRef(false);
+  const flushing = useRef(0);
   const undoTimer = useRef(null);
   const loadedAt = useRef(Date.now());
   const autoChecks = useRef(0);
@@ -151,8 +152,9 @@ export default function SmsBatchWorkspace({ initial = null, initialError = "" })
   // Fila de envios a marcar (sobrevive a app fechado e internet caída). kind 1 = 1ª mensagem (id do contato);
   // kind 2 = 2ª mensagem (id do envio da 1ª).
   const flush = useCallback(async () => {
-    if (flushing.current) return;
-    flushing.current = true;
+    // Rodada anterior pendurada há mais de 20 s (o iOS suspendeu o app no meio): libera e recomeça.
+    if (flushing.current && Date.now() - flushing.current < 20000) return;
+    flushing.current = Date.now();
     try {
       let stalled = false;
       let queue = readJson(QUEUE_KEY, []);
@@ -231,7 +233,7 @@ export default function SmsBatchWorkspace({ initial = null, initialError = "" })
       // Toque que entrou no último instante da rodada: roda de novo (menos quando parou por falta de internet).
       if (!stalled && readJson(QUEUE_KEY, []).length) setTimeout(() => flush(), 300);
     } finally {
-      flushing.current = false;
+      flushing.current = 0;
     }
   }, [notify, reload]);
 
