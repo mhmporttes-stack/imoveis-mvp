@@ -6628,3 +6628,4 @@ Pedido do dono (prints do iPhone, PWA/Safari), só apresentação — nenhuma re
 - 2026-11-02: Lote de SMS: toque no cartão Cadastros abre a lista de quem preencheu (inclui cadastro cujo cliente já não existe, para bater com o contador).
 - 2026-11-02: Lote de SMS: cadastro cujo cliente foi apagado do CRM não conta nos resultados.
 - 2026-11-02: Lote de SMS: aba Enviados mostra até 600 (antes 100), com + se passar.
+- 2026-11-02: Lote de SMS: cartão da 2ª sem gravação da 1ª (pending) agora aceita Mensagem enviada/Número não existe/Não ativo/SAIR (grava a 1ª na hora).

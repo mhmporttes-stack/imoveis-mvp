@@ -175,7 +175,8 @@ export default function SmsBatchWorkspace({ initial = null, initialError = "" })
           }
           setData((current) => {
             if (!current) return current;
-            const sentItem = !second ? current.items.find((item) => item.id === entry.id) : null;
+            const optimistic = !second ? current.awaiting.find((row) => row.contactId === entry.id) : null;
+            const sentItem = !second ? (current.items.find((item) => item.id === entry.id) || optimistic) : null;
             if (second) {
               const moved = current.awaiting.find((item) => item.id === entry.id);
               return {
@@ -189,7 +190,9 @@ export default function SmsBatchWorkspace({ initial = null, initialError = "" })
               ...current,
               // 1ª enviada: o cartão já entra em "Aguardando 2ª" (com a 2ª pronta), sem esperar a lista recarregar.
               done: sentItem && result.sendId && result2 ? [{ id: result.sendId, name: sentItem.name, phoneMasked: sentItem.phoneMasked, sentAt: new Date().toISOString(), secondAt: new Date().toISOString(), state: "complete" }, ...current.done] : current.done,
-              awaiting: sentItem && result.sendId && !result2
+              awaiting: result2
+                ? current.awaiting.filter((row) => row.contactId !== entry.id)
+                : sentItem && result.sendId
                 ? (current.awaiting.some((row) => row.contactId === entry.id)
                   ? current.awaiting.map((row) => (row.contactId === entry.id ? { ...row, id: result.sendId, pending: false } : row))
                   : [...current.awaiting, { id: result.sendId, contactId: entry.id, name: sentItem.name, phoneMasked: sentItem.phoneMasked, sentAt: new Date().toISOString(), state: "awaiting", href: sentItem.secondHref, fallbackHref: sentItem.secondFallbackHref, resendHref: sentItem.href }])
@@ -315,7 +318,8 @@ export default function SmsBatchWorkspace({ initial = null, initialError = "" })
   const confirmSecond = (entry) => {
     // Some na hora (a gravação segue em segundo plano, na fila): dá para ir direto para o próximo.
     setHiddenIds((current) => [...current, `2:${entry.id}`]);
-    writeJson(QUEUE_KEY, [...readJson(QUEUE_KEY, []), { id: entry.id, name: entry.name, kind: 2 }]);
+    // Cartão ainda sem gravação da 1ª (pending): grava a 1ª e a 2ª juntas, pelo contato.
+    writeJson(QUEUE_KEY, [...readJson(QUEUE_KEY, []), entry.pending && entry.contactId ? { id: entry.contactId, name: entry.name, kind: 1, both: true } : { id: entry.id, name: entry.name, kind: 2 }]);
     setOfflineCount(readJson(QUEUE_KEY, []).length);
     flush();
   };
@@ -357,7 +361,15 @@ export default function SmsBatchWorkspace({ initial = null, initialError = "" })
     }
   };
 
-  const markInvalid = async (entry, reason = "nonexistent") => {
+  // Cartão ainda sem gravação da 1ª: grava agora (idempotente) e devolve o id real do envio.
+  const withSendId = async (entry) => {
+    if (!entry.pending || !entry.contactId) return entry;
+    const saved = await call("POST", { action: "sent", contactId: entry.contactId });
+    return { ...entry, id: saved.sendId || entry.id, pending: false };
+  };
+
+  const markInvalid = async (rawEntry, reason = "nonexistent") => {
+    const entry = rawEntry;
     const inactive = reason === "inactive";
     const ok = await confirmAction({
       title: inactive ? "Número não ativo?" : "Número não existe?",
@@ -368,7 +380,8 @@ export default function SmsBatchWorkspace({ initial = null, initialError = "" })
     if (!ok) return;
     setBusyId(entry.id);
     try {
-      await call("POST", { action: "invalid", sendId: entry.id, reason });
+      const ready = await withSendId(entry);
+      await call("POST", { action: "invalid", sendId: ready.id, reason });
       setData((current) => ({
         ...current,
         awaiting: current.awaiting.filter((row) => row.id !== entry.id),
@@ -382,7 +395,8 @@ export default function SmsBatchWorkspace({ initial = null, initialError = "" })
     }
   };
 
-  const optOut = async (entry) => {
+  const optOut = async (rawEntry) => {
+    const entry = rawEntry;
     const ok = await confirmAction({
       title: "Respondeu SAIR?",
       description: `${entry.name || entry.phoneMasked} vai para "Não contactar" e não recebe mais contato nosso, em nenhum canal.`,
@@ -392,7 +406,8 @@ export default function SmsBatchWorkspace({ initial = null, initialError = "" })
     if (!ok) return;
     setBusyId(entry.id);
     try {
-      await call("POST", { action: "opt-out", sendId: entry.id });
+      const ready = await withSendId(entry);
+      await call("POST", { action: "opt-out", sendId: ready.id });
       setData((current) => ({
         ...current,
         awaiting: current.awaiting.filter((row) => row.id !== entry.id),
@@ -575,19 +590,19 @@ export default function SmsBatchWorkspace({ initial = null, initialError = "" })
                   {openedIds.includes(entry.id) ? (
                     <p className="mt-2 rounded-control bg-surface-muted px-3 py-2 text-sm font-semibold text-ink">2ª aberta no Mensagens. Deu certo?</p>
                   ) : null}
-                  <Button variant="primary" size="lg" block className="mt-2" disabled={entry.pending} onClick={() => confirmSecond(entry)}>
+                  <Button variant="primary" size="lg" block className="mt-2" onClick={() => confirmSecond(entry)}>
                     Mensagem enviada
                   </Button>
                   <a href={entry.resendHref} className="mt-2 flex min-h-12 w-full items-center justify-center gap-2 rounded-control border border-line text-base font-bold text-ink active:brightness-95">
                     Enviar 1ª novamente
                   </a>
-                  <Button variant="secondary" size="lg" block className="mt-1" loading={busyId === entry.id} disabled={entry.pending} onClick={() => markInvalid(entry, "nonexistent")}>
+                  <Button variant="secondary" size="lg" block className="mt-1" loading={busyId === entry.id} onClick={() => markInvalid(entry, "nonexistent")}>
                     Número não existe
                   </Button>
-                  <Button variant="secondary" size="lg" block className="mt-1" loading={busyId === entry.id} disabled={entry.pending} onClick={() => markInvalid(entry, "inactive")}>
+                  <Button variant="secondary" size="lg" block className="mt-1" loading={busyId === entry.id} onClick={() => markInvalid(entry, "inactive")}>
                     Número não ativo
                   </Button>
-                  <Button variant="danger-ghost" size="lg" block className="mt-1" loading={busyId === entry.id} disabled={entry.pending} onClick={() => optOut(entry)}>
+                  <Button variant="danger-ghost" size="lg" block className="mt-1" loading={busyId === entry.id} onClick={() => optOut(entry)}>
                     Respondeu SAIR
                   </Button>
                 </Card>
