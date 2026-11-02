@@ -19,6 +19,7 @@ import { useToast } from "@/components/ui/Toast";
 // Dois perfis de tela (data.scope): "broker" = lote do corretor (50/dia reservados só para ele, números dele, resultados dele);
 // "team" = admin geral/gestor (lote da equipe, textos e limite editáveis, cartão por corretor e filtro por corretor).
 const AWAITING_KEY = "mm-sms-awaiting";
+const TOGETHER_KEY = "mm-sms-together";
 const QUEUE_KEY = "mm-sms-queue";
 const UNDO_MS = 6000;
 const MIN_AWAY_MS = 800;
@@ -100,6 +101,11 @@ export default function SmsBatchWorkspace({ initial = null, initialError = "" })
   // Cartão some na hora ao tocar em "Enviar" (volume mais rápido); volta se o SMS não chegou a ser aberto.
   const [hiddenIds, setHiddenIds] = useState([]);
   const [openedIds, setOpenedIds] = useState([]);
+  // Enviar as 2 mensagens juntas, num SMS só (ligado por padrão; guardado neste aparelho).
+  const [together, setTogether] = useState(true);
+  useEffect(() => {
+    setTogether(readJson(TOGETHER_KEY, true) !== false);
+  }, []);
   const [notify, toastElement] = useToast();
   const [confirmAction, confirmElement] = useConfirm();
   const flushing = useRef(false);
@@ -153,6 +159,15 @@ export default function SmsBatchWorkspace({ initial = null, initialError = "" })
         const second = entry.kind === 2;
         try {
           const result = await call("POST", second ? { action: "sent-2", sendId: entry.id } : { action: "sent", contactId: entry.id });
+          // Enviadas juntas: a 2ª também é marcada como enviada, no mesmo passo (se falhar, o cartão segue em "Aguardando 2ª").
+          let result2 = null;
+          if (!second && entry.both && result.sendId) {
+            try {
+              result2 = await call("POST", { action: "sent-2", sendId: result.sendId });
+            } catch {
+              result2 = null;
+            }
+          }
           queue = queue.slice(1);
           writeJson(QUEUE_KEY, queue);
           setData((current) => {
@@ -170,13 +185,14 @@ export default function SmsBatchWorkspace({ initial = null, initialError = "" })
             return {
               ...current,
               // 1ª enviada: o cartão já entra em "Aguardando 2ª" (com a 2ª pronta), sem esperar a lista recarregar.
-              awaiting: sentItem && result.sendId ? [...current.awaiting, { id: result.sendId, name: sentItem.name, phoneMasked: sentItem.phoneMasked, sentAt: new Date().toISOString(), state: "awaiting", href: sentItem.secondHref, fallbackHref: sentItem.secondFallbackHref, resendHref: sentItem.href }] : current.awaiting,
+              done: sentItem && result.sendId && result2 ? [{ id: result.sendId, name: sentItem.name, phoneMasked: sentItem.phoneMasked, sentAt: new Date().toISOString(), secondAt: new Date().toISOString(), state: "complete" }, ...current.done] : current.done,
+              awaiting: sentItem && result.sendId && !result2 ? [...current.awaiting, { id: result.sendId, name: sentItem.name, phoneMasked: sentItem.phoneMasked, sentAt: new Date().toISOString(), state: "awaiting", href: sentItem.secondHref, fallbackHref: sentItem.secondFallbackHref, resendHref: sentItem.href }] : current.awaiting,
               items: current.items.filter((item) => item.id !== entry.id),
               progress: { ...current.progress, sentToday: current.progress.sentToday + 1, remaining: Math.max(0, current.progress.remaining - 1) },
-              metrics: { ...current.metrics, total: { ...current.metrics.total, sent: current.metrics.total.sent + 1 } }
+              metrics: { ...current.metrics, total: { ...current.metrics.total, sent: current.metrics.total.sent + 1, sent2: current.metrics.total.sent2 + (result2 ? 1 : 0) } }
             };
           });
-          if (result.sendId) {
+          if (result.sendId && !result2) {
             clearTimeout(undoTimer.current);
             setUndo({ sendId: result.sendId, name: entry.name, second });
             undoTimer.current = setTimeout(() => setUndo(null), UNDO_MS);
@@ -209,7 +225,7 @@ export default function SmsBatchWorkspace({ initial = null, initialError = "" })
     }
     if (awaiting && Date.now() - awaiting.at > MIN_AWAY_MS) {
       writeJson(AWAITING_KEY, null);
-      writeJson(QUEUE_KEY, [...readJson(QUEUE_KEY, []), { id: awaiting.id, name: awaiting.name, kind: awaiting.kind || 1 }]);
+      writeJson(QUEUE_KEY, [...readJson(QUEUE_KEY, []), { id: awaiting.id, name: awaiting.name, kind: awaiting.kind || 1, both: Boolean(awaiting.both) }]);
     }
     if (readJson(QUEUE_KEY, []).length) {
       setOfflineCount(readJson(QUEUE_KEY, []).length);
@@ -265,7 +281,7 @@ export default function SmsBatchWorkspace({ initial = null, initialError = "" })
       setOpenedIds((current) => (current.includes(item.id) ? current : [...current, item.id]));
       return;
     }
-    writeJson(AWAITING_KEY, { id: item.id, name: item.firstName || item.name, kind, at: Date.now() });
+    writeJson(AWAITING_KEY, { id: item.id, name: item.firstName || item.name, kind, both: together, at: Date.now() });
     setHiddenIds((current) => [...current, `${kind}:${item.id}`]);
   };
 
@@ -434,6 +450,13 @@ export default function SmsBatchWorkspace({ initial = null, initialError = "" })
       />
 
       {tab === "send" ? (
+        <label className="flex min-h-12 items-center gap-3 rounded-control border border-line px-3 text-sm font-semibold text-ink">
+          <input type="checkbox" className="h-5 w-5" checked={together} onChange={(event) => { setTogether(event.target.checked); writeJson(TOGETHER_KEY, event.target.checked); }} />
+          Enviar as 2 mensagens juntas (um toque só)
+        </label>
+      ) : null}
+
+      {tab === "send" ? (
         items.length ? (
           <ul className="space-y-3">
             {items.filter((item) => !hiddenIds.includes(`1:${item.id}`)).map((item) => (
@@ -441,7 +464,7 @@ export default function SmsBatchWorkspace({ initial = null, initialError = "" })
                 <Card padding="md">
                   <p className="text-lg font-extrabold leading-tight text-ink">{item.name || "Sem nome"}</p>
                   <p className="mt-0.5 text-base tabular-nums text-muted">{item.phoneMasked}</p>
-                  <SendLink href={item.href} fallbackHref={item.fallbackHref} label="Enviar SMS" onTap={() => onTapSend(item, 1)} />
+                  <SendLink href={together && item.bothHref ? item.bothHref : item.href} fallbackHref={together && item.bothFallbackHref ? item.bothFallbackHref : item.fallbackHref} label={together ? "Enviar SMS (1ª + 2ª juntas)" : "Enviar SMS"} onTap={() => onTapSend(item, 1)} />
                 </Card>
               </li>
             ))}

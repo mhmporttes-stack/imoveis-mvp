@@ -6609,3 +6609,4 @@ Pedido do dono (prints do iPhone, PWA/Safari), só apresentação — nenhuma re
 - 2026-11-02: Lote de SMS: aba Resultados lista quem preencheu o formulário (telefone + Abrir cliente).
 - 2026-11-02: Lote de SMS: "Mensagem enviada" na 2ª some na hora (gravação em segundo plano).
 - 2026-11-02: Lote de SMS: botão grande "Resultados do disparo" sob a barra de progresso.
+- 2026-11-02: Lote de SMS: opção "Enviar as 2 mensagens juntas" (1ª + link + linha em branco + 2ª num SMS; padrão ligado, marca as duas como enviadas num toque).

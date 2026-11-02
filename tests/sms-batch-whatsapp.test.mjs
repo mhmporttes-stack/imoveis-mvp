@@ -235,7 +235,7 @@ test("lista do lote: a elegibilidade continua só em smsSkipReason e a aba 'Sem 
   assert.match(batch, /hasWhatsapp: resolveWaCache/);
   assert.match(batch, /noWhatsapp: brokerId \? null : await listNoWhatsapp/);
   const screen = read("components/SmsBatchWorkspace.jsx");
-  const tab = screen.slice(screen.indexOf('tab === "nowa"'), screen.indexOf('tab === "results"'));
+  const tab = screen.slice(screen.indexOf('tab === "nowa"'), screen.indexOf('{tab === "results" ? ('));
   assert.ok(tab.length > 0);
   assert.doesNotMatch(tab, /<a |Button|onClick|call\(/); // só leitura: sem links, botões nem chamadas
 });
