@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { requirePerformanceApi } from "@/lib/admin-auth";
-import { addSmsExtraBatch, loadSmsBatch, markSmsOptOut, markSmsInvalid, markSmsSecondSent, markSmsSent, saveSmsBatchSettings, undoSmsSent } from "@/lib/sms-batch";
+import { addSmsExtraBatch, resetSmsList, loadSmsBatch, markSmsOptOut, markSmsInvalid, markSmsSecondSent, markSmsSent, saveSmsBatchSettings, undoSmsSent } from "@/lib/sms-batch";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -35,6 +35,7 @@ export async function POST(request) {
     if (body.action === "sent") return NextResponse.json(await markSmsSent(body.contactId, auth));
     if (body.action === "sent-2") return NextResponse.json(await markSmsSecondSent(body.sendId, auth));
     if (body.action === "undo") return NextResponse.json(await undoSmsSent(body.sendId, auth));
+    if (body.action === "reset-list") return NextResponse.json(await resetSmsList(auth));
     if (body.action === "more") return NextResponse.json(await addSmsExtraBatch(auth));
     if (body.action === "invalid") return NextResponse.json(await markSmsInvalid(body.sendId, auth, body.reason === "inactive" ? "inactive" : "nonexistent"));
     if (body.action === "opt-out") return NextResponse.json(await markSmsOptOut(body.sendId, auth));

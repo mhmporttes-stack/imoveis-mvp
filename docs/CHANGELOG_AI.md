@@ -6612,3 +6612,4 @@ Pedido do dono (prints do iPhone, PWA/Safari), só apresentação — nenhuma re
 - 2026-11-02: Lote de SMS: opção "Enviar as 2 mensagens juntas" (1ª + link + linha em branco + 2ª num SMS; padrão ligado, marca as duas como enviadas num toque).
 - 2026-11-02: Lote de SMS: cartões some/invisíveis (animação de entrada por rolagem escondia as listas): tela marcada data-no-reveal.
 - 2026-11-02: Lote de SMS: 1ª mensagem diz "clicando no link dessa mensagem" (no Android o link aparece acima).
+- 2026-11-02: Lote de SMS: "Carregar mais 50" sempre visível e "Já enviei estes: zerar e trazer 50 novos" (reset-list); cadastros/extra do dia não derrubam mais a lista.

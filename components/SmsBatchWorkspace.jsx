@@ -267,6 +267,26 @@ export default function SmsBatchWorkspace({ initial = null, initialError = "" })
     }
   };
 
+  const resetList = async () => {
+    const ok = await confirmAction({
+      title: "Zerar a lista?",
+      description: `Os ${items.length} contatos desta lista serão marcados como já enviados (1ª e 2ª mensagem) e entram 50 novos. Nenhuma mensagem é enviada agora.`,
+      confirmLabel: "Sim, já enviei estes",
+      tone: "danger"
+    });
+    if (!ok) return;
+    setBusyId("reset");
+    try {
+      const result = await call("POST", { action: "reset-list" });
+      await reload();
+      notify(`${result.marked} contato(s) marcados como enviados. Lista nova carregada.`);
+    } catch (resetError) {
+      notify(resetError.message, "danger");
+    } finally {
+      setBusyId("");
+    }
+  };
+
   const confirmSecond = (entry) => {
     // Some na hora (a gravação segue em segundo plano, na fila): dá para ir direto para o próximo.
     setHiddenIds((current) => [...current, `2:${entry.id}`]);
@@ -448,6 +468,19 @@ export default function SmsBatchWorkspace({ initial = null, initialError = "" })
           { value: "results", label: isTeam ? "Resultados e textos" : "Meus resultados" }
         ]}
       />
+
+      {tab === "send" ? (
+        <div className="grid gap-2">
+          <Button variant="secondary" size="lg" block loading={busyId === "more"} onClick={loadMore}>
+            Carregar mais 50 contatos
+          </Button>
+          {items.length ? (
+            <Button variant="danger-ghost" size="lg" block loading={busyId === "reset"} onClick={resetList}>
+              Já enviei estes: zerar e trazer 50 novos
+            </Button>
+          ) : null}
+        </div>
+      ) : null}
 
       {tab === "send" ? (
         <label className="flex min-h-12 items-center gap-3 rounded-control border border-line px-3 text-sm font-semibold text-ink">
