@@ -1,12 +1,12 @@
 import SmsBatchWorkspace from "@/components/SmsBatchWorkspace";
-import { requireBrokerManagementPage } from "@/lib/admin-auth";
+import { requirePerformancePage } from "@/lib/admin-auth";
 import { loadSmsBatch } from "@/lib/sms-batch";
 
 export const dynamic = "force-dynamic";
 
-// Lote de SMS (dono, 2026-11-02): só admin geral e gestor. Pensada para o app no iPhone (cartões grandes, um toque).
+// Lote de SMS (dono, 2026-11-02): admin geral/gestor (equipe) e corretor (lote próprio); associado volta ao painel. Pensada para o app no iPhone (cartões grandes, um toque).
 export default async function SmsBatchPage() {
-  const auth = await requireBrokerManagementPage();
+  const auth = await requirePerformancePage();
   let initial = null;
   let initialError = "";
   try {

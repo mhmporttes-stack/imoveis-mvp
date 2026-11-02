@@ -224,25 +224,27 @@ test("SAIR usa o caminho único de Não contactar e nunca escreve o patch à mã
   assert.doesNotMatch(source, /\.update\(\{\s*status:\s*["']do_not_contact/);
 });
 
-test("escopo: rota e página só para admin geral e gestor; toda ação confere o perfil no servidor; o envio é tentativa sem corretor", () => {
+test("escopo: rota e página para admin geral, gestor e corretor (associado não); toda ação confere o perfil no servidor; o envio é tentativa sem atividade de corretor", () => {
   const route = readFileSync(new URL("../app/api/admin/lote-sms/route.js", import.meta.url), "utf8");
-  assert.equal((route.match(/requireBrokerManagementApi\(request\)/g) || []).length, 2);
+  assert.equal((route.match(/requirePerformanceApi\(request\)/g) || []).length, 2);
   const page = readFileSync(new URL("../app/admin/lote-sms/page.jsx", import.meta.url), "utf8");
-  assert.match(page, /await requireBrokerManagementPage\(\)/);
+  assert.match(page, /await requirePerformancePage\(\)/);
   const lib = readFileSync(new URL("../lib/sms-batch.js", import.meta.url), "utf8");
-  for (const fn of ["loadSmsBatch", "markSmsSent", "markSmsSecondSent", "undoSmsSent", "markSmsOptOut", "saveSmsBatchSettings"]) {
-    assert.match(lib, new RegExp(`export async function ${fn}\\([^)]*\\) \\{\\n  assertGeneralAdminOrManager\\(auth\\);`), fn);
+  // Leitura e ações revalidam o escopo no servidor (scopeOf); configuração continua só admin geral e gestor.
+  for (const fn of ["loadSmsBatch", "markSmsSent", "markSmsSecondSent", "undoSmsSent", "markSmsOptOut"]) {
+    assert.match(lib, new RegExp(`export async function ${fn}\\([^)]*\\) \\{\\n  const scope = scopeOf\\(auth\\);`), fn);
   }
+  assert.match(lib, /export async function saveSmsBatchSettings\([^)]*\) \{\n  assertGeneralAdminOrManager\(auth\);/);
   // Tentativa do SMS não é atividade de corretor: sem last_broker_id, sem user_id no histórico, nada de pontuação.
-  const sent = lib.slice(lib.indexOf("export async function markSmsSent"), lib.indexOf("const UNDO_WINDOW_MS"));
+  const sent = lib.slice(lib.indexOf("export async function markSmsSent"), lib.indexOf("// Fatos para a regra pura da 2ª mensagem"));
   assert.doesNotMatch(sent, /last_broker_id|daily_goal|score|points/);
   assert.match(sent, /user_id: null/);
 });
 
-test("menu: o item aparece só nos grupos de gestão (gestor e admin geral)", () => {
+test("menu: o item mora em GESTÃO (gestor e admin geral) e no CRM do corretor (fonte única SMS_BATCH_ITEM)", () => {
   const menu = readFileSync(new URL("../components/AdminMenu.jsx", import.meta.url), "utf8");
-  assert.equal((menu.match(/key: "sms-batch"/g) || []).length, 2);
+  assert.equal((menu.match(/key: "sms-batch"/g) || []).length, 3);
   const brokerStart = menu.indexOf("const brokerGroups");
-  const managerStart = menu.indexOf("const managerGroups");
-  assert.equal(menu.slice(brokerStart, managerStart).includes("sms-batch"), false);
+  const associateStart = menu.indexOf("const associateGroups");
+  assert.equal(menu.slice(brokerStart, associateStart).includes("SMS_BATCH_ITEM"), true);
 });

@@ -11,6 +11,13 @@
 
 
 
+## 2026-11-02 — Lote de SMS para os CORRETORES, cliente atribuído a quem enviou (crm-editor) — branch `feat/lote-sms-corretores`, NÃO publicado
+- Dono: "Implemente essa opção do SMS para os CORRETORES ... o cliente NÃO vai para a roleta: ele fica ATRIBUÍDO AO CORRETOR que mandou o SMS." Ajustes na mesma conversa: simulação automática "deixe no pessoal" (regra existente, nada mudou no roteamento) e mensagem própria do corretor (associado do corretor Matheus Machado). **[REGRA OFICIAL]** em `docs/BUSINESS_RULES.md` PRO-18b.
+- Mudou: lote próprio do corretor (50/dia, reserva de 24 h `sms_batch_reservations` — `lib/sms-batch-reservations.mjs`), `scopeOf` revalida o perfil em toda leitura/ação (`lib/sms-batch.js`), guard `requirePerformance*` (associado fora), item no menu/atalho do Início para corretor (`SMS_BATCH_ITEM`), campanha "SMS - Lote da base" por corretor (destino fixo = atribuição direta, sem roleta), `direct_broker_link` gravado, evento "Veio por SMS do corretor X", 1ª mensagem do corretor (`[corretor]`, `sms_batch_template_broker`), métricas por corretor (cartão do corretor e da equipe, filtro `?broker=`), "simulações enviadas". Testes: `tests/sms-batch-brokers.test.mjs` (+ ajustes em `sms-batch-core`/`menu-lote-sms`).
+- Corrigido junto (estava quebrado em `main`): `loadSmsBatch` chamava `loadSmsBatchMetrics`, que tinha sumido de `lib/sms-batch.js` no commit `1e6cd2e` (a tela do Lote dava "Não foi possível carregar"); a função foi refeita (agora também com a 2ª mensagem).
+- Risco/observação: migration `20261102160000_sms_batch_reservations.sql` NÃO aplicada (sem ela o lote do corretor mostra aviso; o da equipe segue igual). `direct_broker_link = true` conta pontos/funil de "link direto" no Desempenho (PENDENTE DE VALIDAÇÃO). Envio real de SMS e gravação em produção não foram testados.
+- **Autor:** Claude (crm-editor)
+
 ## 2026-11-02 — Menu "Mais" do app não mostrava o Lote de SMS: versão nova aplicada ao abrir o "Mais" + atalho no Início (crm-editor) — branch `fix/menu-lote-sms-app`, NÃO publicado
 - Diagnóstico completo em `docs/INCIDENTES.md` (2026-11-02): sem cache de menu/HTML no service worker; o app aberto no iPhone rodava o JS antigo e a versão nova só entra em troca de tela/toque em link (PWA-CACHE/regra de 2026-10-26).
 - Mudou: abrir o "Mais" com versão pendente recarrega e reabre a folha (`applyPendingUpdateOnMenuOpen`, gatilho `menu-open`; nunca digitando; sair/voltar segue sem recarregar). Atalho "Lote de SMS" no Início (admin geral e gestor; página continua com `requireBrokerManagementPage`). Docs: `docs/pwa-admin.md`. Testes: `tests/menu-lote-sms.test.mjs`, `tests/pwa-update-policy.test.mjs`.

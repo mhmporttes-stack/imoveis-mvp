@@ -83,12 +83,17 @@ const adminGroups = [
   manualGroup
 ];
 
+// Lote de SMS (dono, 2026-11-02): corretor também usa (lote próprio, até 50/dia; a página e a API conferem o escopo). Gestor o
+// tem em GESTÃO (adminGroups) e associado não usa — por isso saem de managerGroups/associateGroups abaixo.
+const SMS_BATCH_ITEM = { href: "/admin/lote-sms", label: "Lote de SMS", key: "sms-batch" };
+const withoutSmsBatch = (group) => ({ ...group, items: group.items.filter((item) => item.key !== SMS_BATCH_ITEM.key) });
+
 const brokerGroups = [
   {
     key: "crm",
     label: "CRM",
     href: "/admin/simulacoes",
-    items: [{ href: "/admin/meta-diaria", label: "Meta Diária", key: "daily-goal" }, clientItems[0], { href: "/admin/chat", label: "Chat", key: "chat", badge: "chat" }, MARKETPLACE_CHAT_ITEM, clientItems[1], { href: "/admin/prospeccao", label: "Prospecção", key: "prospecting" }]
+    items: [{ href: "/admin/meta-diaria", label: "Meta Diária", key: "daily-goal" }, clientItems[0], { href: "/admin/chat", label: "Chat", key: "chat", badge: "chat" }, MARKETPLACE_CHAT_ITEM, clientItems[1], { href: "/admin/prospeccao", label: "Prospecção", key: "prospecting" }, SMS_BATCH_ITEM]
   },
   {
     key: "cadastros",
@@ -116,6 +121,7 @@ const brokerGroups = [
 // Diário, que é do corretor) — sem afetar corretor/gestor, que compartilham
 // o mesmo brokerGroups.
 const associateGroups = brokerGroups.map((group) => {
+  if (group.key === "crm") return withoutSmsBatch(group);
   if (group.key === "desempenho") return { ...group, items: group.items.filter((item) => item.key === "financial"), href: "/admin/financeiro" };
   return group;
 });
@@ -133,7 +139,7 @@ const NEW_TESTIMONIAL_ITEM = { href: "/admin/depoimentos/novo", label: "Cadastra
 const managerGroups = [
   ...brokerGroups
     .filter((group) => group.key !== "ajuda")
-    .map((group) => (group.key === "cadastros" ? { ...group, items: [...group.items, NEW_TESTIMONIAL_ITEM] } : group)),
+    .map((group) => (group.key === "cadastros" ? { ...group, items: [...group.items, NEW_TESTIMONIAL_ITEM] } : group.key === "crm" ? withoutSmsBatch(group) : group)),
   adminGroups.find((group) => group.key === "gestao"),
   manualGroup
 ];

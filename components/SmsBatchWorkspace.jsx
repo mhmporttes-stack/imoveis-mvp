@@ -16,6 +16,8 @@ import { useToast } from "@/components/ui/Toast";
 // Fluxo em duas mensagens: "Para enviar" (1ª) -> "Aguardando 2ª" (1ª enviada) -> "Enviados" (2ª enviada ou SAIR).
 // A marcação fica numa fila no aparelho (localStorage): se o iOS fechar o app ou a internet cair, ela é concluída
 // quando voltar. Regras e gravação: lib/sms-batch-core.mjs / lib/sms-batch.js (aqui só apresentação).
+// Dois perfis de tela (data.scope): "broker" = lote do corretor (50/dia reservados só para ele, números dele, resultados dele);
+// "team" = admin geral/gestor (lote da equipe, textos e limite editáveis, cartão por corretor e filtro por corretor).
 const AWAITING_KEY = "mm-sms-awaiting";
 const QUEUE_KEY = "mm-sms-queue";
 const UNDO_MS = 6000;
@@ -43,8 +45,8 @@ const percent = (value) => (value === null || value === undefined ? "—" : `${(
 const timeLabel = (iso) => new Date(iso).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
 const dayLabel = (key) => key.split("-").reverse().slice(0, 2).join("/");
 
-async function call(method, body) {
-  const response = await fetch("/api/admin/lote-sms", {
+async function call(method, body, query = "") {
+  const response = await fetch(`/api/admin/lote-sms${query}`, {
     method,
     headers: body ? { "Content-Type": "application/json" } : undefined,
     body: body ? JSON.stringify(body) : undefined,
@@ -74,7 +76,8 @@ export default function SmsBatchWorkspace({ initial = null, initialError = "" })
   const [undo, setUndo] = useState(null);
   const [offlineCount, setOfflineCount] = useState(0);
   const [busyId, setBusyId] = useState("");
-  const [draft, setDraft] = useState({ template: initial?.settings?.template || "", template2: initial?.settings?.template2 || "", limit: String(initial?.settings?.limit || 50) });
+  const [draft, setDraft] = useState({ template: initial?.settings?.template || "", template2: initial?.settings?.template2 || "", templateBroker: initial?.settings?.templateBroker || "", limit: String(initial?.settings?.limit || 50) });
+  const [brokerFilter, setBrokerFilter] = useState("");
   const [savingSettings, setSavingSettings] = useState(false);
   const [notify, toastElement] = useToast();
   const [confirmAction, confirmElement] = useConfirm();
@@ -82,9 +85,10 @@ export default function SmsBatchWorkspace({ initial = null, initialError = "" })
   const undoTimer = useRef(null);
   const loadedAt = useRef(Date.now());
 
+  const brokerFilterRef = useRef("");
   const reload = useCallback(async () => {
     try {
-      const next = await call("GET");
+      const next = await call("GET", null, brokerFilterRef.current ? `?broker=${encodeURIComponent(brokerFilterRef.current)}` : "");
       loadedAt.current = Date.now();
       setData(next);
       setError("");
@@ -234,12 +238,18 @@ export default function SmsBatchWorkspace({ initial = null, initialError = "" })
     }
   };
 
+  const changeBrokerFilter = (value) => {
+    brokerFilterRef.current = value;
+    setBrokerFilter(value);
+    reload();
+  };
+
   const saveSettings = async () => {
     setSavingSettings(true);
     try {
-      const saved = await call("POST", { action: "settings", template: draft.template, template2: draft.template2, limit: Number(draft.limit) });
+      const saved = await call("POST", { action: "settings", template: draft.template, template2: draft.template2, templateBroker: draft.templateBroker, limit: Number(draft.limit) });
       notify("Textos e limite salvos.");
-      setDraft({ template: saved.template, template2: saved.template2, limit: String(saved.limit) });
+      setDraft({ template: saved.template, template2: saved.template2, templateBroker: saved.templateBroker, limit: String(saved.limit) });
       await reload();
     } catch (saveError) {
       notify(saveError.message, "danger");
@@ -254,16 +264,24 @@ export default function SmsBatchWorkspace({ initial = null, initialError = "" })
   if (!data) return <p className="p-6 text-center text-sm text-muted">Carregando…</p>;
 
   const { progress, metrics, items, awaiting, done } = data;
+  const isTeam = data.scope === "team";
   const progressPercent = progress.limit ? Math.min(100, Math.round((progress.sentToday / progress.limit) * 100)) : 0;
 
   return (
     <div className="space-y-4 pb-32">
       <p className="rounded-control border border-warning-line bg-warning-soft px-3 py-2 text-[13px] leading-5 text-warning">{data.notice}</p>
 
+      {!isTeam ? (
+        <p className="rounded-control border border-info-line bg-info-soft px-3 py-2 text-[13px] leading-5 text-info">
+          Estes contatos estão reservados só para você por 24 h. Quem preencher o cadastro pelo seu link fica com você, direto, sem passar pela roleta.
+        </p>
+      ) : null}
+
       <KpiGrid label="Resultados do Lote de SMS">
         <Kpi label="Enviados" value={metrics.total.sent + metrics.total.sent2} hint={`1ª: ${metrics.total.sent} · 2ª: ${metrics.total.sent2}`} />
         <Kpi label="Cliques no link" value={metrics.total.clicks} hint={`${metrics.byDay[0]?.clicks || 0} hoje`} />
         <Kpi label="Cadastros" value={metrics.total.signups} hint={`${metrics.byDay[0]?.signups || 0} hoje`} tone="accent" />
+        <Kpi label="Simulações enviadas" value={metrics.total.simulations || 0} hint="dos cadastros destes links" />
         <Kpi label="Taxa" value={percent(metrics.total.rate)} hint="cadastros ÷ 1ª enviada" />
       </KpiGrid>
 
@@ -292,7 +310,7 @@ export default function SmsBatchWorkspace({ initial = null, initialError = "" })
           { value: "send", label: `Para enviar (${items.length})` },
           { value: "second", label: `Aguardando 2ª (${awaiting.length})` },
           { value: "sent", label: `Enviados (${done.length})` },
-          { value: "results", label: "Resultados e textos" }
+          { value: "results", label: isTeam ? "Resultados e textos" : "Meus resultados" }
         ]}
       />
 
@@ -313,7 +331,7 @@ export default function SmsBatchWorkspace({ initial = null, initialError = "" })
           <EmptyState
             icon={MessageSquareText}
             title={progress.remaining ? "Nenhum contato disponível agora" : "Meta de hoje concluída"}
-            description={progress.remaining ? "Todos os contatos da base já tiveram alguma tentativa de contato." : "Amanhã a lista libera mais contatos."}
+            description={progress.remaining ? (isTeam ? "Todos os contatos da base já tiveram alguma tentativa de contato." : "Não há contato livre agora: os demais já tiveram contato ou estão reservados para outro corretor.") : "Amanhã a lista libera mais contatos."}
           />
         )
       ) : null}
@@ -365,7 +383,31 @@ export default function SmsBatchWorkspace({ initial = null, initialError = "" })
 
       {tab === "results" ? (
         <div className="space-y-4">
-          <Card title="Por dia" note="últimos 14 dias">
+          {isTeam && data.brokers?.length ? (
+            <Card title="Por corretor" note="lotes dos corretores">
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-sm tabular-nums">
+                  <thead className="text-xs text-muted">
+                    <tr><th className="py-1 font-semibold">Corretor</th><th className="py-1 font-semibold">1ª</th><th className="py-1 font-semibold">2ª</th><th className="py-1 font-semibold">Cliques</th><th className="py-1 font-semibold">Cadastros</th><th className="py-1 font-semibold">Simul.</th></tr>
+                  </thead>
+                  <tbody>
+                    {data.brokers.map((row) => (
+                      <tr key={row.id} className="border-t border-line">
+                        <td className="py-2 pr-2">{row.name}</td><td>{row.sent}</td><td>{row.sent2}</td><td>{row.clicks}</td><td>{row.signups}</td><td>{row.simulations}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <Field label="Ver os números de" hint="Filtra o resumo e a tabela por dia abaixo.">
+                <select className={inputClasses} value={brokerFilter} onChange={(event) => changeBrokerFilter(event.target.value)}>
+                  <option value="">Todos os lotes</option>
+                  {data.brokers.map((row) => <option key={row.id} value={row.id}>{row.name}</option>)}
+                </select>
+              </Field>
+            </Card>
+          ) : null}
+          <Card title="Por dia" note={`${data.metricsLabel || ""} · últimos 14 dias`}>
             <table className="w-full text-left text-sm tabular-nums">
               <thead className="text-xs text-muted">
                 <tr><th className="py-1 font-semibold">Dia</th><th className="py-1 font-semibold">1ª</th><th className="py-1 font-semibold">2ª</th><th className="py-1 font-semibold">Cliques</th><th className="py-1 font-semibold">Cadastros</th><th className="py-1 font-semibold">Taxa</th></tr>
@@ -379,10 +421,14 @@ export default function SmsBatchWorkspace({ initial = null, initialError = "" })
               </tbody>
             </table>
           </Card>
+          {isTeam ? (
           <Card title="Textos e limite do dia">
             <div className="space-y-3">
               <Field label="1ª mensagem" hint="Use [Saudação] (Bom dia/Boa tarde/Boa noite), [nome] e [link]. Máx. 600 caracteres.">
                 <textarea className={inputClasses} rows={9} value={draft.template} maxLength={600} onChange={(event) => setDraft({ ...draft, template: event.target.value })} />
+              </Field>
+              <Field label="1ª mensagem dos corretores" hint="Como a 1ª mensagem, mais [corretor] (nome de quem envia). Máx. 600 caracteres.">
+                <textarea className={inputClasses} rows={9} value={draft.templateBroker} maxLength={600} onChange={(event) => setDraft({ ...draft, templateBroker: event.target.value })} />
               </Field>
               <Field label="2ª mensagem" hint={'Precisa trazer o aviso "responda SAIR". Máx. 600 caracteres.'}>
                 <textarea className={inputClasses} rows={7} value={draft.template2} maxLength={600} onChange={(event) => setDraft({ ...draft, template2: event.target.value })} />
@@ -394,6 +440,11 @@ export default function SmsBatchWorkspace({ initial = null, initialError = "" })
               <p className="break-all text-xs text-muted">Link do cadastro: {data.link}</p>
             </div>
           </Card>
+          ) : (
+            <Card title="Seu link do cadastro">
+              <p className="break-all text-xs text-muted">{data.link}</p>
+            </Card>
+          )}
         </div>
       ) : null}
 
