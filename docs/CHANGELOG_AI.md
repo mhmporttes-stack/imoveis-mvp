@@ -6602,3 +6602,4 @@ Pedido do dono (prints do iPhone, PWA/Safari), só apresentação — nenhuma re
 - 2026-11-02: Lote de SMS: 2ª mensagem com "vc"; cartão some na hora ao tocar em Enviar (volta se o SMS não abriu).
 - 2026-11-02: Lote de SMS: botões "Enviar 1ª novamente" e "Número inválido" (evento invalid, migration 20261102180000 aplicada).
 - 2026-11-02: Lote de SMS: número inválido sai das métricas de enviados e devolve a vaga do dia; botão também em Enviados.
+- 2026-11-02: Lote de SMS: aba Inexistentes (não existe/não ativo, evento inactive); 2ª mensagem fica na lista com 'Mensagem enviada' e retornos.

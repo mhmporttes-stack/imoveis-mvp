@@ -99,6 +99,7 @@ export default function SmsBatchWorkspace({ initial = null, initialError = "" })
   const [savingSettings, setSavingSettings] = useState(false);
   // Cartão some na hora ao tocar em "Enviar" (volume mais rápido); volta se o SMS não chegou a ser aberto.
   const [hiddenIds, setHiddenIds] = useState([]);
+  const [openedIds, setOpenedIds] = useState([]);
   const [notify, toastElement] = useToast();
   const [confirmAction, confirmElement] = useConfirm();
   const flushing = useRef(false);
@@ -234,7 +235,18 @@ export default function SmsBatchWorkspace({ initial = null, initialError = "" })
     };
   }, [resume, flush, reload]);
 
+  const confirmSecond = (entry) => {
+    writeJson(QUEUE_KEY, [...readJson(QUEUE_KEY, []), { id: entry.id, name: entry.name, kind: 2 }]);
+    setOfflineCount(readJson(QUEUE_KEY, []).length);
+    flush();
+  };
+
   const onTapSend = (item, kind) => {
+    // 2ª mensagem: o cartão fica na lista até o dono confirmar "Mensagem enviada" ou dar o retorno (não existe/não ativo/SAIR).
+    if (kind === 2) {
+      setOpenedIds((current) => (current.includes(item.id) ? current : [...current, item.id]));
+      return;
+    }
     writeJson(AWAITING_KEY, { id: item.id, name: item.firstName || item.name, kind, at: Date.now() });
     setHiddenIds((current) => [...current, `${kind}:${item.id}`]);
   };
@@ -253,23 +265,24 @@ export default function SmsBatchWorkspace({ initial = null, initialError = "" })
     }
   };
 
-  const markInvalid = async (entry) => {
+  const markInvalid = async (entry, reason = "nonexistent") => {
+    const inactive = reason === "inactive";
     const ok = await confirmAction({
-      title: "Número inválido?",
-      description: `${entry.name || entry.phoneMasked} não recebe a 2ª mensagem e sai da lista. Não vira "Não contactar".`,
-      confirmLabel: "Sim, número inválido",
+      title: inactive ? "Número não ativo?" : "Número não existe?",
+      description: `${entry.name || entry.phoneMasked} não recebe a 2ª mensagem e vai para a aba "Inexistentes". Não vira "Não contactar".`,
+      confirmLabel: inactive ? "Sim, número não ativo" : "Sim, número não existe",
       tone: "danger"
     });
     if (!ok) return;
     setBusyId(entry.id);
     try {
-      await call("POST", { action: "invalid", sendId: entry.id });
+      await call("POST", { action: "invalid", sendId: entry.id, reason });
       setData((current) => ({
         ...current,
         awaiting: current.awaiting.filter((row) => row.id !== entry.id),
-        done: [{ ...entry, state: "invalid" }, ...current.done]
+        done: [{ ...entry, state: "invalid", invalidReason: reason }, ...current.done.filter((row) => row.id !== entry.id)]
       }));
-      notify("Marcado como número inválido.");
+      notify(inactive ? "Marcado como número não ativo." : "Marcado como número que não existe.");
     } catch (invalidError) {
       notify(invalidError.message, "danger");
     } finally {
@@ -391,7 +404,8 @@ export default function SmsBatchWorkspace({ initial = null, initialError = "" })
         options={[
           { value: "send", label: `Para enviar (${items.length})` },
           { value: "second", label: `Aguardando 2ª (${awaiting.length})` },
-          { value: "sent", label: `Enviados (${done.length})` },
+          { value: "sent", label: `Enviados (${done.filter((row) => row.state !== "invalid").length})` },
+          { value: "invalid", label: `Inexistentes (${done.filter((row) => row.state === "invalid").length})` },
           ...(isTeam ? [{ value: "nowa", label: `Sem WhatsApp (${noWhatsapp?.total || 0})` }] : []),
           { value: "results", label: isTeam ? "Resultados e textos" : "Meus resultados" }
         ]}
@@ -428,11 +442,20 @@ export default function SmsBatchWorkspace({ initial = null, initialError = "" })
                   <p className="text-lg font-extrabold leading-tight text-ink">{entry.name || "Sem nome"}</p>
                   <p className="mt-0.5 text-sm text-muted">{entry.phoneMasked} · 1ª enviada {timeLabel(entry.sentAt)}</p>
                   <SendLink href={entry.href} fallbackHref={entry.fallbackHref} label="Enviar 2ª mensagem" onTap={() => onTapSend(entry, 2)} />
+                  {openedIds.includes(entry.id) ? (
+                    <p className="mt-2 rounded-control bg-surface-muted px-3 py-2 text-sm font-semibold text-ink">2ª aberta no Mensagens. Deu certo?</p>
+                  ) : null}
+                  <Button variant="primary" size="lg" block className="mt-2" onClick={() => confirmSecond(entry)}>
+                    Mensagem enviada
+                  </Button>
                   <a href={entry.resendHref} className="mt-2 flex min-h-12 w-full items-center justify-center gap-2 rounded-control border border-line text-base font-bold text-ink active:brightness-95">
                     Enviar 1ª novamente
                   </a>
-                  <Button variant="secondary" size="lg" block className="mt-1" loading={busyId === entry.id} onClick={() => markInvalid(entry)}>
-                    Número inválido
+                  <Button variant="secondary" size="lg" block className="mt-1" loading={busyId === entry.id} onClick={() => markInvalid(entry, "nonexistent")}>
+                    Número não existe
+                  </Button>
+                  <Button variant="secondary" size="lg" block className="mt-1" loading={busyId === entry.id} onClick={() => markInvalid(entry, "inactive")}>
+                    Número não ativo
                   </Button>
                   <Button variant="danger-ghost" size="lg" block className="mt-1" loading={busyId === entry.id} onClick={() => optOut(entry)}>
                     Respondeu SAIR
@@ -449,16 +472,16 @@ export default function SmsBatchWorkspace({ initial = null, initialError = "" })
       {tab === "sent" ? (
         done.length ? (
           <ul className="space-y-3">
-            {done.map((entry) => (
+            {done.filter((row) => row.state !== "invalid").map((entry) => (
               <li key={entry.id}>
                 <Card padding="md">
                   <p className="text-base font-extrabold leading-tight text-ink">{entry.name || "Sem nome"}</p>
                   <p className="mt-0.5 text-sm text-muted">
-                    {entry.phoneMasked} · {entry.state === "invalid" ? "número inválido" : entry.state === "opt_out" ? "respondeu SAIR (Não contactar)" : `2ª enviada ${timeLabel(entry.secondAt)}`}
+                    {entry.phoneMasked} · {entry.state === "invalid" ? "número inexistente" : entry.state === "opt_out" ? "respondeu SAIR (Não contactar)" : `2ª enviada ${timeLabel(entry.secondAt)}`}
                   </p>
                   {entry.state === "complete" ? (
-                    <Button variant="secondary" size="lg" block className="mt-2" loading={busyId === entry.id} onClick={() => markInvalid(entry)}>
-                      Número inválido
+                    <Button variant="secondary" size="lg" block className="mt-2" loading={busyId === entry.id} onClick={() => markInvalid(entry, "nonexistent")}>
+                      Número não existe
                     </Button>
                   ) : null}
                   {entry.state === "complete" ? (
@@ -472,6 +495,23 @@ export default function SmsBatchWorkspace({ initial = null, initialError = "" })
           </ul>
         ) : (
           <EmptyState title="Nenhum envio concluído ainda" description="Quem já recebeu as duas mensagens, ou respondeu SAIR, aparece aqui." />
+        )
+      ) : null}
+
+      {tab === "invalid" ? (
+        done.some((row) => row.state === "invalid") ? (
+          <ul className="space-y-3">
+            {done.filter((row) => row.state === "invalid").map((entry) => (
+              <li key={entry.id}>
+                <Card padding="md">
+                  <p className="text-base font-extrabold leading-tight text-ink">{entry.name || "Sem nome"}</p>
+                  <p className="mt-0.5 text-sm text-muted">{entry.phoneMasked} · {entry.invalidReason === "inactive" ? "número não ativo" : "número não existe"}</p>
+                </Card>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <EmptyState title="Nenhum número inexistente" description="Telefones marcados como não existe ou não ativo aparecem aqui, para tentar por ligação depois." />
         )
       ) : null}
 

@@ -35,7 +35,7 @@ export async function POST(request) {
     if (body.action === "sent") return NextResponse.json(await markSmsSent(body.contactId, auth));
     if (body.action === "sent-2") return NextResponse.json(await markSmsSecondSent(body.sendId, auth));
     if (body.action === "undo") return NextResponse.json(await undoSmsSent(body.sendId, auth));
-    if (body.action === "invalid") return NextResponse.json(await markSmsInvalid(body.sendId, auth));
+    if (body.action === "invalid") return NextResponse.json(await markSmsInvalid(body.sendId, auth, body.reason === "inactive" ? "inactive" : "nonexistent"));
     if (body.action === "opt-out") return NextResponse.json(await markSmsOptOut(body.sendId, auth));
     if (body.action === "settings") return NextResponse.json(await saveSmsBatchSettings({ template: body.template, template2: body.template2, templateBroker: body.templateBroker, limit: body.limit }, auth));
     return NextResponse.json({ error: "Ação inválida." }, { status: 400 });
