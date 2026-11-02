@@ -6615,3 +6615,4 @@ Pedido do dono (prints do iPhone, PWA/Safari), só apresentação — nenhuma re
 - 2026-11-02: Lote de SMS: "Carregar mais 50" sempre visível e "Já enviei estes: zerar e trazer 50 novos" (reset-list); cadastros/extra do dia não derrubam mais a lista.
 - 2026-11-02: Lote de SMS: contagem (Para enviar/Aguardando/barra) desconta no toque; fila de gravação 3 por vez.
 - 2026-11-02: Lote de SMS: 1ª grava no instante do toque (fila + keepalive), cartão e contagem saem na hora; causa do 'lista em branco' = cartões tocados e ainda não gravados ficavam escondidos.
+- 2026-11-02: Lote de SMS: gravar a 1ª é idempotente (mesmo toque duas vezes não dá erro e o cartão não volta); 409 sai da lista em silêncio.

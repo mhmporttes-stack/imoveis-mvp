@@ -201,6 +201,11 @@ export default function SmsBatchWorkspace({ initial = null, initialError = "" })
           // A 1ª enviada já entrou em "Aguardando 2ª" localmente (sem recarregar a lista).
           return "done";
         } catch (sendError) {
+          if (sendError.status === 409) {
+            // Já gravado/indisponível (ex.: o mesmo toque entrou duas vezes): o contato sai da lista, sem alarme e sem voltar.
+            setData((current) => (current ? { ...current, items: current.items.filter((item) => item.id !== entry.id) } : current));
+            return "discard";
+          }
           if (sendError.status) {
             // O servidor recusou (ex.: contato já não está disponível): descarta e avisa.
             setHiddenIds((current) => current.filter((id) => id !== `${second ? 2 : 1}:${entry.id}`));

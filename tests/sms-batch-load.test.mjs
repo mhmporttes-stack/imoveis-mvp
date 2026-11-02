@@ -112,7 +112,10 @@ test("enviar (1ª) grava a tentativa e tira o contato da fila; 2ª mensagem; des
   assert.ok(sent.sendId);
   const contact = fake.DB.prospecting_contacts.find((row) => row.id === items[0].id);
   assert.equal(contact.status, "recent_attempt");
-  await assert.rejects(() => sms.markSmsSent(items[0].id, ADMIN), /não está mais disponível/);
+  // Mesmo toque gravado de novo (fila + volta do Mensagens): idempotente, devolve o envio que já existe.
+  const again = await sms.markSmsSent(items[0].id, ADMIN);
+  assert.equal(again.alreadySent, true);
+  assert.equal(again.sendId, sent.sendId);
 
   const after = await sms.loadSmsBatch(ADMIN);
   assert.equal(after.awaiting.length, 1);
