@@ -12,6 +12,7 @@ import { claimDailyIntro, dailyStaggerDelay, localSceneMemory, saoPauloDay } fro
 import { useHenryFullscreen } from "@/components/henry/useHenryFullscreen";
 import DailyGoalAutoPanel from "@/components/DailyGoalAutoPanel";
 import DailyGoalCompensationNotice from "@/components/DailyGoalCompensationNotice";
+import { SERVICE_DOWN_NOTICE } from "@/lib/whatsapp-service-health-core.mjs";
 import { PRINTED_LIST_MODE_MESSAGE } from "@/lib/whatsapp-manual-disconnect-core.mjs";
 
 // [REGRA OFICIAL DE NEGÓCIO — dono, 2026-10-16] A cadência termina na 2ª tentativa (a 3ª foi removida): o 2º contato
@@ -30,6 +31,7 @@ export default function DailyGoalDashboard({ initialGoal, variant = "full", rend
   const isCard = variant === "card";
   const [goal, setGoal] = useState(initialGoal);
   const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
   // Cena do primeiro acesso do dia (só apresentação, ~1,2 s): até 6 cartões entram em escalonamento (≤ 40 ms) e o anel sobe do
   // zero. Marca local por conta + dia (America/Sao_Paulo). null = ainda decidindo (o anel espera esse instante); não monta
   // nada novo no servidor — a Meta continua sendo montada só quando a pessoa abre a tela (MD-16). Com a tela cheia do Henry
@@ -72,6 +74,7 @@ export default function DailyGoalDashboard({ initialGoal, variant = "full", rend
   // ClientJourneyActions.jsx).
   async function handleAttempt(roundId, message) {
     setError("");
+    setNotice("");
     const response = await fetch("/api/daily-goal/attempt", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -86,6 +89,8 @@ export default function DailyGoalDashboard({ initialGoal, variant = "full", rend
     if (refreshed.ok) setGoal(await refreshed.json());
     // Dono, 2026-10-29: WhatsApp conectado → Chat do CRM (chatUrl, interno); senão o wa.me de sempre.
     if (data.chatUrl) return { chatUrl: data.chatUrl };
+    // WA-13d: serviço do WhatsApp do CRM fora do ar -> abre o wa.me (tentativa já registrada) com aviso curto.
+    if (data.serviceDown) setNotice(SERVICE_DOWN_NOTICE);
     return data.whatsappUrl || null;
   }
 
@@ -192,6 +197,7 @@ export default function DailyGoalDashboard({ initialGoal, variant = "full", rend
         </p>
       ) : null}
       {error ? <p className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-700">{error}</p> : null}
+      {notice ? <p role="status" className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-bold text-amber-800">{notice}</p> : null}
 
       {isCard ? null : <StaggerContainer className="space-y-8" staggerChildren={0.08} delayChildren={0.2}>
         {GROUPS.map((group, groupIndex) => (

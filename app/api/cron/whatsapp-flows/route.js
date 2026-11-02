@@ -5,6 +5,7 @@ import { processFormReminders } from "@/lib/whatsapp-form-reminder";
 import { processAutoSimulationSends } from "@/lib/simulation-auto-send";
 import { processWelcomeVoiceAudios } from "@/lib/client-voice-audio";
 import { checkWhatsappServiceStalled } from "@/lib/whatsapp-service-stall";
+import { getWhatsappServiceHealth } from "@/lib/whatsapp-service-health";
 import { checkFalseConnections } from "@/lib/whatsapp-false-connection";
 import { checkMarketplaceExtensionSignal, checkMarketplaceRedistributionStalled } from "@/lib/marketplace-chat";
 
@@ -67,6 +68,9 @@ export async function GET(request) {
     welcomeVoiceAudios = { error: "Falha ao processar as boas-vindas em áudio." };
   }
   // Serviço do WhatsApp parado (lease sem renovar há > 5 min) -> alerta à administração. Nunca lança (WA-22).
+  // Serviço fora do ar/voltou (WA-13d): reavalia sem cache e avisa o dono UMA vez por episódio; antes do alerta acima para a
+  // chave do episódio ser a mesma (um aviso só). Nunca lança.
+  const serviceHealth = await getWhatsappServiceHealth({ force: true });
   const serviceStall = await checkWhatsappServiceStalled();
   // Número "conectado" com evidência de falha (envios sem confirmação, fila travada): reinicia sem QR; persistiu -> marca e avisa. Nunca lança.
   const falseConnections = await checkFalseConnections();
@@ -87,5 +91,5 @@ export async function GET(request) {
       marketplaceExtension
     }, { status: 500 });
   }
-  return NextResponse.json({ ok: true, ...flows, formReminders, autoSimulationSends, welcomeVoiceAudios, serviceStall, falseConnections, marketplaceRedistribution, marketplaceExtension });
+  return NextResponse.json({ ok: true, ...flows, formReminders, autoSimulationSends, welcomeVoiceAudios, serviceStall, serviceDown: serviceHealth.down, falseConnections, marketplaceRedistribution, marketplaceExtension });
 }

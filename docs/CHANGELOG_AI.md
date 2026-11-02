@@ -11,6 +11,13 @@
 
 
 
+## 2026-11-02 — WhatsApp do CRM fora do ar: o botão abre o app/WhatsApp Web (WA-13d) (crm-editor) — branch `feat/whatsapp-fora-abre-app`, NÃO publicado
+- Dono: "APENAS quando o Chat estiver fora do ar" o botão WhatsApp abre o app/WhatsApp Web; volta ao Chat quando o serviço voltar. **[REGRA OFICIAL]** em `docs/BUSINESS_RULES.md` WA-13d; `docs/WHATSAPP.md` §1-M.
+- Novo: detecção única `lib/whatsapp-service-health-core.mjs` (puro, histerese) + `lib/whatsapp-service-health.js` (lease + `/health` 3 s + falhas de envio; estado em `crm_settings` `whatsapp_service_health`, sem migration; cache 60/30 s). `card-state` devolve `serviceDown`; `decideCardWhatsapp`/`isConnectedChatFirst` ganham `serviceDown`; Meta Diária devolve wa.me sem `chatUrl` (tentativa gravada antes, igual); Chat mostra "Abrir no WhatsApp" sem apagar o texto; cron `whatsapp-flows` avisa o dono (informativo, 1 por episódio). `isWhatsappServiceDown` (faixa WA-37) passou a usar a mesma detecção (lease 3 min em vez de 5; alerta WA-22 segue em 5 min); aviso por hora de falha de envio não repete durante episódio aberto.
+- Decisão de interpretação: só vale para quem tem sessão pessoal ativa (sem sessão pessoal o Chat usa o número oficial, que não depende do serviço); cliente de outro responsável segue no Chat.
+- Testes: `tests/whatsapp-service-health.test.mjs`. Build ok. Risco/observação: `tests/client-card-whatsapp-chat.test.mjs` já falhava antes (4 testes, fora do escopo, não corrigido). Destinatário do aviso = administradores gerais ativos. Nenhum envio real nem escrita em produção.
+- **Autor:** Claude (crm-editor)
+
 ## 2026-11-02 — Menu "Mais" do app não mostrava o Lote de SMS: versão nova aplicada ao abrir o "Mais" + atalho no Início (crm-editor) — branch `fix/menu-lote-sms-app`, NÃO publicado
 - Diagnóstico completo em `docs/INCIDENTES.md` (2026-11-02): sem cache de menu/HTML no service worker; o app aberto no iPhone rodava o JS antigo e a versão nova só entra em troca de tela/toque em link (PWA-CACHE/regra de 2026-10-26).
 - Mudou: abrir o "Mais" com versão pendente recarrega e reabre a folha (`applyPendingUpdateOnMenuOpen`, gatilho `menu-open`; nunca digitando; sair/voltar segue sem recarregar). Atalho "Lote de SMS" no Início (admin geral e gestor; página continua com `requireBrokerManagementPage`). Docs: `docs/pwa-admin.md`. Testes: `tests/menu-lote-sms.test.mjs`, `tests/pwa-update-policy.test.mjs`.

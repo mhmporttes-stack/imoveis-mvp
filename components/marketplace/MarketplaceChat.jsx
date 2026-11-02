@@ -22,6 +22,7 @@ import { DO_NOT_CONTACT_STATUS } from "@/lib/do-not-contact-core.mjs";
 import ChatAttachmentTray, { filesFromTransfer, prepareImageFile, useChatAttachments } from "@/components/ChatAttachmentTray";
 import { sendAttachmentsInOrder, sendingProgressLabel } from "@/lib/chat-attachments-core.mjs";
 import { toWhatsAppDigits, formatBrazilianPhone } from "@/lib/phone-utils";
+import { SERVICE_DOWN_NOTICE } from "@/lib/whatsapp-service-health-core.mjs";
 import { decideCardWhatsapp, detectDevice, buildExternalWhatsappUrl, CARD_WA_EXTERNAL } from "@/lib/client-card-whatsapp-core.mjs";
 import { flagContactNotSaved } from "@/lib/whatsapp-contact-warning.mjs";
 
@@ -259,6 +260,7 @@ function ClientWhatsappBar({ client, onSaved, onError }) {
       restricted: waState?.restricted === true,
       chatDisabled: waState?.chatDisabled === true,
       printedListMode: waState?.printedListMode === true,
+      serviceDown: waState?.serviceDown === true,
       device: readDevice(),
       clientStatus: client.status,
       isOwnClient: Boolean(waState?.userId) && client.responsibleUserId === waState.userId,
@@ -287,6 +289,7 @@ function ClientWhatsappBar({ client, onSaved, onError }) {
       .then((response) => { if (!response.ok) throw new Error(`HTTP ${response.status}`); })
       .catch(() => flagContactNotSaved(client.name || ""));
     if (decision.action === CARD_WA_EXTERNAL) {
+      if (decision.reason === "service_down") setNotice(SERVICE_DOWN_NOTICE); // WA-13d
       window.open(decision.url, "_blank", "noopener,noreferrer");
       return undefined;
     }

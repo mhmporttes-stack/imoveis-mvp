@@ -653,6 +653,7 @@ export default function WhatsappChat({ canManage = false, canEditRules = false, 
                 infoOpen={infoOpen}
                 guideOpen={guideOpen}
                 insertRequest={insertRequest}
+                serviceDown={summary.serviceDown === true}
                 infoAlways={guideOpen && isDesktop}
                 onSetGuideOpen={setGuideOpen}
                 onBack={closeConversation}
@@ -1109,7 +1110,7 @@ const ConversationRow = memo(function ConversationRow({ conversation, currentUse
   );
 });
 
-function Thread({ canManage, canEditRules, currentUserId, mySlots = [], onOpenClientSlot = null, detail, error, guideOpen, insertRequest, infoAlways, infoOpen, onBack, onChanged, onDeleted, onSetGuideOpen, onToggleInfo }) {
+function Thread({ canManage, canEditRules, currentUserId, mySlots = [], onOpenClientSlot = null, detail, error, guideOpen, insertRequest, infoAlways, infoOpen, onBack, onChanged, onDeleted, onSetGuideOpen, onToggleInfo, serviceDown = false }) {
   const [assuming, setAssuming] = useState(false);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -1653,7 +1654,7 @@ function Thread({ canManage, canEditRules, currentUserId, mySlots = [], onOpenCl
       ) : (
         // chat-composer-safe: no app "Chat" da tela inicial a caixa fica acima do traço do iPhone (app/globals.css).
         <div className="chat-composer-safe">
-          <Composer canManage={canManage} currentUserId={currentUserId} conversation={conversation} insertRequest={insertRequest} internalRequest={internalRequest} replyTo={replyTo} onClearReply={() => setReplyTo(null)} editTarget={editTarget} onClearEdit={() => setEditTarget(null)} onSent={onChanged} />
+          <Composer canManage={canManage} currentUserId={currentUserId} conversation={conversation} insertRequest={insertRequest} internalRequest={internalRequest} replyTo={replyTo} onClearReply={() => setReplyTo(null)} editTarget={editTarget} onClearEdit={() => setEditTarget(null)} onSent={onChanged} serviceDown={serviceDown} />
         </div>
       )}
 
@@ -2738,7 +2739,7 @@ async function prepareChatAttachment(file) {
   return { file: prepared, kind, previewUrl: previewable ? URL.createObjectURL(prepared) : "", asGif: false, asSticker: kind === "webp", acceptsCaption: kind !== "webp" };
 }
 
-function Composer({ canManage, currentUserId = "", conversation, insertRequest = null, internalRequest = 0, replyTo, onClearReply, editTarget = null, onClearEdit = () => {}, onSent }) {
+function Composer({ canManage, currentUserId = "", conversation, insertRequest = null, internalRequest = 0, replyTo, onClearReply, editTarget = null, onClearEdit = () => {}, onSent, serviceDown = false }) {
   const [text, setText] = useState("");
   // "/atalho" (2026-10-10): só quando o campo inteiro é "/" + palavra (sem anexo, resposta ou edição).
   const slashMatch = /^\/(\S{0,30})$/.exec(text);
@@ -2992,6 +2993,10 @@ function Composer({ canManage, currentUserId = "", conversation, insertRequest =
   const phoneSendHref = customerDigits ? `https://wa.me/${customerDigits}${text.trim() ? `?text=${encodeURIComponent(text.trim())}` : ""}` : "";
   // Link para o cliente te chamar: SEMPRE o número oficial (dono, 2026-10-09) — o atendimento segue pelo Chat.
   const callLink = `https://wa.me/${OFFICIAL_WHATSAPP_DIGITS}?text=${encodeURIComponent("Olá, preenchi meu cadastro. Gostaria de receber a minha simulação.")}`;
+  // WA-13d (dono, 2026-11-02): serviço do WhatsApp do CRM fora do ar (faixa do Chat) ou o envio acabou de falhar por isso ->
+  // aviso + "Abrir no WhatsApp" (wa.me com o texto digitado, que NÃO é apagado). Só conversa por sessão pessoal: o número oficial
+  // não depende do serviço.
+  const serviceOutage = !editTarget && !internalMode && customerDigits && (isServiceCommError(shownError) || (serviceDown && Boolean(conversation.sessionUserId)));
   async function copyCallLink() {
     try {
       await navigator.clipboard.writeText(callLink);
@@ -3006,6 +3011,12 @@ function Composer({ canManage, currentUserId = "", conversation, insertRequest =
   return (
     <div className="border-t border-[#E9EDEF] bg-[#F6F5F3] px-2 pb-2 pt-2 sm:px-3" onDragOver={(event) => { if (event.dataTransfer?.types?.includes("Files")) event.preventDefault(); }} onDrop={dropFiles}>
       {shownError ? <p className="mb-2 rounded-xl border border-red-100 bg-red-50 px-3 py-2 text-xs font-bold text-red-700">{isServiceCommError(shownError) ? "WhatsApp fora do ar — avisamos quando voltar. A mensagem não saiu: toque em “Tentar de novo” nela." : shownError}</p> : null}
+      {serviceOutage ? (
+        <div role="alert" className="mb-2 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs font-bold text-red-700">
+          <span>WhatsApp do CRM fora do ar. Sua mensagem fica na caixa — envie pelo WhatsApp do celular.</span>
+          <a href={phoneSendHref} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-9 items-center rounded-full bg-[#25D366] px-3 text-xs font-extrabold text-white hover:bg-[#1fb857]">Abrir no WhatsApp</a>
+        </div>
+      ) : null}
       {!editTarget && !internalMode && !conversation.archivedReadOnly ? <WhatsappChatAssistBar conversation={conversation} disabled={sending} onSuggestion={(value) => { setText(value); textareaRef.current?.focus(); }} /> : null}
       {replyTo ? <div className="mb-2 flex items-center gap-2 rounded-xl border-l-2 border-brand bg-blue-50 px-3 py-2 text-xs text-navy"><Reply className="h-4 w-4 shrink-0" /><span className="min-w-0 flex-1 truncate">Respondendo: {replyTo.body || MEDIA_LABELS[replyTo.type] || "Mensagem"}</span><button type="button" onClick={onClearReply} aria-label="Cancelar resposta" className="grid h-8 w-8 place-items-center"><X className="h-4 w-4" /></button></div> : null}
       {editTarget ? <div className="mb-2 flex items-center gap-2 rounded-xl border-l-2 border-amber-500 bg-amber-50 px-3 py-2 text-xs text-navy"><Pencil className="h-4 w-4 shrink-0 text-amber-600" /><span className="min-w-0 flex-1 truncate">Editando: {editTarget.body}</span><button type="button" onClick={() => { onClearEdit(); setText(""); }} aria-label="Cancelar edição" className="grid h-8 w-8 place-items-center"><X className="h-4 w-4" /></button></div> : null}

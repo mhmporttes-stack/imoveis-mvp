@@ -8,6 +8,7 @@ import { displayLink } from "@/lib/short-links.mjs";
 import { useRouter } from "next/navigation";
 import { CLIENT_STATUS, normalizeClientStatus } from "@/lib/client-status";
 import { toWhatsAppDigits } from "@/lib/phone-utils";
+import { SERVICE_DOWN_NOTICE } from "@/lib/whatsapp-service-health-core.mjs";
 import { decideCardWhatsapp, detectDevice, buildExternalWhatsappUrl, CARD_WA_EXTERNAL } from "@/lib/client-card-whatsapp-core.mjs";
 import { flagContactNotSaved } from "@/lib/whatsapp-contact-warning.mjs";
 import { withWhatsappText } from "@/lib/documents-forecast-core.mjs";
@@ -102,7 +103,9 @@ export function useClientList({
     load();
     const onVisible = () => { if (document.visibilityState === "visible") load(); };
     document.addEventListener("visibilitychange", onVisible);
-    return () => { alive = false; document.removeEventListener("visibilitychange", onVisible); };
+    // WA-13d: o serviço pode cair/voltar com a tela aberta -> releitura leve a cada 60 s (o servidor guarda o estado em cache).
+    const timer = window.setInterval(() => { if (document.visibilityState === "visible") load(); }, 60_000);
+    return () => { alive = false; window.clearInterval(timer); document.removeEventListener("visibilitychange", onVisible); };
   }, []);
 
   // Busca com debounce (350ms): uma consulta por pausa de digitação, não por tecla.
@@ -777,6 +780,7 @@ export function useClientList({
       restricted: waState?.restricted === true,
       chatDisabled: waState?.chatDisabled === true,
       printedListMode: waState?.printedListMode === true,
+      serviceDown: waState?.serviceDown === true,
       device: readCardDevice(),
       clientStatus: client.status,
       isOwnClient: Boolean(waState?.userId) && client.registration.responsibleUserId === waState.userId,
@@ -820,6 +824,8 @@ export function useClientList({
       .then((response) => { if (!response.ok) throw new Error(`HTTP ${response.status}`); })
       .catch(() => flagContactNotSaved(client.name || client.registration?.fullName || ""));
     if (decision.action === CARD_WA_EXTERNAL) {
+      // WA-13d: serviço do WhatsApp do CRM fora do ar -> app/WhatsApp Web, com aviso curto (o registro do contato acima é o mesmo).
+      if (decision.reason === "service_down") notify(SERVICE_DOWN_NOTICE);
       window.open(decision.url, "_blank", "noopener,noreferrer");
       return;
     }
@@ -859,6 +865,7 @@ export function useClientList({
       restricted: waState?.restricted === true,
       chatDisabled: waState?.chatDisabled === true,
       printedListMode: waState?.printedListMode === true,
+      serviceDown: waState?.serviceDown === true,
       device: readCardDevice(),
       clientStatus: client.status,
       isOwnClient: Boolean(waState?.userId) && client.registration.responsibleUserId === waState.userId,
