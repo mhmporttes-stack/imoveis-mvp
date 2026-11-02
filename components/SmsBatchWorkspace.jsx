@@ -63,6 +63,7 @@ async function call(method, body, query = "") {
       headers: body ? { "Content-Type": "application/json" } : undefined,
       body: body ? JSON.stringify(body) : undefined,
       cache: "no-store",
+      keepalive: method === "POST", // a gravação termina mesmo se o app for para o segundo plano (abrindo o Mensagens)
       signal: controller?.signal
     });
   } catch (fetchError) {
@@ -153,6 +154,7 @@ export default function SmsBatchWorkspace({ initial = null, initialError = "" })
     if (flushing.current) return;
     flushing.current = true;
     try {
+      let stalled = false;
       let queue = readJson(QUEUE_KEY, []);
       const sameEntry = (a, b) => a.id === b.id && (a.kind || 1) === (b.kind || 1);
       // Um envio da fila: "done" (gravado), "discard" (recusado pelo servidor) ou "offline" (sem internet: fica na fila).
@@ -212,11 +214,17 @@ export default function SmsBatchWorkspace({ initial = null, initialError = "" })
       while (queue.length) {
         const batch = queue.slice(0, 3);
         const outcomes = await Promise.all(batch.map(processEntry));
-        queue = queue.filter((entry) => !batch.some((item, index) => sameEntry(item, entry) && outcomes[index] !== "offline"));
+        // Relê a fila: toques novos entram enquanto esta rodada grava (nada se perde).
+        queue = readJson(QUEUE_KEY, []).filter((entry) => !batch.some((item, index) => sameEntry(item, entry) && outcomes[index] !== "offline"));
         writeJson(QUEUE_KEY, queue);
-        if (outcomes.includes("offline")) break;
+        if (outcomes.includes("offline")) {
+          stalled = true;
+          break;
+        }
       }
       setOfflineCount(readJson(QUEUE_KEY, []).length);
+      // Toque que entrou no último instante da rodada: roda de novo (menos quando parou por falta de internet).
+      if (!stalled && readJson(QUEUE_KEY, []).length) setTimeout(() => flush(), 300);
     } finally {
       flushing.current = false;
     }
@@ -307,8 +315,14 @@ export default function SmsBatchWorkspace({ initial = null, initialError = "" })
       setOpenedIds((current) => (current.includes(item.id) ? current : [...current, item.id]));
       return;
     }
-    writeJson(AWAITING_KEY, { id: item.id, name: item.firstName || item.name, kind, both: together, at: Date.now() });
+    // 1ª: grava NA HORA do toque (fila + envio imediato com keepalive), sem esperar a volta do Mensagens.
+    const queued = readJson(QUEUE_KEY, []);
+    if (!queued.some((row) => row.id === item.id && (row.kind || 1) === kind)) {
+      writeJson(QUEUE_KEY, [...queued, { id: item.id, name: item.firstName || item.name, kind, both: together }]);
+    }
+    setOfflineCount(readJson(QUEUE_KEY, []).length);
     setHiddenIds((current) => [...current, `${kind}:${item.id}`]);
+    flush();
   };
 
   const undoLast = async () => {
