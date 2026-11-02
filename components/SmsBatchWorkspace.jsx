@@ -187,6 +187,7 @@ export default function SmsBatchWorkspace({ initial = null, initialError = "" })
             // O servidor recusou (ex.: contato já não está disponível): descarta e avisa.
             queue = queue.slice(1);
             writeJson(QUEUE_KEY, queue);
+            setHiddenIds((current) => current.filter((id) => id !== `${second ? 2 : 1}:${entry.id}`));
             notify(`${entry.name || "Contato"}: ${sendError.message}`, "danger");
           } else {
             break; // sem internet: tenta de novo quando voltar
@@ -251,6 +252,8 @@ export default function SmsBatchWorkspace({ initial = null, initialError = "" })
   };
 
   const confirmSecond = (entry) => {
+    // Some na hora (a gravação segue em segundo plano, na fila): dá para ir direto para o próximo.
+    setHiddenIds((current) => [...current, `2:${entry.id}`]);
     writeJson(QUEUE_KEY, [...readJson(QUEUE_KEY, []), { id: entry.id, name: entry.name, kind: 2 }]);
     setOfflineCount(readJson(QUEUE_KEY, []).length);
     flush();

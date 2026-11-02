@@ -6607,3 +6607,4 @@ Pedido do dono (prints do iPhone, PWA/Safari), só apresentação — nenhuma re
 - 2026-11-02: Lote de SMS: 2ª mensagem termina com "abençoado!" (sem emoji: a operadora barrava o SMS com emoji).
 - 2026-11-02: Lote de SMS: botão "Carregar mais 50 contatos" ao zerar a meta (extra do dia em crm_settings; elegibilidade inalterada: base sem nenhuma tentativa).
 - 2026-11-02: Lote de SMS: aba Resultados lista quem preencheu o formulário (telefone + Abrir cliente).
+- 2026-11-02: Lote de SMS: "Mensagem enviada" na 2ª some na hora (gravação em segundo plano).
