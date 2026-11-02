@@ -421,6 +421,11 @@ export default function SmsBatchWorkspace({ initial = null, initialError = "" })
                     {entry.phoneMasked} · {entry.state === "invalid" ? "número inválido" : entry.state === "opt_out" ? "respondeu SAIR (Não contactar)" : `2ª enviada ${timeLabel(entry.secondAt)}`}
                   </p>
                   {entry.state === "complete" ? (
+                    <Button variant="secondary" size="lg" block className="mt-2" loading={busyId === entry.id} onClick={() => markInvalid(entry)}>
+                      Número inválido
+                    </Button>
+                  ) : null}
+                  {entry.state === "complete" ? (
                     <Button variant="danger-ghost" size="lg" block className="mt-2" loading={busyId === entry.id} onClick={() => optOut(entry)}>
                       Respondeu SAIR
                     </Button>

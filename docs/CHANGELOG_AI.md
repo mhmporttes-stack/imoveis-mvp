@@ -6591,3 +6591,4 @@ Pedido do dono (prints do iPhone, PWA/Safari), só apresentação — nenhuma re
 - **Risco/observação:** cada abertura recalcula o extrato do período inteiro da equipe (mesmo custo de abrir o Ranking), sem cache; o 30 dias é o mais pesado. Validação em produção (Gabriel, 22/10, +50 às 18:06) não feita por falta de acesso ao banco neste ambiente.
 - 2026-11-02: Lote de SMS: 2ª mensagem com "vc"; cartão some na hora ao tocar em Enviar (volta se o SMS não abriu).
 - 2026-11-02: Lote de SMS: botões "Enviar 1ª novamente" e "Número inválido" (evento invalid, migration 20261102180000 aplicada).
+- 2026-11-02: Lote de SMS: número inválido sai das métricas de enviados e devolve a vaga do dia; botão também em Enviados.
