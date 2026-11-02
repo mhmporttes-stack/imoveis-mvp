@@ -46,6 +46,38 @@ const percent = (value) => (value === null || value === undefined ? "—" : `${(
 const timeLabel = (iso) => new Date(iso).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
 const dayLabel = (key) => key.split("-").reverse().slice(0, 2).join("/");
 
+// PRO-18e: o corretor só usa o Lote no Wi-Fi da imobiliária (o servidor responde 403 com este código).
+const OFFICE_ONLY_CODE = "SMS_BATCH_OFFICE_ONLY";
+
+// Período dos resultados (dono, 2026-11-02): "Tudo" é o padrão de sempre; os atalhos e as datas são validados no servidor.
+const PERIOD_OPTIONS = [
+  { value: "all", label: "Tudo" },
+  { value: "today", label: "Hoje" },
+  { value: "yesterday", label: "Ontem" },
+  { value: "last7", label: "Últimos 7 dias" },
+  { value: "last30", label: "Últimos 30 dias" },
+  { value: "custom", label: "Personalizado" }
+];
+// Contagem na hora ao marcar um envio: só se o envio cai no que a tela mostra (período com hoje e lote próprio/todos).
+function bumpMetrics(current, add) {
+  const { metrics, period, scope, lot } = current;
+  if ((scope !== "broker" && lot && lot !== "team") || (period && !period.includesToday)) return metrics;
+  return { ...metrics, total: { ...metrics.total, sent: metrics.total.sent + (add.sent || 0), sent2: metrics.total.sent2 + (add.sent2 || 0) } };
+}
+const resultsQuery = ({ broker, preset, from, to }) => {
+  const params = new URLSearchParams();
+  if (broker) params.set("broker", broker);
+  if (preset && preset !== "all") {
+    params.set("preset", preset);
+    if (preset === "custom") {
+      params.set("from", from);
+      params.set("to", to);
+    }
+  }
+  const text = params.toString();
+  return text ? `?${text}` : "";
+};
+
 // A leitura da lista tem tempo máximo: se o servidor demorar, a tela mostra o aviso com "Tentar de novo" em vez de ficar
 // carregando para sempre. Gravações (POST) nunca são interrompidas daqui.
 // (45 s: quando há telefones a checar no WhatsApp, o servidor espaça as consultas e pode levar ~25 s por rodada.)
@@ -74,7 +106,7 @@ async function call(method, body, query = "") {
     clearTimeout(timer);
   }
   const payload = await response.json().catch(() => ({}));
-  if (!response.ok) throw Object.assign(new Error(payload.error || "Não foi possível concluir."), { status: response.status });
+  if (!response.ok) throw Object.assign(new Error(payload.error || "Não foi possível concluir."), { status: response.status, code: payload.code || "" });
   return payload;
 }
 
@@ -99,6 +131,10 @@ export default function SmsBatchWorkspace({ initial = null, initialError = "" })
   const [busyId, setBusyId] = useState("");
   const [draft, setDraft] = useState({ template: initial?.settings?.template || "", template2: initial?.settings?.template2 || "", templateBroker: initial?.settings?.templateBroker || "", limit: String(initial?.settings?.limit || 50) });
   const [brokerFilter, setBrokerFilter] = useState("");
+  const [preset, setPreset] = useState("all");
+  const [customFrom, setCustomFrom] = useState("");
+  const [customTo, setCustomTo] = useState("");
+  const [officeBlocked, setOfficeBlocked] = useState(false);
   const [savingSettings, setSavingSettings] = useState(false);
   // Cartão some na hora ao tocar em "Enviar" (volume mais rápido); volta se o SMS não chegou a ser aberto.
   const [hiddenIds, setHiddenIds] = useState([]);
@@ -116,13 +152,22 @@ export default function SmsBatchWorkspace({ initial = null, initialError = "" })
   const autoChecks = useRef(0);
 
   const brokerFilterRef = useRef("");
+  const periodRef = useRef({ preset: "all", from: "", to: "" });
   const reload = useCallback(async () => {
     try {
-      const next = await call("GET", null, brokerFilterRef.current ? `?broker=${encodeURIComponent(brokerFilterRef.current)}` : "");
+      const next = await call("GET", null, resultsQuery({ broker: brokerFilterRef.current, ...periodRef.current }));
       loadedAt.current = Date.now();
       setData(next);
       setError("");
+      setOfficeBlocked(false);
     } catch (loadError) {
+      if (loadError.code === OFFICE_ONLY_CODE) {
+        // Saiu do Wi-Fi da imobiliária: nada de dados de contato na tela (a fila de envios já feitos continua gravando).
+        setData(null);
+        setError("");
+        setOfficeBlocked(true);
+        return;
+      }
       setData((current) => {
         if (!current) setError(loadError.message);
         return current;
@@ -183,7 +228,7 @@ export default function SmsBatchWorkspace({ initial = null, initialError = "" })
                 ...current,
                 awaiting: current.awaiting.filter((item) => item.id !== entry.id),
                 done: moved ? [{ ...moved, state: "complete", secondAt: result.sentAt || new Date().toISOString() }, ...current.done] : current.done,
-                metrics: { ...current.metrics, total: { ...current.metrics.total, sent2: current.metrics.total.sent2 + 1 } }
+                metrics: bumpMetrics(current, { sent2: 1 })
               };
             }
             return {
@@ -199,7 +244,7 @@ export default function SmsBatchWorkspace({ initial = null, initialError = "" })
                 : current.awaiting,
               items: current.items.filter((item) => item.id !== entry.id),
               progress: { ...current.progress, sentToday: current.progress.sentToday + 1, remaining: Math.max(0, current.progress.remaining - 1) },
-              metrics: { ...current.metrics, total: { ...current.metrics.total, sent: current.metrics.total.sent + 1, sent2: current.metrics.total.sent2 + (result2 ? 1 : 0) } }
+              metrics: bumpMetrics(current, { sent: 1, sent2: result2 ? 1 : 0 })
             };
           });
           if (result.sendId && !result2) {
@@ -428,6 +473,14 @@ export default function SmsBatchWorkspace({ initial = null, initialError = "" })
     reload();
   };
 
+  // Período: atalhos aplicam na hora; "Personalizado" só depois das duas datas (o servidor valida de novo).
+  const applyPeriod = (nextPreset, from = customFrom, to = customTo) => {
+    setPreset(nextPreset);
+    if (nextPreset === "custom" && (!from || !to)) return;
+    periodRef.current = { preset: nextPreset, from, to };
+    reload();
+  };
+
   const saveSettings = async () => {
     setSavingSettings(true);
     try {
@@ -442,6 +495,20 @@ export default function SmsBatchWorkspace({ initial = null, initialError = "" })
     }
   };
 
+  if (officeBlocked) {
+    // PRO-18e: sem lista, sem contatos, nada — só o aviso. Envios já marcados no aparelho continuam sendo gravados.
+    return (
+      <div data-no-reveal="">
+        <EmptyState
+          icon={WifiOff}
+          title="Fora da imobiliária"
+          description="O Lote de SMS só funciona no Wi-Fi da imobiliária. Conecte-se ao Wi-Fi do escritório."
+          action={<Button size="lg" onClick={reload}>Tentar de novo</Button>}
+        />
+        {toastElement}
+      </div>
+    );
+  }
   if (error && !data) {
     return <EmptyState tone="danger" title="Não foi possível abrir o Lote de SMS" description={error} action={<Button onClick={reload}>Tentar de novo</Button>} />;
   }
@@ -449,6 +516,9 @@ export default function SmsBatchWorkspace({ initial = null, initialError = "" })
 
   const { progress, metrics, items, awaiting, done } = data;
   const isTeam = data.scope === "team";
+  // Período escolhido (dono, 2026-11-02): "Tudo" é o padrão; "Hoje" também mostra o dia de hoje nos cartões.
+  const filtered = Boolean(data.period?.from) && data.period.preset !== "today";
+  const customReady = preset !== "custom" || (customFrom && customTo);
   const wa = data.whatsapp || { state: "ok" };
   const noWhatsapp = data.noWhatsapp;
 
@@ -467,9 +537,14 @@ export default function SmsBatchWorkspace({ initial = null, initialError = "" })
         </p>
       ) : null}
 
+      {data.period?.from || data.lot ? (
+        <p className="text-xs font-semibold text-muted" role="status">
+          Resultados de: {data.metricsLabel}{data.period?.from ? ` · ${data.period.label}` : ""}
+        </p>
+      ) : null}
       <KpiGrid label="Resultados do Lote de SMS">
         <Kpi label="Enviados" value={metrics.total.sent + metrics.total.sent2} hint={`1ª: ${metrics.total.sent} · 2ª: ${metrics.total.sent2}`} />
-        <Kpi label="Cliques no link" value={metrics.total.clicks} hint={`${metrics.byDay[0]?.clicks || 0} hoje`} />
+        <Kpi label="Cliques no link" value={metrics.total.clicks} hint={filtered ? "no período" : `${metrics.byDay[0]?.clicks || 0} hoje`} />
         <div
           role="button"
           tabIndex={0}
@@ -478,7 +553,7 @@ export default function SmsBatchWorkspace({ initial = null, initialError = "" })
           onClick={() => { setTab("results"); setTimeout(() => document.getElementById("sms-signups")?.scrollIntoView({ behavior: "smooth", block: "start" }), 50); }}
           onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); event.currentTarget.click(); } }}
         >
-          <Kpi label="Cadastros" value={metrics.total.signups} hint={`${metrics.byDay[0]?.signups || 0} hoje · toque para ver`} tone="accent" />
+          <Kpi label="Cadastros" value={metrics.total.signups} hint={`${filtered ? "no período" : `${metrics.byDay[0]?.signups || 0} hoje`} · toque para ver`} tone="accent" />
         </div>
         <Kpi label="Simulações enviadas" value={metrics.total.simulations || 0} hint="dos cadastros destes links" />
         <Kpi label="Taxa" value={percent(metrics.total.rate)} hint="cadastros ÷ 1ª enviada" />
@@ -686,6 +761,34 @@ export default function SmsBatchWorkspace({ initial = null, initialError = "" })
 
       {tab === "results" ? (
         <div className="space-y-4">
+          <Card title="Filtros" note={data.period?.label || "Todo o período"}>
+            <div className="space-y-3">
+              <Field label="Período">
+                <Tabs label="Período dos resultados" value={preset} onChange={(value) => applyPeriod(value)} options={PERIOD_OPTIONS} />
+              </Field>
+              {preset === "custom" ? (
+                <div className="grid grid-cols-2 gap-3">
+                  <Field label="Data inicial">
+                    <input type="date" className={inputClasses} value={customFrom} max={customTo || undefined} onChange={(event) => { setCustomFrom(event.target.value); applyPeriod("custom", event.target.value, customTo); }} />
+                  </Field>
+                  <Field label="Data final">
+                    <input type="date" className={inputClasses} value={customTo} min={customFrom || undefined} onChange={(event) => { setCustomTo(event.target.value); applyPeriod("custom", customFrom, event.target.value); }} />
+                  </Field>
+                  {!customReady ? <p className="col-span-2 text-xs text-muted">Escolha a data inicial e a final (fuso de São Paulo, até 366 dias).</p> : null}
+                </div>
+              ) : null}
+              {isTeam && data.brokers?.length ? (
+                <Field label="Lote">
+                  <Tabs
+                    label="Lote dos resultados"
+                    value={brokerFilter}
+                    onChange={changeBrokerFilter}
+                    options={[{ value: "", label: "Todos" }, { value: "team", label: "O meu" }, ...data.brokers.map((row) => ({ value: row.id, label: row.name }))]}
+                  />
+                </Field>
+              ) : null}
+            </div>
+          </Card>
           <Card id="sms-signups" title="Quem preencheu o formulário" note={`${data.signups?.length || 0} cliente(s)`}>
             {data.signups?.length ? (
               <ul className="divide-y divide-line">
@@ -704,7 +807,7 @@ export default function SmsBatchWorkspace({ initial = null, initialError = "" })
             )}
           </Card>
           {isTeam && data.brokers?.length ? (
-            <Card title="Por corretor" note="lotes dos corretores">
+            <Card title="Por corretor" note={`mensagens disparadas · ${data.period?.label || "todo o período"}`}>
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-sm tabular-nums">
                   <thead className="text-xs text-muted">
@@ -719,15 +822,9 @@ export default function SmsBatchWorkspace({ initial = null, initialError = "" })
                   </tbody>
                 </table>
               </div>
-              <Field label="Ver os números de" hint="Filtra o resumo e a tabela por dia abaixo.">
-                <select className={inputClasses} value={brokerFilter} onChange={(event) => changeBrokerFilter(event.target.value)}>
-                  <option value="">Todos os lotes</option>
-                  {data.brokers.map((row) => <option key={row.id} value={row.id}>{row.name}</option>)}
-                </select>
-              </Field>
             </Card>
           ) : null}
-          <Card title="Por dia" note={`${data.metricsLabel || ""} · últimos 14 dias`}>
+          <Card title="Por dia" note={`${data.metricsLabel || ""} · ${data.period?.from ? data.period.label : "últimos 14 dias"}`}>
             <table className="w-full text-left text-sm tabular-nums">
               <thead className="text-xs text-muted">
                 <tr><th className="py-1 font-semibold">Dia</th><th className="py-1 font-semibold">1ª</th><th className="py-1 font-semibold">2ª</th><th className="py-1 font-semibold">Cliques</th><th className="py-1 font-semibold">Cadastros</th><th className="py-1 font-semibold">Taxa</th></tr>
