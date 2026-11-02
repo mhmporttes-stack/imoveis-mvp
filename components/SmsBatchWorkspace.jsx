@@ -47,7 +47,10 @@ const dayLabel = (key) => key.split("-").reverse().slice(0, 2).join("/");
 
 // A leitura da lista tem tempo máximo: se o servidor demorar, a tela mostra o aviso com "Tentar de novo" em vez de ficar
 // carregando para sempre. Gravações (POST) nunca são interrompidas daqui.
-const LOAD_TIMEOUT_MS = 30000;
+// (45 s: quando há telefones a checar no WhatsApp, o servidor espaça as consultas e pode levar ~25 s por rodada.)
+const LOAD_TIMEOUT_MS = 45000;
+// Checagem de WhatsApp em andamento: a tela pede a próxima rodada sozinha, no máximo isto de vezes seguidas.
+const MAX_AUTO_CHECKS = 30;
 
 async function call(method, body, query = "") {
   const controller = method === "GET" ? new AbortController() : null;
@@ -101,6 +104,7 @@ export default function SmsBatchWorkspace({ initial = null, initialError = "" })
   const flushing = useRef(false);
   const undoTimer = useRef(null);
   const loadedAt = useRef(Date.now());
+  const autoChecks = useRef(0);
 
   const brokerFilterRef = useRef("");
   const reload = useCallback(async () => {
@@ -122,6 +126,19 @@ export default function SmsBatchWorkspace({ initial = null, initialError = "" })
     // Só na montagem.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Checagem de WhatsApp (só consulta; nada é enviado): enquanto o servidor ainda tem telefones a checar, pede a rodada
+  // seguinte sozinho. Para se uma rodada não avançar (nada checado) ou depois de MAX_AUTO_CHECKS.
+  useEffect(() => {
+    const wa = data?.whatsapp;
+    if (wa?.state === "checking" && wa.checked > 0 && autoChecks.current < MAX_AUTO_CHECKS) {
+      autoChecks.current += 1;
+      const timer = setTimeout(reload, 400);
+      return () => clearTimeout(timer);
+    }
+    autoChecks.current = 0;
+    return undefined;
+  }, [data?.loadedAt, data?.whatsapp, reload]);
 
   // Fila de envios a marcar (sobrevive a app fechado e internet caída). kind 1 = 1ª mensagem (id do contato);
   // kind 2 = 2ª mensagem (id do envio da 1ª).
@@ -312,6 +329,8 @@ export default function SmsBatchWorkspace({ initial = null, initialError = "" })
 
   const { progress, metrics, items, awaiting, done } = data;
   const isTeam = data.scope === "team";
+  const wa = data.whatsapp || { state: "ok" };
+  const noWhatsapp = data.noWhatsapp;
   const progressPercent = progress.limit ? Math.min(100, Math.round((progress.sentToday / progress.limit) * 100)) : 0;
 
   return (
@@ -349,6 +368,22 @@ export default function SmsBatchWorkspace({ initial = null, initialError = "" })
         </p>
       ) : null}
 
+      {wa.state === "checking" ? (
+        <p className="rounded-control border border-info-line bg-info-soft px-3 py-2 text-[13px] leading-5 text-info" role="status">
+          Conferindo quais telefones têm WhatsApp (só consulta, nada é enviado)… a lista completa aparece sozinha.
+        </p>
+      ) : null}
+      {wa.state === "limit" ? (
+        <p className="rounded-control border border-info-line bg-info-soft px-3 py-2 text-[13px] leading-5 text-info" role="status">
+          Limite de consultas de WhatsApp desta rodada atingido. Atualize a tela mais tarde para completar a lista.
+        </p>
+      ) : null}
+      {wa.state === "unavailable" ? (
+        <p className="text-xs leading-5 text-muted" role="status">
+          Checagem de WhatsApp indisponível agora ({wa.reason === "sem_sessao" ? "nenhum WhatsApp do administrador conectado" : wa.reason === "sem_tabela" ? "falta liberar a tabela no banco" : "serviço do WhatsApp sem resposta"}): a lista saiu sem filtrar quem não tem WhatsApp.
+        </p>
+      ) : null}
+
       <Tabs
         label="Seções do Lote de SMS"
         value={tab}
@@ -357,6 +392,7 @@ export default function SmsBatchWorkspace({ initial = null, initialError = "" })
           { value: "send", label: `Para enviar (${items.length})` },
           { value: "second", label: `Aguardando 2ª (${awaiting.length})` },
           { value: "sent", label: `Enviados (${done.length})` },
+          ...(isTeam ? [{ value: "nowa", label: `Sem WhatsApp (${noWhatsapp?.total || 0})` }] : []),
           { value: "results", label: isTeam ? "Resultados e textos" : "Meus resultados" }
         ]}
       />
@@ -377,7 +413,7 @@ export default function SmsBatchWorkspace({ initial = null, initialError = "" })
         ) : (
           <EmptyState
             icon={MessageSquareText}
-            title={progress.remaining ? "Nenhum contato disponível agora" : "Meta de hoje concluída"}
+            title={wa.state === "checking" ? "Conferindo os telefones…" : progress.remaining ? "Nenhum contato disponível agora" : "Meta de hoje concluída"}
             description={progress.remaining ? (isTeam ? "Todos os contatos da base já tiveram alguma tentativa de contato." : "Não há contato livre agora: os demais já tiveram contato ou estão reservados para outro corretor.") : "Amanhã a lista libera mais contatos."}
           />
         )
@@ -436,6 +472,30 @@ export default function SmsBatchWorkspace({ initial = null, initialError = "" })
           </ul>
         ) : (
           <EmptyState title="Nenhum envio concluído ainda" description="Quem já recebeu as duas mensagens, ou respondeu SAIR, aparece aqui." />
+        )
+      ) : null}
+
+      {tab === "nowa" && isTeam ? (
+        !noWhatsapp?.available ? (
+          <EmptyState title="Lista indisponível agora" description="A tabela da checagem de WhatsApp ainda não está liberada no banco." />
+        ) : noWhatsapp.items.length ? (
+          <>
+            <p className="text-[13px] leading-5 text-muted">
+              Telefones que a consulta apontou sem conta de WhatsApp (últimos 30 dias). Ficam fora do lote de SMS; nada muda no contato nem no cliente. Para tentar por ligação.
+            </p>
+            <ul className="space-y-3">
+              {noWhatsapp.items.map((entry) => (
+                <li key={entry.id}>
+                  <Card padding="md">
+                    <p className="text-base font-extrabold leading-tight text-ink">{entry.name || "Sem nome"}</p>
+                    <p className="mt-0.5 text-sm text-muted">{entry.phoneMasked} · checado em {timeLabel(entry.checkedAt)}</p>
+                  </Card>
+                </li>
+              ))}
+            </ul>
+          </>
+        ) : (
+          <EmptyState title="Nenhum telefone sem WhatsApp ainda" description="Quem não tiver conta de WhatsApp, quando a lista do dia for conferida, aparece aqui." />
         )
       ) : null}
 

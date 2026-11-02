@@ -4,6 +4,8 @@ import { loadSmsBatch, markSmsOptOut, markSmsInvalid, markSmsSecondSent, markSms
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+// A checagem de WhatsApp espaça as consultas (1–2 s cada, até ~16 s por rodada) além da varredura da base.
+export const maxDuration = 60;
 
 // Lote de SMS (dono, 2026-11-02): admin geral/gestor (lote da equipe) e corretor (lote próprio). Associado não entra
 // (requirePerformanceApi). O escopo de cada leitura/ação é revalidado em lib/sms-batch.js (scopeOf). GET = lista do dia
