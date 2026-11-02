@@ -128,9 +128,9 @@ test("elegibilidade única: reservado por OUTRO corretor sai; a reserva do próp
 });
 
 test("1ª mensagem do corretor: texto do dono, [corretor] = 1º nome de quem envia, associado do Matheus Machado", () => {
-  assert.equal(SMS_BATCH_DEFAULT_TEMPLATE_BROKER, "[Saudação] [nome], tudo bem ?\n\nMeu nome é [corretor] e sou associado do corretor Matheus Machado, Corretor de Imóveis.\nQuer saber o quanto a Caixa aprova para você comprar seu imóvel?\n\nFaça a simulação grátis em menos de 2 min clicando no link abaixo, é rápido, grátis e sem compromisso:\n\n[link]");
+  assert.equal(SMS_BATCH_DEFAULT_TEMPLATE_BROKER, "[Saudação] [nome], tudo bem ?\n\nMeu nome é [corretor] e sou associado do corretor Matheus Machado, Corretor de Imóveis.\nQuer saber o quanto a Caixa aprova para você comprar seu imóvel?\n\nFaça a simulação grátis em menos de 2 min clicando no link dessa mensagem, é rápido, grátis e sem compromisso:\n\n[link]");
   const text = renderSmsText(SMS_BATCH_DEFAULT_TEMPLATE_BROKER, { name: "maria souza", link: LINK, greeting: "Bom dia", broker: "Caroline Mayumi" });
-  assert.equal(text, `Bom dia Maria, tudo bem ?\n\nMeu nome é Caroline e sou associado do corretor Matheus Machado, Corretor de Imóveis.\nQuer saber o quanto a Caixa aprova para você comprar seu imóvel?\n\nFaça a simulação grátis em menos de 2 min clicando no link abaixo, é rápido, grátis e sem compromisso:\n\n${LINK}`);
+  assert.equal(text, `Bom dia Maria, tudo bem ?\n\nMeu nome é Caroline e sou associado do corretor Matheus Machado, Corretor de Imóveis.\nQuer saber o quanto a Caixa aprova para você comprar seu imóvel?\n\nFaça a simulação grátis em menos de 2 min clicando no link dessa mensagem, é rápido, grátis e sem compromisso:\n\n${LINK}`);
   assert.doesNotMatch(text, /\[(corretor|nome|link|Saudação)\]/);
 });
 
