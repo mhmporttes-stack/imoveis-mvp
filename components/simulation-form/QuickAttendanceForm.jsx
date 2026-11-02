@@ -9,6 +9,8 @@ import { isValidBrazilianMobile, toBrazilianE164 } from "@/lib/phone-utils";
 import { normalizePersonName } from "@/lib/name-utils";
 import { readStoredCampaignId } from "@/lib/campaign-link-client";
 import { trackMetaLead } from "@/lib/meta-pixel-client";
+import { trackGoogleAdsLead } from "@/lib/google-ads-client.mjs";
+import { currentAdAttribution } from "@/lib/ad-click-attribution.mjs";
 
 const NAME_STEP = { id: "fullName", title: "Nome", placeholder: "Seu nome completo", autoComplete: "name" };
 const PHONE_STEP = { id: "phone", title: "WhatsApp", placeholder: "(00) 00000-0000", autoComplete: "tel" };
@@ -59,7 +61,7 @@ export default function QuickAttendanceForm({ brokerRefOverride = "", onBack, jo
           campaignId,
           metaEventId: eventId,
           attribution: {
-            ...Object.fromEntries(["utm_source", "utm_medium", "utm_campaign", "utm_content", "utm_term"].map((key) => [key, searchParams.get(key) || ""])),
+            ...currentAdAttribution(searchParams),
             ...(journeySelected ? { journey_selected: journeySelected } : {})
           }
         })
@@ -73,7 +75,11 @@ export default function QuickAttendanceForm({ brokerRefOverride = "", onBack, jo
       }
 
       setDone(true);
-      if (data.isNewRegistration !== false) trackMetaLead({ phone: toBrazilianE164(phone), eventId });
+      if (data.isNewRegistration !== false) {
+        trackMetaLead({ phone: toBrazilianE164(phone), eventId });
+        // Conversão do Google Ads: uma vez por cadastro novo, só com o envio já aceito (sem redirecionamento neste formulário).
+        trackGoogleAdsLead({ id: data.registrationId });
+      }
     } catch {
       setSubmitError("Não foi possível enviar seus dados. Verifique sua conexão e tente novamente.");
       setSubmitting(false);

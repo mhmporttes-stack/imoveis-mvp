@@ -9,6 +9,7 @@ import CampaignLinkCapture from "@/components/CampaignLinkCapture";
 import MobileAdminEntryRedirect from "@/components/MobileAdminEntryRedirect";
 import FinanceiroAppGuard from "@/components/FinanceiroAppGuard";
 import Footer from "@/components/Footer";
+import GoogleAds from "@/components/GoogleAds";
 import Header from "@/components/Header";
 import LeadCaptureModal from "@/components/LeadCaptureModal";
 import MetaPixel from "@/components/MetaPixel";
@@ -76,6 +77,7 @@ export default function AppChrome({ children }) {
       <PwaLifecycle />
       <ViewportZoomLock />
       {!isAdminRoute ? <MetaPixel /> : null}
+      {!isAdminRoute ? <GoogleAds /> : null}
       {!isAdminRoute ? <CampaignLinkCapture /> : null}
       {isAdminRoute ? (
         <>
