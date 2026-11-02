@@ -45,13 +45,28 @@ const percent = (value) => (value === null || value === undefined ? "—" : `${(
 const timeLabel = (iso) => new Date(iso).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
 const dayLabel = (key) => key.split("-").reverse().slice(0, 2).join("/");
 
+// A leitura da lista tem tempo máximo: se o servidor demorar, a tela mostra o aviso com "Tentar de novo" em vez de ficar
+// carregando para sempre. Gravações (POST) nunca são interrompidas daqui.
+const LOAD_TIMEOUT_MS = 30000;
+
 async function call(method, body, query = "") {
-  const response = await fetch(`/api/admin/lote-sms${query}`, {
-    method,
-    headers: body ? { "Content-Type": "application/json" } : undefined,
-    body: body ? JSON.stringify(body) : undefined,
-    cache: "no-store"
-  });
+  const controller = method === "GET" ? new AbortController() : null;
+  const timer = controller ? setTimeout(() => controller.abort(), LOAD_TIMEOUT_MS) : null;
+  let response;
+  try {
+    response = await fetch(`/api/admin/lote-sms${query}`, {
+      method,
+      headers: body ? { "Content-Type": "application/json" } : undefined,
+      body: body ? JSON.stringify(body) : undefined,
+      cache: "no-store",
+      signal: controller?.signal
+    });
+  } catch (fetchError) {
+    if (fetchError?.name === "AbortError") throw new Error("A lista demorou para carregar. Toque em \"Tentar de novo\".");
+    throw fetchError;
+  } finally {
+    clearTimeout(timer);
+  }
   const payload = await response.json().catch(() => ({}));
   if (!response.ok) throw Object.assign(new Error(payload.error || "Não foi possível concluir."), { status: response.status });
   return payload;

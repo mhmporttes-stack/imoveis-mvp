@@ -40,6 +40,17 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-11-02 — Lote de SMS: a tela não carrega, demora e mostra "Algo deu errado" / botão não funciona
+- **Data:** 2026-11-02
+- **Sintoma:** dono (iPhone/PWA): "o botão do lote de SMS não está funcionando"; depois, a página não carrega, fica muito tempo e mostra "Algo deu errado, tente novamente".
+- **Área:** Prospecção / Lote de SMS
+- **Impacto:** Lote inteiro (dono e gestor; corretor desde o Lote dos corretores) fora do ar.
+- **Causa raiz:** (1) commit `1e6cd2ec` removeu `loadSmsBatchMetrics` e ainda a chamava → ReferenceError em toda abertura (produção 13:23–14:25 UTC; restaurada em `22fb8a10`); nenhum teste executava `loadSmsBatch`. (2) Lentidão: `attachFacts` chamava `findInternalTeamPhone` por contato (400 em paralelo) e o cache de 60 s, preenchido só ao fim da 1ª leitura, não impedia que cada chamada refizesse suas 2 consultas — ~800 consultas simultâneas por abertura com função fria (841 no total). (3) `page.jsx` montava a lista antes de abrir a página: lenta/estourada = página de erro do Next.
+- **Correção:** leitura única compartilhada em `lib/internal-phones.js`; varredura em páginas de 150 com orçamento de 8 s; página abre sem a lista (tela busca na API, tempo máximo de 30 s, aviso com "Tentar de novo"). Detalhe: `docs/CHANGELOG_AI.md` (2026-11-02).
+- **Arquivos/commit:** `lib/internal-phones.js`, `lib/sms-batch.js`, `app/admin/lote-sms/page.jsx`, `components/SmsBatchWorkspace.jsx` — branch `fix/lote-sms-botao`
+- **Prevenção/teste:** `tests/sms-batch-load.test.mjs` (executa o código real com banco falso e trava o nº de consultas com cache frio).
+- **Status:** Resolvido (não publicado). Tempo real em produção não medido.
+
 ### 2026-11-02 — "Lote de SMS" não aparece na tela "Mais" do app (iPhone) mesmo depois de publicado
 - **Data:** 2026-11-02
 - **Sintoma:** dono (iPhone, app instalado): item novo do menu (GESTÃO/CADASTROS) publicado e no ar, mas a folha "Mais" segue sem ele, "mesmo fechando e abrindo o app".

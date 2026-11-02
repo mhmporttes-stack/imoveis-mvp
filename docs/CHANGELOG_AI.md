@@ -10,6 +10,11 @@
 
 
 
+## 2026-11-02 — Lote de SMS não abria: tela travava e dava "Algo deu errado" (crm-editor) — branch `fix/lote-sms-botao`, NÃO publicado
+- Causas (por leitura de código + simulação com o código real e banco falso + consultas só de leitura): (1) o deploy de `1e6cd2ec` (13:23 UTC) chamava `loadSmsBatchMetrics`, que tinha sido apagada → ReferenceError e tela fora do ar até o deploy `ae295d42` (14:25 UTC), que a restaurou; (2) `findInternalTeamPhone` era chamada uma vez por contato (400 em paralelo) e, com o cache de 60 s frio (função serverless nova), cada chamada refazia suas 2 leituras: ~800 consultas simultâneas só nisso (841 no total por abertura), lentidão e estouro de tempo; (3) a lista era montada ANTES da página abrir (`page.jsx`), então lenta = tela travada e depois a página de erro do Next.
+- Correção: `lib/internal-phones.js` — chamadas simultâneas esperam a MESMA leitura (vale também para rajadas do webhook); `lib/sms-batch.js` — páginas de varredura de 150 (na base real o 50º elegível aparece nas ~110 primeiras linhas), mesmo teto de 6.000 contatos, orçamento de 8 s (devolve lote menor em vez de estourar) e eventos da jornada em paralelo; `app/admin/lote-sms/page.jsx` não monta mais a lista (só confere o perfil) — a tela busca em `/api/admin/lote-sms` com tempo máximo de 30 s e, se falhar, mostra o aviso com "Tentar de novo" na própria tela. Sem migration, sem mudança de regra.
+- Testes: `tests/sms-batch-load.test.mjs` (código real de `lib/sms-batch.js` com banco falso: admin, gestor, corretor, associado, 1ª/2ª/desfazer, hrefs `sms:+55…&body=`, teto de consultas com cache frio) + `tests/helpers/sms-batch-loader.mjs`/`sms-batch-fake-db.mjs`. Consultas por abertura (cache frio, 400 contatos): 841 antes, ~25 depois. Build ok.
+- Risco/observação: `fetchEvents` (equipe) lê todo `sms_batch_sends` em páginas de 1.000 — cresce ~50/dia; revisar quando passar de alguns milhares. Tempo em segundos em produção não foi medido (sem chave de serviço no ambiente).
 
 ## 2026-11-02 — WhatsApp do CRM fora do ar: o botão abre o app/WhatsApp Web (WA-13d) (crm-editor) — branch `feat/whatsapp-fora-abre-app`, NÃO publicado
 - Dono: "APENAS quando o Chat estiver fora do ar" o botão WhatsApp abre o app/WhatsApp Web; volta ao Chat quando o serviço voltar. **[REGRA OFICIAL]** em `docs/BUSINESS_RULES.md` WA-13d; `docs/WHATSAPP.md` §1-M.
