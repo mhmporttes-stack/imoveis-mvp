@@ -40,6 +40,17 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-11-02 — Chat do Marketplace: "Não enviada" com "Tentar de novo" 7 dias depois, bolha "por" sem nome com data errada e bolhas cortadas
+- **Data:** 2026-11-02 (relato 2026-10-29)
+- **Sintoma:** print da conversa "Rafaela" (respostas de Bruna Santos): mensagens de 22/10 em "Não enviada — Etapa 'página do Facebook (mp-inbox-send)' passou de 120 s…" e "Não confirmei a mensagem…" COM "Tentar de novo" dias depois; bolha "Facebook (enviada fora do CRM) — Mensagem enviada 22 de outubro de 2026 13:04 por" (sem nome, rodapé 29/10, no fim da conversa); bolhas cortadas/vazando.
+- **Área:** Chat Marketplace (tela + `lib/marketplace-chat-core.mjs`)
+- **Impacto:** reenvio cego podia mandar duas vezes algo que talvez já tivesse saído (falha "incerta" tratada como "não enviada"); mensagens fora de ordem; texto técnico para o corretor.
+- **Causa raiz:** (1) `outboundStatusView` dava `canRetry: true` a todo `failed`, sem separar incerta ("Não confirmei", sem retorno, etapa de envio abandonada) de confirmada, nem olhar a idade; o servidor (`retryMarketplaceOutbound`) também não recusava. (2) `LABEL_RE` exigia nome depois de "por": o rótulo cortado do Facebook (balão sem texto — foto/figurinha) não casava, o aria-label entrava como corpo e, sem hora lida, `message_at` = hora da leitura (29/10) — 5 linhas no banco (Rafaela ×2, Thalita, Gislaine, 28/09). A ordem pelo `message_at` mandava o balão para o fim. (3) Layout: `break-words` não reduz a largura mínima, `truncate` no remetente, foto sem `max-w-full`, área de mensagens com `overflow-x` automático.
+- **Correção:** `outboundStatusView` (incerta → "Não sei se foi enviada — confira no Facebook" + link; confirmada < 24 h → "Tentar de novo"; antiga/Não contactar → sem botão; erro técnico só em "Detalhe técnico" fechado do admin), `retryRefusal` no servidor, `messageDisplayFields` + leitura da extensão com rótulo cortado (aviso simples + hora do rótulo), `sortThreadMessages`, bolha endurecida. REGRA MKT-2e (reenvio automático de 30 s, 24 h) inalterada.
+- **Arquivos/commit:** `lib/marketplace-chat-core.mjs`, `lib/marketplace-chat.js`, `components/marketplace/MarketplaceChat.jsx`, `tests/marketplace-chat-bolhas.test.mjs` — branch `fix/marketplace-chat-bolhas`.
+- **Prevenção/teste:** `tests/marketplace-chat-bolhas.test.mjs`. Limite: o vazamento lateral não foi reproduzido na tela real (precisa de login); endurecido e conferido em Chrome com URL longa, foto larga e cabeçalho largo a 390 e 1100 px. Dados antigos corrigidos só na leitura; `renormalizeMarketplaceMessages({apply:true})` (rota manual) grava o ajuste no banco.
+- **Status:** Corrigido na branch, não publicado.
+
 ### 2026-11-02 — "Lote de SMS" não aparece na tela "Mais" do app (iPhone) mesmo depois de publicado
 - **Data:** 2026-11-02
 - **Sintoma:** dono (iPhone, app instalado): item novo do menu (GESTÃO/CADASTROS) publicado e no ar, mas a folha "Mais" segue sem ele, "mesmo fechando e abrindo o app".

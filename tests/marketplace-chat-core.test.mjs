@@ -427,9 +427,9 @@ test("abrir conversa do Marketplace só marca lida pelo corretor atribuído (ou 
 test("envio: corretor vê situação simples (Mensagem não entregue — reenviando, Não enviada + Tentar de novo); erro técnico só admin", async () => {
   const { outboundStatusView, isSafeToResend } = await import("../lib/marketplace-chat-core.mjs");
   const error = "A conversa não abriu em 20 s depois do clique (aba em /marketplace/inbox/).";
-  const base = { direction: "outbound", sender_user_id: "u1", error };
-  assert.deepEqual(outboundStatusView({ ...base, status: "queued", attempts: 1 }), { statusLabel: "Mensagem não entregue — reenviando automaticamente", canRetry: false, error: null, undelivered: true });
-  assert.deepEqual(outboundStatusView({ ...base, status: "failed", attempts: 3 }), { statusLabel: "Não enviada", canRetry: true, error: null, undelivered: false });
+  const base = { direction: "outbound", sender_user_id: "u1", error, created_at: new Date(Date.now() - 60 * 60 * 1000).toISOString() };
+  assert.deepEqual(outboundStatusView({ ...base, status: "queued", attempts: 1 }), { statusLabel: "Mensagem não entregue — reenviando automaticamente", canRetry: false, error: null, undelivered: true, checkOnFacebook: false });
+  assert.deepEqual(outboundStatusView({ ...base, status: "failed", attempts: 3 }), { statusLabel: "Não enviada", canRetry: true, error: null, undelivered: false, checkOnFacebook: false });
   assert.equal(outboundStatusView({ ...base, status: "failed" }, { technical: true }).error, error);
   assert.equal(outboundStatusView({ direction: "outbound", sender_user_id: "u1", status: "sent" }).statusLabel, "Enviada");
   assert.equal(outboundStatusView({ direction: "inbound", status: "received" }).statusLabel, "");

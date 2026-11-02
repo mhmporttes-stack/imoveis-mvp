@@ -17,7 +17,7 @@ import { ManageShortcuts } from "@/components/WhatsappChatShortcuts";
 import { tabClasses } from "@/components/ui/Tabs";
 import ChatClosingPhrasesButton from "@/components/ChatClosingPhrasesButton";
 import { CHAT_WALLPAPER_STYLE } from "@/components/chat-wallpaper";
-import { MARKETPLACE_MEDIA_ACCEPT, MARKETPLACE_MEDIA_MAX_BYTES, MARKETPLACE_MEDIA_MIN_VERSION, MAX_INTERNAL_LENGTH, MAX_OUTBOUND_LENGTH, detectClientPhone, fillMarketplaceShortcut, marketplaceOfficialWhatsappText, marketplaceWhatsappInviteText, normalizeMarketplaceSearch, supportsMarketplaceMedia } from "@/lib/marketplace-chat-core.mjs";
+import { FACEBOOK_MARKETPLACE_INBOX_URL, MARKETPLACE_MEDIA_ACCEPT, MARKETPLACE_MEDIA_MAX_BYTES, MARKETPLACE_MEDIA_MIN_VERSION, MAX_INTERNAL_LENGTH, MAX_OUTBOUND_LENGTH, detectClientPhone, fillMarketplaceShortcut, marketplaceOfficialWhatsappText, marketplaceWhatsappInviteText, normalizeMarketplaceSearch, supportsMarketplaceMedia } from "@/lib/marketplace-chat-core.mjs";
 import { DO_NOT_CONTACT_STATUS } from "@/lib/do-not-contact-core.mjs";
 import ChatAttachmentTray, { filesFromTransfer, prepareImageFile, useChatAttachments } from "@/components/ChatAttachmentTray";
 import { sendAttachmentsInOrder, sendingProgressLabel } from "@/lib/chat-attachments-core.mjs";
@@ -810,36 +810,47 @@ export default function MarketplaceChat({ canEditSettings = false, canApprove = 
                 </p>
               )
             ) : null}
-            <div ref={messagesRef} key={selectedId} data-chat-wallpaper className="min-h-0 flex-1 space-y-1.5 overflow-y-auto overscroll-contain px-3 pb-4 pt-2 sm:px-[6%]" style={CHAT_WALLPAPER_STYLE}>
+            <div ref={messagesRef} key={selectedId} data-chat-wallpaper className="min-h-0 w-full min-w-0 max-w-full flex-1 space-y-1.5 overflow-y-auto overflow-x-hidden overscroll-contain px-3 pb-4 pt-2 sm:px-[6%]" style={CHAT_WALLPAPER_STYLE}>
               {(thread.messages || []).map((message) => message.internal ? (
                 // Nota interna (MKT-2i): o mesmo visual da do Chat do WhatsApp — centralizada, azul tracejada e com cadeado.
-                <div key={message.id} className="flex justify-center">
-                  <div data-internal-message className="max-w-[88%] rounded-lg border border-dashed border-brand/50 bg-[#EAF2FE] px-3 py-1.5 text-navy shadow-[0_1px_0.5px_rgba(11,20,26,0.13)] sm:max-w-[70%]">
+                <div key={message.id} className="flex min-w-0 justify-center">
+                  <div data-internal-message className="min-w-0 max-w-[88%] rounded-lg border border-dashed border-brand/50 bg-[#EAF2FE] px-3 py-1.5 text-navy shadow-[0_1px_0.5px_rgba(11,20,26,0.13)] sm:max-w-[70%]">
                     <p className="mb-0.5 flex items-center gap-1 text-[11px] font-extrabold uppercase tracking-wide text-brand"><Lock className="h-3 w-3" aria-hidden="true" />Interno • {message.senderName || "Equipe"} <span className="font-semibold normal-case tracking-normal text-[#54656F]">· o cliente não vê</span></p>
-                    <p className="whitespace-pre-wrap break-words text-sm leading-5 text-[#111B21]">{message.body}</p>
+                    <p className="whitespace-pre-wrap text-sm leading-5 text-[#111B21] [overflow-wrap:anywhere]">{message.body}</p>
                     <p className="mt-0.5 text-right text-[11px] font-medium text-[#54656F]">{time.format(new Date(message.at))}</p>
                   </div>
                 </div>
               ) : (
-                <div key={message.id} className={`flex ${message.direction === "outbound" ? "justify-end" : "justify-start"}`}>
-                  <div data-message-id={message.id} className={`min-w-[84px] max-w-[80%] rounded-lg px-2.5 py-1.5 text-[14px] leading-5 text-[#111B21] shadow-[0_1px_0.5px_rgba(11,20,26,0.13)] sm:max-w-[65%] ${message.direction === "outbound" ? "bg-[#D9FDD3]" : "bg-white"} ${message.canRetry ? "ring-1 ring-red-300" : ""}`}>
+                <div key={message.id} className={`flex min-w-0 ${message.direction === "outbound" ? "justify-end" : "justify-start"}`}>
+                  {/* Bolha (dono, 2026-11-02: "não é pra ficar assim"): largura limitada ao painel, texto/URL/hora quebram dentro
+                      dela ([overflow-wrap:anywhere] conta na largura mínima, diferente da quebra comum) e nada vaza de lado. */}
+                  <div data-message-id={message.id} className={`min-w-[84px] max-w-[85%] overflow-hidden rounded-lg px-2.5 py-1.5 text-[14px] leading-5 text-[#111B21] shadow-[0_1px_0.5px_rgba(11,20,26,0.13)] sm:max-w-[65%] ${message.direction === "outbound" ? "bg-[#D9FDD3]" : "bg-white"} ${message.canRetry ? "ring-1 ring-red-300" : message.checkOnFacebook ? "ring-1 ring-amber-300" : ""}`}>
                     {message.direction === "outbound" ? (
-                      <p className="mb-0.5 flex items-center gap-1.5 truncate text-xs font-bold text-brand">
+                      <p className="mb-0.5 flex flex-wrap items-center gap-x-1.5 text-xs font-bold text-brand [overflow-wrap:anywhere]">
                         {message.senderName}
                         {message.automatic ? <Badge tone="info" data-auto-reply>{message.automaticLabel || "automática"}</Badge> : null}
                       </p>
                     ) : null}
-                    {message.body ? <p className="whitespace-pre-wrap break-words">{message.body}</p> : null}
+                    {message.body ? <p className="whitespace-pre-wrap [overflow-wrap:anywhere]">{message.body}</p> : null}
                     {(message.attachments || []).map((attachment) => (
                       attachment.type === "image"
-                        ? <a key={attachment.url} href={attachment.url} target="_blank" rel="noreferrer"><img src={attachment.url} alt="Anexo" className="mt-1 max-h-48 rounded" referrerPolicy="no-referrer" /></a>
-                        : <a key={attachment.url} href={attachment.url} target="_blank" rel="noreferrer" className="block text-brand underline">{attachment.name || "Anexo"}</a>
+                        ? <a key={attachment.url} href={attachment.url} target="_blank" rel="noreferrer"><img src={attachment.url} alt="Anexo" className="mt-1 h-auto max-h-48 max-w-full rounded" referrerPolicy="no-referrer" /></a>
+                        : <a key={attachment.url} href={attachment.url} target="_blank" rel="noreferrer" className="block text-brand underline [overflow-wrap:anywhere]">{attachment.name || "Anexo"}</a>
                     ))}
-                    <p className="mt-0.5 text-right text-[11px] font-medium text-[#54656F]">
+                    <p className="mt-0.5 text-right text-[11px] font-medium text-[#54656F] [overflow-wrap:anywhere]">
                       {time.format(new Date(message.at))}
                       {message.direction === "outbound" && message.statusLabel ? ` · ${message.statusLabel}` : ""}
-                      {message.error ? ` — ${message.error}` : ""}
                     </p>
+                    {/* Texto técnico só para o admin geral e fechado: o corretor nunca vê (sem "mp-inbox-send" na bolha). */}
+                    {message.error ? (
+                      <details className="mt-0.5 text-right text-[11px] text-[#54656F]">
+                        <summary className="cursor-pointer select-none">Detalhe técnico</summary>
+                        <p className="mt-0.5 text-left [overflow-wrap:anywhere]">{message.error}</p>
+                      </details>
+                    ) : null}
+                    {message.checkOnFacebook ? (
+                      <a data-check-facebook href={conversation.threadUrl || FACEBOOK_MARKETPLACE_INBOX_URL} target="_blank" rel="noreferrer" className="mt-1 inline-flex min-h-touch items-center text-xs font-bold text-brand underline">Confira no Facebook</a>
+                    ) : null}
                     {message.canRetry ? (
                       <Button size="sm" variant="secondary" className="mt-1" onClick={() => retry(message.id)}>Tentar de novo</Button>
                     ) : null}
