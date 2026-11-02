@@ -6590,3 +6590,4 @@ Pedido do dono (prints do iPhone, PWA/Safari), só apresentação — nenhuma re
 - **Arquivos:** `lib/points-statement-core.mjs`, `lib/points-statement.js`, `app/api/daily-goal/team-overview/[brokerId]/points-statement/route.js`, `components/PointsStatementSheet.jsx`, `components/TeamDailyPerformance.jsx`, `lib/performance-overview.js` (campo `note`), vitrine `app/dev/vitrine/_fixtures/meta-diaria.js`, testes `tests/points-statement.test.mjs`.
 - **Risco/observação:** cada abertura recalcula o extrato do período inteiro da equipe (mesmo custo de abrir o Ranking), sem cache; o 30 dias é o mais pesado. Validação em produção (Gabriel, 22/10, +50 às 18:06) não feita por falta de acesso ao banco neste ambiente.
 - 2026-11-02: Lote de SMS: 2ª mensagem com "vc"; cartão some na hora ao tocar em Enviar (volta se o SMS não abriu).
+- 2026-11-02: Lote de SMS: botões "Enviar 1ª novamente" e "Número inválido" (evento invalid, migration 20261102180000 aplicada).

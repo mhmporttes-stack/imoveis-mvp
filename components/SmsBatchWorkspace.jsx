@@ -236,6 +236,30 @@ export default function SmsBatchWorkspace({ initial = null, initialError = "" })
     }
   };
 
+  const markInvalid = async (entry) => {
+    const ok = await confirmAction({
+      title: "Número inválido?",
+      description: `${entry.name || entry.phoneMasked} não recebe a 2ª mensagem e sai da lista. Não vira "Não contactar".`,
+      confirmLabel: "Sim, número inválido",
+      tone: "danger"
+    });
+    if (!ok) return;
+    setBusyId(entry.id);
+    try {
+      await call("POST", { action: "invalid", sendId: entry.id });
+      setData((current) => ({
+        ...current,
+        awaiting: current.awaiting.filter((row) => row.id !== entry.id),
+        done: [{ ...entry, state: "invalid" }, ...current.done]
+      }));
+      notify("Marcado como número inválido.");
+    } catch (invalidError) {
+      notify(invalidError.message, "danger");
+    } finally {
+      setBusyId("");
+    }
+  };
+
   const optOut = async (entry) => {
     const ok = await confirmAction({
       title: "Respondeu SAIR?",
@@ -368,6 +392,12 @@ export default function SmsBatchWorkspace({ initial = null, initialError = "" })
                   <p className="text-lg font-extrabold leading-tight text-ink">{entry.name || "Sem nome"}</p>
                   <p className="mt-0.5 text-sm text-muted">{entry.phoneMasked} · 1ª enviada {timeLabel(entry.sentAt)}</p>
                   <SendLink href={entry.href} fallbackHref={entry.fallbackHref} label="Enviar 2ª mensagem" onTap={() => onTapSend(entry, 2)} />
+                  <a href={entry.resendHref} className="mt-2 flex min-h-12 w-full items-center justify-center gap-2 rounded-control border border-line text-base font-bold text-ink active:brightness-95">
+                    Enviar 1ª novamente
+                  </a>
+                  <Button variant="secondary" size="lg" block className="mt-1" loading={busyId === entry.id} onClick={() => markInvalid(entry)}>
+                    Número inválido
+                  </Button>
                   <Button variant="danger-ghost" size="lg" block className="mt-1" loading={busyId === entry.id} onClick={() => optOut(entry)}>
                     Respondeu SAIR
                   </Button>
@@ -388,7 +418,7 @@ export default function SmsBatchWorkspace({ initial = null, initialError = "" })
                 <Card padding="md">
                   <p className="text-base font-extrabold leading-tight text-ink">{entry.name || "Sem nome"}</p>
                   <p className="mt-0.5 text-sm text-muted">
-                    {entry.phoneMasked} · {entry.state === "opt_out" ? "respondeu SAIR (Não contactar)" : `2ª enviada ${timeLabel(entry.secondAt)}`}
+                    {entry.phoneMasked} · {entry.state === "invalid" ? "número inválido" : entry.state === "opt_out" ? "respondeu SAIR (Não contactar)" : `2ª enviada ${timeLabel(entry.secondAt)}`}
                   </p>
                   {entry.state === "complete" ? (
                     <Button variant="danger-ghost" size="lg" block className="mt-2" loading={busyId === entry.id} onClick={() => optOut(entry)}>
