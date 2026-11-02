@@ -1,5 +1,7 @@
 import AdminBottomNav from "@/components/AdminBottomNav";
 import AdminMenu from "@/components/AdminMenu";
+import NavigationPill from "@/components/NavigationPill";
+import { Suspense } from "react";
 import AdminTopBar from "@/components/AdminTopBar";
 import AdminScrollReveal from "@/components/motion/AdminScrollReveal";
 import AdminWarmup from "@/components/AdminWarmup";
@@ -142,6 +144,8 @@ export default async function AdminLayout({ children }) {
       {auth.ok ? (
         <AdminBottomNav {...navFlags(auth, whatsappBlocked, chatHidden)} />
       ) : null}
+      {/* Pílula "Carregando…" ao tocar em item do menu (barra inferior, "Mais", menu lateral) — dono, 2026-11-02. */}
+      {auth.ok ? <Suspense fallback={null}><NavigationPill /></Suspense> : null}
       </WhatsappAccessProvider>
       {auth.ok ? (
         <div className="admin-page-footer container-page flex flex-col items-center gap-3 py-10">

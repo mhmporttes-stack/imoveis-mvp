@@ -16,6 +16,7 @@ import { cx } from "@/components/ui/cx";
 import { useCrmBadgeCounts } from "@/components/useCrmBadgeCounts";
 import { MarketplaceChatIcon } from "@/components/marketplace/MarketplaceChatShortcut";
 import { useMarketplaceUnreadCount } from "@/components/marketplace/MarketplaceNavBadge";
+import { navPillProps } from "@/components/NavigationPill";
 import { REOPEN_MORE_KEY, applyPendingUpdateOnMenuOpen } from "@/components/PwaLifecycle";
 import { useLiveChatHidden } from "@/components/WhatsappAccessProvider";
 import { hiddenNavKeys } from "@/lib/whatsapp-access-core.mjs";
@@ -230,6 +231,7 @@ export default function AdminBottomNav({ isAdmin = false, isBroker = false, isAs
                   href={item.href}
                   {...(item.key === "daily-goal" ? { direction: "forward" } : {})}
                   data-henry-target={item.href.split("?")[0]}
+                  {...navPillProps(item.href)}
                   aria-current={active ? "page" : undefined}
                   className={cx(
                     "relative flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 text-[10px] font-semibold leading-4 tracking-normal",
@@ -290,6 +292,7 @@ function MenuTile({ href, label, Icon, current = false, count = 0, fullPage = fa
   return (
     <TileLink
       href={href}
+      {...navPillProps(href)}
       aria-current={current ? "page" : undefined}
       className={cx(
         "relative flex h-full min-h-[76px] flex-col items-center justify-center gap-1.5 rounded-[14px] border px-1 py-3 text-center text-[10.5px] font-bold leading-[1.2] text-ink",
@@ -365,7 +368,7 @@ function MoreMenu({ flags, counts, pathname, barKeys }) {
       <div className="flex gap-2 pt-2">
         <AdminThemeToggle variant="button" className="flex-1" />
         {canCreateClient ? (
-          <Link href="/admin/simulacoes/nova" className={buttonClasses({ variant: "primary", className: "flex-1" })}>
+          <Link href="/admin/simulacoes/nova" {...navPillProps("/admin/simulacoes/nova")} className={buttonClasses({ variant: "primary", className: "flex-1" })}>
             <UserRoundPlus className="h-[18px] w-[18px]" aria-hidden="true" /> Novo cliente
           </Link>
         ) : null}

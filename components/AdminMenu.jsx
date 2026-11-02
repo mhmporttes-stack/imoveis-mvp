@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import SceneTransitionLink from "@/components/motion/SceneTransitionLink";
+import { navPillProps } from "@/components/NavigationPill";
 import Avatar from "@/components/Avatar";
 import { useCrmBadgeCounts } from "@/components/useCrmBadgeCounts";
 import { useMarketplaceUnreadCount } from "@/components/marketplace/MarketplaceNavBadge";
@@ -400,6 +401,7 @@ export default function AdminMenu({ isAdmin = false, isBroker = false, isAssocia
                         href={item.href}
                         {...(item.key === "daily-goal" ? { direction: "forward" } : {})}
                         data-henry-target={item.href.split("?")[0]}
+                        {...navPillProps(item.href)}
                         aria-current={isCurrent ? "page" : undefined}
                         title={item.label}
                         className={cx(

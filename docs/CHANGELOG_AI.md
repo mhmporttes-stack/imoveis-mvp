@@ -11,6 +11,11 @@
 
 
 
+## 2026-11-02 — Pílula "Carregando…" ao tocar no menu + spinner na "Atualizando…" (crm-editor) — branch `feat/pilula-carregando-menu`, NÃO publicado
+- Dono (iPhone): a bolinha parada do "Atualizando…" vira círculo girando; e tocar em qualquer item do menu mostra a mesma pílula com "Carregando…".
+- Novo: `components/FloatingStatusPill.jsx` (pílula única; `DeviceCacheRefreshing` agora a usa, sem mudar quem a chama), `components/NavigationPill.jsx` + `components/navigation-pill-core.mjs` (atraso 120 ms, teto 15 s, ignora tela atual). Ligado por `navPillProps` em `AdminBottomNav` (barra, "Mais", "Novo cliente") e `AdminMenu` (lateral). Navegação, `applyPending` e pré-carregamento intactos.
+- Testes: `tests/navigation-pill-core.test.mjs`. Build ok. Risco/observação: a pílula some quando o caminho/filtro da URL muda (se uma tela carregar dados depois de a URL mudar, entra o "Atualizando…" próprio dela). Visual não conferido em aparelho.
+
 ## 2026-11-02 — WhatsApp do CRM fora do ar: o botão abre o app/WhatsApp Web (WA-13d) (crm-editor) — branch `feat/whatsapp-fora-abre-app`, NÃO publicado
 - Dono: "APENAS quando o Chat estiver fora do ar" o botão WhatsApp abre o app/WhatsApp Web; volta ao Chat quando o serviço voltar. **[REGRA OFICIAL]** em `docs/BUSINESS_RULES.md` WA-13d; `docs/WHATSAPP.md` §1-M.
 - Novo: detecção única `lib/whatsapp-service-health-core.mjs` (puro, histerese) + `lib/whatsapp-service-health.js` (lease + `/health` 3 s + falhas de envio; estado em `crm_settings` `whatsapp_service_health`, sem migration; cache 60/30 s). `card-state` devolve `serviceDown`; `decideCardWhatsapp`/`isConnectedChatFirst` ganham `serviceDown`; Meta Diária devolve wa.me sem `chatUrl` (tentativa gravada antes, igual); Chat mostra "Abrir no WhatsApp" sem apagar o texto; cron `whatsapp-flows` avisa o dono (informativo, 1 por episódio). `isWhatsappServiceDown` (faixa WA-37) passou a usar a mesma detecção (lease 3 min em vez de 5; alerta WA-22 segue em 5 min); aviso por hora de falha de envio não repete durante episódio aberto.

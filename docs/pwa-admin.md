@@ -79,6 +79,10 @@ Regras (`components/admin-warmup-plan.mjs`, teste `tests/admin-warmup-plan.test.
 - **Como aparece:** a 1ª pintura é a do servidor (sem diferença de hidratação); logo depois a tela mostra o guardado com o selo "Atualizando…" (`components/DeviceCacheRefreshing.jsx`) e troca tudo pela resposta do servidor. O guardado nunca é gravado de novo (não renova a validade) e não serve de base para gravar nada (ex.: "Abrir simulação" de cliente sem simulação espera a lista do servidor). Chat: a lista guardada só entra se os filtros da abertura forem os mesmos; nenhuma conversa é aberta sozinha (abrir marca como lida). Início: o carregamento da tela (`app/admin/inicio/loading.jsx` → `components/inicio/InicioDeviceCache.jsx`) mostra o último Início desta conta enquanto o servidor monta o novo.
 - **Limpeza:** botão Sair (`AdminLogoutButton`, espera apagar), sessão caída (`AdminSessionKeeper`), tela de login (`components/DeviceCacheWipe.jsx`, cobre expiração detectada pelo servidor), "Alterar conta" (entrar e sair) e troca de usuário na abertura. Sem IndexedDB (navegação privada, erro) o painel funciona como antes, sem cache.
 
+## Pílula "Carregando…" ao tocar no menu (2026-11-02)
+
+Dono: tocar em item do menu demorava sem sinal nenhum. Agora aparece a mesma pílula do "Atualizando…" (`components/FloatingStatusPill.jsx`, agora com spinner girando) com "Carregando…", acima da barra inferior e da folha "Mais" (z-60; abaixo dos modais z-110+), `pointer-events: none`, `role="status"`. `components/NavigationPill.jsx` (em `app/admin/layout.jsx`): o toque (`navPillProps(href)`, captura de clique; barra inferior, folha "Mais", "Novo cliente" e menu lateral) inicia; atraso de 120 ms (não pisca em navegação instantânea); some quando o caminho ou o filtro da URL muda; teto de 15 s se a navegação falhar; tocar na tela atual não mostra; Ctrl/Cmd/Shift/clique do meio ignorados. Regra pura: `components/navigation-pill-core.mjs` (`tests/navigation-pill-core.test.mjs`). Não mexe na navegação, no "aplicar versão nova ao abrir o Mais" nem no pré-carregamento.
+
 ## Login Persistente
 
 O login administrativo continua usando Supabase Auth.

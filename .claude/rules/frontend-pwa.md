@@ -45,6 +45,8 @@ Versão nova (dono, 2026-10-26: "quando eu saio do app e volto, ele tem que carr
 
 Pré-carregamento do painel (dono, 2026-10-22: "Carregue primeiro a aba Clientes e depois vá carregando tudo"): `components/AdminWarmup.jsx` + plano puro `components/admin-warmup-plan.mjs` (Clientes → barra/cabeçalho → menu inteiro do perfil; celular e computador). Tela que grava ou chama serviço externo ao abrir entra em `ROUTE_ONLY_PATHS` (só rota) — a Meta Diária nunca é montada (MD-16). Tela nova com dados buscados no cliente pode usar o cache por conta (`readViewerData`/`saveViewerData` + `restoreViewerData` para o aparelho, nome em `components/panel-cache-names.js`) e um aquecedor em `DATA_WARMERS`. Detalhe: `docs/pwa-admin.md`.
 
+Pílula de estado (dono, 2026-11-02): uma só, `components/FloatingStatusPill.jsx` (spinner girando; "reduzir movimento" = bolinha pulsando), acima da barra inferior. "Atualizando…" = `DeviceCacheRefreshing`; "Carregando…" = `components/NavigationPill.jsx` (montada em `app/admin/layout.jsx`), disparada no toque por `navPillProps(href)` nos links da barra, da folha "Mais" e do menu lateral (atraso 120 ms, some ao mudar caminho/filtro, teto 15 s, ignora a tela atual; regra pura `components/navigation-pill-core.mjs`, `tests/navigation-pill-core.test.mjs`). Item de menu novo: ponha `{...navPillProps(href)}` no link.
+
 Henry no app (dono, 2026-10-22, só o dono): botão do anel no canto inferior ESQUERDO, logo acima da barra inferior (`bottom: max(safe-area, --admin-bottom-nav-space)`, `z-[35]`) — não o mova para cima da barra nem para a direita (botões flutuantes das telas). Cena cheia com safe-area, sem rolagem por trás, "voltar" e arrastar para baixo minimizam. Detalhe: `docs/BUSINESS_RULES.md` HENRY-1.
 
 ## Não confundir
