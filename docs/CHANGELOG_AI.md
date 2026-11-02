@@ -6603,3 +6603,4 @@ Pedido do dono (prints do iPhone, PWA/Safari), só apresentação — nenhuma re
 - 2026-11-02: Lote de SMS: botões "Enviar 1ª novamente" e "Número inválido" (evento invalid, migration 20261102180000 aplicada).
 - 2026-11-02: Lote de SMS: número inválido sai das métricas de enviados e devolve a vaga do dia; botão também em Enviados.
 - 2026-11-02: Lote de SMS: aba Inexistentes (não existe/não ativo, evento inactive); 2ª mensagem fica na lista com 'Mensagem enviada' e retornos.
+- 2026-11-02: Lote de SMS mais rápido: checagem de WhatsApp desligada por padrão (SMS_BATCH_WA_CHECK=1 liga), 1ª enviada entra em Aguardando 2ª sem recarregar, escritas em paralelo.

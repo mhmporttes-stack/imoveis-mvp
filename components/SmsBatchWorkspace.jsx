@@ -157,6 +157,7 @@ export default function SmsBatchWorkspace({ initial = null, initialError = "" })
           writeJson(QUEUE_KEY, queue);
           setData((current) => {
             if (!current) return current;
+            const sentItem = !second ? current.items.find((item) => item.id === entry.id) : null;
             if (second) {
               const moved = current.awaiting.find((item) => item.id === entry.id);
               return {
@@ -168,6 +169,8 @@ export default function SmsBatchWorkspace({ initial = null, initialError = "" })
             }
             return {
               ...current,
+              // 1ª enviada: o cartão já entra em "Aguardando 2ª" (com a 2ª pronta), sem esperar a lista recarregar.
+              awaiting: sentItem && result.sendId ? [...current.awaiting, { id: result.sendId, name: sentItem.name, phoneMasked: sentItem.phoneMasked, sentAt: new Date().toISOString(), state: "awaiting", href: sentItem.secondHref, fallbackHref: sentItem.secondFallbackHref, resendHref: sentItem.href }] : current.awaiting,
               items: current.items.filter((item) => item.id !== entry.id),
               progress: { ...current.progress, sentToday: current.progress.sentToday + 1, remaining: Math.max(0, current.progress.remaining - 1) },
               metrics: { ...current.metrics, total: { ...current.metrics.total, sent: current.metrics.total.sent + 1 } }
@@ -178,8 +181,7 @@ export default function SmsBatchWorkspace({ initial = null, initialError = "" })
             setUndo({ sendId: result.sendId, name: entry.name, second });
             undoTimer.current = setTimeout(() => setUndo(null), UNDO_MS);
           }
-          // A 1ª enviada entra em "Aguardando 2ª": busca a lista pronta (com o texto da 2ª) em segundo plano.
-          if (!second && result.sendId) reload();
+          // A 1ª enviada já entrou em "Aguardando 2ª" localmente (sem recarregar a lista).
         } catch (sendError) {
           if (sendError.status) {
             // O servidor recusou (ex.: contato já não está disponível): descarta e avisa.
@@ -391,7 +393,7 @@ export default function SmsBatchWorkspace({ initial = null, initialError = "" })
           Limite de consultas de WhatsApp desta rodada atingido. Atualize a tela mais tarde para completar a lista.
         </p>
       ) : null}
-      {wa.state === "unavailable" ? (
+      {wa.state === "unavailable" && wa.reason !== "desligada" ? (
         <p className="text-xs leading-5 text-muted" role="status">
           Checagem de WhatsApp indisponível agora ({wa.reason === "sem_sessao" ? "nenhum WhatsApp do administrador conectado" : wa.reason === "sem_tabela" ? "falta liberar a tabela no banco" : "serviço do WhatsApp sem resposta"}): a lista saiu sem filtrar quem não tem WhatsApp.
         </p>
