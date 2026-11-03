@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { requirePerformanceApi } from "@/lib/admin-auth";
 import { clientIpFromHeaders } from "@/lib/office-presence-core.mjs";
+import { buildSmsVcards } from "@/lib/sms-batch-core.mjs";
 import { addSmsExtraBatch, assertSmsBatchOffice, resetSmsList, loadSmsBatch, markSmsOptOut, markSmsInvalid, markSmsSecondSent, markSmsSent, saveSmsBatchSettings, undoSmsSent } from "@/lib/sms-batch";
 
 export const runtime = "nodejs";
@@ -25,6 +26,11 @@ export async function GET(request) {
   try {
     await assertSmsBatchOffice(auth, clientIpFromHeaders(request.headers), "load");
     const params = new URL(request.url).searchParams;
+    // Salvar os contatos da lista no iPhone (.vcf com "Nome (SMS lote)"): mesmo escopo e mesma regra do Wi-Fi da lista.
+    if (params.get("vcard") === "1") {
+      const data = await loadSmsBatch(auth, { includePhones: true });
+      return new Response(buildSmsVcards(data.items), { headers: { "Content-Type": "text/vcard; charset=utf-8", "Content-Disposition": 'inline; filename="lote-sms.vcf"', "Cache-Control": "no-store" } });
+    }
     const brokerId = params.get("broker") || "";
     return NextResponse.json(await loadSmsBatch(auth, {
       brokerId: brokerId === "team" || /^[0-9a-f-]{36}$/i.test(brokerId) ? brokerId : "",

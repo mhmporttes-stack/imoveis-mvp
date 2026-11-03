@@ -630,6 +630,11 @@ export default function SmsBatchWorkspace({ initial = null, initialError = "" })
             Carregar mais 50 contatos
           </Button>
           {visibleItems.length ? (
+            <Button variant="secondary" size="lg" block onClick={() => window.location.assign("/api/admin/lote-sms?vcard=1")}>
+              Salvar estes contatos no iPhone
+            </Button>
+          ) : null}
+          {visibleItems.length ? (
             <Button variant="danger-ghost" size="lg" block loading={busyId === "reset"} onClick={resetList}>
               Já enviei estes: zerar e trazer 50 novos
             </Button>

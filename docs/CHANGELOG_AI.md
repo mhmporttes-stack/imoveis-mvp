@@ -6646,3 +6646,4 @@ Pedido do dono (prints do iPhone, PWA/Safari), só apresentação — nenhuma re
 - 2026-11-03: Lote de SMS: removido o botão "Mensagem enviada" da 2ª; tocar em Enviar 2ª mensagem grava e o cartão sai.
 - 2026-11-03: Lote de SMS: removido o aviso "marcado como enviado / Desfazer".
 - 2026-11-03: Lote de SMS: aviso amarelo removido; filtro de período (Tudo/Hoje/Ontem/7/30/Personalizado) no topo, padrão Hoje.
+- 2026-11-03: Lote de SMS: botão Salvar estes contatos no iPhone (.vcf com Nome (SMS lote)).

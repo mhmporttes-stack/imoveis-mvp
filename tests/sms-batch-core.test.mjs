@@ -248,3 +248,13 @@ test("menu: o item mora em GESTÃO (gestor e admin geral) e no CRM do corretor (
   const associateStart = menu.indexOf("const associateGroups");
   assert.equal(menu.slice(brokerStart, associateStart).includes("SMS_BATCH_ITEM"), true);
 });
+
+test("vCard dos contatos do lote: Nome (SMS lote), celular em +55, número inválido fica de fora", async () => {
+  const { buildSmsVcards } = await import("../lib/sms-batch-core.mjs");
+  const text = buildSmsVcards([{ name: "Maria Silva", phone: "14997001234" }, { name: "", phone: "+5514997001235" }, { name: "Sem número", phone: "123" }]);
+  assert.equal((text.match(/BEGIN:VCARD/g) || []).length, 2);
+  assert.match(text, /FN:Maria Silva \(SMS lote\)/);
+  assert.match(text, /FN:Contato \(SMS lote\)/);
+  assert.match(text, /TEL;TYPE=CELL:\+5514997001234/);
+  assert.doesNotMatch(text, /Sem número/);
+});
