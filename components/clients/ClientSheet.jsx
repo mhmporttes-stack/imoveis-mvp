@@ -816,7 +816,9 @@ export function DocumentsListDialog({ target, onCancel, onConfirm }) {
 
   // Busca a imagem ao abrir (envio manual): no iPhone o menu de compartilhar
   // só abre se for chamado logo no toque, sem esperar a rede.
-  const manualLink = target?.decision?.action === "external" ? target.link : "";
+  // Imagem da lista disponível SEMPRE que o canal não é o Chat (dono, 2026-11-03): sem conversa/WhatsApp conectado o corretor ainda
+// baixa/copia a imagem personalizada e envia por fora. Só exige a simulação (o servidor recusa sem ela).
+const manualLink = (target?.decision?.action === "external" || target?.decision?.action === "blocked") ? target.link : "";
   useEffect(() => {
     setImageFile(null);
     if (!manualLink) { setImageState("idle"); return undefined; }
@@ -865,6 +867,23 @@ export function DocumentsListDialog({ target, onCancel, onConfirm }) {
     if (!target && dialog.open) dialog.close();
   }, [target]);
 
+  const imageButtons = (
+    <>
+              <div className="mt-2 flex flex-wrap items-center gap-x-5">
+              {/* Nunca <a download>: no app do iPhone ele abre a pré-visualização sem botão de voltar. */}
+              <button type="button" onClick={saveImage} disabled={imageState === "loading"} className="inline-flex min-h-touch items-center font-semibold text-navy underline disabled:opacity-60" data-documents-list-image="">
+                {imageState === "loading" ? "Preparando a imagem…" : imageState === "done" ? "Imagem pronta — baixar de novo" : "Baixar imagem da lista"}
+              </button>
+              {/* "Copiar mídia" (dono, 2026-10-22): a imagem vai para a área de transferência; é só colar na conversa. */}
+              <button type="button" onClick={copyImage} className="inline-flex min-h-touch items-center font-semibold text-navy underline" data-documents-list-copy-image="">
+                Copiar mídia
+              </button>
+              </div>
+              {mediaState === "done" ? <p role="status" className="mt-1 font-semibold text-success" data-documents-list-image-copied="">Imagem copiada. Cole na conversa do cliente.</p> : null}
+              {mediaState === "fallback" ? <p role="status" className="mt-1 text-ink-2">Este aparelho não deixa copiar imagem: use a imagem baixada (ou compartilhada) e anexe na conversa.</p> : null}
+              {imageState === "error" ? <p role="alert" className="mt-1 text-danger">Não foi possível gerar a imagem. Toque para tentar de novo.</p> : null}
+    </>
+  );
   const external = target?.decision?.action === "external";
   const blocked = target?.decision?.action === "blocked";
   const viaOfficial = target?.decision?.channel === "official";
@@ -876,6 +895,7 @@ export function DocumentsListDialog({ target, onCancel, onConfirm }) {
           <p className="mt-1 text-sm text-ink-2">Confira a mensagem para {target.client.name || "o cliente"}. A lista de documentos vai como imagem, personalizada pela simulação dele.</p>
           <p className="mt-3 whitespace-pre-wrap break-words rounded-control border border-line bg-navy/[0.03] p-3 text-sm text-ink" data-documents-list-message="">{target.message}</p>
           {blocked ? (
+            <>
             <p role="alert" className="mt-2 text-xs font-semibold text-warning" data-documents-list-blocked="">
               {target.decision?.reason === "access_blocked"
                 ? "Seu acesso ao WhatsApp pelo CRM está bloqueado. Use \"Copiar texto\" e envie a lista por outro meio."
@@ -890,22 +910,16 @@ export function DocumentsListDialog({ target, onCancel, onConfirm }) {
                   : "Este cliente ainda não conversou com o número oficial nem com o seu WhatsApp no Chat do CRM. Assim que ele mandar mensagem, a lista sai pelo Chat."}{" "}
               O WhatsApp do aparelho só é liberado com restrição do WhatsApp validada no CRM.
             </p>
+            {/* Dono, 2026-11-03: a imagem da lista sai sempre que o cadastro tem simulação — baixe/copie e envie por outro meio. */}
+            <div className="mt-2 text-xs text-muted" data-documents-list-manual-blocked="">
+              <p>Mesmo assim você pode gerar a imagem da lista personalizada deste cliente: baixe ou copie e envie por outro meio.</p>
+              {imageButtons}
+            </div>
+            </>
           ) : external ? (
             <div className="mt-2 text-xs text-muted" data-documents-list-manual="">
               <p>Sua restrição do WhatsApp está validada: o envio é feito pelo WhatsApp do seu aparelho. O WhatsApp vai abrir só com o texto: o link do WhatsApp não anexa imagem. Baixe a imagem e anexe você mesmo na conversa.</p>
-              <div className="mt-2 flex flex-wrap items-center gap-x-5">
-              {/* Nunca <a download>: no app do iPhone ele abre a pré-visualização sem botão de voltar. */}
-              <button type="button" onClick={saveImage} disabled={imageState === "loading"} className="inline-flex min-h-touch items-center font-semibold text-navy underline disabled:opacity-60" data-documents-list-image="">
-                {imageState === "loading" ? "Preparando a imagem…" : imageState === "done" ? "Imagem pronta — baixar de novo" : "Baixar imagem da lista"}
-              </button>
-              {/* "Copiar mídia" (dono, 2026-10-22): a imagem vai para a área de transferência; é só colar na conversa. */}
-              <button type="button" onClick={copyImage} className="inline-flex min-h-touch items-center font-semibold text-navy underline" data-documents-list-copy-image="">
-                Copiar mídia
-              </button>
-              </div>
-              {mediaState === "done" ? <p role="status" className="mt-1 font-semibold text-success" data-documents-list-image-copied="">Imagem copiada. Cole na conversa do cliente.</p> : null}
-              {mediaState === "fallback" ? <p role="status" className="mt-1 text-ink-2">Este aparelho não deixa copiar imagem: use a imagem baixada (ou compartilhada) e anexe na conversa.</p> : null}
-              {imageState === "error" ? <p role="alert" className="mt-1 text-danger">Não foi possível gerar a imagem. Toque para tentar de novo.</p> : null}
+              {imageButtons}
             </div>
           ) : (
             <p className="mt-2 text-xs text-muted">

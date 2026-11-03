@@ -6698,3 +6698,5 @@ Pedido do dono (prints do iPhone, PWA/Safari), só apresentação — nenhuma re
 - 2026-11-03 — Lote de SMS, Resultados: filtro de lote virou "Todos | O meu | Corretor ▾"; o 3º abre um cartão com a lista de corretores (1ª, 2ª, cliques, cadastros de cada um) e, ao escolher, carrega só os resultados dele. Admin geral e gestor. `components/SmsBatchWorkspace.jsx`.
 
 - 2026-11-03 — Lote de SMS: botão "Não enviei a 1ª — voltar para a lista" nos cartões de "Aguardando 2ª" (o toque grava a 1ª mesmo se o SMS não saiu). `undoSmsSent(..., { force })` desfaz a 1ª fora dos 10 min só se não houver nada depois (2ª, SAIR, inválido) e devolve o contato à lista. 34 contatos do lote da equipe estavam nessa situação em 03/11.
+
+- 2026-11-03 — Lista de documentos (ficha do cliente): sem canal de envio (sem conversa/WhatsApp conectado) o modal agora também oferece "Baixar imagem da lista" e "Copiar mídia" (dono: "tem que ser possível gerar essa imagem ... desde que o cadastro esteja completo"). O envio pelo Chat/WhatsApp continua com as mesmas travas; só a geração da imagem foi liberada. `components/clients/ClientSheet.jsx`.
