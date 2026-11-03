@@ -24,6 +24,7 @@ Regra do dono (2026-10-15):
 - (nenhum)
 
 ## Publicados
+- Como comprar um imóvel sem entrada (2026-11-03, azul) — dono postou
 - Financiar e pagar 2 imóveis? Tô fora / quitar antes (2026-10-18, azul) — dono confirmou em 2026-10-29
 - Nunca vi ninguém se arrepender de comprar cedo (2026-10-20, azul) — dono confirmou em 2026-10-29
 - NF-e ABI / Receita Federal (2026-10-23, azul) — dono confirmou em 2026-10-29
