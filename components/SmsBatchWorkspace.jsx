@@ -48,6 +48,7 @@ const dayLabel = (key) => key.split("-").reverse().slice(0, 2).join("/");
 
 // PRO-18e: o corretor só usa o Lote no Wi-Fi da imobiliária (o servidor responde 403 com este código).
 const OFFICE_ONLY_CODE = "SMS_BATCH_OFFICE_ONLY";
+const WHATSAPP_REQUIRED_CODE = "SMS_BATCH_WHATSAPP_REQUIRED";
 
 // Período dos resultados (dono, 2026-11-02): "Tudo" é o padrão de sempre; os atalhos e as datas são validados no servidor.
 const PERIOD_OPTIONS = [
@@ -155,6 +156,7 @@ export default function SmsBatchWorkspace({ initial = null, initialError = "" })
   const [customFrom, setCustomFrom] = useState("");
   const [customTo, setCustomTo] = useState("");
   const [officeBlocked, setOfficeBlocked] = useState(false);
+  const [needsWhatsapp, setNeedsWhatsapp] = useState(false);
   const [savingSettings, setSavingSettings] = useState(false);
   // Cartão some na hora ao tocar em "Enviar" (volume mais rápido); volta se o SMS não chegou a ser aberto.
   const [hiddenIds, setHiddenIds] = useState([]);
@@ -180,8 +182,10 @@ export default function SmsBatchWorkspace({ initial = null, initialError = "" })
       setData(next);
       setError("");
       setOfficeBlocked(false);
+      setNeedsWhatsapp(false);
     } catch (loadError) {
-      if (loadError.code === OFFICE_ONLY_CODE) {
+      if (loadError.code === OFFICE_ONLY_CODE || loadError.code === WHATSAPP_REQUIRED_CODE) {
+        setNeedsWhatsapp(loadError.code === WHATSAPP_REQUIRED_CODE);
         // Saiu do Wi-Fi da imobiliária: nada de dados de contato na tela (a fila de envios já feitos continua gravando).
         setData(null);
         setError("");
@@ -516,8 +520,8 @@ export default function SmsBatchWorkspace({ initial = null, initialError = "" })
       <div data-no-reveal="">
         <EmptyState
           icon={WifiOff}
-          title="Fora da imobiliária"
-          description="O Lote de SMS só funciona no Wi-Fi da imobiliária. Conecte-se ao Wi-Fi do escritório."
+          title={needsWhatsapp ? "WhatsApp desconectado" : "Fora da imobiliária"}
+          description={needsWhatsapp ? "Para usar o Lote de SMS, conecte o seu WhatsApp ao CRM (ícone do WhatsApp no topo) e toque em Tentar de novo." : "O Lote de SMS só funciona no Wi-Fi da imobiliária. Conecte-se ao Wi-Fi do escritório."}
           action={<Button size="lg" onClick={reload}>Tentar de novo</Button>}
         />
         {toastElement}

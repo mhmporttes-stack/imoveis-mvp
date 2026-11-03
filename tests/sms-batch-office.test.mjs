@@ -63,3 +63,17 @@ test("código e aviso do dono; a rota checa o escritório antes de qualquer aç�
   assert.ok(getBody.indexOf("assertSmsBatchOffice") > -1 && getBody.indexOf("assertSmsBatchOffice") < getBody.indexOf("loadSmsBatch"));
   assert.ok(postBody.indexOf("assertSmsBatchOffice") > -1 && postBody.indexOf("assertSmsBatchOffice") < postBody.indexOf("markSmsSent"));
 });
+
+test("gestor também só no Wi-Fi da imobiliária; só o admin geral (team) fica de fora", () => {
+  const networks = [{ id: "n1", label: "Escritório", ip: "200.10.20.30" }];
+  assert.equal(smsOfficeDecision({ scope: "manager", networks, ip: "187.1.2.3", action: "load" }).allowed, false);
+  assert.equal(smsOfficeDecision({ scope: "manager", networks, ip: "200.10.20.30", action: "load" }).allowed, true);
+  assert.equal(smsOfficeDecision({ scope: "team", networks, ip: "187.1.2.3", action: "load" }).allowed, true);
+});
+
+test("exige WhatsApp conectado para usar o Lote (corretor e gestor), exceto gravar envio já feito", async () => {
+  const { readFileSync } = await import("node:fs");
+  const lib = readFileSync(new URL("../lib/sms-batch.js", import.meta.url), "utf8");
+  assert.match(lib, /scope !== "team" && !decision\.recordOnly && !SMS_BATCH_OFFICE_RECORD_ACTIONS\.includes\(action\)/);
+  assert.match(lib, /whatsapp_individual_sessions"\)\.select\("status"\)\.eq\("user_id", auth\.profile\.id\)\.eq\("status", "connected"\)/);
+});

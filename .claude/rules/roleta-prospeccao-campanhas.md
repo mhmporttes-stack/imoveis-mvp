@@ -132,6 +132,8 @@ Dois fluxos distintos, não confundir:
 
 **[REGRA OFICIAL DE NEGÓCIO — dono, 2026-11-03] Lote de SMS do gestor (PRO-18i).** "A Carol nunca vai ter visualização sobre meus clientes e as minhas configurações": gestor NÃO vê o lote do dono, os resultados "Todos" nem os textos/limite (só admin geral edita e vê). Tem lote próprio (`smsBatchScope` → "manager", como o do corretor, sem exigência de Wi-Fi) e resultados dele + dos corretores da equipe (`managedUserIds`). Regra permanente, não pontual.
 
+**[REGRA OFICIAL DE NEGÓCIO — dono, 2026-11-03] Lote de SMS: só na imobiliária e com WhatsApp conectado (PRO-18j; amplia a PRO-18e).** "O envio das mensagens deve ser permitido apenas para pessoas na imobiliária e com WhatsApp conectado": corretor E gestor (todo perfil que não é admin geral) só usam o Lote com o IP de agora numa rede da imobiliária E com pelo menos 1 número `connected` (`assertSmsBatchOffice`, 403 `SMS_BATCH_OFFICE_ONLY` / `SMS_BATCH_WHATSAPP_REQUIRED`). Gravar envio já feito (`sent`/`sent-2`) continua aceito fora da regra. Não crie outra checagem.
+
 ## Campanhas / Gerador de Links
 
 Especificação completa em `docs/spec-gerador-de-links.md`. Resumo: **Gestão → Gerador de Links** cria URLs de campanha vinculadas a uma regra de distribuição (roleta ou corretor específico); o cadastro que chega por essa URL registra a origem permanentemente (`campaigns`, `campaign_link_views`) e ganha tag automática. **O cadastro convencional sem link de campanha permanece 100% inalterado** — não altere o fluxo padrão ao mexer em campanhas.
