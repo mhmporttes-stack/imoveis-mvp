@@ -39,3 +39,13 @@ test("migration do índice de remote_jid: não parcial, aditiva e idempotente", 
   assert.ok(sql.includes("(session_user_id, session_slot, ((metadata ->> 'remote_jid')), message_at desc)"));
   assert.ok(!/where/i.test(sql.replace(/--.*$/gm, "")), "sem cláusula WHERE (índice não parcial)");
 });
+
+test("Número não identificado (LID): a marca da varredura é gravada ANTES e a rodada tem teto de conversas e de tempo (sem espiral quando o cron estoura)", () => {
+  const code = read("lib/whatsapp-individual-inbound.js");
+  const fn = code.slice(code.indexOf("export async function reconcileLidPlaceholders"), code.indexOf("export async function mergeLidConversation"));
+  assert.ok(fn.indexOf("planLidReconcile(") < fn.indexOf('.upsert({ id: LID_RECONCILE_SETTINGS_ID'), "usa o plano");
+  assert.ok(fn.indexOf('.upsert({ id: LID_RECONCILE_SETTINGS_ID') < fn.indexOf('.from("whatsapp_conversations")'), "marca antes da varredura");
+  assert.ok(code.includes("const LID_RECONCILE_MAX_PER_RUN = 80;") && code.includes("const LID_RECONCILE_BUDGET_MS = 25 * 1000;"));
+  assert.ok(fn.includes("if (Date.now() > deadline) break;") && fn.includes(".limit(LID_RECONCILE_MAX_PER_RUN)"));
+  assert.ok(fn.includes("return { merged, full: plan.full, checked };"));
+});

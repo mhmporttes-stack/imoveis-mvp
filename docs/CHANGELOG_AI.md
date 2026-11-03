@@ -1289,6 +1289,14 @@ Copie o modelo abaixo (uma entrada por bloco):
 - **Risco/observação:** textos, links, tracking e SEO inalterados; `pnpm build` ok; `tests/brand-assets.test.mjs` 4/4. Publicado e conferido no ar. A imagem de cidade não é comprovadamente de Marília (trocar por foto real quando o dono enviar).
 
 ## Registro
+### 2026-11-03 — Desempenho: varredura de "Número não identificado" sem espiral
+- **Data:** 2026-11-03
+- **Área:** Infra / WhatsApp
+- **Alteração:** `reconcileLidPlaceholders` (dentro do cron scheduled-activities) grava a marca da varredura ANTES de varrer e tem teto por rodada (80 conversas e 25 s). Antes a marca só era gravada no fim; quando o cron estourava os 300 s da Vercel a marca se perdia e TODA rodada refazia a varredura completa (~200 conversas × ~11 consultas ≈ 2 mil consultas por minuto) — o que piorava a lentidão e fazia o cron estourar de novo.
+- **Motivo:** achado do pente-fino de desempenho (busca de LID ainda era ~38% das consultas ao banco mesmo com cache em memória, porque cada rodada do cron cai numa instância nova).
+- **Arquivos afetados:** `lib/whatsapp-individual-inbound.js`, `tests/performance-load-reduction.test.mjs`
+- **Risco/observação:** se uma rodada for interrompida, o trecho restante espera a próxima varredura completa (30 min) — é rede de segurança. A conversa que recebe mensagem continua resolvida pelo caminho normal.
+- **Autor:** Claude Code
 ### 2026-11-03 — Desempenho: menos consultas ao banco (Reconhecimentos, busca de LID) e Início sem erro para corretor
 - **Data:** 2026-11-03
 - **Área:** Infra / Desempenho
