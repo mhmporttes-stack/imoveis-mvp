@@ -6648,3 +6648,4 @@ Pedido do dono (prints do iPhone, PWA/Safari), só apresentação — nenhuma re
 - 2026-11-03: Lote de SMS: aviso amarelo removido; filtro de período (Tudo/Hoje/Ontem/7/30/Personalizado) no topo, padrão Hoje.
 - 2026-11-03: Lote de SMS: botão Salvar estes contatos no iPhone (.vcf com Nome (SMS lote)).
 - 2026-11-03: Lote de SMS: cartão Pessoas contactadas (telefones diferentes com 1ª ou 2ª no período), no lugar de Enviados (1ª+2ª).
+- 2026-11-03: Lote de SMS: link abre DIRETO a simulação (link_journey=simulation nas campanhas SMS, antigas e novas).
