@@ -85,10 +85,11 @@ const LOAD_TIMEOUT_MS = 45000;
 // Checagem de WhatsApp em andamento: a tela pede a próxima rodada sozinha, no máximo isto de vezes seguidas.
 const MAX_AUTO_CHECKS = 30;
 
-async function call(method, body, query = "") {
+async function call(method, body, query = "", timeoutMs = 0) {
   // GET: 45 s; gravação (POST): 15 s — um pedido que o iOS deixou pendurado ao ir para o segundo plano não trava a fila.
+  // (Salvar no Google Contatos conversa com o Google e pede mais tempo: `timeoutMs`.)
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), method === "GET" ? LOAD_TIMEOUT_MS : 15000);
+  const timer = setTimeout(() => controller.abort(), timeoutMs || (method === "GET" ? LOAD_TIMEOUT_MS : 15000));
   let response;
   try {
     response = await fetch(`/api/admin/lote-sms${query}`, {
@@ -136,6 +137,8 @@ export default function SmsBatchWorkspace({ initial = null, initialError = "" })
   const [customTo, setCustomTo] = useState("");
   const [officeBlocked, setOfficeBlocked] = useState(false);
   const [savingSettings, setSavingSettings] = useState(false);
+  // Resultado do "Salvar no Google Contatos" (PRO-18g): { tone: "ok" | "error", text, reconnect, failed }. Some ao carregar mais 50 ou zerar a lista.
+  const [googleResult, setGoogleResult] = useState(null);
   // Cartão some na hora ao tocar em "Enviar" (volume mais rápido); volta se o SMS não chegou a ser aberto.
   const [hiddenIds, setHiddenIds] = useState([]);
   const [openedIds, setOpenedIds] = useState([]);
@@ -177,6 +180,27 @@ export default function SmsBatchWorkspace({ initial = null, initialError = "" })
 
   useEffect(() => {
     if (!initial && !initialError) reload();
+    // Só na montagem.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Volta do consentimento do Google (/api/admin/google-contacts/callback): avisa o resultado e limpa o endereço.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const result = params.get("google");
+    if (!result) return;
+    const messages = {
+      conectado: ["Google conectado. Já pode salvar os contatos.", "success"],
+      cancelado: ["Conexão com o Google cancelada.", "danger"],
+      sem_permissao: ["Só o administrador geral conecta o Google.", "danger"],
+      nao_configurado: ["O Google ainda não foi configurado no servidor.", "danger"],
+      erro: ["Não foi possível conectar o Google. Tente de novo.", "danger"]
+    };
+    const [text, tone] = messages[result] || messages.erro;
+    notify(text, tone);
+    params.delete("google");
+    const rest = params.toString();
+    window.history.replaceState(null, "", `${window.location.pathname}${rest ? `?${rest}` : ""}`);
     // Só na montagem.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -326,10 +350,28 @@ export default function SmsBatchWorkspace({ initial = null, initialError = "" })
     setBusyId("more");
     try {
       await call("POST", { action: "more" });
+      setGoogleResult(null);
       await reload();
       setTab("send");
     } catch (moreError) {
       notify(moreError.message, "danger");
+    } finally {
+      setBusyId("");
+    }
+  };
+
+  // PRO-18g: um toque cria TODOS os contatos da lista atual na conta Google do dono (o servidor monta a lista; nome e telefone
+  // não passam por aqui). Idempotente: tocar de novo não duplica.
+  const saveGoogleContacts = async () => {
+    setBusyId("google");
+    setGoogleResult(null);
+    try {
+      const result = await call("POST", { action: "save-google-contacts" }, "", 60000);
+      setGoogleResult({ tone: result.failedCount ? "error" : "ok", text: result.message, failed: (result.failed || []).slice(0, 5) });
+    } catch (googleError) {
+      const reconnect = googleError.code === "GOOGLE_CONTACTS_RECONNECT";
+      setGoogleResult({ tone: "error", text: googleError.message || "Não foi possível salvar agora.", reconnect });
+      if (googleError.code === "GOOGLE_CONTACTS_NOT_CONNECTED" || reconnect) reload();
     } finally {
       setBusyId("");
     }
@@ -346,6 +388,7 @@ export default function SmsBatchWorkspace({ initial = null, initialError = "" })
     setBusyId("reset");
     try {
       const result = await call("POST", { action: "reset-list" });
+      setGoogleResult(null);
       await reload();
       notify(`${result.marked} contato(s) marcados como enviados. Lista nova carregada.`);
     } catch (resetError) {
@@ -629,6 +672,38 @@ export default function SmsBatchWorkspace({ initial = null, initialError = "" })
           <Button variant="secondary" size="lg" block loading={busyId === "more"} onClick={loadMore}>
             Carregar mais 50 contatos
           </Button>
+          {visibleItems.length ? (
+            data.googleContacts?.connected ? (
+              <Button variant="primary" size="lg" block loading={busyId === "google"} onClick={saveGoogleContacts}>
+                Salvar os {visibleItems.length} no Google Contatos
+              </Button>
+            ) : data.googleContacts && !data.googleContacts.configured ? (
+              <p className="rounded-control border border-line px-3 py-2 text-[13px] leading-5 text-muted" role="status">
+                {data.googleContacts.canConnect
+                  ? `Google Contatos ainda não configurado no servidor${data.googleContacts.missing?.length ? ` (falta: ${data.googleContacts.missing.join(", ")})` : ""}. Passo a passo: docs/GOOGLE_CONTATOS_SMS.md.`
+                  : "Para salvar no Google Contatos, peça ao dono para configurar e conectar."}
+              </p>
+            ) : data.googleContacts?.canConnect ? (
+              <Button variant="primary" size="lg" block onClick={() => window.location.assign("/api/admin/google-contacts/connect")}>
+                {data.googleContacts.needsReconnect ? "Reconectar Google" : "Conectar Google"}
+              </Button>
+            ) : data.googleContacts ? (
+              <p className="rounded-control border border-line px-3 py-2 text-[13px] leading-5 text-muted" role="status">
+                {data.googleContacts.needsReconnect ? "A conexão com o Google expirou. Peça ao dono para reconectar." : "Para salvar no Google Contatos, peça ao dono para conectar."}
+              </p>
+            ) : null
+          ) : null}
+          {googleResult ? (
+            <div className={googleResult.tone === "ok" ? "rounded-control border border-info-line bg-info-soft px-3 py-2 text-[13px] leading-5 text-info" : "rounded-control border border-danger-line bg-danger-soft px-3 py-2 text-[13px] leading-5 text-danger"} role={googleResult.tone === "ok" ? "status" : "alert"}>
+              <p className="font-semibold">{googleResult.text}</p>
+              {googleResult.failed?.length ? <p className="mt-1">{googleResult.failed.map((row) => `${row.name}: ${row.error}`).join(" · ")}</p> : null}
+              {googleResult.reconnect && data.googleContacts?.canConnect ? (
+                <button type="button" className="mt-2 min-h-12 w-full rounded-control border border-line bg-surface-2 text-base font-bold text-ink" onClick={() => window.location.assign("/api/admin/google-contacts/connect")}>
+                  Reconectar Google
+                </button>
+              ) : null}
+            </div>
+          ) : null}
           {visibleItems.length ? (
             <Button variant="secondary" size="lg" block onClick={() => window.location.assign("/api/admin/lote-sms?vcard=1")}>
               Salvar estes contatos no iPhone

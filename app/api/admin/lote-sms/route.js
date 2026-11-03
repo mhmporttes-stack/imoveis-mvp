@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { requirePerformanceApi } from "@/lib/admin-auth";
 import { clientIpFromHeaders } from "@/lib/office-presence-core.mjs";
 import { buildSmsVcards } from "@/lib/sms-batch-core.mjs";
+import { saveSmsContactsToGoogle } from "@/lib/sms-google-contacts";
 import { addSmsExtraBatch, assertSmsBatchOffice, resetSmsList, loadSmsBatch, markSmsOptOut, markSmsInvalid, markSmsSecondSent, markSmsSent, saveSmsBatchSettings, undoSmsSent } from "@/lib/sms-batch";
 
 export const runtime = "nodejs";
@@ -50,6 +51,11 @@ export async function POST(request) {
     if (body.action === "sent") return NextResponse.json(await markSmsSent(body.contactId, auth, { outsideOffice: office.recordOnly }));
     if (body.action === "sent-2") return NextResponse.json(await markSmsSecondSent(body.sendId, auth));
     if (body.action === "undo") return NextResponse.json(await undoSmsSent(body.sendId, auth));
+    // PRO-18g: cria no Google Contatos do dono a lista ATUAL (nome + celular só servidor -> Google). Mesmo escopo e mesma regra do Wi-Fi.
+    if (body.action === "save-google-contacts") {
+      const data = await loadSmsBatch(auth, { includePhones: true });
+      return NextResponse.json(await saveSmsContactsToGoogle(data.items));
+    }
     if (body.action === "reset-list") return NextResponse.json(await resetSmsList(auth));
     if (body.action === "more") return NextResponse.json(await addSmsExtraBatch(auth));
     if (body.action === "invalid") return NextResponse.json(await markSmsInvalid(body.sendId, auth, body.reason === "inactive" ? "inactive" : "nonexistent"));
