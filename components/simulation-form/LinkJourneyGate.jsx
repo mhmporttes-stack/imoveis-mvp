@@ -33,6 +33,9 @@ export default function LinkJourneyGate({ brokerRefOverride = "" }) {
   // tela de duas opções.
   const [journeySource, setJourneySource] = useState(directSimulation ? "direct_link" : "");
   const [resolvingLink, setResolvingLink] = useState(false);
+  // Formulário curto do SMS (PRO-18h): { firstName, phoneMasked } devolvido pelo servidor para o token do link — só o 1º nome
+  // e o telefone mascarado. Vazio (token ausente/inválido/falha) = formulário exatamente como sempre.
+  const [smsContact, setSmsContact] = useState(null);
   const campaignIdFromUrl = searchParams.get("c") || "";
   const refFromUrl = brokerRefOverride || searchParams.get("ref") || "";
   // Lote de SMS (PRO-18f): token do link único do contato (?sms_t=), só para contar o clique dele.
@@ -59,6 +62,7 @@ export default function LinkJourneyGate({ brokerRefOverride = "" }) {
           setJourney(data.linkJourney);
           setJourneySource("direct_link");
         }
+        if (smsTokenFromUrl && data?.smsContact?.firstName) setSmsContact({ firstName: String(data.smsContact.firstName), phoneMasked: String(data.smsContact.phoneMasked || "") });
       })
       .catch(() => {})
       .finally(() => setResolvingLink(false));
@@ -78,7 +82,7 @@ export default function LinkJourneyGate({ brokerRefOverride = "" }) {
     const canGoBack = journeySource !== "direct_link";
     // Ficha escura em tela cheia (2026-10-24): o título da página e o "Voltar" para a escolha moram dentro dela
     // (h1 + botão redondo de voltar na 1ª pergunta, só quando o cliente veio da tela de escolha).
-    return <SimulationForm brokerRefOverride={brokerRefOverride} journeySelected="simulation" onExit={canGoBack ? () => setJourney("") : null} />;
+    return <SimulationForm brokerRefOverride={brokerRefOverride} journeySelected="simulation" onExit={canGoBack ? () => setJourney("") : null} smsContact={smsContact} />;
   }
 
   return <JourneyChoice onSelect={(value) => { setJourney(value); setJourneySource("chosen"); }} />;

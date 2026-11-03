@@ -27,7 +27,7 @@ const WAITING_MAX_ATTEMPTS = 40;
 // sozinho (location.href — funciona no iPhone, onde abrir janela sem toque é bloqueado); o botão fica como reserva.
 // `alreadyOpened`: o formulário já mandou abrir o WhatsApp direto do botão "Enviar informações" e a troca de app não
 // aconteceu — a tela vira só a reserva (não abre de novo sozinha, não mostra "Abrindo o WhatsApp…").
-export default function ReceiveSimulationWhatsappButton({ brokerRef = "", registrationId = "", accessToken = "", autoOpen = false, alreadyOpened = false }) {
+export default function ReceiveSimulationWhatsappButton({ brokerRef = "", registrationId = "", accessToken = "", autoOpen = false, alreadyOpened = false, firstName = "" }) {
   const [contact, setContact] = useState({ state: "loading", phone: "" });
   const [gaveUpWaiting, setGaveUpWaiting] = useState(false);
   const openedRef = useRef(Boolean(alreadyOpened));
@@ -68,7 +68,7 @@ export default function ReceiveSimulationWhatsappButton({ brokerRef = "", regist
     };
   }, [brokerRef, registrationId, accessToken]);
 
-  const whatsappUrl = contact.state === RECEIVE_CONTACT_STATE.READY ? buildReceiveSimulationWhatsappUrl(contact.phone, registrationId) : "";
+  const whatsappUrl = contact.state === RECEIVE_CONTACT_STATE.READY ? buildReceiveSimulationWhatsappUrl(contact.phone, registrationId, firstName) : "";
 
   useEffect(() => {
     if (!whatsappUrl || !shouldAutoOpenWhatsapp({ autoOpen, state: contact.state, phone: contact.phone, alreadyOpened: openedRef.current })) return undefined;

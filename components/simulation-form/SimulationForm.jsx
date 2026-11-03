@@ -25,9 +25,11 @@ import {
   shouldShowWhatsappFallback
 } from "@/lib/receive-simulation-contact.mjs";
 import {
+  USE_OTHER_PHONE,
   buildRegistrationSteps,
   getDefaultSimulationRegistration,
   sanitizeText,
+  validateShortSmsRegistration,
   validateSimulationRegistration,
   parseCurrencyNumber,
   validateStepValue
@@ -38,7 +40,7 @@ const booleanOptions = [
   { value: false, label: "Não" }
 ];
 
-export default function SimulationForm({ brokerRefOverride = "", journeySelected = "", onExit = null }) {
+export default function SimulationForm({ brokerRefOverride = "", journeySelected = "", onExit = null, smsContact = null }) {
   const searchParams = useSearchParams();
   const initialType = searchParams.get("tipo") === "joint"
     ? "joint"
@@ -64,6 +66,10 @@ export default function SimulationForm({ brokerRefOverride = "", journeySelected
     preferencesAccessToken: ""
   });
   const [firstName, setFirstName] = useState("");
+  // Formulário curto do SMS (PRO-18h): `smsContact` = { firstName, phoneMasked } vindo do servidor (nada além disso). Sem o
+  // nome e com o telefone confirmado, o corpo do POST leva nome e telefone VAZIOS + `confirmContactPhone`; o servidor completa.
+  const shortSms = Boolean(smsContact?.firstName);
+  const [otherPhone, setOtherPhone] = useState(false);
   // "Abrindo o WhatsApp…" no próprio botão "Enviar informações" (WA-10b, dono 2026-10-24: "sem essa outra aba").
   const [openingWhatsapp, setOpeningWhatsapp] = useState(false);
   // A troca de app não aconteceu → a tela de reserva aparece sem abrir de novo sozinha.
@@ -77,7 +83,8 @@ export default function SimulationForm({ brokerRefOverride = "", journeySelected
   const titleRef = useRef(null);
   const firstRender = useRef(true);
 
-  const steps = useMemo(() => buildRegistrationSteps(form), [form.simulationType]);
+  const stepOptions = { smsContact, otherPhone };
+  const steps = useMemo(() => buildRegistrationSteps(form, stepOptions), [form.simulationType, smsContact, otherPhone]);
   const currentStep = steps[currentIndex] || steps[0];
   const isLastStep = currentIndex === steps.length - 1;
 
@@ -112,8 +119,16 @@ export default function SimulationForm({ brokerRefOverride = "", journeySelected
   }
 
   function handleChoiceChange(value) {
+    // "Usar outro número": a pergunta vira o campo de telefone normal (em branco), na mesma posição, sem avançar.
+    if (currentStep.kind === "phoneConfirm" && value === USE_OTHER_PHONE) {
+      setStepError("");
+      setSubmitError("");
+      setForm((previous) => ({ ...previous, confirmContactPhone: null, phone: "" }));
+      setOtherPhone(true);
+      return;
+    }
     const nextForm = applyRegistrationFieldUpdate(form, currentStep.id, value);
-    const nextSteps = buildRegistrationSteps(nextForm);
+    const nextSteps = buildRegistrationSteps(nextForm, stepOptions);
 
     updateField(currentStep.id, value);
 
@@ -171,7 +186,7 @@ export default function SimulationForm({ brokerRefOverride = "", journeySelected
   async function submitForm() {
     if (submitting) return;
 
-    const validation = validateSimulationRegistration(form);
+    const validation = shortSms ? validateShortSmsRegistration(form, smsContact) : validateSimulationRegistration(form);
     if (!validation.ok) {
       moveToFirstInvalidStep(validation.fieldErrors);
       setSubmitError(validation.formError || "Revise as informações antes de enviar.");
@@ -216,12 +231,15 @@ export default function SimulationForm({ brokerRefOverride = "", journeySelected
       };
 
       setRegistrationContext(nextContext);
-      setFirstName(String(validation.data.fullName || "").trim().split(/\s+/)[0] || "");
+      const nameForMessage = shortSms && !String(form.fullName || "").trim() ? smsContact.firstName : String(validation.data.fullName || "").trim().split(/\s+/)[0] || "";
+      setFirstName(nameForMessage);
 
       const totalIncome = validation.data.primaryMonthlyIncome + (validation.data.secondaryMonthlyIncome || 0);
       // Só conta lead na Meta quando virou cadastro novo no CRM (mesma regra do servidor). Antes de trocar de app; o
       // servidor também manda o Lead pela Conversions API com o mesmo eventId.
-      if (data.isNewRegistration !== false) trackMetaLead({ phone: validation.data.phoneNormalized, eventId, incomeBracket: incomeBracketLabel(totalIncome) });
+      // Telefone confirmado no formulário curto: o número inteiro só existe no servidor (que manda o Lead pela Conversions API).
+      const pixelPhone = form.confirmContactPhone === true && !String(form.phone || "").trim() ? "" : validation.data.phoneNormalized;
+      if (data.isNewRegistration !== false) trackMetaLead({ phone: pixelPhone, eventId, incomeBracket: incomeBracketLabel(totalIncome) });
 
       // [REGRA OFICIAL DE NEGÓCIO — dono, 2026-10-24] "Ir direto ao WhatsApp", refinada no mesmo dia: "ele deve abrir no
       // botão anterior já, sem informar, sem essa outra aba". Cadastro salvo → o próprio botão vira "Abrindo o WhatsApp…" e a
@@ -231,7 +249,7 @@ export default function SimulationForm({ brokerRefOverride = "", journeySelected
       setOpeningWhatsapp(true);
       // Conversão do Google Ads: só aqui (cadastro novo gravado), uma vez por cadastro, ANTES de sair para o WhatsApp (espera ≤300 ms).
       if (data.isNewRegistration !== false) await trackGoogleAdsLead({ id: data.registrationId });
-      await openWhatsappOrFallback(nextContext);
+      await openWhatsappOrFallback(nextContext, nameForMessage);
     } catch {
       setSubmitError("Não foi possível enviar seus dados. Verifique sua conexão e tente novamente.");
     } finally {
@@ -241,13 +259,13 @@ export default function SimulationForm({ brokerRefOverride = "", journeySelected
 
   // Cadastro JÁ salvo: nada aqui pode virar "não foi possível enviar seus dados". Qualquer falha ao descobrir o link leva à
   // tela de reserva, cujo botão consulta a rota de novo e mostra espera/indisponível (WA-10).
-  async function openWhatsappOrFallback(context) {
+  async function openWhatsappOrFallback(context, nameForMessage = "") {
     let url = "";
     try {
       const query = buildReceiveContactQuery({ registrationId: context.id, accessToken: context.preferencesAccessToken, brokerRef });
       const response = await fetch(`/api/whatsapp-contact${query}`, { cache: "no-store" });
       const contact = response.ok ? await response.json() : null;
-      url = resolveFormWhatsappRedirect({ state: contact?.state, phone: contact?.phone, registrationId: context.id });
+      url = resolveFormWhatsappRedirect({ state: contact?.state, phone: contact?.phone, registrationId: context.id, firstName: nameForMessage });
     } catch (error) {
       console.warn("WhatsApp do formulário: link não resolvido, mostrando a tela de reserva.", error?.message || error);
     }
@@ -520,6 +538,7 @@ const CHAPTER_BY_STEP = {
   simulationType: 0,
   fullName: 0,
   phone: 0,
+  confirmContactPhone: 0,
   oldestBirthDate: 0,
   primaryIncomeType: 1,
   primaryMonthlyIncome: 1,
@@ -607,7 +626,7 @@ function StepRenderer({ error, errorId, form, onBlurText, onChange, onChoiceChan
   const value = form[step.id];
   const copy = FIELD_COPY[step.id] || {};
 
-  if (step.kind === "choice") {
+  if (step.kind === "choice" || step.kind === "phoneConfirm") {
     return <FichaChoice error={error} errorId={errorId} labelledBy="simulation-question" onChange={onChoiceChange} options={step.options} value={value} />;
   }
 
