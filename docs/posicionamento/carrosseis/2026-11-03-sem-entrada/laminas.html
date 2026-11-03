@@ -1,0 +1,115 @@
+<!doctype html><html lang="pt-BR"><head><meta charset="utf-8">
+<meta name="fontes" content="family=Anton&family=Sora:wght@400;500;700;800&family=Playfair+Display:ital,wght@1,600">
+<!-- Recriado da referência do dono (carrossel "Como comprar um imóvel sem entrada", 7 lâminas), 2026-11-03.
+     Estrutura e ritmo da referência (alterna escuro/claro, rosto recortado na borda, janela "Nova Janela" na 6),
+     cores do padrão do dono (azul no lugar do amarelo), 3:4. Só fatos: FGTS (regras de uso), entrada parcelada
+     com a construtora (alguns empreendimentos), subsídio MCMV (conforme renda/regras). Nada de "100% financiado". -->
+<style>
+:root{--azul:#4C8DF6;--azulc:#1F5FD6;--nav:#0B1A3A;--txt:#C9D6EE;--txtc:#3A4A66}
+*{box-sizing:border-box;margin:0;padding:0} body{background:#000}
+.lamina{position:relative;width:1080px;height:1440px;overflow:hidden;font-family:Sora,sans-serif;color:#fff;
+ background:radial-gradient(900px 760px at 50% 34%, #1F4CB3 0%, #173A8E 30%, #0E2257 62%, #08112E 100%)}
+.lamina.clara{color:var(--nav);background:radial-gradient(900px 760px at 50% 34%, #FFFFFF 0%, #F7F9FD 35%, #EAF0FA 70%, #DCE5F4 100%)}
+.h{position:absolute;left:0;right:0;top:72px;text-align:center;font-weight:700;font-size:22px;letter-spacing:.06em;z-index:6}
+.lamina .h{color:rgba(255,255,255,.75)} .lamina.clara .h{color:rgba(11,26,58,.6)}
+.cond{font-family:Anton,sans-serif;text-transform:uppercase;line-height:1.08;letter-spacing:.005em}
+.c{position:absolute;left:90px;right:90px;text-align:center}
+p.t{font-size:44px;line-height:1.3;font-weight:400} p.t b{font-weight:800}
+.lamina p.t{color:var(--txt)} .lamina p.t b{color:#fff}
+.lamina.clara p.t{color:var(--txtc)} .lamina.clara p.t b{color:var(--nav)}
+.seta{position:absolute;right:80px;bottom:76px;display:flex;align-items:center;gap:12px;font-weight:800;font-size:30px;z-index:6}
+.seta svg{width:40px;height:40px;fill:none;stroke-width:2.6;stroke-linecap:round;stroke-linejoin:round}
+.lamina .seta{color:#fff} .lamina .seta svg{stroke:#fff} .lamina.clara .seta{color:var(--nav)} .lamina.clara .seta svg{stroke:var(--nav)}
+.pose{position:absolute;bottom:0;filter:drop-shadow(0 30px 50px rgba(0,0,0,.4))}
+</style></head><body>
+
+<!-- 1 CAPA -->
+<section class="lamina">
+ <img src="img/cidade.jpg" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;filter:saturate(.7) brightness(.85)">
+ <div style="position:absolute;inset:0;background:rgba(31,76,179,.35);mix-blend-mode:color"></div>
+ <div style="position:absolute;inset:0;background:linear-gradient(180deg,rgba(8,17,46,.35) 0%,rgba(8,17,46,.05) 35%,rgba(8,17,46,.55) 70%,rgba(8,17,46,.95) 100%)"></div>
+ <div class="h" style="color:#fff">@MHM.MACHADO</div>
+ <img class="pose" src="img/pensando.png" style="left:50%;transform:translateX(-50%);height:1080px;z-index:2">
+ <div class="c" style="top:950px;z-index:3;text-shadow:0 6px 30px rgba(0,0,0,.5)">
+  <div class="cond" style="font-size:78px">Como comprar um</div>
+  <div class="cond" style="font-size:190px;line-height:1.0;color:var(--azul)">imóvel sem<br>entrada</div>
+ </div>
+</section>
+
+<!-- 2 A DOR -->
+<section class="lamina">
+ <div class="h">@MHM.MACHADO</div>
+ <div class="c" style="top:330px">
+  <div class="cond" style="font-size:118px;line-height:1.1">“Eu consigo pagar a parcela, mas <span style="color:var(--azul)">não tenho a entrada</span>”</div>
+  <p class="t" style="margin-top:56px">Essa é uma das maiores dificuldades de quem quer sair do aluguel.</p>
+  <p class="t" style="margin-top:28px">Mas não ter todo o dinheiro guardado hoje <b>não significa que você precisa desistir do seu imóvel.</b></p>
+ </div>
+ <div class="seta">Arrasta <svg viewBox="0 0 24 24"><path d="M4 12h15"/><path d="M13 6l6 6-6 6"/></svg></div>
+</section>
+
+<!-- 3 FGTS -->
+<section class="lamina clara">
+ <div class="h">@MHM.MACHADO</div>
+ <div class="c" style="top:200px;text-align:left;right:460px">
+  <div class="cond" style="font-size:118px;line-height:1.1">Você tem <span style="color:var(--azulc)">FGTS?</span><br>Ele pode te ajudar</div>
+  <p class="t" style="margin-top:44px"><b>Se você tem saldo disponível</b>, pode usar para compor a entrada do imóvel, <b>desde que cumpra as regras de uso do FGTS.</b></p>
+ </div>
+ <img class="pose" src="img/explicando.png" style="right:-360px;height:1120px">
+ <div class="seta" style="right:auto;left:90px">Arrasta <svg viewBox="0 0 24 24"><path d="M4 12h15"/><path d="M13 6l6 6-6 6"/></svg></div>
+</section>
+
+<!-- 4 ENTRADA PARCELADA -->
+<section class="lamina">
+ <div class="h">@MHM.MACHADO</div>
+ <img src="img/rosto-recorte.png" style="position:absolute;right:-90px;top:110px;width:270px;transform:rotate(6deg);z-index:2">
+ <div class="c" style="top:430px">
+  <div class="cond" style="font-size:118px;line-height:1.1;color:var(--azul)">Você não precisa pagar tudo de uma vez</div>
+  <p class="t" style="margin-top:56px">Em alguns empreendimentos na planta, <b>é possível parcelar a entrada direto com a construtora.</b></p>
+  <p class="t" style="margin-top:28px">Assim você ganha <b>tempo para organizar o dinheiro</b>, conforme as condições oferecidas.</p>
+ </div>
+ <div class="seta">Arrasta <svg viewBox="0 0 24 24"><path d="M4 12h15"/><path d="M13 6l6 6-6 6"/></svg></div>
+</section>
+
+<!-- 5 SUBSÍDIO -->
+<section class="lamina clara">
+ <div class="h">@MHM.MACHADO</div>
+ <img src="img/rosto-recorte.png" style="position:absolute;left:-100px;top:110px;width:270px;transform:rotate(-6deg) scaleX(-1);z-index:2">
+ <img src="img/mcmv-logo-cor.png" style="position:absolute;right:80px;top:150px;width:190px">
+ <div class="c" style="top:430px">
+  <div class="cond" style="font-size:112px;line-height:1.1">O <span style="color:var(--azulc)">subsídio</span> pode reduzir o valor que você precisa pagar</div>
+  <p class="t" style="margin-top:56px">Dependendo da sua renda e das regras do programa, <b>você pode ter um subsídio para ajudar na compra.</b></p>
+  <p class="t" style="margin-top:28px">Com FGTS, subsídio e entrada parcelada, <b>essa etapa pode ficar bem mais leve.</b></p>
+ </div>
+ <div class="seta">Arrasta <svg viewBox="0 0 24 24"><path d="M4 12h15"/><path d="M13 6l6 6-6 6"/></svg></div>
+</section>
+
+<!-- 6 JANELA -->
+<section class="lamina">
+ <div class="h">@MHM.MACHADO</div>
+ <div class="c" style="top:180px"><div class="cond" style="font-size:98px;line-height:1.1">Mas será que você consegue comprar <span style="color:var(--azul)">sem entrada?</span></div></div>
+ <div style="position:absolute;left:110px;right:110px;top:520px;background:#F4F6FA;border-radius:22px;color:var(--nav);overflow:hidden;box-shadow:0 30px 70px rgba(0,0,0,.4)">
+  <div style="height:64px;border-bottom:1.5px solid #DDE3EC;display:flex;align-items:center;gap:12px;padding:0 26px;position:relative">
+   <i style="width:20px;height:20px;border-radius:50%;background:#FF5F57"></i><i style="width:20px;height:20px;border-radius:50%;background:#FEBC2E"></i><i style="width:20px;height:20px;border-radius:50%;background:#28C840"></i>
+   <span style="position:absolute;left:0;right:0;text-align:center;font-weight:700;font-size:24px;color:#33415C">Nova janela</span></div>
+  <div style="padding:46px 56px 52px;text-align:center">
+   <div style="font-family:'Playfair Display',serif;font-style:italic;font-weight:600;font-size:58px;line-height:1.15">Antes de escolher o imóvel, descubra:</div>
+   <div style="font-size:33px;line-height:1.6;margin-top:26px;color:var(--txtc);white-space:nowrap">• Quanto o banco pode financiar<br>• Se dá para usar o FGTS e ter subsídio<br>• Se a construtora parcela a entrada<br>• Se os pagamentos cabem no seu bolso</div>
+  </div>
+ </div>
+ <div class="c" style="top:1200px"><p class="t" style="font-size:38px">Cada caso precisa ser analisado. <b>Não ter o valor completo hoje não significa que você não tem opções.</b></p></div>
+ <div class="seta" style="bottom:50px">Arrasta <svg viewBox="0 0 24 24"><path d="M4 12h15"/><path d="M13 6l6 6-6 6"/></svg></div>
+</section>
+
+<!-- 7 CTA -->
+<section class="lamina">
+ <div class="h">@MHM.MACHADO</div>
+ <div style="position:absolute;left:50%;top:420px;transform:translateX(-50%);width:980px;height:980px;border-radius:50%;background:radial-gradient(circle,rgba(76,141,246,.3),transparent 65%)"></div>
+ <img class="pose" src="img/celular-instagram.png" style="left:50%;transform:translateX(-50%);height:1000px;bottom:250px;z-index:2">
+ <div style="position:absolute;left:0;right:0;bottom:250px;height:200px;z-index:3;background:linear-gradient(180deg,rgba(8,17,46,0),rgba(8,17,46,.95))"></div>
+ <div style="position:absolute;left:0;right:0;bottom:0;height:252px;background:#08112E;z-index:3"></div>
+ <div class="c" style="top:1050px;z-index:4">
+  <p style="font-size:42px;font-weight:500;line-height:1.3">Quer descobrir como comprar seu imóvel sem ter a entrada guardada?</p>
+  <div class="cond" style="font-size:132px;color:var(--azul);margin-top:14px;white-space:nowrap">Me chama na DM!</div>
+ </div>
+</section>
+</body></html>
