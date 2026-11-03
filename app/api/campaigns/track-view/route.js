@@ -18,7 +18,7 @@ export const runtime = "nodejs";
 // Simulação. Link pessoal (?ref=) nunca tem essa configuração — sempre
 // "choice", preservando o comportamento atual.
 // Formulário curto do SMS (PRO-18h, dono 2026-11-03): com `smsToken` que resolve a um contato da base, a resposta leva também
-// `smsContact: { firstName, phoneMasked }` — SÓ o 1º nome e o telefone mascarado, nunca nome completo nem telefone inteiro
+// `smsContact: { firstName, phoneDisplay }` — SÓ o 1º nome e o telefone mascarado, nunca nome completo nem telefone inteiro
 // (o token é fraco). Token inválido/desconhecido/sem nome confiável: sem `smsContact` e o formulário é o de sempre.
 // Limite por IP (em memória, por instância): quem exceder não conta a abertura e recebe a jornada padrão — não infla as métricas.
 const allowView = createRateLimiter({ limit: 30, windowMs: 60_000 });

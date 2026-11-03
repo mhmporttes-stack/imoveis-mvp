@@ -6655,3 +6655,4 @@ Pedido do dono (prints do iPhone, PWA/Safari), só apresentação — nenhuma re
 - 2026-11-03: Lote de SMS: botão Salvar estes contatos no iPhone (.vcf com Nome (SMS lote)).
 - 2026-11-03: Lote de SMS: cartão Pessoas contactadas (telefones diferentes com 1ª ou 2ª no período), no lugar de Enviados (1ª+2ª).
 - 2026-11-03: Lote de SMS: link abre DIRETO a simulação (link_journey=simulation nas campanhas SMS, antigas e novas).
+- 2026-11-03: formulário curto do SMS mostra o WhatsApp inteiro (14) 99999-3645 para conferir (decisão do dono).

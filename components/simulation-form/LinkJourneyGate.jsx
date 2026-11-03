@@ -33,7 +33,7 @@ export default function LinkJourneyGate({ brokerRefOverride = "" }) {
   // tela de duas opções.
   const [journeySource, setJourneySource] = useState(directSimulation ? "direct_link" : "");
   const [resolvingLink, setResolvingLink] = useState(false);
-  // Formulário curto do SMS (PRO-18h): { firstName, phoneMasked } devolvido pelo servidor para o token do link — só o 1º nome
+  // Formulário curto do SMS (PRO-18h): { firstName, phoneDisplay } devolvido pelo servidor para o token do link — só o 1º nome
   // e o telefone mascarado. Vazio (token ausente/inválido/falha) = formulário exatamente como sempre.
   const [smsContact, setSmsContact] = useState(null);
   const campaignIdFromUrl = searchParams.get("c") || "";
@@ -62,7 +62,7 @@ export default function LinkJourneyGate({ brokerRefOverride = "" }) {
           setJourney(data.linkJourney);
           setJourneySource("direct_link");
         }
-        if (smsTokenFromUrl && data?.smsContact?.firstName) setSmsContact({ firstName: String(data.smsContact.firstName), phoneMasked: String(data.smsContact.phoneMasked || "") });
+        if (smsTokenFromUrl && data?.smsContact?.firstName) setSmsContact({ firstName: String(data.smsContact.firstName), phoneDisplay: String(data.smsContact.phoneDisplay || "") });
       })
       .catch(() => {})
       .finally(() => setResolvingLink(false));

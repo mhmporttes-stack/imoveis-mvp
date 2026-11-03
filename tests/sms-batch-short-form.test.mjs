@@ -27,12 +27,12 @@ const NIGHT = new Date("2026-11-04T00:00:00Z");
 
 // ---------- visão do navegador (privacidade) ----------
 
-test("navegador recebe só o 1º nome e o telefone mascarado — nunca sobrenome nem número inteiro", () => {
+test("navegador recebe o 1º nome e o celular completo para conferir (decisão do dono) — nunca o sobrenome", () => {
   const view = smsContactView(CONTACT);
-  assert.deepEqual(view, { firstName: "Maria", phoneMasked: "(14) 9****-3456" });
+  assert.deepEqual(view, { firstName: "Maria", phoneDisplay: "(14) 99812-3456" });
   const json = JSON.stringify(view);
   assert.ok(!json.includes("Souza") && !json.includes("Aparecida"));
-  assert.ok(!json.includes("998123456") && !json.includes("5514"));
+  assert.ok(!json.includes("+5514"));
 });
 
 test("sem nome confiável (placeholder, 1 letra, número) ou sem contato: nada é devolvido", () => {
@@ -42,7 +42,7 @@ test("sem nome confiável (placeholder, 1 letra, número) ou sem contato: nada �
 });
 
 test("telefone da base inválido: sem máscara (a tela cai no campo de telefone normal)", () => {
-  assert.deepEqual(smsContactView({ name: "Maria", phone: "123" }), { firstName: "Maria", phoneMasked: "" });
+  assert.deepEqual(smsContactView({ name: "Maria", phone: "123" }), { firstName: "Maria", phoneDisplay: "" });
 });
 
 // ---------- perguntas do formulário ----------
@@ -70,7 +70,7 @@ test("com contato: pula o nome e troca o telefone por 'Confirme seu número de W
   assert.ok(!ids.includes("fullName") && !ids.includes("phone"));
   const confirm = steps.find((step) => step.id === CONFIRM_CONTACT_PHONE_STEP_ID);
   assert.equal(confirm.title, "Confirme seu número de WhatsApp");
-  assert.equal(confirm.help, "Este é o seu WhatsApp? (14) 9****-3456");
+  assert.equal(confirm.help, "Este é o seu WhatsApp? (14) 99812-3456");
   assert.deepEqual(confirm.options.map((option) => option.label), ["Sim, é este WhatsApp", "Usar outro WhatsApp"]);
   assert.ok(!JSON.stringify(confirm).includes("998123456"), "só a máscara chega ao navegador");
   assert.equal(ids[0], "simulationType");
@@ -86,7 +86,7 @@ test("'Usar outro WhatsApp' (ou telefone da base sem máscara): campo de telefon
   const other = buildRegistrationSteps({}, { smsContact: contact, otherPhone: true });
   assert.ok(other.some((step) => step.id === "phone" && step.kind === "phone" && step.label === "Seu número de WhatsApp (com DDD)"));
   assert.ok(!other.some((step) => step.id === "fullName" || step.id === CONFIRM_CONTACT_PHONE_STEP_ID));
-  const noMask = buildRegistrationSteps({}, { smsContact: { firstName: "Maria", phoneMasked: "" } });
+  const noMask = buildRegistrationSteps({}, { smsContact: { firstName: "Maria", phoneDisplay: "" } });
   assert.ok(noMask.some((step) => step.id === "phone" && step.kind === "phone"));
 });
 

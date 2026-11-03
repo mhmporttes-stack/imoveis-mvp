@@ -66,7 +66,7 @@ export default function SimulationForm({ brokerRefOverride = "", journeySelected
     preferencesAccessToken: ""
   });
   const [firstName, setFirstName] = useState("");
-  // Formulário curto do SMS (PRO-18h): `smsContact` = { firstName, phoneMasked } vindo do servidor (nada além disso). Sem o
+  // Formulário curto do SMS (PRO-18h): `smsContact` = { firstName, phoneDisplay } vindo do servidor (nada além disso). Sem o
   // nome e com o telefone confirmado, o corpo do POST leva nome e telefone VAZIOS + `confirmContactPhone`; o servidor completa.
   const shortSms = Boolean(smsContact?.firstName);
   const [otherPhone, setOtherPhone] = useState(false);
