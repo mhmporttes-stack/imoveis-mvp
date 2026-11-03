@@ -6656,3 +6656,5 @@ Pedido do dono (prints do iPhone, PWA/Safari), só apresentação — nenhuma re
 - 2026-11-03: Lote de SMS: cartão Pessoas contactadas (telefones diferentes com 1ª ou 2ª no período), no lugar de Enviados (1ª+2ª).
 - 2026-11-03: Lote de SMS: link abre DIRETO a simulação (link_journey=simulation nas campanhas SMS, antigas e novas).
 - 2026-11-03: formulário curto do SMS mostra o WhatsApp inteiro (14) 99999-3645 para conferir (decisão do dono).
+
+- 2026-11-03 — Lote de SMS no Android: o botão principal usava `sms:<n>&body=` (só iPhone); agora o aparelho Android usa `?body=` como principal (iPhone inalterado), inclusive no "reenviar 1ª". `components/SmsBatchWorkspace.jsx`.

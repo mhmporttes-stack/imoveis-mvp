@@ -110,19 +110,39 @@ async function call(method, body, query = "") {
   return payload;
 }
 
-const SendLink = ({ href, fallbackHref, label, onTap }) => (
-  <>
-    <a href={href} onClick={onTap} className="mt-3 flex min-h-14 w-full items-center justify-center gap-2 rounded-control bg-accent-strong text-base font-extrabold text-on-accent active:brightness-95">
-      <MessageSquareText className="h-5 w-5" aria-hidden="true" />
-      {label}
-    </a>
-    <a href={fallbackHref} onClick={onTap} className="mt-1 flex min-h-12 items-center justify-center text-sm font-semibold text-accent-text">
-      Não abriu o Mensagens? Tentar outro formato
-    </a>
-  </>
-);
+// iPhone entende `sms:<n>&body=`; Android só entende `sms:<n>?body=`. O formato certo vira o botão principal conforme o
+// aparelho (decidido depois de montar, para não divergir do HTML do servidor); o outro fica no link de reserva.
+const useIsAndroid = () => {
+  const [android, setAndroid] = useState(false);
+  useEffect(() => {
+    try {
+      setAndroid(/android/i.test(navigator.userAgent || ""));
+    } catch {}
+  }, []);
+  return android;
+};
+
+const androidSmsHref = (href) => (typeof href === "string" && href.startsWith("sms:") ? href.replace("&body=", "?body=") : href);
+
+const SendLink = ({ href, fallbackHref, label, onTap }) => {
+  const android = useIsAndroid();
+  const main = android && fallbackHref ? fallbackHref : href;
+  const other = android && fallbackHref ? href : fallbackHref;
+  return (
+    <>
+      <a href={main} onClick={onTap} className="mt-3 flex min-h-14 w-full items-center justify-center gap-2 rounded-control bg-accent-strong text-base font-extrabold text-on-accent active:brightness-95">
+        <MessageSquareText className="h-5 w-5" aria-hidden="true" />
+        {label}
+      </a>
+      <a href={other} onClick={onTap} className="mt-1 flex min-h-12 items-center justify-center text-sm font-semibold text-accent-text">
+        Não abriu o Mensagens? Tentar outro formato
+      </a>
+    </>
+  );
+};
 
 export default function SmsBatchWorkspace({ initial = null, initialError = "" }) {
+  const android = useIsAndroid();
   const [data, setData] = useState(initial);
   const [error, setError] = useState(initialError);
   const [tab, setTab] = useState("send");
@@ -687,7 +707,7 @@ export default function SmsBatchWorkspace({ initial = null, initialError = "" })
                   <p className="text-lg font-extrabold leading-tight text-ink">{entry.name || "Sem nome"}</p>
                   <p className="mt-0.5 text-sm text-muted">{entry.phoneMasked} · 1ª enviada {timeLabel(entry.sentAt)}</p>
                   <SendLink href={entry.href} fallbackHref={entry.fallbackHref} label="Enviar 2ª mensagem" onTap={() => onTapSend(entry, 2)} />
-                  <a href={entry.resendHref} className="mt-2 flex min-h-12 w-full items-center justify-center gap-2 rounded-control border border-line text-base font-bold text-ink active:brightness-95">
+                  <a href={android ? androidSmsHref(entry.resendHref) : entry.resendHref} className="mt-2 flex min-h-12 w-full items-center justify-center gap-2 rounded-control border border-line text-base font-bold text-ink active:brightness-95">
                     Enviar 1ª novamente
                   </a>
                   <Button variant="secondary" size="lg" block className="mt-1" loading={busyId === entry.id} onClick={() => markInvalid(entry, "nonexistent")}>
