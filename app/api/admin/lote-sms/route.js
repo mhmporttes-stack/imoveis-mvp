@@ -50,7 +50,7 @@ export async function POST(request) {
     const office = await assertSmsBatchOffice(auth, clientIpFromHeaders(request.headers), String(body.action || ""));
     if (body.action === "sent") return NextResponse.json(await markSmsSent(body.contactId, auth, { outsideOffice: office.recordOnly }));
     if (body.action === "sent-2") return NextResponse.json(await markSmsSecondSent(body.sendId, auth));
-    if (body.action === "undo") return NextResponse.json(await undoSmsSent(body.sendId, auth));
+    if (body.action === "undo") return NextResponse.json(await undoSmsSent(body.sendId, auth, { force: body.force === true }));
     if (body.action === "reset-list") return NextResponse.json(await resetSmsList(auth));
     if (body.action === "more") return NextResponse.json(await addSmsExtraBatch(auth));
     if (body.action === "invalid") return NextResponse.json(await markSmsInvalid(body.sendId, auth, body.reason === "inactive" ? "inactive" : "nonexistent"));

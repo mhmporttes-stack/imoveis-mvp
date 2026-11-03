@@ -435,6 +435,28 @@ export default function SmsBatchWorkspace({ initial = null, initialError = "" })
     return { ...entry, id: saved.sendId || entry.id, pending: false };
   };
 
+  // "Não enviei a 1ª": o toque em Enviar grava a 1ª mesmo se o SMS não saiu. Desfaz e o contato volta para "Para enviar".
+  const notSentFirst = async (entry) => {
+    const ok = await confirmAction({
+      title: "A 1ª mensagem não foi enviada?",
+      description: `${entry.name || entry.phoneMasked} sai de "Aguardando 2ª" e volta para a lista "Para enviar", como se nada tivesse sido feito.`,
+      confirmLabel: "Sim, não foi enviada",
+      tone: "danger"
+    });
+    if (!ok) return;
+    setBusyId(entry.id);
+    try {
+      if (!entry.pending) await call("POST", { action: "undo", sendId: entry.id, force: true });
+      setData((current) => ({ ...current, awaiting: current.awaiting.filter((row) => row.id !== entry.id) }));
+      notify("Voltou para a lista de envio.");
+      reload();
+    } catch (undoError) {
+      notify(undoError.message, "danger");
+    } finally {
+      setBusyId("");
+    }
+  };
+
   const markInvalid = async (rawEntry, reason = "nonexistent") => {
     const entry = rawEntry;
     const inactive = reason === "inactive";
@@ -741,6 +763,9 @@ export default function SmsBatchWorkspace({ initial = null, initialError = "" })
                   <a href={android ? androidSmsHref(entry.resendHref) : entry.resendHref} className="mt-2 flex min-h-12 w-full items-center justify-center gap-2 rounded-control border border-line text-base font-bold text-ink active:brightness-95">
                     Enviar 1ª novamente
                   </a>
+                  <Button variant="secondary" size="lg" block className="mt-1" loading={busyId === entry.id} onClick={() => notSentFirst(entry)}>
+                    Não enviei a 1ª — voltar para a lista
+                  </Button>
                   <Button variant="secondary" size="lg" block className="mt-1" loading={busyId === entry.id} onClick={() => markInvalid(entry, "nonexistent")}>
                     Número não existe
                   </Button>
