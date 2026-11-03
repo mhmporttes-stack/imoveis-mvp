@@ -171,3 +171,10 @@ test("janela do motivo: opção pronta antes do texto livre", () => {
   assert.match(ui, /quickReason \? \{ quickReason \} : \{ text: reasonText \}/);
   assert.match(read("app/api/admin/cooled-clients/[id]/reason/route.js"), /quickReason: body\?\.quickReason/);
 });
+
+test("janela velha (caso já respondido ou de outro corretor) dá a ciência e responde ok, sem prender a tela", () => {
+  const lib = readFileSync(new URL("../lib/cooled-clients.js", import.meta.url), "utf8");
+  const answer = lib.slice(lib.indexOf("export async function answerCooledCase"), lib.indexOf("async function answerRestrictionAndClose"));
+  assert.match(answer, /if \(!canAnswerCase\(viewer\.viewerId, row\)\) \{[\s\S]*acknowledgeAlertByDedupeKey[\s\S]*alreadyAnswered: true/);
+  assert.ok(!answer.includes("Este caso já foi respondido.\", 409);\n  if (isNoResponseQuickReason"));
+});
