@@ -62,7 +62,7 @@ const PERIOD_OPTIONS = [
 function bumpMetrics(current, add) {
   const { metrics, period, scope, lot } = current;
   if ((scope !== "broker" && lot && lot !== "team") || (period && !period.includesToday)) return metrics;
-  return { ...metrics, total: { ...metrics.total, sent: metrics.total.sent + (add.sent || 0), sent2: metrics.total.sent2 + (add.sent2 || 0) } };
+  return { ...metrics, total: { ...metrics.total, sent: metrics.total.sent + (add.sent || 0), sent2: metrics.total.sent2 + (add.sent2 || 0), contacted: (metrics.total.contacted ?? metrics.total.sent) + (add.sent || 0) } };
 }
 const resultsQuery = ({ broker, preset, from, to }) => {
   const params = new URLSearchParams();
@@ -553,7 +553,7 @@ export default function SmsBatchWorkspace({ initial = null, initialError = "" })
         </p>
       ) : null}
       <KpiGrid label="Resultados do Lote de SMS">
-        <Kpi label="Enviados" value={metrics.total.sent + metrics.total.sent2} hint={`1ª: ${metrics.total.sent} · 2ª: ${metrics.total.sent2}`} />
+        <Kpi label="Pessoas contactadas" value={metrics.total.contacted ?? metrics.total.sent} hint={`1ª: ${metrics.total.sent} · 2ª: ${metrics.total.sent2}`} />
         <Kpi label="Cliques no link" value={metrics.total.clicks} hint={filtered ? "no período" : `${metrics.byDay[0]?.clicks || 0} hoje`} />
         <div
           role="button"

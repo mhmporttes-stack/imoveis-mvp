@@ -205,8 +205,8 @@ test("medição por dia e total: enviados, cliques, cadastros e taxa", () => {
     views: [{ created_at: "2026-11-02T14:30:00Z" }],
     signups: [{ created_at: "2026-11-02T14:40:00Z" }]
   }, { days: 3, now });
-  assert.deepEqual(metrics.total, { sent: 4, sent2: 1, clicks: 1, signups: 1, rate: 0.25 });
-  assert.deepEqual(metrics.byDay[0], { day: "2026-11-02", sent: 2, sent2: 1, clicks: 1, signups: 1, rate: 0.5 });
+  assert.deepEqual(metrics.total, { sent: 4, sent2: 1, contacted: 5, clicks: 1, signups: 1, rate: 0.25 });
+  assert.deepEqual(metrics.byDay[0], { day: "2026-11-02", sent: 2, sent2: 1, contacted: 3, clicks: 1, signups: 1, rate: 0.5 });
   assert.equal(metrics.byDay[1].sent, 2);
   assert.equal(metrics.byDay[2].rate, null);
   assert.equal(buildSmsMetrics().total.rate, null);
@@ -257,4 +257,18 @@ test("vCard dos contatos do lote: Nome (SMS lote), celular em +55, número invá
   assert.match(text, /FN:Contato \(SMS lote\)/);
   assert.match(text, /TEL;TYPE=CELL:\+5514997001234/);
   assert.doesNotMatch(text, /Sem número/);
+});
+
+test("Pessoas contactadas = telefones diferentes com 1ª ou 2ª no período (2ª de hoje de quem recebeu a 1ª ontem conta hoje)", async () => {
+  const { buildSmsMetrics } = await import("../lib/sms-batch-core.mjs");
+  const today = "2026-11-03T15:00:00.000Z";
+  const yesterday = "2026-11-02T15:00:00.000Z";
+  const sends = [{ id: "1", phone_normalized: "+5514997000001", created_at: today }, { id: "2", phone_normalized: "+5514997000002", created_at: today }];
+  const sends2 = [{ id: "3", phone_normalized: "+5514997000001", created_at: today }, { id: "4", phone_normalized: "+5514997000009", created_at: today }];
+  const metrics = buildSmsMetrics({ sends, sends2, views: [], signups: [] }, { days: 3, now: new Date("2026-11-03T18:00:00.000Z") });
+  assert.equal(metrics.total.sent, 2);
+  assert.equal(metrics.total.sent2, 2);
+  assert.equal(metrics.total.contacted, 3); // 0001 (1ª+2ª), 0002 (1ª), 0009 (2ª; 1ª foi ontem)
+  assert.equal(metrics.byDay[0].contacted, 3);
+  void yesterday;
 });

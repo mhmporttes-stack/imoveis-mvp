@@ -73,7 +73,7 @@ test("métricas obedecem ao período: totais, por dia e taxa; sem período, últ
   assert.equal(all.total.sent, 4);
 
   const yesterday = buildSmsMetrics(rows, { now: NOW, period: resolveSmsPeriod({ preset: "yesterday" }, NOW) });
-  assert.deepEqual(yesterday.total, { sent: 2, sent2: 1, clicks: 1, signups: 1, rate: 0.5 });
+  assert.deepEqual(yesterday.total, { sent: 2, sent2: 1, contacted: 3, clicks: 1, signups: 1, rate: 0.5 });
   assert.equal(yesterday.byDay.length, 1);
   assert.equal(yesterday.byDay[0].day, "2026-11-01");
 
