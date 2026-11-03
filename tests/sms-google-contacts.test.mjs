@@ -1,62 +1,35 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import test from "node:test";
 import {
-  GOOGLE_SMS_CALLBACK_PATH,
   buildBatchCreateBody,
   chunkList,
   describeGoogleSmsResult,
-  isGoogleSmsAuthError,
+  googleSmsConnectionState,
   isStaleClaim,
   parseBatchCreateResponse,
-  planGoogleSmsContacts,
-  readGoogleSmsConfig,
-  resolveGoogleSmsRedirectUri,
-  signGoogleSmsState,
-  verifyGoogleSmsState
+  planGoogleSmsContacts
 } from "../lib/sms-google-contacts-core.mjs";
+import { isGoogleAuthorizationError } from "../lib/google-contacts-config-core.mjs";
 
-// Lote de SMS -> Google Contatos (PRO-18g). Tudo puro, sem rede e sem banco.
+// Lote de SMS -> Google Contatos do próprio usuário (PRO-18g). Tudo puro, sem rede e sem banco.
 
-const SECRET = "a".repeat(64);
-const USER = "11111111-1111-4111-8111-111111111111";
-
-test("config: sem as variáveis não está configurado e lista só os NOMES que faltam", () => {
-  const empty = readGoogleSmsConfig({});
-  assert.equal(empty.configured, false);
-  assert.deepEqual(empty.missing, ["GOOGLE_CONTACTS_CLIENT_ID", "GOOGLE_CONTACTS_CLIENT_SECRET", "CRM_SECRETS_ENCRYPTION_KEY"]);
-  const ok = readGoogleSmsConfig({ GOOGLE_CONTACTS_CLIENT_ID: "id", GOOGLE_CONTACTS_CLIENT_SECRET: "s", CRM_SECRETS_ENCRYPTION_KEY: SECRET });
-  assert.equal(ok.configured, true);
-  assert.deepEqual(ok.missing, []);
-  assert.equal(readGoogleSmsConfig({ GOOGLE_CONTACTS_CLIENT_ID: "id", GOOGLE_CONTACTS_CLIENT_SECRET: "s", CRM_SECRETS_ENCRYPTION_KEY: "curta" }).configured, false);
-});
-
-test("redirect: padrão é <site>/api/admin/google-contacts/callback; a variável opcional só vale se for esta rota", () => {
-  const site = "https://www.matheusmachadoimoveis.com.br";
-  const expected = `${site}${GOOGLE_SMS_CALLBACK_PATH}`;
-  assert.equal(expected, "https://www.matheusmachadoimoveis.com.br/api/admin/google-contacts/callback");
-  assert.equal(resolveGoogleSmsRedirectUri(`${site}/`), expected);
-  assert.equal(resolveGoogleSmsRedirectUri(site, expected), expected);
-  // O mesmo nome de variável é usado pela integração por corretor (outra rota): não pode ser aproveitado aqui.
-  assert.equal(resolveGoogleSmsRedirectUri(site, `${site}/api/google-contacts/callback`), expected);
-  assert.equal(resolveGoogleSmsRedirectUri(site, "lixo"), expected);
-});
-
-test("state anti-CSRF: confere assinatura, usuário e prazo", () => {
-  const now = 1_800_000_000_000;
-  const state = signGoogleSmsState({ userId: USER, secret: SECRET, now });
-  assert.equal(verifyGoogleSmsState(state, { userId: USER, secret: SECRET, now: now + 1000 }), true);
-  assert.equal(verifyGoogleSmsState(state, { userId: "22222222-2222-4222-8222-222222222222", secret: SECRET, now }), false, "state de outro usuário");
-  assert.equal(verifyGoogleSmsState(state, { userId: USER, secret: "b".repeat(64), now }), false, "assinatura com outro segredo");
-  assert.equal(verifyGoogleSmsState(state, { userId: USER, secret: SECRET, now: now + 11 * 60 * 1000 }), false, "expirado");
-  assert.equal(verifyGoogleSmsState(state, { userId: USER, secret: SECRET, now: now - 1000 }), false, "do futuro");
-  assert.equal(verifyGoogleSmsState("", { userId: USER, secret: SECRET }), false);
-  assert.equal(verifyGoogleSmsState("lixo", { userId: USER, secret: SECRET }), false);
-  // Adulterar o usuário dentro do state invalida a assinatura.
-  const parts = Buffer.from(state, "base64url").toString("utf8").split(".");
-  parts[0] = "22222222-2222-4222-8222-222222222222";
-  assert.equal(verifyGoogleSmsState(Buffer.from(parts.join(".")).toString("base64url"), { userId: parts[0], secret: SECRET, now }), false);
-  assert.throws(() => signGoogleSmsState({ userId: "", secret: SECRET }));
+test("estado da conexão: só conecta com status connected, sync ligado, token e escopo de Contatos; senão pede conectar/reconectar", () => {
+  const scope = "https://www.googleapis.com/auth/contacts https://www.googleapis.com/auth/userinfo.email";
+  const ok = { status: "connected", sync_enabled: true, scopes: scope, encrypted_refresh_token: "x" };
+  assert.deepEqual(googleSmsConnectionState(ok), { configured: true, connected: true, needsReconnect: false });
+  // Sem conexão / desconectado: nem conectado nem "reconectar" (a tela mostra "Conecte seu Google Contatos").
+  assert.deepEqual(googleSmsConnectionState(null), { configured: true, connected: false, needsReconnect: false });
+  assert.deepEqual(googleSmsConnectionState({ ...ok, status: "disconnected", encrypted_refresh_token: null }), { configured: true, connected: false, needsReconnect: false });
+  // Erro/expirada/sem permissão de Contatos: pede reconectar.
+  assert.equal(googleSmsConnectionState({ ...ok, status: "error" }).needsReconnect, true);
+  assert.equal(googleSmsConnectionState({ ...ok, status: "expired" }).needsReconnect, true);
+  const noScope = googleSmsConnectionState({ ...ok, scopes: "https://www.googleapis.com/auth/userinfo.email" });
+  assert.deepEqual([noScope.connected, noScope.needsReconnect], [false, true]);
+  // Sync desligado pelo usuário: não grava (não é "reconectar").
+  assert.deepEqual(googleSmsConnectionState({ ...ok, sync_enabled: false }), { configured: true, connected: false, needsReconnect: false });
+  // Servidor sem credenciais do Google: nada conecta.
+  assert.deepEqual(googleSmsConnectionState(ok, false), { configured: false, connected: false, needsReconnect: false });
 });
 
 test("plano: nome 'Nome (SMS lote)', celular +55, sem nome vira Contato, número inválido fora, repetido conta uma vez", () => {
@@ -117,12 +90,11 @@ test("resposta do batchCreate: casa por posição e devolve o erro de cada conta
   assert.equal(parseBatchCreateResponse(contacts, {}).failed.length, 3);
 });
 
-test("erro de autorização do Google pede reconexão; erro comum não", () => {
-  assert.equal(isGoogleSmsAuthError(401, ""), true);
-  assert.equal(isGoogleSmsAuthError(400, "invalid_grant"), true);
-  assert.equal(isGoogleSmsAuthError(403, "Request had insufficient authentication scopes."), true);
-  assert.equal(isGoogleSmsAuthError(429, "Quota exceeded"), false);
-  assert.equal(isGoogleSmsAuthError(500, "Internal error"), false);
+test("erro de autorização (helper existente do Google Contatos) pede reconexão; erro comum não", () => {
+  assert.equal(isGoogleAuthorizationError(401, ""), true);
+  assert.equal(isGoogleAuthorizationError(403, "Request had insufficient authentication scopes."), true);
+  assert.equal(isGoogleAuthorizationError(429, "Quota exceeded"), false);
+  assert.equal(isGoogleAuthorizationError(500, "Internal error"), false);
 });
 
 test("reivindicação antiga sem confirmação do Google é refeita; recente ou confirmada, não", () => {
@@ -140,42 +112,21 @@ test("mensagem de resultado", () => {
   assert.equal(describeGoogleSmsResult({}), "Nenhum contato para salvar.");
 });
 
-test("cifra do refresh token: AES-GCM ida e volta, não guarda o texto claro e falha com a chave errada", async () => {
-  // lib/secrets-crypto.js é "server-only" (não importa fora do Next): carrega a MESMA fonte sem essa linha.
-  const source = readFileSync(new URL("../lib/secrets-crypto.js", import.meta.url), "utf8").replace('import "server-only";', "");
-  const crypto = await import(`data:text/javascript;base64,${Buffer.from(source).toString("base64")}`);
-  const previous = process.env.CRM_SECRETS_ENCRYPTION_KEY;
-  try {
-    process.env.CRM_SECRETS_ENCRYPTION_KEY = SECRET;
-    const token = "1//refresh-token-de-teste";
-    const encrypted = crypto.encryptSecret(token);
-    assert.notEqual(encrypted, token);
-    assert.equal(encrypted.includes(token), false);
-    assert.equal(crypto.decryptSecret(encrypted), token);
-    assert.notEqual(crypto.encryptSecret(token), encrypted, "IV novo a cada cifra");
-    process.env.CRM_SECRETS_ENCRYPTION_KEY = "b".repeat(64);
-    assert.throws(() => crypto.decryptSecret(encrypted));
-  } finally {
-    if (previous === undefined) delete process.env.CRM_SECRETS_ENCRYPTION_KEY;
-    else process.env.CRM_SECRETS_ENCRYPTION_KEY = previous;
-  }
-});
-
-test("segurança estática: rotas OAuth com guard de admin geral real; token nunca devolvido nem logado; ação e tela ligadas", () => {
+test("segurança estática: sem OAuth/credencial novos, reaproveita a conexão do usuário, token nunca devolvido nem logado; ação, guards e tela ligados", () => {
   const read = (path) => readFileSync(new URL(path, import.meta.url), "utf8");
-  for (const route of ["../app/api/admin/google-contacts/connect/route.js", "../app/api/admin/google-contacts/callback/route.js"]) {
-    const text = read(route);
-    assert.match(text, /requireRealGeneralAdminApi\(request\)/);
-    assert.ok(text.indexOf("requireRealGeneralAdminApi(request)") < text.indexOf("buildGoogleSmsAuthUrl(userId)") || text.indexOf("requireRealGeneralAdminApi(request)") < text.indexOf("completeGoogleSmsConnection({"));
-  }
+  assert.equal(existsSync(new URL("../app/api/admin/google-contacts", import.meta.url)), false, "nenhuma rota OAuth nova");
   const lib = read("../lib/sms-google-contacts.js");
-  assert.doesNotMatch(lib, /console\.\w+\([^)]*(refresh_token|accessToken|clientSecret)/);
-  assert.doesNotMatch(lib, /refresh_token_encrypted[^;\n]*return/);
+  assert.match(lib, /getValidAccessToken\(userId\)/, "token pelo helper existente");
+  assert.doesNotMatch(lib, /GOOGLE_CONTACTS_CLIENT|encryptSecret|decryptSecret|oauth2\.googleapis/);
+  assert.doesNotMatch(lib, /console\.\w+\([^)]*(refresh_token|accessToken|encrypted)/);
+  assert.doesNotMatch(read("../.env.example"), /GOOGLE_CONTACTS_CLIENT/);
   const route = read("../app/api/admin/lote-sms/route.js");
-  assert.match(route, /action === "save-google-contacts"/);
-  assert.ok(route.indexOf("assertSmsBatchOffice") < route.indexOf("save-google-contacts"), "a regra do Wi-Fi vale antes da ação");
+  assert.match(route, /requirePerformanceApi\(request\)/);
+  assert.match(route, /saveSmsContactsToGoogle\(auth, data\.items\)/, "grava na conta do próprio usuário");
+  assert.ok(route.indexOf("assertSmsBatchOffice(auth, clientIpFromHeaders(request.headers), String(body.action") < route.indexOf('"save-google-contacts"'), "a regra do Wi-Fi vale antes da ação");
   const screen = read("../components/SmsBatchWorkspace.jsx");
   assert.match(screen, /no Google Contatos/);
+  assert.match(screen, /Conecte seu Google Contatos/);
   assert.match(screen, /Salvar estes contatos no iPhone/, "o .vcf segue como alternativa");
-  assert.match(read("../supabase/migrations/20261103130000_sms_batch_google_contacts.sql"), /enable row level security[\s\S]*revoke all[\s\S]*grant all/);
+  assert.match(read("../supabase/migrations/20261103130000_sms_batch_google_contacts.sql"), /primary key \(user_id, contact_id\)[\s\S]*enable row level security[\s\S]*revoke all[\s\S]*grant all/);
 });

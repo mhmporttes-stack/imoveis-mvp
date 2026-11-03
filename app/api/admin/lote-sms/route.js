@@ -51,10 +51,10 @@ export async function POST(request) {
     if (body.action === "sent") return NextResponse.json(await markSmsSent(body.contactId, auth, { outsideOffice: office.recordOnly }));
     if (body.action === "sent-2") return NextResponse.json(await markSmsSecondSent(body.sendId, auth));
     if (body.action === "undo") return NextResponse.json(await undoSmsSent(body.sendId, auth));
-    // PRO-18g: cria no Google Contatos do dono a lista ATUAL (nome + celular só servidor -> Google). Mesmo escopo e mesma regra do Wi-Fi.
+    // PRO-18g: cria, no Google Contatos do PRÓPRIO usuário (conexão que ele já tem), a lista ATUAL (nome + celular só servidor -> Google). Mesmo escopo e mesma regra do Wi-Fi.
     if (body.action === "save-google-contacts") {
       const data = await loadSmsBatch(auth, { includePhones: true });
-      return NextResponse.json(await saveSmsContactsToGoogle(data.items));
+      return NextResponse.json(await saveSmsContactsToGoogle(auth, data.items));
     }
     if (body.action === "reset-list") return NextResponse.json(await resetSmsList(auth));
     if (body.action === "more") return NextResponse.json(await addSmsExtraBatch(auth));

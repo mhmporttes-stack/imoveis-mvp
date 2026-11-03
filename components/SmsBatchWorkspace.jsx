@@ -46,6 +46,9 @@ const percent = (value) => (value === null || value === undefined ? "—" : `${(
 const timeLabel = (iso) => new Date(iso).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
 const dayLabel = (key) => key.split("-").reverse().slice(0, 2).join("/");
 
+// PRO-18g: onde cada usuário conecta o Google Contatos hoje (mesma conexão da Meta Diária; volta para /admin).
+const GOOGLE_CONNECT_PATH = "/api/google-contacts/connect";
+
 // PRO-18e: o corretor só usa o Lote no Wi-Fi da imobiliária (o servidor responde 403 com este código).
 const OFFICE_ONLY_CODE = "SMS_BATCH_OFFICE_ONLY";
 
@@ -180,27 +183,6 @@ export default function SmsBatchWorkspace({ initial = null, initialError = "" })
 
   useEffect(() => {
     if (!initial && !initialError) reload();
-    // Só na montagem.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  // Volta do consentimento do Google (/api/admin/google-contacts/callback): avisa o resultado e limpa o endereço.
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const result = params.get("google");
-    if (!result) return;
-    const messages = {
-      conectado: ["Google conectado. Já pode salvar os contatos.", "success"],
-      cancelado: ["Conexão com o Google cancelada.", "danger"],
-      sem_permissao: ["Só o administrador geral conecta o Google.", "danger"],
-      nao_configurado: ["O Google ainda não foi configurado no servidor.", "danger"],
-      erro: ["Não foi possível conectar o Google. Tente de novo.", "danger"]
-    };
-    const [text, tone] = messages[result] || messages.erro;
-    notify(text, tone);
-    params.delete("google");
-    const rest = params.toString();
-    window.history.replaceState(null, "", `${window.location.pathname}${rest ? `?${rest}` : ""}`);
     // Só na montagem.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -679,27 +661,21 @@ export default function SmsBatchWorkspace({ initial = null, initialError = "" })
               </Button>
             ) : data.googleContacts && !data.googleContacts.configured ? (
               <p className="rounded-control border border-line px-3 py-2 text-[13px] leading-5 text-muted" role="status">
-                {data.googleContacts.canConnect
-                  ? `Google Contatos ainda não configurado no servidor${data.googleContacts.missing?.length ? ` (falta: ${data.googleContacts.missing.join(", ")})` : ""}. Passo a passo: docs/GOOGLE_CONTATOS_SMS.md.`
-                  : "Para salvar no Google Contatos, peça ao dono para configurar e conectar."}
+                O Google Contatos ainda não está configurado no servidor. Use "Salvar estes contatos no iPhone".
               </p>
-            ) : data.googleContacts?.canConnect ? (
-              <Button variant="primary" size="lg" block onClick={() => window.location.assign("/api/admin/google-contacts/connect")}>
-                {data.googleContacts.needsReconnect ? "Reconectar Google" : "Conectar Google"}
-              </Button>
             ) : data.googleContacts ? (
-              <p className="rounded-control border border-line px-3 py-2 text-[13px] leading-5 text-muted" role="status">
-                {data.googleContacts.needsReconnect ? "A conexão com o Google expirou. Peça ao dono para reconectar." : "Para salvar no Google Contatos, peça ao dono para conectar."}
-              </p>
+              <Button variant="primary" size="lg" block onClick={() => window.location.assign(GOOGLE_CONNECT_PATH)}>
+                {data.googleContacts.needsReconnect ? "Reconectar seu Google Contatos" : "Conecte seu Google Contatos"}
+              </Button>
             ) : null
           ) : null}
           {googleResult ? (
             <div className={googleResult.tone === "ok" ? "rounded-control border border-info-line bg-info-soft px-3 py-2 text-[13px] leading-5 text-info" : "rounded-control border border-danger-line bg-danger-soft px-3 py-2 text-[13px] leading-5 text-danger"} role={googleResult.tone === "ok" ? "status" : "alert"}>
               <p className="font-semibold">{googleResult.text}</p>
               {googleResult.failed?.length ? <p className="mt-1">{googleResult.failed.map((row) => `${row.name}: ${row.error}`).join(" · ")}</p> : null}
-              {googleResult.reconnect && data.googleContacts?.canConnect ? (
-                <button type="button" className="mt-2 min-h-12 w-full rounded-control border border-line bg-surface-2 text-base font-bold text-ink" onClick={() => window.location.assign("/api/admin/google-contacts/connect")}>
-                  Reconectar Google
+              {googleResult.reconnect ? (
+                <button type="button" className="mt-2 min-h-12 w-full rounded-control border border-line bg-surface-2 text-base font-bold text-ink" onClick={() => window.location.assign(GOOGLE_CONNECT_PATH)}>
+                  Reconectar seu Google Contatos
                 </button>
               ) : null}
             </div>
