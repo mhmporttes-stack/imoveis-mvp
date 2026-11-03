@@ -163,3 +163,14 @@ test("caminhos por função compartilhada: ficha/Chat/automações, roleta, excl
   assert.match(waiting, CALLS_POINT);
   assert.match(read("lib/admin-profiles.js"), /plan\.assignments[\s\S]{0,200}applyTransferStatusRuleAfterTransfer/);
 });
+
+test("a conversa do Marketplace acompanha o cliente em toda transferência (mesmo ponto único)", async () => {
+  const { readFileSync } = await import("node:fs");
+  const lib = readFileSync(new URL("../lib/transfer-status.js", import.meta.url), "utf8");
+  const after = lib.slice(lib.indexOf("export async function applyTransferStatusRuleAfterTransfer"));
+  assert.match(after, /await syncMarketplaceConversationsToResponsible\(clientId\)/);
+  const sync = lib.slice(lib.indexOf("export async function syncMarketplaceConversationsToResponsible"), lib.indexOf("export async function applyTransferStatusRuleAfterTransfer"));
+  assert.match(sync, /from\("marketplace_conversations"\)[\s\S]*\.eq\("client_id", clientId\)/);
+  assert.match(sync, /waiting_distribution_at", null/);
+  assert.match(sync, /if \(!responsible\) return \{ moved: 0 \}/);
+});
