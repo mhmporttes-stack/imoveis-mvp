@@ -247,11 +247,6 @@ export default function SmsBatchWorkspace({ initial = null, initialError = "" })
               metrics: bumpMetrics(current, { sent: 1, sent2: result2 ? 1 : 0 })
             };
           });
-          if (result.sendId && !result2) {
-            clearTimeout(undoTimer.current);
-            setUndo({ sendId: result.sendId, name: entry.name, second });
-            undoTimer.current = setTimeout(() => setUndo(null), UNDO_MS);
-          }
           // A 1ª enviada já entrou em "Aguardando 2ª" localmente (sem recarregar a lista).
           return "done";
         } catch (sendError) {
@@ -888,16 +883,6 @@ export default function SmsBatchWorkspace({ initial = null, initialError = "" })
         </div>
       ) : null}
 
-      {undo ? (
-        <div className="fixed inset-x-0 z-[55] flex justify-center px-4 bottom-[calc(5rem+max(env(safe-area-inset-bottom),var(--admin-bottom-nav-space)))]">
-          <div className="flex w-full max-w-md items-center justify-between gap-3 rounded-control bg-navy px-4 py-2 text-sm text-white shadow-float" role="status">
-            <span className="min-w-0 truncate">{undo.second ? "2ª mensagem" : "SMS"} para {undo.name || "o contato"} marcado como enviado</span>
-            <button type="button" onClick={undoLast} className="flex min-h-12 shrink-0 items-center gap-1 px-2 font-extrabold underline">
-              <Undo2 className="h-4 w-4" aria-hidden="true" /> Desfazer
-            </button>
-          </div>
-        </div>
-      ) : null}
       {toastElement}
       {confirmElement}
     </div>
