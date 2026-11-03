@@ -6685,3 +6685,5 @@ Pedido do dono (prints do iPhone, PWA/Safari), só apresentação — nenhuma re
 - 2026-11-03 — Lote de SMS, aba Resultados: trocar lote (O meu/Todos/corretor) ou período busca só os resultados (`resultsOnly=1`), mostra "Atualizando…" e avisa se falhar (antes mantinha os números antigos em silêncio quando a lista demorava).
 
 - 2026-11-03 — Lote de SMS: o cartão "Cliques no link" também abre a lista "Quem clicou" (como "Contatos que clicaram"). `components/SmsBatchWorkspace.jsx`.
+
+- 2026-11-03 — Lote de SMS, Resultados: filtro de lote virou "Todos | O meu | Corretor ▾"; o 3º abre um cartão com a lista de corretores (1ª, 2ª, cliques, cadastros de cada um) e, ao escolher, carrega só os resultados dele. Admin geral e gestor. `components/SmsBatchWorkspace.jsx`.

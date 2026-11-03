@@ -159,6 +159,7 @@ export default function SmsBatchWorkspace({ initial = null, initialError = "" })
   const [officeBlocked, setOfficeBlocked] = useState(false);
   const [needsWhatsapp, setNeedsWhatsapp] = useState(false);
   const [resultsBusy, setResultsBusy] = useState(false);
+  const [brokerPickerOpen, setBrokerPickerOpen] = useState(false);
   const [savingSettings, setSavingSettings] = useState(false);
   // Cartão some na hora ao tocar em "Enviar" (volume mais rápido); volta se o SMS não chegou a ser aberto.
   const [hiddenIds, setHiddenIds] = useState([]);
@@ -833,14 +834,40 @@ export default function SmsBatchWorkspace({ initial = null, initialError = "" })
           <Card title="Lote" note={data.period?.label || "Todo o período"}>
             <div className="space-y-3">
               {(isTeam || isManager) && data.brokers?.length ? (
-                <Field label="Lote">
-                  <Tabs
-                    label="Lote dos resultados"
-                    value={brokerFilter}
-                    onChange={changeBrokerFilter}
-                    options={[{ value: "", label: "Todos" }, { value: "team", label: "O meu" }, ...data.brokers.map((row) => ({ value: row.id, label: row.name }))]}
-                  />
-                </Field>
+                <>
+                  <Field label="Lote">
+                    <Tabs
+                      label="Lote dos resultados"
+                      value={brokerFilter === "" || brokerFilter === "team" ? brokerFilter : "pick"}
+                      onChange={(value) => (value === "pick" ? setBrokerPickerOpen((open) => !open) : (setBrokerPickerOpen(false), changeBrokerFilter(value)))}
+                      options={[
+                        { value: "", label: "Todos" },
+                        { value: "team", label: "O meu" },
+                        { value: "pick", label: brokerFilter && brokerFilter !== "team" ? (data.brokers.find((row) => row.id === brokerFilter)?.name || "Corretor") : "Corretor ▾" }
+                      ]}
+                    />
+                  </Field>
+                  {brokerPickerOpen ? (
+                    <div className="rounded-card border border-line bg-surface p-2" role="listbox" aria-label="Escolher corretor">
+                      <ul className="divide-y divide-line">
+                        {data.brokers.map((row) => (
+                          <li key={row.id}>
+                            <button
+                              type="button"
+                              role="option"
+                              aria-selected={brokerFilter === row.id}
+                              className={`flex w-full items-center justify-between gap-3 px-2 py-3 text-left active:brightness-95 ${brokerFilter === row.id ? "font-extrabold text-accent-text" : "font-semibold text-ink"}`}
+                              onClick={() => { setBrokerPickerOpen(false); changeBrokerFilter(row.id); }}
+                            >
+                              <span className="truncate">{row.name}</span>
+                              <span className="shrink-0 text-xs tabular-nums text-muted">1ª {row.sent} · 2ª {row.sent2} · cliques {row.clicks} · cad. {row.signups}</span>
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  ) : null}
+                </>
               ) : null}
             </div>
           </Card>
