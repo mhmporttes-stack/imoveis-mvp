@@ -17,6 +17,7 @@ import { incomeBracketLabel } from "@/lib/meta-pixel-shared";
 import { trackMetaLead } from "@/lib/meta-pixel-client";
 import { trackGoogleAdsLead } from "@/lib/google-ads-client.mjs";
 import { currentAdAttribution } from "@/lib/ad-click-attribution.mjs";
+import { currentSmsToken } from "@/lib/sms-batch-token-core.mjs";
 import {
   FORM_WHATSAPP_FALLBACK_MS,
   buildReceiveContactQuery,
@@ -196,6 +197,7 @@ export default function SimulationForm({ brokerRefOverride = "", journeySelected
           metaEventId: eventId,
           attribution: {
             ...currentAdAttribution(searchParams),
+            ...(currentSmsToken(searchParams) ? { sms_t: currentSmsToken(searchParams) } : {}),
             ...(journeySelected ? { journey_selected: journeySelected } : {})
           }
         })

@@ -11,6 +11,7 @@ import { readStoredCampaignId } from "@/lib/campaign-link-client";
 import { trackMetaLead } from "@/lib/meta-pixel-client";
 import { trackGoogleAdsLead } from "@/lib/google-ads-client.mjs";
 import { currentAdAttribution } from "@/lib/ad-click-attribution.mjs";
+import { currentSmsToken } from "@/lib/sms-batch-token-core.mjs";
 
 const NAME_STEP = { id: "fullName", title: "Nome", placeholder: "Seu nome completo", autoComplete: "name" };
 const PHONE_STEP = { id: "phone", title: "WhatsApp", placeholder: "(00) 00000-0000", autoComplete: "tel" };
@@ -62,6 +63,7 @@ export default function QuickAttendanceForm({ brokerRefOverride = "", onBack, jo
           metaEventId: eventId,
           attribution: {
             ...currentAdAttribution(searchParams),
+            ...(currentSmsToken(searchParams) ? { sms_t: currentSmsToken(searchParams) } : {}),
             ...(journeySelected ? { journey_selected: journeySelected } : {})
           }
         })

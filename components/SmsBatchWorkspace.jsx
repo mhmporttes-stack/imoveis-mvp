@@ -549,6 +549,16 @@ export default function SmsBatchWorkspace({ initial = null, initialError = "" })
           role="button"
           tabIndex={0}
           className="cursor-pointer rounded-card active:brightness-95"
+          aria-label="Ver quem clicou"
+          onClick={() => { setTab("results"); setTimeout(() => document.getElementById("sms-clickers")?.scrollIntoView({ behavior: "smooth", block: "start" }), 50); }}
+          onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); event.currentTarget.click(); } }}
+        >
+          <Kpi label="Contatos que clicaram" value={data.clickers?.total || 0} hint="pessoas diferentes · toque para ver" />
+        </div>
+        <div
+          role="button"
+          tabIndex={0}
+          className="cursor-pointer rounded-card active:brightness-95"
           aria-label="Ver os cadastros"
           onClick={() => { setTab("results"); setTimeout(() => document.getElementById("sms-signups")?.scrollIntoView({ behavior: "smooth", block: "start" }), 50); }}
           onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); event.currentTarget.click(); } }}
@@ -789,6 +799,24 @@ export default function SmsBatchWorkspace({ initial = null, initialError = "" })
               ) : null}
             </div>
           </Card>
+          <Card id="sms-clickers" title="Quem clicou" note={`${data.clickers?.total || 0} contato(s)`}>
+            {data.clickers?.list?.length ? (
+              <ul className="divide-y divide-line">
+                {data.clickers.list.map((row) => (
+                  <li key={row.token} className="flex items-center justify-between gap-3 py-2">
+                    <div className="min-w-0">
+                      <p className="truncate text-base font-bold text-ink">{row.name}</p>
+                      <p className="text-sm tabular-nums text-muted">{row.phoneMasked} · {timeLabel(row.lastClickedAt)} · {row.clicks === 1 ? "1 clique" : `${row.clicks} cliques`}</p>
+                      <p className={`text-sm font-semibold ${row.registered ? "text-success" : "text-muted"}`}>{row.registered ? "Preencheu o formulário" : "Ainda não preencheu"}</p>
+                    </div>
+                    {row.href ? <Button href={row.href} variant="secondary" size="md">Abrir cliente</Button> : null}
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="text-sm text-muted">Ninguém clicou no link individual ainda. Só contam os SMS enviados com o link de cada contato.</p>
+            )}
+          </Card>
           <Card id="sms-signups" title="Quem preencheu o formulário" note={`${data.signups?.length || 0} cliente(s)`}>
             {data.signups?.length ? (
               <ul className="divide-y divide-line">
@@ -797,6 +825,7 @@ export default function SmsBatchWorkspace({ initial = null, initialError = "" })
                     <div className="min-w-0">
                       <p className="truncate text-base font-bold text-ink">{row.name}</p>
                       <p className="text-sm tabular-nums text-muted">{row.phone} · {timeLabel(row.at)}</p>
+                      {row.from ? <p className="text-sm text-muted">Veio do contato {row.from.name || "da base"}{row.from.phoneMasked ? ` · ${row.from.phoneMasked}` : ""}</p> : null}
                     </div>
                     {row.href ? <Button href={row.href} variant="secondary" size="md">Abrir cliente</Button> : null}
                   </li>

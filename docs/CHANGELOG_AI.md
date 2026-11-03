@@ -10,6 +10,12 @@
 
 
 
+## 2026-11-03 — Lote de SMS: link único por contato (PRO-18f) (crm-editor) — branch `feat/sms-link-por-contato`, NÃO publicado
+- Dono: "enviar um link para cada cliente do SMS" para saber QUEM clicou e QUEM preencheu. **[REGRA OFICIAL]** `docs/BUSINESS_RULES.md` PRO-18f e rule `roleta-prospeccao-campanhas.md`.
+- Link `<campanha>?t=<token>` (token HMAC de 10 caracteres do id do contato; `lib/sms-batch-token-core.mjs`, `lib/sms-batch-links.mjs`/`.js`); `/c/[code]` repassa `sms_t`; `track-view` conta o clique; `CampaignLinkCapture` guarda cookie `mm_sms_t`; formulários mandam `attribution.sms_t`; `buildLeadOrigin` grava `sms_token`; `simulation-registrations.js` liga `registration_id`. Tela: "Contatos que clicaram" e "Quem clicou"; "Quem preencheu" mostra o contato de origem.
+- Migration `20261103120000_sms_batch_links.sql` (**NÃO aplicada**; sem ela o Lote segue como antes). Testes: `tests/sms-batch-links.test.mjs`.
+- Risco/observação: clique antes de o envio ser gravado (fila do aparelho) não é ligado ao contato; token de 50 bits (colisão improvável, tratada sem sobrescrever).
+
 ## 2026-11-02 — Lote de SMS: pontos por SMS do corretor, filtros dos resultados e só no Wi-Fi da imobiliária (PRO-18d/PRO-18e) (crm-editor) — branch `feat/sms-pontos-filtros`, NÃO publicado
 - Dono: (A) cada SMS enviado pelo corretor no Lote (1ª e 2ª) pontua como uma tentativa de prospecção; lote da equipe não pontua. (B) Resultados com período (Hoje/Ontem/7/30 dias/Personalizado) e lote (Todos/O meu/cada corretor). (C) Lote do corretor só funciona no Wi-Fi da imobiliária. **[REGRA OFICIAL]** em `docs/BUSINESS_RULES.md` PRO-18d e PRO-18e e na rule `roleta-prospeccao-campanhas.md`.
 - Pontos: valor = regra `prospecting` (padrão 2; vigente no banco, A CONFIRMAR em produção). Sem tabela/migration: `loadSmsBatchScoringEvents` (`lib/performance-overview.js`) lê `sms_batch_sends` (`sent`/`sent_2`, campanha com `broker_id`) e `smsScoringEvents` (`lib/sms-batch-points-core.mjs`) deduplica (campanha+telefone+evento) e tira `invalid`/`inactive`; soma no Ranking e no Extrato (`describeLedgerRow` ganhou "Lote de SMS — Nª mensagem"). Fonte à parte: fora de `prospectingEvents` (contagem Prospecção, teto de 200%, funil, Meta Diária intactos).

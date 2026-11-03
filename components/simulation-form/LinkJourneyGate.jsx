@@ -5,6 +5,7 @@ import { useSearchParams } from "next/navigation";
 import JourneyChoice from "@/components/simulation-form/JourneyChoice";
 import QuickAttendanceForm from "@/components/simulation-form/QuickAttendanceForm";
 import SimulationForm from "@/components/simulation-form/SimulationForm";
+import { SMS_TOKEN_QUERY, cleanSmsToken } from "@/lib/sms-batch-token-core.mjs";
 
 // Etapa nova na FRENTE do fluxo público já existente (Gerador de Links —
 // campanha/?c=, link pessoal/?ref=, roleta/equipe) — a URL, o destino
@@ -34,6 +35,8 @@ export default function LinkJourneyGate({ brokerRefOverride = "" }) {
   const [resolvingLink, setResolvingLink] = useState(false);
   const campaignIdFromUrl = searchParams.get("c") || "";
   const refFromUrl = brokerRefOverride || searchParams.get("ref") || "";
+  // Lote de SMS (PRO-18f): token do link único do contato (?sms_t=), só para contar o clique dele.
+  const smsTokenFromUrl = cleanSmsToken(searchParams.get(SMS_TOKEN_QUERY));
 
   // Conta a ABERTURA do link (Gerador de Links > contador de aberturas) — só
   // quando a URL já chega com ?c= (campanha) ou ?ref= (link pessoal/oficial
@@ -47,7 +50,7 @@ export default function LinkJourneyGate({ brokerRefOverride = "" }) {
     fetch("/api/campaigns/track-view", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(campaignIdFromUrl ? { campaignId: campaignIdFromUrl } : { ref: refFromUrl }),
+      body: JSON.stringify(campaignIdFromUrl ? { campaignId: campaignIdFromUrl, ...(smsTokenFromUrl ? { smsToken: smsTokenFromUrl } : {}) } : { ref: refFromUrl }),
       keepalive: true
     })
       .then((response) => response.json())
@@ -60,7 +63,7 @@ export default function LinkJourneyGate({ brokerRefOverride = "" }) {
       .catch(() => {})
       .finally(() => setResolvingLink(false));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [campaignIdFromUrl, refFromUrl]);
+  }, [campaignIdFromUrl, refFromUrl, smsTokenFromUrl]);
 
   // Evita "piscar" a tela de escolha por uma fração de segundo antes do link
   // direto (Disparo) assumir o formulário certo.

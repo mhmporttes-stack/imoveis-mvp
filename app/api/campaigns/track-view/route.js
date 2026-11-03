@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { canManageCampaigns, getCampaign, recordCampaignLinkView, recordOfficialLinkViewByRef } from "@/lib/campaigns";
 import { createRateLimiter } from "@/lib/simulation-presentation-core.mjs";
+import { recordSmsLinkClickSafe } from "@/lib/sms-batch-links";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -28,6 +29,8 @@ export async function POST(request) {
     const payload = await request.json();
     if (payload?.campaignId) {
       await recordCampaignLinkView(payload.campaignId);
+      // Lote de SMS (PRO-18f): clique do link único do contato. Melhor esforço, mesmo limite por IP; token inválido = nada.
+      if (payload.smsToken) await recordSmsLinkClickSafe(payload.smsToken);
       const campaign = await getCampaign(payload.campaignId);
       if (campaign?.linkJourney) linkJourney = campaign.linkJourney;
     } else if (payload?.ref) {
