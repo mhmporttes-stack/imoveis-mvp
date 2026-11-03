@@ -595,7 +595,16 @@ export default function SmsBatchWorkspace({ initial = null, initialError = "" })
       ) : null}
       <KpiGrid label="Resultados do Lote de SMS">
         <Kpi label="Pessoas contactadas" value={metrics.total.contacted ?? metrics.total.sent} hint={`1ª: ${metrics.total.sent} · 2ª: ${metrics.total.sent2}`} />
-        <Kpi label="Cliques no link" value={metrics.total.clicks} hint={filtered ? "no período" : `${metrics.byDay[0]?.clicks || 0} hoje`} />
+        <div
+          role="button"
+          tabIndex={0}
+          className="cursor-pointer rounded-card active:brightness-95"
+          aria-label="Ver quem clicou"
+          onClick={() => { setTab("results"); setTimeout(() => document.getElementById("sms-clickers")?.scrollIntoView({ behavior: "smooth", block: "start" }), 50); }}
+          onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); event.currentTarget.click(); } }}
+        >
+          <Kpi label="Cliques no link" value={metrics.total.clicks} hint={`${filtered ? "no período" : `${metrics.byDay[0]?.clicks || 0} hoje`} · toque para ver quem`} />
+        </div>
         <div
           role="button"
           tabIndex={0}

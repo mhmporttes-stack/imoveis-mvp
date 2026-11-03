@@ -6683,3 +6683,5 @@ Pedido do dono (prints do iPhone, PWA/Safari), só apresentação — nenhuma re
 
 - 2026-11-03 — Henry sem ElevenLabs (dono: "remova o plano"): `providerEnv` em `lib/henry-voice.js` não usa mais a chave; a voz vai OpenAI → navegador, sem repetir tentativa em plano sem créditos. Fala-para-texto (Scribe) e o áudio de cliente (`lib/client-voice-audio.js`) não foram mexidos. Para voltar: devolver `process.env.ELEVENLABS_API_KEY`. O cancelamento da assinatura em si é no painel da ElevenLabs.
 - 2026-11-03 — Lote de SMS, aba Resultados: trocar lote (O meu/Todos/corretor) ou período busca só os resultados (`resultsOnly=1`), mostra "Atualizando…" e avisa se falhar (antes mantinha os números antigos em silêncio quando a lista demorava).
+
+- 2026-11-03 — Lote de SMS: o cartão "Cliques no link" também abre a lista "Quem clicou" (como "Contatos que clicaram"). `components/SmsBatchWorkspace.jsx`.
