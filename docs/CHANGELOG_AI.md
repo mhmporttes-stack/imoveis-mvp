@@ -1289,6 +1289,15 @@ Copie o modelo abaixo (uma entrada por bloco):
 - **Risco/observação:** textos, links, tracking e SEO inalterados; `pnpm build` ok; `tests/brand-assets.test.mjs` 4/4. Publicado e conferido no ar. A imagem de cidade não é comprovadamente de Marília (trocar por foto real quando o dono enviar).
 
 ## Registro
+### 2026-11-03 — Desempenho: menos consultas repetidas do Chat (modo lista impressa e controle do Chat)
+- **Data:** 2026-11-03
+- **Área:** Infra / WhatsApp
+- **Alteração:** `loadPrintedListMode` (lib/whatsapp-manual-disconnect.js) guarda o resultado por usuário por poucos segundos entre requisições (5 s quando o modo está LIGADO, 15 s quando desligado; erro nunca é guardado; consultas simultâneas compartilham a mesma leitura). `lib/chat-control.js`: cache do controle do Chat de 5 s para 15 s.
+- **Motivo:** medição no Supabase (edge_logs 15:05–15:40 UTC): `whatsapp_individual_sessions` ≈4,3 mil e `whatsapp_restrictions` ≈3,4 mil consultas por 35 min, vindas do guard do Chat e do card-state a cada chamada; `crm_settings` (controle do Chat) ≈1,5 mil.
+- **Arquivos afetados:** `lib/whatsapp-manual-disconnect.js`, `lib/chat-control.js`, `tests/performance-load-reduction.test.mjs`
+- **Risco/observação:** reconectar o WhatsApp pode levar até 5 s para o Chat voltar no servidor (o cliente já confere a cada 20 s); desconectar até 15 s para o guard passar a bloquear. Ligar/desligar o Chat vale em até 15 s por instância.
+- **Autor:** Claude Code
+
 ### 2026-11-03 — Desempenho: varredura de "Número não identificado" sem espiral
 - **Data:** 2026-11-03
 - **Área:** Infra / WhatsApp

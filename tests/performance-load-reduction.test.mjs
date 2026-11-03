@@ -3,7 +3,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const read = (file) => readFileSync(new URL(`../${file}`, import.meta.url), "utf8");
+const read = (file) => readFileSync(new URL(`../${file}`, import.meta.url), "utf8").split(String.fromCharCode(13, 10)).join(String.fromCharCode(10));
 
 test("Reconhecimentos: detectores no máximo 1 vez a cada 90 s por corretor; fora do intervalo só lê os pendentes", () => {
   const code = read("lib/celebrations.js");
@@ -48,4 +48,13 @@ test("Número não identificado (LID): a marca da varredura é gravada ANTES e a
   assert.ok(code.includes("const LID_RECONCILE_MAX_PER_RUN = 80;") && code.includes("const LID_RECONCILE_BUDGET_MS = 25 * 1000;"));
   assert.ok(fn.includes("if (Date.now() > deadline) break;") && fn.includes(".limit(LID_RECONCILE_MAX_PER_RUN)"));
   assert.ok(fn.includes("return { merged, full: plan.full, checked };"));
+});
+
+test("modo lista impressa: resultado guardado por poucos segundos (5 s ligado, 15 s desligado), sem guardar erro; controle do Chat com cache de 15 s", () => {
+  const code = read("lib/whatsapp-manual-disconnect.js").replace(/\r\n/g, "\n");
+  assert.ok(code.includes("const PRINTED_LIST_TTL_OFF_MS = 15 * 1000;") && code.includes("const PRINTED_LIST_TTL_ON_MS = 5 * 1000;"));
+  assert.ok(code.includes("hit.value ? PRINTED_LIST_TTL_ON_MS : PRINTED_LIST_TTL_OFF_MS"));
+  assert.ok(code.includes("(error) => { printedListCache.set(key, null); throw error; }"), "erro não é guardado");
+  assert.ok(code.indexOf("printedListModeAppliesTo({ role, isGeneralAdmin })) return false") < code.indexOf("printedListCache.get(key)"));
+  assert.ok(read("lib/chat-control.js").includes("const CACHE_MS = 15000;"));
 });
