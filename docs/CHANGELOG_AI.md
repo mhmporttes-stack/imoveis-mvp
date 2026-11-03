@@ -6643,3 +6643,4 @@ Pedido do dono (prints do iPhone, PWA/Safari), só apresentação — nenhuma re
 - 2026-11-02: Lote de SMS: aba Enviados mostra até 600 (antes 100), com + se passar.
 - 2026-11-02: Lote de SMS: cartão da 2ª sem gravação da 1ª (pending) agora aceita Mensagem enviada/Número não existe/Não ativo/SAIR (grava a 1ª na hora).
 - 2026-11-02: vigia do WhatsApp do PC (whatsapp-individual-service/windows/watchdog.ps1): reinicia o serviço após 3 falhas do /health.
+- 2026-11-03: Lote de SMS: removido o botão "Mensagem enviada" da 2ª; tocar em Enviar 2ª mensagem grava e o cartão sai.

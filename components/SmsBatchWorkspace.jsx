@@ -370,9 +370,9 @@ export default function SmsBatchWorkspace({ initial = null, initialError = "" })
   };
 
   const onTapSend = (item, kind) => {
-    // 2ª mensagem: o cartão fica na lista até o dono confirmar "Mensagem enviada" ou dar o retorno (não existe/não ativo/SAIR).
+    // 2ª mensagem: o toque em "Enviar 2ª mensagem" já grava como enviada e o cartão sai (retornos: aba Enviados).
     if (kind === 2) {
-      setOpenedIds((current) => (current.includes(item.id) ? current : [...current, item.id]));
+      confirmSecond(item);
       return;
     }
     // 1ª: grava NA HORA do toque (fila + envio imediato com keepalive), sem esperar a volta do Mensagens.
@@ -672,12 +672,6 @@ export default function SmsBatchWorkspace({ initial = null, initialError = "" })
                   <p className="text-lg font-extrabold leading-tight text-ink">{entry.name || "Sem nome"}</p>
                   <p className="mt-0.5 text-sm text-muted">{entry.phoneMasked} · 1ª enviada {timeLabel(entry.sentAt)}</p>
                   <SendLink href={entry.href} fallbackHref={entry.fallbackHref} label="Enviar 2ª mensagem" onTap={() => onTapSend(entry, 2)} />
-                  {openedIds.includes(entry.id) ? (
-                    <p className="mt-2 rounded-control bg-surface-muted px-3 py-2 text-sm font-semibold text-ink">2ª aberta no Mensagens. Deu certo?</p>
-                  ) : null}
-                  <Button variant="primary" size="lg" block className="mt-2" onClick={() => confirmSecond(entry)}>
-                    Mensagem enviada
-                  </Button>
                   <a href={entry.resendHref} className="mt-2 flex min-h-12 w-full items-center justify-center gap-2 rounded-control border border-line text-base font-bold text-ink active:brightness-95">
                     Enviar 1ª novamente
                   </a>
