@@ -40,7 +40,7 @@ export default function SimulationSuccess({ brokerRef = "", registrationId = "",
       {/* Botão de volta (dono, 2026-10-11): sem ele o cliente não iniciava conversa nenhuma. Abre o WhatsApp OFICIAL com a
           mensagem pronta — a conversa entra no Chat com o card, vai para o corretor responsável e abre a janela de 24 h.
           Desde 2026-10-24 o formulário abre o mesmo link direto do "Enviar informações"; o botão fica de reserva. */}
-      <ReceiveSimulationWhatsappButton accessToken={accessToken} alreadyOpened={whatsappAlreadyOpened} autoOpen={autoOpenWhatsapp} brokerRef={brokerRef} registrationId={registrationId} />
+      <ReceiveSimulationWhatsappButton accessToken={accessToken} alreadyOpened={whatsappAlreadyOpened} autoOpen={autoOpenWhatsapp} brokerRef={brokerRef} firstName={name} registrationId={registrationId} />
 
       <InstagramFollow eyebrow="Enquanto sua simulação é preparada..." />
     </article>

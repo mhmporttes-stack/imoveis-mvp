@@ -10,6 +10,12 @@
 
 
 
+## 2026-11-03 — Lote de SMS: formulário curto pelo link do contato + mensagem final com nome (PRO-18h) (crm-editor) — branch `feat/formulario-curto-sms`, NÃO publicado
+- Dono: link do SMS leva a um formulário mais curto (sem nome; telefone só confirmar/trocar) e a mensagem final do WhatsApp ganha saudação e nome. **[REGRA OFICIAL]** `docs/BUSINESS_RULES.md` PRO-18h e rule `roleta-prospeccao-campanhas.md`.
+- `track-view` devolve `smsContact { firstName, phoneMasked }` (só isso ao navegador); `LinkJourneyGate` → `SimulationForm` pula o nome e mostra "Confirme seu número de WhatsApp" / "Este é o seu WhatsApp? (14) 9****-1234" (botões "Sim, é este WhatsApp" e "Usar outro WhatsApp"; outro número no campo "Seu número de WhatsApp (com DDD)") (`lib/sms-short-form-steps.mjs`); servidor completa nome/telefone antes de validar (`lib/sms-batch-contact-core.mjs`, `resolveSmsContact` em `lib/sms-batch-links.js`); validação do cliente com valores de passagem nunca enviados (`validateShortSmsRegistration`). Mensagem: `buildFormCompletionMessage` (`lib/whatsapp-form-completion.mjs`); `getTimeGreeting` movida para `lib/daily-report-range.mjs` e reexportada por `lib/daily-report.js` (teste de `tests/marketplace-auto-reply.test.mjs` ajustado para o novo local). Sem migration.
+- Testes: `tests/sms-batch-short-form.test.mjs` (novo); `tests/whatsapp-contact-code.test.mjs` ajustado. `tests/sponsored-cost.test.mjs` já falhava antes (fora do escopo).
+- Risco/observação: cliente que já existia tem o nome atualizado pelo da base (igual a quando digita o nome); `components/WhatsappChat.jsx` mantém cópia própria do texto antigo; número da equipe/Não contactar não são checados no formulário (WA-12).
+
 ## 2026-11-03 — Lote de SMS: link único por contato (PRO-18f) (crm-editor) — branch `feat/sms-link-por-contato`, NÃO publicado
 - Dono: "enviar um link para cada cliente do SMS" para saber QUEM clicou e QUEM preencheu. **[REGRA OFICIAL]** `docs/BUSINESS_RULES.md` PRO-18f e rule `roleta-prospeccao-campanhas.md`.
 - Link `<campanha>?t=<token>` (token HMAC de 10 caracteres do id do contato; `lib/sms-batch-token-core.mjs`, `lib/sms-batch-links.mjs`/`.js`); `/c/[code]` repassa `sms_t`; `track-view` conta o clique; `CampaignLinkCapture` guarda cookie `mm_sms_t`; formulários mandam `attribution.sms_t`; `buildLeadOrigin` grava `sms_token`; `simulation-registrations.js` liga `registration_id`. Tela: "Contatos que clicaram" e "Quem clicou"; "Quem preencheu" mostra o contato de origem.
@@ -6644,3 +6650,9 @@ Pedido do dono (prints do iPhone, PWA/Safari), só apresentação — nenhuma re
 - 2026-11-02: Lote de SMS: cartão da 2ª sem gravação da 1ª (pending) agora aceita Mensagem enviada/Número não existe/Não ativo/SAIR (grava a 1ª na hora).
 - 2026-11-02: vigia do WhatsApp do PC (whatsapp-individual-service/windows/watchdog.ps1): reinicia o serviço após 3 falhas do /health.
 - 2026-11-03: Lote de SMS: removido o botão "Mensagem enviada" da 2ª; tocar em Enviar 2ª mensagem grava e o cartão sai.
+- 2026-11-03: Lote de SMS: removido o aviso "marcado como enviado / Desfazer".
+- 2026-11-03: Lote de SMS: aviso amarelo removido; filtro de período (Tudo/Hoje/Ontem/7/30/Personalizado) no topo, padrão Hoje.
+- 2026-11-03: Lote de SMS: botão Salvar estes contatos no iPhone (.vcf com Nome (SMS lote)).
+- 2026-11-03: Lote de SMS: cartão Pessoas contactadas (telefones diferentes com 1ª ou 2ª no período), no lugar de Enviados (1ª+2ª).
+- 2026-11-03: Lote de SMS: link abre DIRETO a simulação (link_journey=simulation nas campanhas SMS, antigas e novas).
+- 2026-11-03: formulário curto do SMS mostra o WhatsApp inteiro (14) 99999-3645 para conferir (decisão do dono).

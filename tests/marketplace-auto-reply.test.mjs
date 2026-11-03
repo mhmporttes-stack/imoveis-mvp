@@ -60,7 +60,9 @@ test("texto: saudação + 1º nome + frase do dono, SEM ponto de exclamação; s
 });
 
 test("saudação pela fonte única getTimeGreeting(now) (São Paulo), calculada na hora do envio real", () => {
-  const report = read("lib/daily-report.js");
+  // A função mora em daily-report-range.mjs (puro; também roda no navegador) e lib/daily-report.js a reexporta (2026-11-03).
+  assert.match(read("lib/daily-report.js"), /export \{ getTimeGreeting \} from "\.\/daily-report-range\.mjs"/);
+  const report = read("lib/daily-report-range.mjs");
   assert.match(report, /export function getTimeGreeting\(now = new Date\(\)\)[\s\S]{0,300}formatToParts\(now\)/);
   assert.match(report, /minutes >= 360 && minutes < 720\) return "Bom dia"/);
   assert.match(report, /minutes >= 720 && minutes < 1080\) return "Boa tarde"/);

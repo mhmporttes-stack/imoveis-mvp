@@ -62,7 +62,7 @@ const PERIOD_OPTIONS = [
 function bumpMetrics(current, add) {
   const { metrics, period, scope, lot } = current;
   if ((scope !== "broker" && lot && lot !== "team") || (period && !period.includesToday)) return metrics;
-  return { ...metrics, total: { ...metrics.total, sent: metrics.total.sent + (add.sent || 0), sent2: metrics.total.sent2 + (add.sent2 || 0) } };
+  return { ...metrics, total: { ...metrics.total, sent: metrics.total.sent + (add.sent || 0), sent2: metrics.total.sent2 + (add.sent2 || 0), contacted: (metrics.total.contacted ?? metrics.total.sent) + (add.sent || 0) } };
 }
 const resultsQuery = ({ broker, preset, from, to }) => {
   const params = new URLSearchParams();
@@ -131,7 +131,7 @@ export default function SmsBatchWorkspace({ initial = null, initialError = "" })
   const [busyId, setBusyId] = useState("");
   const [draft, setDraft] = useState({ template: initial?.settings?.template || "", template2: initial?.settings?.template2 || "", templateBroker: initial?.settings?.templateBroker || "", limit: String(initial?.settings?.limit || 50) });
   const [brokerFilter, setBrokerFilter] = useState("");
-  const [preset, setPreset] = useState("all");
+  const [preset, setPreset] = useState("today");
   const [customFrom, setCustomFrom] = useState("");
   const [customTo, setCustomTo] = useState("");
   const [officeBlocked, setOfficeBlocked] = useState(false);
@@ -152,7 +152,7 @@ export default function SmsBatchWorkspace({ initial = null, initialError = "" })
   const autoChecks = useRef(0);
 
   const brokerFilterRef = useRef("");
-  const periodRef = useRef({ preset: "all", from: "", to: "" });
+  const periodRef = useRef({ preset: "today", from: "", to: "" });
   const reload = useCallback(async () => {
     try {
       const next = await call("GET", null, resultsQuery({ broker: brokerFilterRef.current, ...periodRef.current }));
@@ -247,11 +247,6 @@ export default function SmsBatchWorkspace({ initial = null, initialError = "" })
               metrics: bumpMetrics(current, { sent: 1, sent2: result2 ? 1 : 0 })
             };
           });
-          if (result.sendId && !result2) {
-            clearTimeout(undoTimer.current);
-            setUndo({ sendId: result.sendId, name: entry.name, second });
-            undoTimer.current = setTimeout(() => setUndo(null), UNDO_MS);
-          }
           // A 1ª enviada já entrou em "Aguardando 2ª" localmente (sem recarregar a lista).
           return "done";
         } catch (sendError) {
@@ -529,7 +524,22 @@ export default function SmsBatchWorkspace({ initial = null, initialError = "" })
   const visibleAwaiting = awaiting.filter((entry) => !hiddenIds.includes(`2:${entry.id}`));
   return (
     <div className="space-y-4 pb-32" data-no-reveal="">
-      <p className="rounded-control border border-warning-line bg-warning-soft px-3 py-2 text-[13px] leading-5 text-warning">{data.notice}</p>
+      <div className="space-y-3">
+      <Field label="Período">
+              <Tabs label="Período dos resultados" value={preset} onChange={(value) => applyPeriod(value)} options={PERIOD_OPTIONS} />
+            </Field>
+            {preset === "custom" ? (
+              <div className="grid grid-cols-2 gap-3">
+                <Field label="Data inicial">
+                  <input type="date" className={inputClasses} value={customFrom} max={customTo || undefined} onChange={(event) => { setCustomFrom(event.target.value); applyPeriod("custom", event.target.value, customTo); }} />
+                </Field>
+                <Field label="Data final">
+                  <input type="date" className={inputClasses} value={customTo} min={customFrom || undefined} onChange={(event) => { setCustomTo(event.target.value); applyPeriod("custom", customFrom, event.target.value); }} />
+                </Field>
+                {!customReady ? <p className="col-span-2 text-xs text-muted">Escolha a data inicial e a final (fuso de São Paulo, até 366 dias).</p> : null}
+              </div>
+            ) : null}
+      </div>
 
       {!isTeam ? (
         <p className="rounded-control border border-info-line bg-info-soft px-3 py-2 text-[13px] leading-5 text-info">
@@ -543,7 +553,7 @@ export default function SmsBatchWorkspace({ initial = null, initialError = "" })
         </p>
       ) : null}
       <KpiGrid label="Resultados do Lote de SMS">
-        <Kpi label="Enviados" value={metrics.total.sent + metrics.total.sent2} hint={`1ª: ${metrics.total.sent} · 2ª: ${metrics.total.sent2}`} />
+        <Kpi label="Pessoas contactadas" value={metrics.total.contacted ?? metrics.total.sent} hint={`1ª: ${metrics.total.sent} · 2ª: ${metrics.total.sent2}`} />
         <Kpi label="Cliques no link" value={metrics.total.clicks} hint={filtered ? "no período" : `${metrics.byDay[0]?.clicks || 0} hoje`} />
         <div
           role="button"
@@ -619,6 +629,11 @@ export default function SmsBatchWorkspace({ initial = null, initialError = "" })
           <Button variant="secondary" size="lg" block loading={busyId === "more"} onClick={loadMore}>
             Carregar mais 50 contatos
           </Button>
+          {visibleItems.length ? (
+            <Button variant="secondary" size="lg" block onClick={() => window.location.assign("/api/admin/lote-sms?vcard=1")}>
+              Salvar estes contatos no iPhone
+            </Button>
+          ) : null}
           {visibleItems.length ? (
             <Button variant="danger-ghost" size="lg" block loading={busyId === "reset"} onClick={resetList}>
               Já enviei estes: zerar e trazer 50 novos
@@ -765,22 +780,8 @@ export default function SmsBatchWorkspace({ initial = null, initialError = "" })
 
       {tab === "results" ? (
         <div className="space-y-4">
-          <Card title="Filtros" note={data.period?.label || "Todo o período"}>
+          <Card title="Lote" note={data.period?.label || "Todo o período"}>
             <div className="space-y-3">
-              <Field label="Período">
-                <Tabs label="Período dos resultados" value={preset} onChange={(value) => applyPeriod(value)} options={PERIOD_OPTIONS} />
-              </Field>
-              {preset === "custom" ? (
-                <div className="grid grid-cols-2 gap-3">
-                  <Field label="Data inicial">
-                    <input type="date" className={inputClasses} value={customFrom} max={customTo || undefined} onChange={(event) => { setCustomFrom(event.target.value); applyPeriod("custom", event.target.value, customTo); }} />
-                  </Field>
-                  <Field label="Data final">
-                    <input type="date" className={inputClasses} value={customTo} min={customFrom || undefined} onChange={(event) => { setCustomTo(event.target.value); applyPeriod("custom", customFrom, event.target.value); }} />
-                  </Field>
-                  {!customReady ? <p className="col-span-2 text-xs text-muted">Escolha a data inicial e a final (fuso de São Paulo, até 366 dias).</p> : null}
-                </div>
-              ) : null}
               {isTeam && data.brokers?.length ? (
                 <Field label="Lote">
                   <Tabs
@@ -888,16 +889,6 @@ export default function SmsBatchWorkspace({ initial = null, initialError = "" })
         </div>
       ) : null}
 
-      {undo ? (
-        <div className="fixed inset-x-0 z-[55] flex justify-center px-4 bottom-[calc(5rem+max(env(safe-area-inset-bottom),var(--admin-bottom-nav-space)))]">
-          <div className="flex w-full max-w-md items-center justify-between gap-3 rounded-control bg-navy px-4 py-2 text-sm text-white shadow-float" role="status">
-            <span className="min-w-0 truncate">{undo.second ? "2ª mensagem" : "SMS"} para {undo.name || "o contato"} marcado como enviado</span>
-            <button type="button" onClick={undoLast} className="flex min-h-12 shrink-0 items-center gap-1 px-2 font-extrabold underline">
-              <Undo2 className="h-4 w-4" aria-hidden="true" /> Desfazer
-            </button>
-          </div>
-        </div>
-      ) : null}
       {toastElement}
       {confirmElement}
     </div>
