@@ -160,7 +160,7 @@ test("a mensagem do dono e a 2ª mensagem (SAIR) não mudam; a 2ª é a mesma pa
 test("escopo por perfil: corretor tem lote próprio; gestor e admin geral, o da equipe; associado, nenhum", () => {
   assert.equal(smsBatchScope({ isBroker: true }), "broker");
   assert.equal(smsBatchScope({ isBroker: true, isAssociate: true }), null, "associado: dúvida = não entra");
-  assert.equal(smsBatchScope({ isManager: true, isBroker: true }), "team");
+  assert.equal(smsBatchScope({ isManager: true, isBroker: true }), "manager", "gestor: lote próprio + equipe, nunca o do dono");
   assert.equal(smsBatchScope({ isGeneralAdmin: true }), "team");
   assert.equal(smsBatchScope({}), null);
 });

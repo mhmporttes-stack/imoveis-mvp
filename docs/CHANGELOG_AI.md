@@ -6658,3 +6658,5 @@ Pedido do dono (prints do iPhone, PWA/Safari), só apresentação — nenhuma re
 - 2026-11-03: formulário curto do SMS mostra o WhatsApp inteiro (14) 99999-3645 para conferir (decisão do dono).
 
 - 2026-11-03 — Lote de SMS no Android: o botão principal usava `sms:<n>&body=` (só iPhone); agora o aparelho Android usa `?body=` como principal (iPhone inalterado), inclusive no "reenviar 1ª". `components/SmsBatchWorkspace.jsx`.
+
+- 2026-11-03 — Lote de SMS do gestor (PRO-18i, dono): a gestora (Caroline) deixa de ver o lote/resultados do dono e as configurações (textos/limite só admin geral). Escopo novo `manager` em `smsBatchScope`: lote próprio (campanha própria, reserva como corretor) + resultados dela e dos corretores da equipe (`managedUserIds`). `lib/campaigns.js` aceita gestor como corretor fixo da campanha. Regra permanente.

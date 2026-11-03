@@ -51,8 +51,8 @@ test("PRIMEIRO TESTE (cache da equipe frio): a tela não dispara centenas de con
   assert.ok((fake.stats.byTable.admin_users || 0) <= 2, "telefones da equipe: uma leitura só por carga");
 });
 
-test("admin geral e gestor: a tela do Lote carrega (equipe), 50 cartões, link da campanha da equipe, sem criar campanha", async () => {
-  for (const auth of [ADMIN, MANAGER]) {
+test("admin geral: a tela do Lote carrega (equipe), 50 cartões, link da campanha da equipe, sem criar campanha", async () => {
+  for (const auth of [ADMIN]) {
     seed();
     const data = await sms.loadSmsBatch(auth);
     assert.equal(data.scope, "team");
@@ -63,6 +63,17 @@ test("admin geral e gestor: a tela do Lote carrega (equipe), 50 cartões, link d
     assert.equal(fake.DB.sms_batch_reservations?.length || 0, 0, "o lote da equipe nunca reserva contatos");
     assert.ok(Array.isArray(data.brokers) && data.metrics.total.sent === 0);
   }
+});
+
+test("gestor: lote próprio (nunca o do dono), sem configurações e só a equipe dele nos resultados", async () => {
+  seed();
+  const data = await sms.loadSmsBatch(MANAGER);
+  assert.equal(data.scope, "manager");
+  assert.ok(!/\/c\/9921e29$/.test(data.link), "não usa a campanha do dono");
+  assert.equal(data.settings.template, "");
+  assert.equal(data.settings.templateBroker, "");
+  assert.equal(data.noWhatsapp, null);
+  await assert.rejects(sms.saveSmsBatchSettings({ limit: 10 }, MANAGER));
 });
 
 test("href do SMS: formato do iOS (sms:+55...&body=) e alternativo (?body=), com as quebras de linha em %0A", async () => {

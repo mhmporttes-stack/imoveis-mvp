@@ -234,7 +234,7 @@ test("escopo: rota e página para admin geral, gestor e corretor (associado não
   for (const fn of ["loadSmsBatch", "markSmsSent", "markSmsSecondSent", "undoSmsSent", "markSmsOptOut"]) {
     assert.match(lib, new RegExp(`export async function ${fn}\\([^)]*\\) \\{\\n  const scope = scopeOf\\(auth\\);`), fn);
   }
-  assert.match(lib, /export async function saveSmsBatchSettings\([^)]*\) \{\n  assertGeneralAdminOrManager\(auth\);/);
+  assert.match(lib, /export async function saveSmsBatchSettings\([^)]*\) \{\n  assertGeneralAdmin\(auth\);/);
   // Tentativa do SMS não é atividade de corretor: sem last_broker_id, sem user_id no histórico, nada de pontuação.
   const sent = lib.slice(lib.indexOf("export async function markSmsSent"), lib.indexOf("// Fatos para a regra pura da 2ª mensagem"));
   assert.doesNotMatch(sent, /last_broker_id|daily_goal|score|points/);

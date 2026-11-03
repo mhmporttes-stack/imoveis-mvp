@@ -531,6 +531,7 @@ export default function SmsBatchWorkspace({ initial = null, initialError = "" })
 
   const { progress, metrics, items, awaiting, done } = data;
   const isTeam = data.scope === "team";
+  const isManager = data.scope === "manager"; // gestor: lote próprio + corretores da equipe; sem configurações nem base inteira
   // Período escolhido (dono, 2026-11-02): "Tudo" é o padrão; "Hoje" também mostra o dia de hoje nos cartões.
   const filtered = Boolean(data.period?.from) && data.period.preset !== "today";
   const customReady = preset !== "custom" || (customFrom && customTo);
@@ -561,7 +562,7 @@ export default function SmsBatchWorkspace({ initial = null, initialError = "" })
             ) : null}
       </div>
 
-      {!isTeam ? (
+      {!isTeam && !isManager ? (
         <p className="rounded-control border border-info-line bg-info-soft px-3 py-2 text-[13px] leading-5 text-info">
           Estes contatos estão reservados só para você por 24 h. Quem preencher o cadastro pelo seu link fica com você, direto, sem passar pela roleta.
         </p>
@@ -802,7 +803,7 @@ export default function SmsBatchWorkspace({ initial = null, initialError = "" })
         <div className="space-y-4">
           <Card title="Lote" note={data.period?.label || "Todo o período"}>
             <div className="space-y-3">
-              {isTeam && data.brokers?.length ? (
+              {(isTeam || isManager) && data.brokers?.length ? (
                 <Field label="Lote">
                   <Tabs
                     label="Lote dos resultados"
@@ -850,7 +851,7 @@ export default function SmsBatchWorkspace({ initial = null, initialError = "" })
               <p className="text-sm text-muted">Ninguém preencheu o formulário ainda.</p>
             )}
           </Card>
-          {isTeam && data.brokers?.length ? (
+          {(isTeam || isManager) && data.brokers?.length ? (
             <Card title="Por corretor" note={`mensagens disparadas · ${data.period?.label || "todo o período"}`}>
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-sm tabular-nums">
