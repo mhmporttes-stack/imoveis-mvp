@@ -63,14 +63,16 @@ test("buildRegistrationSteps/validateStepValue usam esse módulo (fonte única d
   assert.match(form, /buildRegistrationSteps\(nextForm, stepOptions\)/);
 });
 
-test("com contato: pula o nome e troca o telefone por 'Seu WhatsApp é (14) 9****-3456?' (Confirmar / Usar outro número)", () => {
+test("com contato: pula o nome e troca o telefone por 'Confirme seu número de WhatsApp' (Sim, é este WhatsApp / Usar outro WhatsApp)", () => {
   const contact = smsContactView(CONTACT);
   const steps = buildRegistrationSteps({}, { smsContact: contact });
   const ids = steps.map((step) => step.id);
   assert.ok(!ids.includes("fullName") && !ids.includes("phone"));
   const confirm = steps.find((step) => step.id === CONFIRM_CONTACT_PHONE_STEP_ID);
-  assert.equal(confirm.title, "Seu WhatsApp é (14) 9****-3456?");
-  assert.deepEqual(confirm.options.map((option) => option.label), ["Confirmar", "Usar outro número"]);
+  assert.equal(confirm.title, "Confirme seu número de WhatsApp");
+  assert.equal(confirm.help, "Este é o seu WhatsApp? (14) 9****-3456");
+  assert.deepEqual(confirm.options.map((option) => option.label), ["Sim, é este WhatsApp", "Usar outro WhatsApp"]);
+  assert.ok(!JSON.stringify(confirm).includes("998123456"), "só a máscara chega ao navegador");
   assert.equal(ids[0], "simulationType");
   assert.equal(ids[1], CONFIRM_CONTACT_PHONE_STEP_ID, "o telefone fica no lugar em que estava");
   assert.equal(ids.length, BASE.length - 1, "uma pergunta a menos (o nome)");
@@ -79,10 +81,10 @@ test("com contato: pula o nome e troca o telefone por 'Seu WhatsApp é (14) 9***
   assert.notEqual(validateStepValue(confirm, {}), "");
 });
 
-test("'Usar outro número' (ou telefone da base sem máscara): campo de telefone normal, sem a pergunta do nome", () => {
+test("'Usar outro WhatsApp' (ou telefone da base sem máscara): campo de telefone normal, sem a pergunta do nome", () => {
   const contact = smsContactView(CONTACT);
   const other = buildRegistrationSteps({}, { smsContact: contact, otherPhone: true });
-  assert.ok(other.some((step) => step.id === "phone" && step.kind === "phone"));
+  assert.ok(other.some((step) => step.id === "phone" && step.kind === "phone" && step.label === "Seu número de WhatsApp (com DDD)"));
   assert.ok(!other.some((step) => step.id === "fullName" || step.id === CONFIRM_CONTACT_PHONE_STEP_ID));
   const noMask = buildRegistrationSteps({}, { smsContact: { firstName: "Maria", phoneMasked: "" } });
   assert.ok(noMask.some((step) => step.id === "phone" && step.kind === "phone"));

@@ -635,7 +635,7 @@ function StepRenderer({ error, errorId, form, onBlurText, onChange, onChoiceChan
   }
 
   if (step.kind === "phone") {
-    return <FichaPhone error={error} errorId={errorId} hint={copy.hint} label={copy.label || step.title} onChange={(nextValue) => onChange(step.id, nextValue)} onEnter={onEnter} step={step} value={value} />;
+    return <FichaPhone error={error} errorId={errorId} hint={copy.hint} label={step.label || copy.label || step.title} onChange={(nextValue) => onChange(step.id, nextValue)} onEnter={onEnter} step={step} value={value} />;
   }
 
   if (step.kind === "currency") {
