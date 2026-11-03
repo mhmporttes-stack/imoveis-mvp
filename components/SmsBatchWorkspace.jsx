@@ -65,8 +65,9 @@ function bumpMetrics(current, add) {
   if ((scope !== "broker" && lot && lot !== "team") || (period && !period.includesToday)) return metrics;
   return { ...metrics, total: { ...metrics.total, sent: metrics.total.sent + (add.sent || 0), sent2: metrics.total.sent2 + (add.sent2 || 0), contacted: (metrics.total.contacted ?? metrics.total.sent) + (add.sent || 0) } };
 }
-const resultsQuery = ({ broker, preset, from, to }) => {
+const resultsQuery = ({ broker, preset, from, to, resultsOnly = false }) => {
   const params = new URLSearchParams();
+  if (resultsOnly) params.set("resultsOnly", "1");
   if (broker) params.set("broker", broker);
   if (preset && preset !== "all") {
     params.set("preset", preset);
@@ -157,6 +158,7 @@ export default function SmsBatchWorkspace({ initial = null, initialError = "" })
   const [customTo, setCustomTo] = useState("");
   const [officeBlocked, setOfficeBlocked] = useState(false);
   const [needsWhatsapp, setNeedsWhatsapp] = useState(false);
+  const [resultsBusy, setResultsBusy] = useState(false);
   const [savingSettings, setSavingSettings] = useState(false);
   // Cartão some na hora ao tocar em "Enviar" (volume mais rápido); volta se o SMS não chegou a ser aberto.
   const [hiddenIds, setHiddenIds] = useState([]);
@@ -486,10 +488,24 @@ export default function SmsBatchWorkspace({ initial = null, initialError = "" })
     }
   };
 
+  // Troca de lote/período: busca SÓ os resultados (leve, sem remontar a lista de 50) e mostra "Atualizando…"; se falhar,
+  // avisa — antes a tela mantinha os números antigos em silêncio e parecia que o filtro não funcionava.
+  const reloadResults = async () => {
+    setResultsBusy(true);
+    try {
+      const next = await call("GET", null, resultsQuery({ broker: brokerFilterRef.current, ...periodRef.current, resultsOnly: true }));
+      setData((current) => (current ? { ...current, metrics: next.metrics, metricsLabel: next.metricsLabel, period: next.period, lot: next.lot, brokers: next.brokers, signups: next.signups, clickers: next.clickers } : current));
+    } catch (resultsError) {
+      notify("Não foi possível atualizar os resultados agora. Toque de novo.", "danger");
+    } finally {
+      setResultsBusy(false);
+    }
+  };
+
   const changeBrokerFilter = (value) => {
     brokerFilterRef.current = value;
     setBrokerFilter(value);
-    reload();
+    reloadResults();
   };
 
   // Período: atalhos aplicam na hora; "Personalizado" só depois das duas datas (o servidor valida de novo).
@@ -497,7 +513,7 @@ export default function SmsBatchWorkspace({ initial = null, initialError = "" })
     setPreset(nextPreset);
     if (nextPreset === "custom" && (!from || !to)) return;
     periodRef.current = { preset: nextPreset, from, to };
-    reload();
+    reloadResults();
   };
 
   const saveSettings = async () => {
@@ -574,7 +590,7 @@ export default function SmsBatchWorkspace({ initial = null, initialError = "" })
 
       {data.period?.from || data.lot ? (
         <p className="text-xs font-semibold text-muted" role="status">
-          Resultados de: {data.metricsLabel}{data.period?.from ? ` · ${data.period.label}` : ""}
+          Resultados de: {data.metricsLabel}{data.period?.from ? ` · ${data.period.label}` : ""}{resultsBusy ? " · Atualizando…" : ""}
         </p>
       ) : null}
       <KpiGrid label="Resultados do Lote de SMS">

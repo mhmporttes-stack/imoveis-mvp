@@ -78,6 +78,25 @@ test("gestor: lote próprio (nunca o do dono), sem configurações e só a equip
   await assert.rejects(sms.saveSmsBatchSettings({ limit: 10 }, MANAGER));
 });
 
+test("gestor: filtro O meu / Todos / um corretor muda cartões, por dia e rótulo", async () => {
+  seed();
+  const mine = await sms.loadSmsBatch(MANAGER, { brokerId: "team" });
+  assert.equal(mine.metricsLabel, "O meu");
+  assert.equal(mine.lot, "team");
+  const all = await sms.loadSmsBatch(MANAGER, {});
+  assert.equal(all.metricsLabel, "Minha equipe");
+  const one = await sms.loadSmsBatch(MANAGER, { brokerId: "22222222-2222-4222-8222-222222222222" });
+  assert.equal(one.lot, "22222222-2222-4222-8222-222222222222");
+});
+
+test("resultsOnly: troca de lote devolve só os resultados, sem montar a lista", async () => {
+  seed();
+  const data = await sms.loadSmsBatch(MANAGER, { brokerId: "team", resultsOnly: true });
+  assert.equal(data.items.length, 0);
+  assert.equal(data.metricsLabel, "O meu");
+  assert.equal(data.lot, "team");
+});
+
 test("href do SMS: formato do iOS (sms:+55...&body=) e alternativo (?body=), com as quebras de linha em %0A", async () => {
   seed();
   const [first] = (await sms.loadSmsBatch(ADMIN)).items;

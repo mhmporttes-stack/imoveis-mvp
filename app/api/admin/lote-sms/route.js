@@ -33,6 +33,7 @@ export async function GET(request) {
     }
     const brokerId = params.get("broker") || "";
     return NextResponse.json(await loadSmsBatch(auth, {
+      resultsOnly: params.get("resultsOnly") === "1",
       brokerId: brokerId === "team" || /^[0-9a-f-]{36}$/i.test(brokerId) ? brokerId : "",
       period: { preset: params.get("preset") || "", from: params.get("from") || "", to: params.get("to") || "" }
     }));
