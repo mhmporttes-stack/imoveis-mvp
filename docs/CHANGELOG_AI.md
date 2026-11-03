@@ -6645,3 +6645,4 @@ Pedido do dono (prints do iPhone, PWA/Safari), só apresentação — nenhuma re
 - 2026-11-02: vigia do WhatsApp do PC (whatsapp-individual-service/windows/watchdog.ps1): reinicia o serviço após 3 falhas do /health.
 - 2026-11-03: Lote de SMS: removido o botão "Mensagem enviada" da 2ª; tocar em Enviar 2ª mensagem grava e o cartão sai.
 - 2026-11-03: Lote de SMS: removido o aviso "marcado como enviado / Desfazer".
+- 2026-11-03: Lote de SMS: aviso amarelo removido; filtro de período (Tudo/Hoje/Ontem/7/30/Personalizado) no topo, padrão Hoje.

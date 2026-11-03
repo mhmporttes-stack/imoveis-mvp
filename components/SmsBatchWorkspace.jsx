@@ -131,7 +131,7 @@ export default function SmsBatchWorkspace({ initial = null, initialError = "" })
   const [busyId, setBusyId] = useState("");
   const [draft, setDraft] = useState({ template: initial?.settings?.template || "", template2: initial?.settings?.template2 || "", templateBroker: initial?.settings?.templateBroker || "", limit: String(initial?.settings?.limit || 50) });
   const [brokerFilter, setBrokerFilter] = useState("");
-  const [preset, setPreset] = useState("all");
+  const [preset, setPreset] = useState("today");
   const [customFrom, setCustomFrom] = useState("");
   const [customTo, setCustomTo] = useState("");
   const [officeBlocked, setOfficeBlocked] = useState(false);
@@ -152,7 +152,7 @@ export default function SmsBatchWorkspace({ initial = null, initialError = "" })
   const autoChecks = useRef(0);
 
   const brokerFilterRef = useRef("");
-  const periodRef = useRef({ preset: "all", from: "", to: "" });
+  const periodRef = useRef({ preset: "today", from: "", to: "" });
   const reload = useCallback(async () => {
     try {
       const next = await call("GET", null, resultsQuery({ broker: brokerFilterRef.current, ...periodRef.current }));
@@ -524,7 +524,22 @@ export default function SmsBatchWorkspace({ initial = null, initialError = "" })
   const visibleAwaiting = awaiting.filter((entry) => !hiddenIds.includes(`2:${entry.id}`));
   return (
     <div className="space-y-4 pb-32" data-no-reveal="">
-      <p className="rounded-control border border-warning-line bg-warning-soft px-3 py-2 text-[13px] leading-5 text-warning">{data.notice}</p>
+      <div className="space-y-3">
+      <Field label="Período">
+              <Tabs label="Período dos resultados" value={preset} onChange={(value) => applyPeriod(value)} options={PERIOD_OPTIONS} />
+            </Field>
+            {preset === "custom" ? (
+              <div className="grid grid-cols-2 gap-3">
+                <Field label="Data inicial">
+                  <input type="date" className={inputClasses} value={customFrom} max={customTo || undefined} onChange={(event) => { setCustomFrom(event.target.value); applyPeriod("custom", event.target.value, customTo); }} />
+                </Field>
+                <Field label="Data final">
+                  <input type="date" className={inputClasses} value={customTo} min={customFrom || undefined} onChange={(event) => { setCustomTo(event.target.value); applyPeriod("custom", customFrom, event.target.value); }} />
+                </Field>
+                {!customReady ? <p className="col-span-2 text-xs text-muted">Escolha a data inicial e a final (fuso de São Paulo, até 366 dias).</p> : null}
+              </div>
+            ) : null}
+      </div>
 
       {!isTeam ? (
         <p className="rounded-control border border-info-line bg-info-soft px-3 py-2 text-[13px] leading-5 text-info">
@@ -760,22 +775,8 @@ export default function SmsBatchWorkspace({ initial = null, initialError = "" })
 
       {tab === "results" ? (
         <div className="space-y-4">
-          <Card title="Filtros" note={data.period?.label || "Todo o período"}>
+          <Card title="Lote" note={data.period?.label || "Todo o período"}>
             <div className="space-y-3">
-              <Field label="Período">
-                <Tabs label="Período dos resultados" value={preset} onChange={(value) => applyPeriod(value)} options={PERIOD_OPTIONS} />
-              </Field>
-              {preset === "custom" ? (
-                <div className="grid grid-cols-2 gap-3">
-                  <Field label="Data inicial">
-                    <input type="date" className={inputClasses} value={customFrom} max={customTo || undefined} onChange={(event) => { setCustomFrom(event.target.value); applyPeriod("custom", event.target.value, customTo); }} />
-                  </Field>
-                  <Field label="Data final">
-                    <input type="date" className={inputClasses} value={customTo} min={customFrom || undefined} onChange={(event) => { setCustomTo(event.target.value); applyPeriod("custom", customFrom, event.target.value); }} />
-                  </Field>
-                  {!customReady ? <p className="col-span-2 text-xs text-muted">Escolha a data inicial e a final (fuso de São Paulo, até 366 dias).</p> : null}
-                </div>
-              ) : null}
               {isTeam && data.brokers?.length ? (
                 <Field label="Lote">
                   <Tabs
