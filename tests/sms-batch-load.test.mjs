@@ -73,6 +73,8 @@ test("gestor: lote próprio (nunca o do dono), sem configurações e só a equip
   assert.equal(data.settings.template, "");
   assert.equal(data.settings.templateBroker, "");
   assert.equal(data.noWhatsapp, null);
+  assert.match(data.items[0].text, /sou associado do corretor Matheus Machado/, "gestor se apresenta com o texto de associado, nunca como o dono");
+  assert.ok(!/Meu nome é Matheus Machado/.test(data.items[0].text));
   await assert.rejects(sms.saveSmsBatchSettings({ limit: 10 }, MANAGER));
 });
 
