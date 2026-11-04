@@ -40,3 +40,9 @@ test("a rota do Atalho usa as mesmas travas do Lote (Wi-Fi + WhatsApp) e nunca e
   const lib = readFileSync(new URL("../lib/sms-shortcut.js", import.meta.url), "utf8");
   assert.match(lib, /profile\.status !== "active" \|\| profile\.role === "associate"/);
 });
+
+test("rota do Atalho: o aviso da 1ª devolve go = sim só para quem registrou (registrar antes de enviar)", async () => {
+  const { readFileSync } = await import("node:fs");
+  const source = readFileSync(new URL("../app/api/atalhos/lote-sms/route.js", import.meta.url), "utf8");
+  assert.match(source, /go: result\?\.alreadySent \? "" : "sim"/);
+});

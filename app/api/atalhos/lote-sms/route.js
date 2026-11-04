@@ -57,7 +57,10 @@ export async function POST(request) {
     const { auth, office, response } = await authorize(request, action);
     if (response) return response;
     if (body.sendId) return NextResponse.json({ ok: true, ...(await markSmsSecondSent(body.sendId, auth)) }, { headers: NO_STORE });
-    return NextResponse.json({ ok: true, ...(await markSmsSent(body.contactId, auth, { outsideOffice: office.recordOnly })) }, { headers: NO_STORE });
+    // `go` = "sim" só quando ESTA chamada foi a que registrou a 1ª mensagem. O Atalho registra ANTES de enviar e só envia o SMS
+    // se `go` for "sim": registro repetido (outra execução do Atalho, repetição de rede) devolve go vazio e o SMS não sai de novo.
+    const result = await markSmsSent(body.contactId, auth, { outsideOffice: office.recordOnly });
+    return NextResponse.json({ ok: true, ...result, go: result?.alreadySent ? "" : "sim" }, { headers: NO_STORE });
   } catch (error) {
     return failure(error);
   }
