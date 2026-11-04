@@ -13,8 +13,14 @@ try {
     $r = Invoke-WebRequest -Uri $Url -UseBasicParsing -TimeoutSec 8
     $ok = ($r.StatusCode -eq 200 -and $r.Content -match '"ok"\s*:\s*true')
   } catch { $ok = $false }
+  # Arquivo de contagem vazio/corrompido nunca pode derrubar o vigia (2026-11-04: o texto vazio travou a conversão para número
+  # e o vigia ficou 1 h 30 sem reiniciar o serviço): lê como texto e, se não for número, recomeça do zero.
   $fails = 0
-  if (Test-Path $State) { $fails = [int](Get-Content $State -ErrorAction SilentlyContinue) }
+  if (Test-Path $State) {
+    $raw = [string](Get-Content $State -Raw -ErrorAction SilentlyContinue)
+    $parsed = 0
+    if ([int]::TryParse($raw.Trim(), [ref]$parsed) -and $parsed -ge 0) { $fails = $parsed }
+  }
   if ($ok) {
     if ($fails -gt 0) { Write-Log "voltou ao normal (falhas seguidas: $fails)" }
     Set-Content -Path $State -Value 0
