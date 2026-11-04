@@ -37,3 +37,12 @@ test("corretor só carrega de 50 em 50 e não vê a escolha; equipe/gestor escol
   const ui = read("components/SmsBatchWorkspace.jsx");
   assert.match(ui, /isTeam \|\| isManager \? <MoreAmountPicker/);
 });
+
+test("avisos duplicados do mesmo envio: a linha repetida se apaga sozinha (1ª e 2ª)", () => {
+  const source = read("lib/sms-batch.js");
+  assert.match(source, /async function keepFirstSendOnly/);
+  assert.match(source, /keepFirstSendOnly\(\{ phones: phoneLookupCandidates\(row\.phone_normalized\), event: SMS_EVENT\.FIRST/);
+  assert.match(source, /keepFirstSendOnly\(\{ phones: phoneLookupCandidates\(first\.phone_normalized\), event: SMS_EVENT\.SECOND/);
+  // só apaga a própria linha recém-criada
+  assert.match(source, /\.delete\(\)\.eq\("id", ownId\)/);
+});
