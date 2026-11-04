@@ -28,7 +28,7 @@ test("o Atalho recebe só o necessário de cada contato", () => {
     { id: "a", firstName: "Ana", phoneE164: "+5514999990000", text: "Oi Ana", text2: "Segunda", bothText: "Oi Ana\n\nSegunda", phoneMasked: "(14) 9****-0000", name: "Ana Souza", href: "sms:x" },
     { id: "b", firstName: "Sem", phoneE164: "", text: "x" }
   ]);
-  assert.deepEqual(items, [{ id: "a", name: "Ana", phone: "+5514999990000", text: "Oi Ana", text2: "Segunda", together: "Oi Ana\n\nSegunda" }]);
+  assert.deepEqual(items, [{ id: "a", name: "Ana Souza", firstName: "Ana", phone: "+5514999990000", text: "Oi Ana", text2: "Segunda", together: "Oi Ana\n\nSegunda" }]);
 });
 
 test("a rota do Atalho usa as mesmas travas do Lote (Wi-Fi + WhatsApp) e nunca envia SMS", () => {

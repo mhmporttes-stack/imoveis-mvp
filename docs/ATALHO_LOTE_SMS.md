@@ -4,7 +4,7 @@ Envia o Lote de SMS pelo iPhone **sem abrir o app Mensagens**, por um Atalho (ap
 e registra o envio que o iPhone fez. Testado pelo dono: a ação "Enviar Mensagem" com "Mostrar ao executar" desligado envia direto.
 
 ## Como funciona
-- `GET /api/atalhos/lote-sms` (cabeçalho `Authorization: Bearer sms_...`) → `{ items: [{ id, name, phone, text, text2, together }] }` (até 50).
+- `GET /api/atalhos/lote-sms` (cabeçalho `Authorization: Bearer sms_...`) → `{ items: [{ id, name (nome completo), firstName, phone, text, text2, together }] }` (até 50).
 - `POST /api/atalhos/lote-sms` `{ contactId }` → grava a 1ª enviada e devolve `sendId`; `{ sendId }` → grava a 2ª. Idempotente.
 - Chave pessoal gerada no Lote de SMS › Para enviar › "Atalho do iPhone" (só o hash fica em `sms_shortcut_keys`; a antiga para de valer).
 - Mesmas travas do Lote: perfil ativo (admin geral, gestor, corretor; associado não), Wi-Fi da imobiliária e WhatsApp conectado
