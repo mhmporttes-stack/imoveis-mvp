@@ -48,7 +48,7 @@ test("nota interna não conta como contato, atendimento, resposta nem mexe na co
   for (const forbidden of ["markClientOnHumanMessage", "last_human_reply_at", "last_message_at", "updateConversation", "unread_count", "assigned_user_id:", "crm_notifications", "status: \"queued\""]) {
     assert.equal(save.includes(forbidden), false, `não usa ${forbidden}`);
   }
-  // Relógio de 3 dias (MKT-2h): nota entre a mensagem do cliente e a nossa saída não conta e não "consome" a vez.
+  // Relógio de 3 dias (MKT-2h): a nota interna nunca conta (só a mensagem do cliente e a saída real).
   const conversation = { assigned_at: "2026-10-22T12:00:00.000Z" };
   const at = (iso) => ({ message_at: iso, created_at: iso });
   const messages = [
@@ -56,8 +56,8 @@ test("nota interna não conta como contato, atendimento, resposta nem mexe na co
     { direction: INTERNAL_DIRECTION, status: "sent", ...at("2026-10-22T13:01:00.000Z") },
     { direction: "outbound", status: "sent", ...at("2026-10-22T13:05:00.000Z") }
   ];
-  assert.deepEqual(marketplaceReplyTimes(conversation, messages), ["2026-10-22T13:05:00.000Z"]);
-  assert.deepEqual(marketplaceReplyTimes(conversation, [messages[0], messages[1]]), []);
+  assert.deepEqual(marketplaceReplyTimes(conversation, messages), ["2026-10-22T13:00:00.000Z", "2026-10-22T13:05:00.000Z"]);
+  assert.deepEqual(marketplaceReplyTimes(conversation, [messages[1]]), []);
   // A renormalização pula a nota (não vira última mensagem nem é apagada).
   assert.match(fnBody("renormalizeMarketplaceMessages"), /row\.direction === INTERNAL_DIRECTION\) continue/);
 });

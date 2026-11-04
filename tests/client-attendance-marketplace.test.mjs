@@ -4,38 +4,40 @@ import { readFileSync } from "node:fs";
 import { attendanceReferenceAt, marketplaceReplyTimes } from "../lib/client-attendance-core.mjs";
 import { evaluateDailyGoalPending } from "../lib/daily-goal-progress.mjs";
 
-// [REGRA OFICIAL — dono, 2026-10-22, MKT-2h] Saída do Marketplace (inclusive escrita fora do CRM) conta no relógio de
-// 3 dias: depois do assigned_at da conversa e respondendo a uma mensagem do cliente. Só leitura; a baixa do dia não muda.
+// [REGRA OFICIAL — dono, 2026-10-22 MKT-2h, ampliada em 2026-11-04] A conversa do Marketplace (mensagem do cliente e saída
+// humana nossa, inclusive escrita fora do CRM ou ainda na fila) conta no relógio de 3 dias depois do assigned_at da
+// conversa. Só leitura; a baixa do dia não muda.
 
 const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
 const conversation = { assigned_at: "2026-10-22T12:00:00.000Z" };
 const inbound = (at) => ({ direction: "inbound", status: "received", message_at: at, created_at: at });
 const outbound = (at, status = "sent") => ({ direction: "outbound", status, message_at: at, created_at: at });
 
-test("conta: saída depois da entrega respondendo ao cliente (mesmo com a mensagem dele antes da entrega)", () => {
+test("conta: mensagem do cliente e saída nossa depois da entrega (ordem de chegada não importa)", () => {
   const messages = [inbound("2026-10-22T11:50:00.000Z"), outbound("2026-10-22T12:10:00.000Z"), inbound("2026-10-22T13:00:00.000Z"), outbound("2026-10-22T13:05:00.000Z")];
-  assert.deepEqual(marketplaceReplyTimes(conversation, messages), ["2026-10-22T12:10:00.000Z", "2026-10-22T13:05:00.000Z"]);
-  // Ordem de chegada não importa: ordena pelo horário.
-  assert.deepEqual(marketplaceReplyTimes(conversation, [...messages].reverse()), ["2026-10-22T12:10:00.000Z", "2026-10-22T13:05:00.000Z"]);
+  const expected = ["2026-10-22T12:10:00.000Z", "2026-10-22T13:00:00.000Z", "2026-10-22T13:05:00.000Z"];
+  assert.deepEqual(marketplaceReplyTimes(conversation, messages), expected);
+  assert.deepEqual(marketplaceReplyTimes(conversation, [...messages].reverse()), expected);
+});
+
+test("só cliente escrevendo (sem resposta nossa ainda) também conta como conversa", () => {
+  assert.deepEqual(marketplaceReplyTimes(conversation, [inbound("2026-10-22T13:00:00.000Z")]), ["2026-10-22T13:00:00.000Z"]);
 });
 
 test("não conta antes do assigned_at (nem sem entrega)", () => {
   const messages = [inbound("2026-10-22T11:00:00.000Z"), outbound("2026-10-22T11:30:00.000Z")];
   assert.deepEqual(marketplaceReplyTimes(conversation, messages), []);
   assert.deepEqual(marketplaceReplyTimes({ assigned_at: null }, [inbound("2026-10-22T13:00:00.000Z"), outbound("2026-10-22T13:05:00.000Z")]), []);
-  // A saída antes da entrega consumiu a mensagem do cliente: a seguinte, sem mensagem nova dele, também não conta.
-  assert.deepEqual(marketplaceReplyTimes(conversation, [...messages, outbound("2026-10-22T12:30:00.000Z")]), []);
 });
 
-test("não conta saída seguida sem mensagem do cliente no meio", () => {
-  const messages = [inbound("2026-10-22T12:30:00.000Z"), outbound("2026-10-22T12:40:00.000Z"), outbound("2026-10-23T12:40:00.000Z"), outbound("2026-10-24T12:40:00.000Z")];
-  assert.deepEqual(marketplaceReplyTimes(conversation, messages), ["2026-10-22T12:40:00.000Z"]);
-  assert.deepEqual(marketplaceReplyTimes(conversation, [outbound("2026-10-22T12:40:00.000Z")]), []);
+test("saída nossa conta mesmo sem mensagem nova do cliente no meio (acompanhamento do corretor)", () => {
+  const messages = [outbound("2026-10-22T12:40:00.000Z"), outbound("2026-10-23T12:40:00.000Z")];
+  assert.deepEqual(marketplaceReplyTimes(conversation, messages), ["2026-10-22T12:40:00.000Z", "2026-10-23T12:40:00.000Z"]);
 });
 
-test("só saída efetivamente enviada (fila, envio em andamento ou falha não contam nem consomem a mensagem do cliente)", () => {
-  const messages = [inbound("2026-10-22T12:30:00.000Z"), outbound("2026-10-22T12:31:00.000Z", "failed"), outbound("2026-10-22T12:32:00.000Z", "queued"), outbound("2026-10-22T12:35:00.000Z")];
-  assert.deepEqual(marketplaceReplyTimes(conversation, messages), ["2026-10-22T12:35:00.000Z"]);
+test("saída na fila (escrita por pessoa) conta; falha não conta", () => {
+  const messages = [outbound("2026-10-22T12:31:00.000Z", "failed"), outbound("2026-10-22T12:32:00.000Z", "queued"), outbound("2026-10-22T12:35:00.000Z")];
+  assert.deepEqual(marketplaceReplyTimes(conversation, messages), ["2026-10-22T12:32:00.000Z", "2026-10-22T12:35:00.000Z"]);
 });
 
 test("o sinal entra no relógio dos 3 dias (maior entre contato gravado/cadastro e último atendimento)", () => {

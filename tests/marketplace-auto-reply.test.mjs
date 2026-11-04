@@ -140,6 +140,7 @@ test("automática não conta como atendimento no relógio de 3 dias (MKT-2h)", (
     { direction: "outbound", status: "sent", auto_kind: "availability", message_at: "2026-10-24T10:01:00Z" },
     { direction: "outbound", status: "sent", message_at: "2026-10-24T10:05:00Z" }
   ];
-  assert.deepEqual(marketplaceReplyTimes(conversation, messages), ["2026-10-24T10:05:00.000Z"]);
-  assert.deepEqual(marketplaceReplyTimes(conversation, messages.slice(0, 2)), []);
+  // A mensagem do cliente e a saída humana contam; a resposta automática (auto_kind) nunca.
+  assert.deepEqual(marketplaceReplyTimes(conversation, messages), ["2026-10-24T10:00:30.000Z", "2026-10-24T10:05:00.000Z"]);
+  assert.deepEqual(marketplaceReplyTimes(conversation, [messages[1]]), []);
 });
