@@ -54,7 +54,7 @@ export async function POST(request) {
     if (body.action === "sent-2") return NextResponse.json(await markSmsSecondSent(body.sendId, auth));
     if (body.action === "undo") return NextResponse.json(await undoSmsSent(body.sendId, auth, { force: body.force === true }));
     if (body.action === "reset-list") return NextResponse.json(await resetSmsList(auth));
-    if (body.action === "more") return NextResponse.json(await addSmsExtraBatch(auth));
+    if (body.action === "more") return NextResponse.json(await addSmsExtraBatch(auth, body.amount));
     if (body.action === "invalid") return NextResponse.json(await markSmsInvalid(body.sendId, auth, body.reason === "inactive" ? "inactive" : "nonexistent"));
     if (body.action === "opt-out") return NextResponse.json(await markSmsOptOut(body.sendId, auth));
     // Chave pessoal do Atalho do iPhone (sempre do usuário REAL logado; só o hash fica guardado, a chave volta uma vez).

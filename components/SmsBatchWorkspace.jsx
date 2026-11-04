@@ -19,6 +19,28 @@ import { useToast } from "@/components/ui/Toast";
 // Dois perfis de tela (data.scope): "broker" = lote do corretor (50/dia reservados só para ele, números dele, resultados dele);
 // "team" = admin geral/gestor (lote da equipe, textos e limite editáveis, cartão por corretor e filtro por corretor).
 const AWAITING_KEY = "mm-sms-awaiting";
+// "Carregar mais N" (dono, 2026-11-04): quantos contatos entram por toque; lembrado no aparelho.
+const MORE_AMOUNT_KEY = "mm-sms-more-amount";
+const MORE_AMOUNTS = [50, 100, 150, 200];
+
+function MoreAmountPicker({ value, onChange }) {
+  return (
+    <div role="radiogroup" aria-label="Quantos contatos carregar" className="grid grid-cols-4 gap-2">
+      {MORE_AMOUNTS.map((amount) => (
+        <button
+          key={amount}
+          type="button"
+          role="radio"
+          aria-checked={value === amount}
+          onClick={() => onChange(amount)}
+          className={`min-h-11 rounded-control border text-base font-extrabold tabular-nums active:brightness-95 ${value === amount ? "border-accent-strong bg-accent-strong text-on-accent" : "border-line bg-surface text-ink"}`}
+        >
+          {amount}
+        </button>
+      ))}
+    </div>
+  );
+}
 const TOGETHER_KEY = "mm-sms-together";
 const QUEUE_KEY = "mm-sms-queue";
 const UNDO_MS = 6000;
@@ -409,10 +431,21 @@ export default function SmsBatchWorkspace({ initial = null, initialError = "" })
     };
   }, [resume, flush, reload]);
 
+  const [moreAmount, setMoreAmount] = useState(50);
+  useEffect(() => {
+    // Lido só no navegador, depois de montar (evita diferença entre servidor e tela).
+    const saved = Number(readJson(MORE_AMOUNT_KEY, 50));
+    if (MORE_AMOUNTS.includes(saved)) setMoreAmount(saved);
+  }, []);
+  const chooseMoreAmount = (value) => {
+    setMoreAmount(value);
+    writeJson(MORE_AMOUNT_KEY, value);
+  };
+
   const loadMore = async () => {
     setBusyId("more");
     try {
-      await call("POST", { action: "more" });
+      await call("POST", { action: "more", amount: moreAmount });
       await reload();
       setTab("send");
     } catch (moreError) {
@@ -797,8 +830,9 @@ export default function SmsBatchWorkspace({ initial = null, initialError = "" })
 
       {tab === "send" ? (
         <div className="grid gap-2">
+          <MoreAmountPicker value={moreAmount} onChange={chooseMoreAmount} />
           <Button variant="secondary" size="lg" block loading={busyId === "more"} onClick={loadMore}>
-            Carregar mais 50 contatos
+            Carregar mais {moreAmount} contatos
           </Button>
           {visibleItems.length ? (
             <Button variant="secondary" size="lg" block onClick={() => window.location.assign("/api/admin/lote-sms?vcard=1")}>
@@ -841,9 +875,12 @@ export default function SmsBatchWorkspace({ initial = null, initialError = "" })
               description={progress.remaining ? (isTeam ? "Todos os contatos da base já tiveram alguma tentativa de contato." : "Não há contato livre agora: os demais já tiveram contato ou estão reservados para outro corretor.") : "Quer mais? Carregue outros 50 contatos da base que nunca tiveram tentativa."}
             />
             {!progress.remaining ? (
-              <Button variant="primary" size="lg" block className="mt-3" loading={busyId === "more"} onClick={loadMore}>
-                Carregar mais 50 contatos
-              </Button>
+              <div className="mt-3 grid gap-2">
+                <MoreAmountPicker value={moreAmount} onChange={chooseMoreAmount} />
+                <Button variant="primary" size="lg" block loading={busyId === "more"} onClick={loadMore}>
+                  Carregar mais {moreAmount} contatos
+                </Button>
+              </div>
             ) : null}
           </>
         )
