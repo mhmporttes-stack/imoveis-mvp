@@ -7,6 +7,7 @@ import Button from "@/components/ui/Button";
 import Badge from "@/components/ui/Badge";
 import Card from "@/components/ui/Card";
 import { inputClasses } from "@/components/ui/Field";
+import { useBackToClose } from "@/components/use-back-to-close";
 import MessengerBadge from "@/components/marketplace/MessengerBadge";
 import { useChatAppMode } from "@/components/useChatAppMode";
 import { useChatRowCascade } from "@/components/useChatRowCascade";
@@ -415,6 +416,8 @@ export default function MarketplaceChat({ canEditSettings = false, canApprove = 
   const sceneRef = useRef(null);
   const [rowsEnter, setRowsEnter] = useState(true);
   const [listBack, setListBack] = useState(false);
+  // Voltar (gesto do app/botão do navegador) fecha a conversa e volta à lista como estava, no celular (dono, 2026-11-04).
+  useBackToClose(Boolean(selectedId), () => { setListBack(true); setSelectedId(""); setThread(null); }, { maxWidth: 768 });
   useChatRowCascade({ sceneRef, rowsEnter, setRowsEnter, hasRows: list.conversations.length > 0, rowTag: "LI" });
 
   const loadList = useCallback(() => {

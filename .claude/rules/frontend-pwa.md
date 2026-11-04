@@ -33,6 +33,8 @@ Tailwind CSS, identidade visual azul institucional/navy, português do Brasil em
 
 Academia (`/academia`): fonte Fraunces e a metáfora do prédio com guindaste aprovadas pelo dono; o orçamento de 150 KB vale só para a parte própria da Academia — `.claude/rules/academia.md` (ACA-3 a ACA-6).
 
+**[REGRA OFICIAL DE NEGÓCIO — dono, 2026-11-04] "Voltar" fecha só a camada aberta.** "Quando você clicar em voltar, ele volte apenas à etapa anterior em que você estava; no aplicativo, passando o dedo para o lado" (ideia da Jennyfer). Toda camada que cobre a tela — gaveta/ficha (`components/ui/Sheet.jsx`) e conversa aberta do Chat do WhatsApp e do Marketplace no celular — grava UMA entrada no histórico ao abrir (`components/use-back-to-close.js`, mesma URL, marca própria) e o gesto/botão voltar a retira e fecha a camada, deixando a tela de baixo como estava (rolagem e filtros). Camada nova que cobre a tela: use o mesmo gancho; não crie outro controle de histórico. Trava: `tests/use-back-to-close.test.mjs`.
+
 ## PWA
 
 `app/manifest.js`, `public/sw.js`, `public/offline.html`. `public/sw.js` é **regenerado automaticamente** a cada build (`scripts/stamp-service-worker.mjs`, script `prebuild`) — não edite o hash de versão nele manualmente nem commit uma mudança nesse arquivo que seja só o hash mudando (reverta com `git checkout -- public/sw.js` antes de commitar se não houver mudança de lógica real no service worker). Doc dedicada: `docs/pwa-admin.md`.

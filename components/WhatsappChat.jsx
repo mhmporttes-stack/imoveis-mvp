@@ -79,6 +79,7 @@ import { isAnalysisSkippedBatch } from "@/lib/cca-submission-core.mjs";
 import { tabClasses } from "@/components/ui/Tabs";
 import ChatClosingPhrasesButton from "@/components/ChatClosingPhrasesButton";
 import { CHAT_WALLPAPER_STYLE } from "@/components/chat-wallpaper";
+import { useBackToClose } from "@/components/use-back-to-close";
 
 // Desempenho (2026-10-12): partes que só aparecem depois de um toque (abas Visão geral/Campanhas/Corretores, Guia de
 // Atendimento, Documentos do cliente) são baixadas sob demanda — a lista de conversas abre sem esperar esse código.
@@ -596,6 +597,9 @@ export default function WhatsappChat({ canManage = false, canEditRules = false, 
     selectedRef.current = "";
     setDetail(null);
   }
+
+  // Voltar (gesto do app/botão do navegador) fecha a conversa e volta à lista como estava, no celular (dono, 2026-11-04).
+  useBackToClose(Boolean(selectedId), closeConversation, { maxWidth: 1024 });
 
   const totalUnread = summary.unreadMessages || 0;
 

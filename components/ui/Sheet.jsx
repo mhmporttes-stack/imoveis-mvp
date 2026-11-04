@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { X } from "lucide-react";
 import { cx } from "./cx";
+import { useBackToClose } from "../use-back-to-close";
 
 // Painel sobreposto acessível sobre <dialog> nativo: foco preso, Esc fecha,
 // foco volta ao gatilho, fundo inerte e rolagem travada.
@@ -60,6 +61,9 @@ export default function Sheet({ open, onClose, title, description = "", side = "
   }, [open, requestClose]);
 
   useEffect(() => () => clearTimeout(closingTimer.current), []);
+
+  // Voltar (gesto/botão do navegador) fecha a gaveta e deixa a tela de baixo como estava (dono, 2026-11-04).
+  useBackToClose(open, requestClose);
 
   useEffect(() => {
     const dialog = ref.current;
