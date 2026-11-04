@@ -508,6 +508,15 @@ export default function MarketplaceChat({ canEditSettings = false, canApprove = 
   }
 
   useEffect(() => {
+    // Caixa de resposta cresce conforme o texto (até 40% da tela), como no Chat do WhatsApp (dono, 2026-11-04: no celular
+    // "não dá pra ler o que digita, o espaço tá pequeno demais").
+    const box = textRef.current;
+    if (!box) return;
+    box.style.height = "auto";
+    box.style.height = `${Math.min(box.scrollHeight, Math.round(window.innerHeight * 0.4))}px`;
+  }, [text, internal, selectedId]);
+
+  useEffect(() => {
     // Rola só a caixa das mensagens (scrollIntoView mexeria também na moldura fixa da tela cheia).
     const box = messagesRef.current;
     if (box) box.scrollTop = box.scrollHeight;
@@ -865,10 +874,12 @@ export default function MarketplaceChat({ canEditSettings = false, canApprove = 
                   <span className="inline-flex items-center gap-1 rounded-full bg-brand px-2 py-0.5 text-[10px] font-black uppercase tracking-wider text-white"><MessageSquareText className="h-3 w-3" /> Modo interno</span>
                   <span className="text-[11px] font-bold text-brand">Só a equipe vê estas mensagens.</span>
                 </div>
-                <div className="flex gap-2">
-                  <InternalToggle active onClick={() => setInternalMode(false)} />
-                  <textarea autoFocus className={`${inputClasses} min-h-touch border-brand/30 py-2`} rows={2} maxLength={MAX_INTERNAL_LENGTH} value={noteText} onChange={(event) => setNoteText(event.target.value)} placeholder="Mensagem interna — o cliente não verá esta mensagem" />
-                  <Button type="submit" loading={busy} disabled={!noteText.trim()} aria-label="Salvar mensagem interna"><Send className="h-4 w-4" /></Button>
+                <div className="flex flex-wrap items-end gap-2 md:flex-nowrap">
+                  <div className="shrink-0 max-md:basis-full"><InternalToggle active onClick={() => setInternalMode(false)} /></div>
+                  <div className="flex min-w-0 flex-1 items-end gap-2 max-md:basis-full">
+                    <textarea autoFocus className={`${inputClasses} min-h-11 min-w-0 flex-1 resize-none border-brand/30 py-2.5 text-[15px] leading-6 max-h-[40dvh] overflow-y-auto`} rows={2} maxLength={MAX_INTERNAL_LENGTH} value={noteText} onChange={(event) => setNoteText(event.target.value)} placeholder="Mensagem interna — o cliente não verá esta mensagem" />
+                    <Button type="submit" loading={busy} disabled={!noteText.trim()} aria-label="Salvar mensagem interna"><Send className="h-4 w-4" /></Button>
+                  </div>
                 </div>
               </form>
             ) : (
@@ -879,17 +890,21 @@ export default function MarketplaceChat({ canEditSettings = false, canApprove = 
               <ChatAttachmentTray attachments={attachments} disabled={busy} onRetry={send}
                 hint={isMessenger(conversation) ? "pelo Messenger, só fotos; o texto digitado sai antes" : supportsMarketplaceMedia(list.extension?.extensionVersion) ? "o texto digitado sai antes" : `saem quando a extensão do PC estiver na ${MARKETPLACE_MEDIA_MIN_VERSION}`} />
               {progress ? <p role="status" className="mb-2 text-xs font-semibold text-brand">{progress}</p> : null}
-              <div className="flex gap-2">
+              <div className="flex flex-wrap items-end gap-2 md:flex-nowrap">
+              <div className="flex shrink-0 items-center gap-1 max-md:basis-full">
               {/* "Nosso WhatsApp" (dono, 2026-10-22: "Enviar o número deve enviar o oficial"): cola o link do WhatsApp OFICIAL
                   com o código do atendimento (a conversa no oficial cai com o mesmo cliente/corretor). Não envia sozinho. */}
               <Button type="button" variant="ghost" size="icon" className="shrink-0" onClick={pasteOfficialWhatsapp} aria-label="Colar o link do nosso WhatsApp oficial" title="Nosso WhatsApp (oficial)"><Phone className="h-4 w-4" /></Button>
               <input ref={fileInputRef} type="file" multiple accept={MARKETPLACE_MEDIA_ACCEPT} className="hidden" onChange={(event) => { const files = [...(event.target.files || [])]; event.target.value = ""; addFiles(files); }} />
               <Button type="button" variant="ghost" size="icon" className="shrink-0" disabled={busy} onClick={() => fileInputRef.current?.click()} aria-label="Anexar fotos ou PDF" title="Anexar fotos ou PDF (pode escolher vários)"><Paperclip className="h-4 w-4" /></Button>
               {conversation.canInternal ? <InternalToggle active={false} onClick={() => setInternalMode(true)} /> : null}
-              <textarea ref={textRef} className={`${inputClasses} min-h-touch py-2`} rows={2} maxLength={MAX_OUTBOUND_LENGTH} value={text} onChange={(event) => { setText(event.target.value); notifyTyping(); }}
+              </div>
+              <div className="flex min-w-0 flex-1 items-end gap-2 max-md:basis-full">
+              <textarea ref={textRef} className={`${inputClasses} min-h-11 min-w-0 flex-1 resize-none py-2.5 text-[15px] leading-6 max-h-[40dvh] overflow-y-auto`} rows={1} maxLength={MAX_OUTBOUND_LENGTH} value={text} onChange={(event) => { setText(event.target.value); notifyTyping(); }}
                 onPaste={(event) => { const files = filesFromTransfer(event.clipboardData); if (files.length) { event.preventDefault(); addFiles(files); } }}
                 placeholder={attachments.items.length ? "Mensagem (opcional) — sai antes dos arquivos" : isMessenger(conversation) ? "Escreva a resposta ou / para atalhos (sai na hora pelo Messenger)" : "Escreva a resposta ou / para atalhos (sai pelo Facebook em ~1–2 min)"} />
               <Button type="submit" loading={busy} disabled={(!text.trim() && !attachments.items.length) || slashQuery !== null || (isMessenger(conversation) && conversation.messengerWindow?.open === false)} aria-label="Enviar"><Send className="h-4 w-4" /></Button>
+              </div>
               </div>
             </form>
             )}
