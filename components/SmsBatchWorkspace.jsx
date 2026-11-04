@@ -41,7 +41,6 @@ function MoreAmountPicker({ value, onChange }) {
     </div>
   );
 }
-const TOGETHER_KEY = "mm-sms-together";
 const QUEUE_KEY = "mm-sms-queue";
 const UNDO_MS = 6000;
 const MIN_AWAY_MS = 800;
@@ -246,11 +245,8 @@ export default function SmsBatchWorkspace({ initial = null, initialError = "" })
   // Cartão some na hora ao tocar em "Enviar" (volume mais rápido); volta se o SMS não chegou a ser aberto.
   const [hiddenIds, setHiddenIds] = useState([]);
   const [openedIds, setOpenedIds] = useState([]);
-  // Enviar as 2 mensagens juntas, num SMS só (ligado por padrão; guardado neste aparelho).
-  const [together, setTogether] = useState(true);
-  useEffect(() => {
-    setTogether(readJson(TOGETHER_KEY, true) !== false);
-  }, []);
+  // Opção "enviar as 2 mensagens juntas" removida (dono, 2026-11-04): a 1ª sai sozinha e a 2ª segue em "Aguardando 2ª".
+  const together = false;
   const [notify, toastElement] = useToast();
   const [confirmAction, confirmElement] = useConfirm();
   const flushing = useRef(0);
@@ -845,13 +841,6 @@ export default function SmsBatchWorkspace({ initial = null, initialError = "" })
             </Button>
           ) : null}
         </div>
-      ) : null}
-
-      {tab === "send" ? (
-        <label className="flex min-h-12 items-center gap-3 rounded-control border border-line px-3 text-sm font-semibold text-ink">
-          <input type="checkbox" className="h-5 w-5" checked={together} onChange={(event) => { setTogether(event.target.checked); writeJson(TOGETHER_KEY, event.target.checked); }} />
-          Enviar as 2 mensagens juntas (um toque só)
-        </label>
       ) : null}
 
       {tab === "send" ? (
