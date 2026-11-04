@@ -441,7 +441,7 @@ export default function SmsBatchWorkspace({ initial = null, initialError = "" })
   const loadMore = async () => {
     setBusyId("more");
     try {
-      await call("POST", { action: "more", amount: moreAmount });
+      await call("POST", { action: "more", amount: ["team", "manager"].includes(data?.scope) ? moreAmount : 50 });
       await reload();
       setTab("send");
     } catch (moreError) {
@@ -454,7 +454,7 @@ export default function SmsBatchWorkspace({ initial = null, initialError = "" })
   const resetList = async () => {
     const ok = await confirmAction({
       title: "Zerar a lista?",
-      description: `Os ${items.length} contatos desta lista serão marcados como já enviados (1ª e 2ª mensagem) e entram 50 novos. Nenhuma mensagem é enviada agora.`,
+      description: `Os ${items.length} contatos desta lista serão marcados como já enviados (1ª e 2ª mensagem) e entram novos no lugar. Nenhuma mensagem é enviada agora.`,
       confirmLabel: "Sim, já enviei estes",
       tone: "danger"
     });
@@ -826,9 +826,9 @@ export default function SmsBatchWorkspace({ initial = null, initialError = "" })
 
       {tab === "send" ? (
         <div className="grid gap-2">
-          <MoreAmountPicker value={moreAmount} onChange={chooseMoreAmount} />
+          {isTeam || isManager ? <MoreAmountPicker value={moreAmount} onChange={chooseMoreAmount} /> : null}
           <Button variant="secondary" size="lg" block loading={busyId === "more"} onClick={loadMore}>
-            Carregar mais {moreAmount} contatos
+            Carregar mais {isTeam || isManager ? moreAmount : 50} contatos
           </Button>
           {visibleItems.length ? (
             <Button variant="secondary" size="lg" block onClick={() => window.location.assign("/api/admin/lote-sms?vcard=1")}>
@@ -837,7 +837,7 @@ export default function SmsBatchWorkspace({ initial = null, initialError = "" })
           ) : null}
           {visibleItems.length ? (
             <Button variant="danger-ghost" size="lg" block loading={busyId === "reset"} onClick={resetList}>
-              Já enviei estes: zerar e trazer 50 novos
+              Já enviei estes: zerar e trazer novos
             </Button>
           ) : null}
         </div>
@@ -861,13 +861,13 @@ export default function SmsBatchWorkspace({ initial = null, initialError = "" })
             <EmptyState
               icon={MessageSquareText}
               title={wa.state === "checking" ? "Conferindo os telefones…" : progress.remaining ? "Nenhum contato disponível agora" : "Meta de hoje concluída"}
-              description={progress.remaining ? (isTeam ? "Todos os contatos da base já tiveram alguma tentativa de contato." : "Não há contato livre agora: os demais já tiveram contato ou estão reservados para outro corretor.") : "Quer mais? Carregue outros 50 contatos da base que nunca tiveram tentativa."}
+              description={progress.remaining ? (isTeam ? "Todos os contatos da base já tiveram alguma tentativa de contato." : "Não há contato livre agora: os demais já tiveram contato ou estão reservados para outro corretor.") : "Quer mais? Carregue outros contatos da base que nunca tiveram tentativa."}
             />
             {!progress.remaining ? (
               <div className="mt-3 grid gap-2">
-                <MoreAmountPicker value={moreAmount} onChange={chooseMoreAmount} />
+                {isTeam || isManager ? <MoreAmountPicker value={moreAmount} onChange={chooseMoreAmount} /> : null}
                 <Button variant="primary" size="lg" block loading={busyId === "more"} onClick={loadMore}>
-                  Carregar mais {moreAmount} contatos
+                  Carregar mais {isTeam || isManager ? moreAmount : 50} contatos
                 </Button>
               </div>
             ) : null}

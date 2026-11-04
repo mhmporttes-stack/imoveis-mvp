@@ -31,7 +31,7 @@ async function authorize(request, action) {
   return { auth, office };
 }
 
-// GET = lista do dia (até 50): [{ id, name, phone (+55…), text, text2, together }].
+// GET = lista do dia (as vagas de hoje, incluindo o "Carregar mais"): [{ id, name, phone (+55…), text, text2, together }].
 export async function GET(request) {
   try {
     const { auth, response } = await authorize(request, "load");
