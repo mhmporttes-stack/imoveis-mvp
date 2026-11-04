@@ -143,6 +143,66 @@ const SendLink = ({ href, fallbackHref, label, onTap }) => {
   );
 };
 
+// Atalho do iPhone (dono, 2026-11-04): envia a lista do dia sem abrir o Mensagens. A chave aparece UMA vez; trocar invalida a antiga.
+function ShortcutCard({ notify }) {
+  const [key, setKey] = useState("");
+  const [busy, setBusy] = useState(false);
+  const url = typeof window === "undefined" ? "" : `${window.location.origin}/api/atalhos/lote-sms`;
+  const generate = async () => {
+    setBusy(true);
+    try {
+      const result = await call("POST", { action: "shortcut-key" });
+      setKey(result.key || "");
+    } catch (shortcutError) {
+      notify(shortcutError.message, "danger");
+    } finally {
+      setBusy(false);
+    }
+  };
+  const copy = async (value, label) => {
+    try {
+      await navigator.clipboard.writeText(value);
+      notify(`${label} copiado.`);
+    } catch {
+      notify("Não foi possível copiar. Segure o texto e copie.", "danger");
+    }
+  };
+  return (
+    <Card title="Atalho do iPhone" note="envia sem abrir o Mensagens">
+      <div className="space-y-3 text-sm text-ink-2">
+        <p>O Atalho busca a lista do dia aqui no CRM, envia um SMS por contato sem abrir o app Mensagens e avisa o CRM de cada envio. Vale só no Wi-Fi da imobiliária e com o seu WhatsApp conectado.</p>
+        <Button variant="secondary" size="lg" block loading={busy} onClick={generate}>{key ? "Gerar outra chave (a antiga para de valer)" : "Gerar minha chave do Atalho"}</Button>
+        {key ? (
+          <div className="space-y-2">
+            <p className="font-semibold text-warning">Copie agora: a chave só aparece esta vez.</p>
+            <p className="break-all rounded-control border border-line bg-navy/[0.03] p-3 font-mono text-xs text-ink">{key}</p>
+            <Button variant="secondary" block onClick={() => copy(key, "Chave")}>Copiar chave</Button>
+            <p className="break-all rounded-control border border-line bg-navy/[0.03] p-3 font-mono text-xs text-ink">{url}</p>
+            <Button variant="secondary" block onClick={() => copy(url, "Endereço")}>Copiar endereço</Button>
+          </div>
+        ) : null}
+        <details className="rounded-control border border-line p-3">
+          <summary className="cursor-pointer font-semibold text-ink">Como montar o Atalho (passo a passo)</summary>
+          <ol className="mt-2 list-decimal space-y-1.5 pl-5 text-[13px] leading-5">
+            <li>App <b>Atalhos</b> › <b>+</b> › nome “Lote SMS”.</li>
+            <li>Ação <b>Obter conteúdo de URL</b>: URL = o endereço acima; Método <b>GET</b>; Cabeçalhos: <b>Authorization</b> = <b>Bearer </b> + sua chave.</li>
+            <li>Ação <b>Obter valor do dicionário</b>: chave <b>items</b>.</li>
+            <li>Ação <b>Repetir com cada item</b> da lista, e dentro dela:</li>
+            <li className="list-none"><ol className="list-[lower-alpha] space-y-1.5 pl-5">
+              <li><b>Obter valor do dicionário</b> três vezes do item: <b>phone</b>, <b>text</b> e <b>id</b>.</li>
+              <li><b>Enviar Mensagem</b>: texto = text; destinatário = phone; desligue <b>Mostrar ao executar</b>.</li>
+              <li><b>Obter conteúdo de URL</b>: mesmo endereço, Método <b>POST</b>, mesmo cabeçalho Authorization, Corpo <b>JSON</b> com <b>contactId</b> = id.</li>
+              <li><b>Esperar</b> 8 segundos.</li>
+            </ol></li>
+            <li>Teste com a lista pequena primeiro. Depois do envio, atualize esta tela: os contatos passam para “Aguardando 2ª”.</li>
+          </ol>
+        </details>
+        <p className="text-xs text-muted">Nunca compartilhe a chave: ela dá acesso à sua lista de contatos. Gerar outra invalida a antiga.</p>
+      </div>
+    </Card>
+  );
+}
+
 export default function SmsBatchWorkspace({ initial = null, initialError = "" }) {
   const android = useIsAndroid();
   const [data, setData] = useState(initial);
@@ -891,6 +951,8 @@ export default function SmsBatchWorkspace({ initial = null, initialError = "" })
           <EmptyState title="Nenhum telefone sem WhatsApp ainda" description="Quem não tiver conta de WhatsApp, quando a lista do dia for conferida, aparece aqui." />
         )
       ) : null}
+
+      {tab === "send" ? <ShortcutCard notify={notify} /> : null}
 
       {tab === "results" ? (
         <div className="space-y-4">

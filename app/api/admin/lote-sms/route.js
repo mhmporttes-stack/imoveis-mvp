@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { requirePerformanceApi } from "@/lib/admin-auth";
 import { clientIpFromHeaders } from "@/lib/office-presence-core.mjs";
+import { resolvePresenceProfileId } from "@/lib/admin-presence-core.mjs";
+import { generateSmsShortcutKeyFor } from "@/lib/sms-shortcut";
 import { buildSmsVcards } from "@/lib/sms-batch-core.mjs";
 import { addSmsExtraBatch, assertSmsBatchOffice, resetSmsList, loadSmsBatch, markSmsOptOut, markSmsInvalid, markSmsSecondSent, markSmsSent, saveSmsBatchSettings, undoSmsSent } from "@/lib/sms-batch";
 
@@ -55,6 +57,8 @@ export async function POST(request) {
     if (body.action === "more") return NextResponse.json(await addSmsExtraBatch(auth));
     if (body.action === "invalid") return NextResponse.json(await markSmsInvalid(body.sendId, auth, body.reason === "inactive" ? "inactive" : "nonexistent"));
     if (body.action === "opt-out") return NextResponse.json(await markSmsOptOut(body.sendId, auth));
+    // Chave pessoal do Atalho do iPhone (sempre do usuário REAL logado; só o hash fica guardado, a chave volta uma vez).
+    if (body.action === "shortcut-key") return NextResponse.json({ key: await generateSmsShortcutKeyFor(resolvePresenceProfileId(auth)) }, { headers: { "Cache-Control": "no-store" } });
     if (body.action === "settings") return NextResponse.json(await saveSmsBatchSettings({ template: body.template, template2: body.template2, templateBroker: body.templateBroker, limit: body.limit }, auth));
     return NextResponse.json({ error: "Ação inválida." }, { status: 400 });
   } catch (error) {
