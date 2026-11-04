@@ -186,9 +186,9 @@ function warmupTargets(auth, whatsappBlocked, chatHidden = false) {
       "/admin/simulacoes",
       ...(chat ? ["/admin/chat"] : []),
       "/admin/chat/marketplace",
-      // Admin geral (dono, 2026-10-19): "Online" no lugar da Meta Diária — a Meta saiu da barra dele em 2026-10-13 e
+      // Admin geral (dono, 2026-10-19; Online virou parte do Início em 2026-11-04): Início no lugar da Meta Diária — a Meta saiu da barra dele em 2026-10-13 e
       // continuava sendo montada ao abrir o app (visão da equipe inteira, pesada). Online só lê a presença da equipe.
-      ...(isAdmin ? ["/admin/desempenho/online", "/admin/desempenho"] : []),
+      ...(isAdmin ? ["/admin/inicio", "/admin/desempenho"] : []),
       // Meta Diária NÃO é montada ao abrir o app para nenhum perfil (dono, 2026-10-19, MD-16): monta só quando a pessoa
       // abre a Meta. A entrega dos contatos do dia é do servidor (automação, lib/daily-goal-auto.js).
       // Simulador Caixa (barra do corretor/associado): a página não consulta o banco, só confere o login.

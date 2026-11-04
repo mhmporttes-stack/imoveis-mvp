@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { BarChart3, Calculator, CalendarDays, Clock, Menu, MessageCircle, MessageSquareReply, Target, UserCheck, UserRoundPlus, Users } from "lucide-react";
+import { BarChart3, Calculator, CalendarDays, Clock, House, Menu, MessageCircle, MessageSquareReply, Target, UserRoundPlus, Users } from "lucide-react";
 import { getAdminMenuGroups } from "@/components/AdminMenu";
 import { useAcademyMenuEnabled } from "@/components/AcademyMenuContext";
 import SceneTransitionLink from "@/components/motion/SceneTransitionLink";
@@ -28,7 +28,7 @@ import { hiddenNavKeys } from "@/lib/whatsapp-access-core.mjs";
 // nos guards de cada página.
 //
 // Distribuição (decisão do Designer, autorizada pelo dono em 2026-10-01):
-// - Administrador geral supervisiona o time: Online (presença da equipe), Clientes,
+// - Administrador geral supervisiona o time: Início (com a presença Online da equipe), Clientes,
 //   Chat, Desempenho (Meta Diária no "Mais" desde 2026-10-13).
 // - Gestor opera a própria carteira e a da equipe: Meta Diária, Clientes, Chat, Agenda.
 // - Corretor e associado (dono, 2026-10-19): Simulador Caixa no lugar da Meta Diária;
@@ -42,7 +42,9 @@ const DESTINATIONS = {
   // Mesma chave do item do menu (MARKETPLACE_CHAT_ITEM), então some do "Mais". Rótulo curto abaixo de 390px (6 colunas).
   marketplaceChat: { key: "marketplace-chat", href: "/admin/chat/marketplace", label: "Chat Marketplace", shortLabel: "Market", mediumLabel: "Marketplace", Icon: MarketplaceChatIcon, match: (path) => path.startsWith("/admin/chat/marketplace") },
   agenda: { key: "calendar", href: "/admin/calendario", label: "Agenda", Icon: CalendarDays, match: (path) => path.startsWith("/admin/calendario") },
-  online: { key: "online", href: "/admin/desempenho/online", label: "Online", Icon: UserCheck, match: (path) => path.startsWith("/admin/desempenho/online") },
+  // Início (dono, 2026-11-04): o "Online" foi para dentro do Início (presença da equipe logo abaixo do Lote de SMS); o lugar dele na
+  // barra do admin geral passou a ser o Início. /admin/desempenho/online só redireciona para cá.
+  home: { key: "inicio", href: "/admin/inicio", label: "Início", Icon: House, match: (path) => path.startsWith("/admin/inicio") || path.startsWith("/admin/desempenho/online") },
   // Rótulo curto "Ranking" na barra (crítica de 2026-10-22: "Desempenho" cortava em 390px com 6 colunas); o nome
   // completo continua para leitor de tela e no menu/cabeçalho.
   performance: { key: "performance", href: "/admin/desempenho", label: "Desempenho", shortLabel: "Ranking", mediumLabel: "Ranking", Icon: BarChart3, match: (path) => (path.startsWith("/admin/desempenho") && !path.startsWith("/admin/desempenho/online")) || path.startsWith("/admin/relatorio-diario") }
@@ -51,7 +53,7 @@ const DESTINATIONS = {
 // Administrador geral (dono, 2026-10-13): "Online" no lugar da Meta Diária na barra; a Meta Diária vai para o "Mais".
 // Corretor/associado (dono, 2026-10-19): "Simulador Caixa" no lugar da Meta Diária; gestor mantém a Meta.
 function destinationsFor({ isAdmin, isManager }) {
-  if (isAdmin) return [DESTINATIONS.online, DESTINATIONS.clients, DESTINATIONS.chat, DESTINATIONS.marketplaceChat, DESTINATIONS.performance];
+  if (isAdmin) return [DESTINATIONS.home, DESTINATIONS.clients, DESTINATIONS.chat, DESTINATIONS.marketplaceChat, DESTINATIONS.performance];
   if (isManager) return [DESTINATIONS.dailyGoal, DESTINATIONS.clients, DESTINATIONS.chat, DESTINATIONS.marketplaceChat, DESTINATIONS.agenda];
   return [DESTINATIONS.caixaSimulator, DESTINATIONS.clients, DESTINATIONS.chat, DESTINATIONS.marketplaceChat, DESTINATIONS.agenda];
 }

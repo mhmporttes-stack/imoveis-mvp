@@ -59,7 +59,6 @@ export default async function AdminSectionNav({ active = "properties" }) {
           {isAdmin ? <PerformanceLink active={active === "ai-usage"} href="/admin/gastos-ia">Gastos de IA</PerformanceLink> : null}
           {/* Pontuação: gestor acessa em modo somente leitura (sem editar regras/ajustes). */}
           <PerformanceLink active={active === "scoring"} href="/admin/desempenho/pontuacao">Pontuação</PerformanceLink>
-          <PerformanceLink active={active === "online"} href="/admin/desempenho/online">Online</PerformanceLink>
           <PerformanceLink active={active === "audit"} href="/admin/desempenho/auditoria">Auditoria</PerformanceLink>
         </nav>
       ) : null}

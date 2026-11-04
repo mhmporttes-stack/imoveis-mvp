@@ -3,11 +3,10 @@ import { AlertTriangle, CalendarDays, ChevronRight, ClipboardCheck, FileClock, M
 import Card from "@/components/ui/Card";
 import Kpi, { KpiGrid } from "@/components/ui/Kpi";
 import Skeleton from "@/components/ui/Skeleton";
-import Badge from "@/components/ui/Badge";
 import { CountBadge } from "@/components/ui/Badge";
 import { buttonClasses } from "@/components/ui/Button";
 import { crmPendingItems } from "@/components/crm-pending-items";
-import { formatDurationSeconds, formatWaitMinutes, leadOriginHint } from "@/lib/painel-inicio-core.mjs";
+import { formatDurationSeconds, leadOriginHint } from "@/lib/painel-inicio-core.mjs";
 
 // Tela "Início" (dono, 2026-10-22 — INI-1): só apresentação. Os números chegam prontos de lib/painel-inicio.js
 // (servidor, no escopo do perfil); nada é calculado aqui. Componentes sem estado: servem à página real
@@ -188,23 +187,23 @@ const ATTENTION_TONE = { danger: "text-danger", warning: "text-warning", muted: 
 
 export function InicioAtencoes({ attentions = [] }) {
   return (
-    <Card title="Atenções" note={attentions.some((item) => item.tone !== "muted") ? "o que pede a sua decisão" : "tudo em ordem"}>
+    <Card title="Atenções" note={attentions.some((item) => item.tone !== "muted") ? "o que pede a sua decisão" : "tudo em ordem"} padding="sm">
       {attentions.length ? (
         <ul className="-mx-2">
           {attentions.map((item) => {
             const body = (
               <>
-                <AlertTriangle size={18} className={`mt-0.5 shrink-0 ${ATTENTION_TONE[item.tone] || "text-muted"}`} aria-hidden="true" />
-                <span className="min-w-0 flex-1 text-pretty">{item.text}</span>
+                <AlertTriangle size={15} className={`mt-0.5 shrink-0 ${ATTENTION_TONE[item.tone] || "text-muted"}`} aria-hidden="true" />
+                <span className="min-w-0 flex-1 text-pretty text-[13px] leading-5">{item.text}</span>
                 {item.href ? <ChevronRight className="mt-0.5 h-4 w-4 shrink-0 text-faint" aria-hidden="true" /> : null}
               </>
             );
             return (
               <li key={item.key}>
                 {item.href ? (
-                  <Link href={item.href} className="flex min-h-touch items-start gap-3 rounded-control px-2 py-2 text-sm font-semibold text-ink hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent">{body}</Link>
+                  <Link href={item.href} className="flex min-h-touch items-start gap-2.5 rounded-control px-2 py-1.5 text-[13px] font-semibold text-ink hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent">{body}</Link>
                 ) : (
-                  <div className="flex min-h-touch items-start gap-3 px-2 py-2 text-sm text-muted">{body}</div>
+                  <div className="flex min-h-touch items-start gap-2.5 px-2 py-1.5 text-[13px] text-muted">{body}</div>
                 )}
               </li>
             );
@@ -217,86 +216,26 @@ export function InicioAtencoes({ attentions = [] }) {
   );
 }
 
-const PRESENCE_BADGE = { online: ["success", "On-line"], away: ["warning", "Ausente"], offline: ["neutral", "Off-line"] };
-const WHATSAPP_BADGE = { active: ["success", "WhatsApp ativo"], idle: ["warning", "WhatsApp ocioso"], off: ["danger", "WhatsApp desconectado"] };
-
-function show(value, render) {
-  return value === null || value === undefined ? UNAVAILABLE : render(value);
-}
-
-export function InicioEquipe({ rows = [], metaAvailable = true }) {
-  return (
-    <Card title="Equipe agora" note={metaAvailable ? "meta, presença, WhatsApp e o que está parado" : "meta do dia indisponível agora"}>
-      {rows.length ? (
-        <ul className="divide-y divide-line">
-          {rows.map((row) => {
-            const [presenceTone, presenceLabel] = PRESENCE_BADGE[row.presence] || [];
-            const [whatsappTone, whatsappLabel] = WHATSAPP_BADGE[row.whatsapp] || [];
-            const wait = row.oldest ? formatWaitMinutes(row.oldest.waitingMinutes) : "";
-            return (
-              <li key={row.id} className="py-3 first:pt-0 last:pb-0">
-                <div className="flex flex-wrap items-center gap-2">
-                  <Link href={`/admin/desempenho/corretor/${encodeURIComponent(row.id)}`} className="min-w-0 truncate text-sm font-extrabold text-ink hover:text-accent-text">{row.name}</Link>
-                  {presenceLabel ? <Badge tone={presenceTone} dot>{presenceLabel}</Badge> : null}
-                  {whatsappLabel ? <Badge tone={whatsappTone} dot>{whatsappLabel}</Badge> : null}
-                  {row.inRoulette ? <Badge tone="info">Na roleta</Badge> : null}
-                </div>
-                <dl className="mt-1.5 grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-muted sm:grid-cols-4">
-                  <div><dt className="inline">Meta hoje: </dt><dd className="inline font-bold tabular-nums text-ink">{show(row.metaPercent, (value) => `${value}%`)}</dd></div>
-                  <div><dt className="inline">Pendentes: </dt><dd className="inline font-bold tabular-nums text-ink">{row.pending ? `${row.pending.done}/${row.pending.total}` : UNAVAILABLE}</dd></div>
-                  <div><dt className="inline">Aguardando resposta: </dt><dd className="inline font-bold tabular-nums text-ink">{show(row.awaiting, String)}</dd></div>
-                  <div><dt className="inline">Atrasadas: </dt><dd className="inline font-bold tabular-nums text-ink">{show(row.overdue, String)}</dd></div>
-                </dl>
-                {row.oldest?.name ? (
-                  <p className="mt-1 text-xs text-muted">
-                    Mais antigo:{" "}
-                    {row.oldest.clientId ? (
-                      <Link href={`/admin/chat?client=${encodeURIComponent(row.oldest.clientId)}`} className="font-semibold text-accent-text">{row.oldest.name}</Link>
-                    ) : <span className="font-semibold text-ink">{row.oldest.name}</span>}
-                    {wait ? ` · espera há ${wait}` : ""}
-                  </p>
-                ) : null}
-              </li>
-            );
-          })}
-        </ul>
-      ) : (
-        <p className="text-sm text-muted">Nenhuma pessoa ativa na equipe.</p>
-      )}
-      <p className="mt-3 text-[11px] leading-4 text-faint">Meta e pendentes = Meta Diária da equipe; presença e WhatsApp = Desempenho › Online.</p>
-    </Card>
-  );
-}
-
 export function InicioDonoCarregando() {
   return (
-    <div className="grid gap-4 sm:gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.6fr)]">
-      {["Atenções", "Equipe agora"].map((title) => (
-        <Card key={title} title={title} note="carregando…">
-          <div role="status" aria-live="polite" className="space-y-3">
-            <span className="sr-only">Carregando…</span>
-            {Array.from({ length: 4 }, (_, index) => <Skeleton key={index} className="h-5 w-full" />)}
-          </div>
-        </Card>
-      ))}
-    </div>
+    <Card title="Atenções" note="carregando…" padding="sm">
+      <div role="status" aria-live="polite" className="space-y-2">
+        <span className="sr-only">Carregando…</span>
+        {Array.from({ length: 3 }, (_, index) => <Skeleton key={index} className="h-4 w-full" />)}
+      </div>
+    </Card>
   );
 }
 
 export function InicioDono({ owner }) {
   if (!owner) {
     return (
-      <Card title="Atenções e equipe" note="indisponível agora">
-        <p className="text-sm text-muted">Não foi possível carregar a visão da equipe agora. Tente recarregar a página.</p>
+      <Card title="Atenções" note="indisponível agora" padding="sm">
+        <p className="text-sm text-muted">Não foi possível carregar as atenções agora. Tente recarregar a página.</p>
       </Card>
     );
   }
-  return (
-    <div className="grid gap-4 sm:gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.6fr)]">
-      <InicioAtencoes attentions={owner.attentions} />
-      <InicioEquipe rows={owner.rows} metaAvailable={owner.metaAvailable} />
-    </div>
-  );
+  return <InicioAtencoes attentions={owner.attentions} />;
 }
 
 // Atalho do Lote de SMS (2026-11-02): segundo caminho até a tela, admin geral, gestor e corretor (a página e a API conferem de novo).
@@ -315,15 +254,17 @@ export function InicioAtalhoLoteSms() {
 
 // Composição da tela — a mesma na página real (app/admin/inicio/page.jsx, com o mês chegando por streaming) e na
 // vitrine. `monthKpis` e `funnel` são os blocos do mês já prontos (ou o carregando).
-// Admin geral (INI-5): `ownerSummary` substitui o resumo (sem botões) e `ownerDetail` (Atenções + Equipe) entra logo abaixo
+// Admin geral (INI-5): `ownerSummary` substitui o resumo (sem botões) e `ownerDetail` (Atenções) entra logo abaixo
 // dos indicadores — os dois chegam por streaming na página real.
-export default function PainelInicio({ data, monthKpis = null, funnel = null, ownerSummary = null, ownerDetail = null, smsBatch = false }) {
+export default function PainelInicio({ data, monthKpis = null, funnel = null, ownerSummary = null, ownerDetail = null, presence = null, smsBatch = false }) {
   return (
     <div className="container-page space-y-4 sm:space-y-5">
       <h1 className="sr-only">Início</h1>
       {ownerSummary || <InicioAssistente assistant={data.assistant} chatAvailable={data.chatAvailable} />}
       <InicioIndicadores kpis={data.kpis} month={monthKpis} />
       {smsBatch ? <InicioAtalhoLoteSms /> : null}
+      {/* Online (dono, 2026-11-04): presença da equipe logo abaixo do Lote de SMS; admin geral e gestor. */}
+      {presence}
       {ownerDetail}
       <div className="grid gap-4 sm:gap-5 lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
         {funnel}

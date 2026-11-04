@@ -222,7 +222,7 @@ export default function AdminTopBar({
         );
         const cls = "hidden min-h-touch shrink-0 items-center gap-2 rounded-control border border-line bg-white px-3 md:inline-flex";
         return isAdmin || isManager ? (
-          <Link href="/admin/desempenho/online" title="Ver quem está on-line" className={cx(cls, "hover:border-accent-line")}>{pill}</Link>
+          <Link href="/admin/inicio#online" title="Ver quem está on-line" className={cx(cls, "hover:border-accent-line")}>{pill}</Link>
         ) : (
           <span className={cls} title="Você está on-line no CRM">{pill}</span>
         );

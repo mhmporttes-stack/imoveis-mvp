@@ -116,9 +116,10 @@ test("barra do corretor/associado: Simulador no lugar da Meta; pré-carregamento
   assert.match(nav, /return \[DESTINATIONS\.caixaSimulator, DESTINATIONS\.clients, DESTINATIONS\.chat, DESTINATIONS\.marketplaceChat, DESTINATIONS\.agenda\]/);
   assert.match(nav, /if \(isManager\) return \[DESTINATIONS\.dailyGoal,/);
   const layout = read("app/admin/layout.jsx");
-  assert.match(layout, /isAdmin \? \["\/admin\/desempenho\/online", "\/admin\/desempenho"\]/);
+  assert.match(layout, /isAdmin \? \["\/admin\/inicio", "\/admin\/desempenho"\]/);
   assert.doesNotMatch(layout, /"\/admin\/meta-diaria"/);
-  assert.match(read("app/admin/desempenho/online/page.jsx"), /unstable_dynamicStaleTime = 300/);
+  // Online virou seção do Início (2026-11-04): a rota antiga só redireciona.
+  assert.match(read("app/admin/desempenho/online/page.jsx"), /redirect\("\/admin\/inicio#online"\)/);
   assert.match(read("components/OnlinePresenceBoard.jsx"), /useRevalidateOnReuse\(renderId/);
 });
 

@@ -155,7 +155,6 @@ const ownerGroups = [
     items: [
       { href: "/admin/meta-diaria", label: "Meta Diária", key: "daily-goal" },
       { href: "/admin/desempenho", label: "Desempenho", key: "performance", activeKeys: ["daily-report"] },
-      { href: "/admin/desempenho/online", label: "Online", key: "online" },
       { href: "/admin/anuncios", label: "Anúncios", key: "ads" },
       { href: "/admin/desempenho/reentradas", label: "Reentradas", key: "reentries" },
       { href: "/admin/desempenho/esfriados", label: "Clientes frios", key: "cooled-clients" },
@@ -256,7 +255,7 @@ const PATH_KEYS = [
   ["/admin/simulador-caixa", "caixa-simulator"],
   ["/admin/meta-diaria/gestao", "daily-goal-admin"],
   ["/admin/meta-diaria", "daily-goal"],
-  ["/admin/desempenho/online", "online"],
+  ["/admin/desempenho/online", "inicio"],
   ["/admin/desempenho/auditoria", "audit"],
   ["/admin/desempenho/pontuacao", "scoring"],
   ["/admin/desempenho/reentradas", "reentries"],

@@ -2,6 +2,8 @@ import { Suspense } from "react";
 import { requireAdminPage } from "@/lib/admin-auth";
 import { getPainelInicio, getPainelInicioMes } from "@/lib/painel-inicio";
 import { getPainelInicioDono } from "@/lib/painel-inicio-dono";
+import { canLoadAdminPresence, formatAdminPresenceError, getTeamPresence } from "@/lib/admin-presence";
+import { InicioOnline, InicioOnlineCarregando } from "@/components/inicio/InicioOnline";
 import { isAssociateProfile, isBrokerProfile, isGeneralAdminAuth, isManagerProfile } from "@/lib/admin-profiles";
 import { smsBatchScope } from "@/lib/sms-batch-core.mjs";
 import { InicioCacheSaver } from "@/components/inicio/InicioDeviceCache";
@@ -61,11 +63,27 @@ async function OwnerDetail({ ownerPromise }) {
   );
 }
 
+// Online (dono, 2026-11-04): presença da equipe dentro do Início, só para quem via a aba (admin geral e gestor); chega por streaming.
+async function loadPresence(auth) {
+  if (!canLoadAdminPresence()) return { presence: { online: 0, away: 0, offline: 0, members: [] }, error: "Configure o Supabase para carregar a presença da equipe." };
+  try {
+    return { presence: await getTeamPresence(auth), error: "" };
+  } catch (loadError) {
+    return { presence: { online: 0, away: 0, offline: 0, members: [] }, error: formatAdminPresenceError(loadError) };
+  }
+}
+
+async function PresenceBlock({ presencePromise }) {
+  const { presence, error } = await presencePromise;
+  return <InicioOnline presence={presence} error={error} />;
+}
+
 export default async function InicioPage() {
   const auth = await requireAdminPage();
   const monthPromise = loadMonth(auth);
   const data = await getPainelInicio(auth);
   const ownerPromise = isGeneralAdminAuth(auth) ? loadOwner(auth, data) : null;
+  const presencePromise = isGeneralAdminAuth(auth) || isManagerProfile(auth.profile) ? loadPresence(auth) : null;
 
   return (
     <main className="min-h-screen bg-mist pb-14 pt-3 md:pt-6">
@@ -74,6 +92,7 @@ export default async function InicioPage() {
         smsBatch={Boolean(smsBatchScope({ isGeneralAdmin: isGeneralAdminAuth(auth), isManager: isManagerProfile(auth.profile), isBroker: isBrokerProfile(auth.profile), isAssociate: isAssociateProfile(auth.profile) }))}
         monthKpis={<Suspense fallback={<InicioKpisMesCarregando />}><MonthKpis monthPromise={monthPromise} /></Suspense>}
         funnel={<Suspense fallback={<InicioFunilCarregando />}><MonthFunnel monthPromise={monthPromise} /></Suspense>}
+        presence={presencePromise ? <Suspense fallback={<InicioOnlineCarregando />}><PresenceBlock presencePromise={presencePromise} /></Suspense> : null}
         ownerSummary={ownerPromise ? (
           <Suspense fallback={<InicioAssistente assistant={data.assistant} chatAvailable={data.chatAvailable} showActions={false} />}>
             <OwnerSummary ownerPromise={ownerPromise} data={data} />
