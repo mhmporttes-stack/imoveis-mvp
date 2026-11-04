@@ -96,15 +96,18 @@ export function useClientList({
 
   useEffect(() => {
     let alive = true;
+    // Falha ao reler NÃO mantém "serviço fora do ar" velho (2026-11-04, Bruna): sem resposta o estado "fora do ar" é desligado e o botão volta
+    // ao Chat do CRM (o envio, se o serviço estiver mesmo parado, avisa "WhatsApp fora do ar" e deixa "Tentar de novo").
+    const clearServiceDown = () => { if (alive) setWaState((current) => (current && current.serviceDown ? { ...current, serviceDown: false } : current)); };
     const load = () => fetch("/api/admin/whatsapp-individual/card-state", { cache: "no-store" })
       .then((response) => (response.ok ? response.json() : null))
-      .then((data) => { if (alive && data) setWaState(data); })
-      .catch(() => {});
+      .then((data) => { if (!alive) return; if (data) setWaState(data); else clearServiceDown(); })
+      .catch(clearServiceDown);
     load();
     const onVisible = () => { if (document.visibilityState === "visible") load(); };
     document.addEventListener("visibilitychange", onVisible);
-    // WA-13d: o serviço pode cair/voltar com a tela aberta -> releitura leve a cada 60 s (o servidor guarda o estado em cache).
-    const timer = window.setInterval(() => { if (document.visibilityState === "visible") load(); }, 60_000);
+    // WA-13d: o serviço pode cair/voltar com a tela aberta -> releitura leve a cada 30 s (o servidor guarda o estado em cache).
+    const timer = window.setInterval(() => { if (document.visibilityState === "visible") load(); }, 30_000);
     return () => { alive = false; window.clearInterval(timer); document.removeEventListener("visibilitychange", onVisible); };
   }, []);
 

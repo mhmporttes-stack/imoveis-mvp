@@ -36,14 +36,16 @@ test("sem lease (tabela vazia/ausente) o lease não conta", () => {
   assert.equal(evaluateServiceHealth({ now: NOW, lease: null, ping: null }).down, false);
 });
 
-test("/health falha 1 vez = ainda no ar; 2 seguidas (leituras espaçadas) = fora do ar", () => {
+test("/health falha 1 ou 2 vezes = ainda no ar; 3 seguidas (leituras espaçadas) = fora do ar", () => {
   const first = run({ ping: false });
   assert.equal(first.down, false);
   assert.equal(first.healthFails, 1);
   const second = evaluateServiceHealth({ now: NOW + 60_000, lease: { heartbeat_at: iso(50_000) }, ping: false, prev: toPersistedHealth(first) });
-  assert.equal(second.down, true);
-  assert.deepEqual(second.reasons, ["health"]);
-  assert.equal(second.transition.type, "down");
+  assert.equal(second.down, false, "2 falhas não bastam mais (2026-11-04)");
+  const third = evaluateServiceHealth({ now: NOW + 120_000, lease: { heartbeat_at: iso(110_000) }, ping: false, prev: toPersistedHealth(second) });
+  assert.equal(third.down, true);
+  assert.deepEqual(third.reasons, ["health"]);
+  assert.equal(third.transition.type, "down");
 });
 
 test("duas leituras quase simultâneas do /health valem uma só (instâncias diferentes)", () => {
@@ -115,7 +117,7 @@ test("resposta do /health: ok e dono do lease", () => {
   assert.equal(isHealthResponseOk({ ok: true, lease: "waiting", serving: false }), false);
   assert.equal(isHealthResponseOk({ ok: true, lease: "shutting_down", serving: false }), false);
   assert.equal(isHealthResponseOk(null), false);
-  assert.ok(HEALTH_TIMEOUT_MS <= 3000 && CACHE_DOWN_MS < CACHE_UP_MS && CACHE_UP_MS <= 60_000);
+  assert.ok(HEALTH_TIMEOUT_MS <= 8000 && CACHE_DOWN_MS < CACHE_UP_MS && CACHE_UP_MS <= 60_000);
 });
 
 test("aviso ao dono: um por episódio, informativo; queda por lease divide a chave com o alerta de serviço parado", () => {
