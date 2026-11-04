@@ -603,6 +603,44 @@ export default function SmsBatchWorkspace({ initial = null, initialError = "" })
                 {!customReady ? <p className="col-span-2 text-xs text-muted">Escolha a data inicial e a final (fuso de São Paulo, até 366 dias).</p> : null}
               </div>
             ) : null}
+
+      {/* Lote/corretor no topo (dono, 2026-11-04: "não encontro"): vale para os cartões de cima e para a aba Resultados. */}
+      {(isTeam || isManager) && data.brokers?.length ? (
+        <>
+          <Field label="Lote">
+            <Tabs
+              label="Lote dos resultados"
+              value={brokerFilter === "" || brokerFilter === "team" ? brokerFilter : "pick"}
+              onChange={(value) => (value === "pick" ? setBrokerPickerOpen((open) => !open) : (setBrokerPickerOpen(false), changeBrokerFilter(value)))}
+              options={[
+                { value: "", label: "Todos" },
+                { value: "team", label: "O meu" },
+                { value: "pick", label: brokerFilter && brokerFilter !== "team" ? (data.brokers.find((row) => row.id === brokerFilter)?.name || "Corretor") : "Corretor ▾" }
+              ]}
+            />
+          </Field>
+          {brokerPickerOpen ? (
+            <div className="rounded-card border border-line bg-surface p-2" role="listbox" aria-label="Escolher corretor">
+              <ul className="divide-y divide-line">
+                {data.brokers.map((row) => (
+                  <li key={row.id}>
+                    <button
+                      type="button"
+                      role="option"
+                      aria-selected={brokerFilter === row.id}
+                      className={`flex w-full items-center justify-between gap-3 px-2 py-3 text-left active:brightness-95 ${brokerFilter === row.id ? "font-extrabold text-accent-text" : "font-semibold text-ink"}`}
+                      onClick={() => { setBrokerPickerOpen(false); changeBrokerFilter(row.id); }}
+                    >
+                      <span className="truncate">{row.name}</span>
+                      <span className="shrink-0 text-xs tabular-nums text-muted">1ª {row.sent} · 2ª {row.sent2} · cliques {row.clicks} · cad. {row.signups}</span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
+        </>
+      ) : null}
       </div>
 
       {!isTeam && !isManager ? (
@@ -856,46 +894,6 @@ export default function SmsBatchWorkspace({ initial = null, initialError = "" })
 
       {tab === "results" ? (
         <div className="space-y-4">
-          <Card title="Lote" note={data.period?.label || "Todo o período"}>
-            <div className="space-y-3">
-              {(isTeam || isManager) && data.brokers?.length ? (
-                <>
-                  <Field label="Lote">
-                    <Tabs
-                      label="Lote dos resultados"
-                      value={brokerFilter === "" || brokerFilter === "team" ? brokerFilter : "pick"}
-                      onChange={(value) => (value === "pick" ? setBrokerPickerOpen((open) => !open) : (setBrokerPickerOpen(false), changeBrokerFilter(value)))}
-                      options={[
-                        { value: "", label: "Todos" },
-                        { value: "team", label: "O meu" },
-                        { value: "pick", label: brokerFilter && brokerFilter !== "team" ? (data.brokers.find((row) => row.id === brokerFilter)?.name || "Corretor") : "Corretor ▾" }
-                      ]}
-                    />
-                  </Field>
-                  {brokerPickerOpen ? (
-                    <div className="rounded-card border border-line bg-surface p-2" role="listbox" aria-label="Escolher corretor">
-                      <ul className="divide-y divide-line">
-                        {data.brokers.map((row) => (
-                          <li key={row.id}>
-                            <button
-                              type="button"
-                              role="option"
-                              aria-selected={brokerFilter === row.id}
-                              className={`flex w-full items-center justify-between gap-3 px-2 py-3 text-left active:brightness-95 ${brokerFilter === row.id ? "font-extrabold text-accent-text" : "font-semibold text-ink"}`}
-                              onClick={() => { setBrokerPickerOpen(false); changeBrokerFilter(row.id); }}
-                            >
-                              <span className="truncate">{row.name}</span>
-                              <span className="shrink-0 text-xs tabular-nums text-muted">1ª {row.sent} · 2ª {row.sent2} · cliques {row.clicks} · cad. {row.signups}</span>
-                            </button>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  ) : null}
-                </>
-              ) : null}
-            </div>
-          </Card>
           <Card id="sms-clickers" title="Quem clicou" note={`${data.clickers?.total || 0} contato(s)`}>
             {data.clickers?.list?.length ? (
               <ul className="divide-y divide-line">
