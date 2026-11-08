@@ -88,3 +88,10 @@ test("ausente: chegada pelo Wi-Fi não vale (nem volta na segunda antes das 9h);
   assert.equal(currentAbsence(absences, sp("2026-10-18T23:59:00"))?.markedByName, "Matheus");
   assert.equal(currentAbsence(absences, sp("2026-10-19T00:00:00")), null);
 });
+
+test("IP do cliente atrás do túnel da Cloudflare: cf-connecting-ip vale mais que x-forwarded-for (que o cliente poderia forjar)", async () => {
+  const { clientIpFromHeaders } = await import("../lib/office-presence-core.mjs");
+  assert.equal(clientIpFromHeaders({ "cf-connecting-ip": "191.242.53.155", "x-forwarded-for": "1.2.3.4, 191.242.53.155" }), "191.242.53.155");
+  assert.equal(clientIpFromHeaders({ "x-forwarded-for": "191.242.53.155, 10.0.0.1" }), "191.242.53.155");
+  assert.equal(clientIpFromHeaders({ "x-real-ip": "191.242.53.155" }), "191.242.53.155");
+});

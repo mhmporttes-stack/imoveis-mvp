@@ -14,7 +14,9 @@ $Repo = "https://github.com/mhmporttes-stack/imoveis-mvp.git"
 $Port = "3000"
 
 function Say($msg, $color = "White") { Write-Host $msg -ForegroundColor $color }
-function Fail($msg) { Say "ERRO: $msg" Red; Read-Host "Aperte Enter para fechar"; exit 1 }
+# MM_NONINTERACTIVE=1 (quando o Claude Code roda o script no PC): nunca para esperando Enter nem abre o Bloco de Notas.
+function Pause-End { if ($env:MM_NONINTERACTIVE -ne "1") { Read-Host "Aperte Enter para fechar" } }
+function Fail($msg) { Say "ERRO: $msg" Red; Pause-End; exit 1 }
 
 $isAdmin = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
 if (-not $isAdmin) {
@@ -92,6 +94,7 @@ function Env-Problems {
 while ((Env-Problems).Count -gt 0) {
   Say ""; Say "Falta preencher o arquivo de configuracao:" Yellow
   Env-Problems | ForEach-Object { Say "  - $_" Yellow }
+  if ($env:MM_NONINTERACTIVE -eq "1") { Fail "Preencha $EnvFile (ex.: vercel env pull) e rode de novo." }
   Say "O Bloco de Notas vai abrir. Cole os valores copiados da Vercel, salve (Ctrl+S) e FECHE o Bloco de Notas." Yellow
   Start-Process notepad.exe -ArgumentList "`"$EnvFile`"" -Wait
 }
@@ -153,4 +156,4 @@ try {
 } catch { Say "O CRM ainda nao respondeu. Veja o log: $log" Yellow }
 Say ""
 Say "Pronto. Proximo passo: o tunel da Cloudflare (GUIA-PC.md, passo 5)." Green
-Read-Host "Aperte Enter para fechar"
+Pause-End

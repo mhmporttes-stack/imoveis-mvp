@@ -5,7 +5,9 @@ $App = "C:\MMCRM\app"
 $ServiceName = "MMCRM"
 $Nssm = "C:\MMCRM\ferramentas\nssm.exe"
 function Say($msg, $color = "White") { Write-Host $msg -ForegroundColor $color }
-function Fail($msg) { Say "ERRO: $msg" Red; Read-Host "Aperte Enter para fechar"; exit 1 }
+# MM_NONINTERACTIVE=1 (quando o Claude Code roda o script no PC): nunca para esperando Enter nem abre o Bloco de Notas.
+function Pause-End { if ($env:MM_NONINTERACTIVE -ne "1") { Read-Host "Aperte Enter para fechar" } }
+function Fail($msg) { Say "ERRO: $msg" Red; Pause-End; exit 1 }
 $isAdmin = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
 if (-not $isAdmin) { Start-Process powershell -Verb RunAs -ArgumentList @("-NoProfile", "-ExecutionPolicy", "Bypass", "-File", "`"$PSCommandPath`""); exit 0 }
 if (-not (Test-Path (Join-Path $App ".git"))) { Fail "CRM nao instalado. Rode primeiro o instalar-crm.ps1." }
@@ -15,7 +17,7 @@ $before = (& git rev-parse HEAD).Trim()
 & git pull --ff-only
 if ($LASTEXITCODE -ne 0) { Pop-Location; Fail "git pull falhou." }
 $after = (& git rev-parse HEAD).Trim()
-if ($before -eq $after) { Say "Nada novo no GitHub. Nada a fazer." Green; Pop-Location; Read-Host "Aperte Enter para fechar"; exit 0 }
+if ($before -eq $after) { Say "Nada novo no GitHub. Nada a fazer." Green; Pop-Location; Pause-End; exit 0 }
 Say "Parando o CRM para montar a versao nova..." Yellow
 & $Nssm stop $ServiceName | Out-Null
 $env:NEXT_TELEMETRY_DISABLED = "1"
@@ -28,4 +30,4 @@ Pop-Location
 if ($code -ne 0) { & $Nssm start $ServiceName | Out-Null; Fail "pnpm build falhou (codigo $code). O CRM voltou com o que estava montado." }
 & $Nssm start $ServiceName | Out-Null
 Say "CRM atualizado e no ar." Green
-Read-Host "Aperte Enter para fechar"
+Pause-End

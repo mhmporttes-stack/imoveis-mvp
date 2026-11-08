@@ -25,7 +25,7 @@ const allowView = createRateLimiter({ limit: 30, windowMs: 60_000 });
 
 export async function POST(request) {
   if (!canManageCampaigns()) return NextResponse.json({ linkJourney: "choice" });
-  const visitor = (request.headers.get("x-forwarded-for") || "").split(",")[0].trim() || "anon";
+  const visitor = (request.headers.get("cf-connecting-ip") || request.headers.get("x-forwarded-for") || "").split(",")[0].trim() || "anon";
   if (!allowView(visitor)) return NextResponse.json({ linkJourney: "choice" });
 
   let linkJourney = "choice";
