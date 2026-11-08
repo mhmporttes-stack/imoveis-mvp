@@ -63,7 +63,7 @@ New-Item -ItemType Directory -Force -Path $Base, $ConfigDir, $Logs, $Tools | Out
 # 3) Codigo do CRM (o repositorio e privado: na primeira vez o Git abre o navegador para voce entrar no GitHub)
 if (-not (Test-Path (Join-Path $App ".git"))) {
   Say "Baixando o CRM do GitHub (pode abrir uma janela de login do GitHub)..." Cyan
-  & git clone $Repo $App
+  & git clone --depth 1 --single-branch $Repo $App
   if ($LASTEXITCODE -ne 0) { Fail "Nao consegui baixar o codigo. Entre no GitHub quando a janela abrir e rode de novo." }
 } else {
   Say "Codigo ja baixado: atualizando..." Cyan
