@@ -33,6 +33,7 @@ Regra do dono (2026-10-15):
 - Casa Jd. Santa Antonieta (COD4362, imóvel) — Instagram, site e Marketplace em 2026-10-29
 - Apê Reserva Palmital 1 (COD4363, imóvel) — Instagram, site e Marketplace em 2026-11-02
 - Apê mobiliado Edifício Aimorés (COD4364, imóvel) — Instagram e site em 2026-11-03; Marketplace aguarda o valor
+- Apê San Francisco (COD4365, imóvel) — Instagram, site e Marketplace em 2026-11-07
 - Apê Torres de Marília · Zona Norte (COD4360, imóvel) — Instagram, site e Marketplace em 2026-10-24
 - Casa reformada Nova Marília (COD4359, imóvel) — Instagram + site em 2026-10-23
 - Erros que fazem muita gente continuar no aluguel (2026-10-19, azul) — dono postou na hora
