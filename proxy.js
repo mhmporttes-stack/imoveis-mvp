@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { applyPublicOrigin, internalRewriteTarget } from "./lib/public-origin-core.mjs";
 import { extensionCorsHeaders } from "./lib/extension-cors-core.mjs";
 
 const ADMIN_ACCESS_COOKIE = "mm_admin_access_token";
@@ -26,7 +27,7 @@ export function proxy(request) {
 
   const presentationMatch = PRESENTATION_TOKEN_PATH.exec(pathname);
   if (presentationMatch) {
-    const target = request.nextUrl.clone();
+    const target = internalRewriteTarget(request.nextUrl.clone());
     target.pathname = `/apresentacao/${presentationMatch[1]}${presentationMatch[2] ? `/${presentationMatch[2]}` : ""}`;
     // a página não usa query; as imagens usam só ?baixar=1 (anexo)
     if (!presentationMatch[2]) target.search = "";
@@ -40,12 +41,12 @@ export function proxy(request) {
   // JS do painel); o endereço público continua /admin/login e /admin/reset-password. Endereço interno digitado direto
   // volta para o público (uma URL só para cada tela).
   if (pathname === PAINEL_ACESSO_PREFIX || pathname.startsWith(`${PAINEL_ACESSO_PREFIX}/`)) {
-    const publicUrl = request.nextUrl.clone();
+    const publicUrl = applyPublicOrigin(request.nextUrl.clone(), request.headers);
     publicUrl.pathname = `/admin${pathname.slice(PAINEL_ACESSO_PREFIX.length)}`;
     return noStoreResponse(NextResponse.redirect(publicUrl));
   }
   if (isPublicAdminPath(pathname)) {
-    const target = request.nextUrl.clone();
+    const target = internalRewriteTarget(request.nextUrl.clone());
     target.pathname = `${PAINEL_ACESSO_PREFIX}${pathname.slice("/admin".length)}`;
     return noStoreResponse(NextResponse.rewrite(target));
   }
@@ -58,7 +59,7 @@ export function proxy(request) {
       request.cookies.has(ADMIN_ACCESS_COOKIE) || request.cookies.has(ADMIN_REFRESH_COOKIE);
 
     if (!hasSessionCookie) {
-      const loginUrl = request.nextUrl.clone();
+      const loginUrl = applyPublicOrigin(request.nextUrl.clone(), request.headers);
       loginUrl.pathname = "/admin/login";
       loginUrl.search = "";
       return noStoreResponse(NextResponse.redirect(loginUrl));
@@ -71,7 +72,7 @@ export function proxy(request) {
       request.cookies.has(ADMIN_ACCESS_COOKIE) || request.cookies.has(ADMIN_REFRESH_COOKIE);
 
     if (!hasSessionCookie) {
-      const loginUrl = request.nextUrl.clone();
+      const loginUrl = applyPublicOrigin(request.nextUrl.clone(), request.headers);
       loginUrl.pathname = "/admin/login";
       loginUrl.search = "";
       return noStoreResponse(NextResponse.redirect(loginUrl));
