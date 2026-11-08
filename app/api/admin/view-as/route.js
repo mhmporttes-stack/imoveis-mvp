@@ -4,6 +4,7 @@ import {
   requireRealGeneralAdminApi
 } from "@/lib/admin-auth";
 import { getAdminProfileById, isActiveAdminProfile } from "@/lib/admin-profiles";
+import { isSecureRequest } from "@/lib/runtime";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -41,7 +42,7 @@ function cookieOptions(request) {
     httpOnly: true,
     path: "/",
     sameSite: "lax",
-    secure: request.nextUrl?.protocol === "https:" || process.env.VERCEL === "1"
+    secure: isSecureRequest(request)
   };
 }
 
