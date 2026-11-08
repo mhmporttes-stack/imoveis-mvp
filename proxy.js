@@ -27,7 +27,7 @@ export function proxy(request) {
 
   const presentationMatch = PRESENTATION_TOKEN_PATH.exec(pathname);
   if (presentationMatch) {
-    const target = internalRewriteTarget(request.nextUrl.clone());
+    const target = internalRewriteTarget(request.nextUrl.clone(), request.headers);
     target.pathname = `/apresentacao/${presentationMatch[1]}${presentationMatch[2] ? `/${presentationMatch[2]}` : ""}`;
     // a página não usa query; as imagens usam só ?baixar=1 (anexo)
     if (!presentationMatch[2]) target.search = "";
@@ -46,7 +46,8 @@ export function proxy(request) {
     return noStoreResponse(NextResponse.redirect(publicUrl));
   }
   if (isPublicAdminPath(pathname)) {
-    const target = internalRewriteTarget(request.nextUrl.clone());
+    if (process.env.MM_PRODUCTION_HOST === "1") return noStoreResponse(NextResponse.next()); // rewrite fica no next.config.mjs
+    const target = internalRewriteTarget(request.nextUrl.clone(), request.headers);
     target.pathname = `${PAINEL_ACESSO_PREFIX}${pathname.slice("/admin".length)}`;
     return noStoreResponse(NextResponse.rewrite(target));
   }

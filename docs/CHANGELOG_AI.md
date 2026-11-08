@@ -6737,3 +6737,4 @@ Pedido do dono (prints do iPhone, PWA/Safari), só apresentação — nenhuma re
 
 ## 2026-11-08 — proxy.js atrás do túnel (servidor local)
 - `proxy.js`: com `MM_PRODUCTION_HOST=1`, redirects usam host/protocolo públicos (`x-forwarded-*`, `lib/public-origin-core.mjs`) e rewrites das telas de entrada ficam internos em `http:` (antes: 500 EPROTO / Location no endereço interno). Sem a variável nada muda (Vercel). Teste: `tests/proxy-public-origin.test.mjs`.
+- 2026-11-08 (2): com `MM_PRODUCTION_HOST=1` o rewrite de `/admin/login` e `/admin/reset-password` passa para `next.config.mjs` (o Next self-hosted trata rewrite do proxy como HTTP a si mesmo e entrava em ciclo 307); `proxy.js` só deixa passar. Na Vercel nada muda. Confirmado atrás do túnel (login 200).
