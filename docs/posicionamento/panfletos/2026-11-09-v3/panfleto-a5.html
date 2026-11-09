@@ -1,0 +1,95 @@
+<!doctype html><html lang="pt-BR"><head><meta charset="utf-8">
+<meta name="fontes" content="family=Anton&family=Sora:wght@500;600;700;800&family=Playfair+Display:ital,wght@1,600">
+<style>
+:root{--azul:#5BA6FF;--n1:#031D3A;--n2:#08112E;--n3:#0D3B66}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#222}
+.lamina{position:relative;width:154mm;height:216mm;overflow:hidden;color:#fff;font-family:Sora,Inter,sans-serif;
+ background:
+  #08112E}
+.abs{position:absolute}
+.head{left:8mm;top:8mm;right:8mm;height:11mm}
+.logo{position:absolute;left:0;top:0;width:12mm;height:auto;}
+.brand{position:absolute;left:15mm;top:1.2mm;line-height:1.25}
+.brand b{display:block;font-weight:800;font-size:8.5pt;letter-spacing:.02em}
+.brand span{font-weight:500;font-size:8pt;color:#FFFFFF}
+.mcmv{position:absolute;right:0;top:1.5mm;width:26mm}
+.hl{font-family:Anton,Impact,sans-serif;text-transform:uppercase;line-height:.98;white-space:nowrap;letter-spacing:.005em}
+.hl .a{color:var(--azul)}
+.blk{left:8mm;width:95mm}
+.serif{font-family:'Playfair Display',serif;font-style:italic;font-weight:600}
+.ben{display:flex;align-items:center;gap:2.6mm;font-weight:600;font-size:9pt;line-height:1.2;margin-bottom:1.9mm;white-space:nowrap}
+.ben svg{flex:none;width:4.2mm;height:4.2mm}
+.qrbox{width:24mm;height:24mm;background:#fff;border-radius:2.4mm;overflow:hidden;box-shadow:0 1mm 4mm rgba(0,0,0,.35)}
+.qrbox img{width:100%;height:100%;display:block}
+.qrtxt{font-size:8.5pt;line-height:1.22}
+.qrtxt .k{font-weight:800;color:var(--azul);letter-spacing:.03em;font-size:8.2pt;display:block;margin-bottom:.8mm;white-space:nowrap}
+.qrtxt .m{font-weight:700;display:block;font-size:9pt;line-height:1.18}
+.qrtxt .s{font-weight:500;color:#FFFFFF;font-size:8.2pt;display:block;margin-top:.8mm}
+.url{font-family:Inter,sans-serif;font-weight:600;font-size:8pt;color:#FFFFFF;white-space:nowrap}
+.foot{left:8mm;width:62mm;bottom:7mm;line-height:1.28}
+.foot .n{font-weight:800;font-size:9.5pt;letter-spacing:.03em;text-transform:uppercase;white-space:nowrap;line-height:1.2}
+.foot .n small{display:block;font-weight:600;font-size:8pt;letter-spacing:.16em;margin-top:.3mm}
+.foot .e{font-weight:800;font-size:8pt;letter-spacing:.08em;text-transform:uppercase;color:var(--azul);margin-top:2.2mm;line-height:1.3}
+.foot .c{margin-top:2.2mm;white-space:nowrap;line-height:1.2;display:flex;align-items:baseline;gap:3mm}
+.foot .c span{font-weight:600;font-size:8pt;letter-spacing:.08em}
+.foot .c b{font-weight:800;font-size:10.5pt;letter-spacing:.01em}
+.casal{position:absolute;pointer-events:none}
+.casal .halo{display:none;position:absolute;inset:-4mm -3mm 0 -4mm;background:radial-gradient(closest-side,rgba(77,155,255,.20),rgba(77,155,255,.05) 62%,transparent 100%)}
+.casal img{position:relative;display:block;width:100%;height:auto;}
+.ben{font-size:9pt;margin-bottom:1.1mm}
+.drow{display:flex;align-items:baseline;justify-content:space-between;white-space:nowrap}
+.drow .serif{font-size:11pt;color:#fff}
+.foot2{left:8mm;right:8mm;bottom:7mm;line-height:1.3}
+.foot2 .n{font-weight:800;font-size:8pt;letter-spacing:.03em;text-transform:uppercase;white-space:nowrap}
+.foot2 .e{font-weight:800;font-size:8pt;letter-spacing:.05em;text-transform:uppercase;color:var(--azul);white-space:nowrap;margin-top:1mm}
+.foot2 .c{margin-top:1mm;white-space:nowrap;display:flex;align-items:baseline;gap:3mm}
+.foot2 .c span{font-weight:600;font-size:8pt;letter-spacing:.06em}
+.foot2 .c b{font-weight:800;font-size:10pt}
+.qrtxt2{font-size:8.5pt;line-height:1.2}
+.qrtxt2 .k{font-weight:800;color:var(--azul);letter-spacing:.03em;font-size:8pt;display:block;line-height:1.2}
+.qrtxt2 .m{font-weight:700;display:block;font-size:9.5pt;line-height:1.18;margin-top:1.4mm}
+.qrtxt2 .s{font-weight:500;display:block;font-size:8.5pt;margin-top:1.4mm;line-height:1.2}
+</style><style>
+.blk{left:11mm;width:132mm}
+.head2{left:11mm;right:11mm;top:11mm;height:15mm}
+.logo{width:15mm}
+.brand{left:19mm;top:2mm}.brand b{font-size:10.5pt}.brand span{font-size:9pt}
+.mcmv{width:34mm;top:2.5mm}
+.foto{position:absolute;right:0;top:73mm;width:130mm;
+ -webkit-mask-image:linear-gradient(to bottom,transparent 0%,#000 12%,#000 60%,transparent 100%),linear-gradient(to right,transparent 0%,#000 14%);
+ -webkit-mask-composite:source-in;mask-image:linear-gradient(to bottom,transparent 0%,#000 12%,#000 60%,transparent 100%),linear-gradient(to right,transparent 0%,#000 14%);mask-composite:intersect}
+.foto img{display:block;width:100%}
+.ben2{display:flex;align-items:center;gap:3mm;font-weight:600;font-size:10pt;line-height:1.2;margin-bottom:3mm;white-space:nowrap}
+.ben2 svg{flex:none;width:5mm;height:5mm}
+.qrbox{width:42mm;height:42mm;border-radius:4mm;background:#fff;overflow:hidden}
+.qrbox img{width:100%;height:100%;display:block}
+.lab .k{font-weight:800;color:var(--azul);letter-spacing:.04em;font-size:11pt;display:block}
+.lab .m{font-weight:800;display:block;font-size:17pt;line-height:1.12;margin-top:2mm}
+.lab .s{font-weight:500;display:block;font-size:11.5pt;margin-top:2mm}
+.fcol{position:absolute;bottom:11mm;line-height:1.3;white-space:nowrap}
+.fcol b{display:block;font-weight:800;font-size:8.5pt;letter-spacing:.04em;text-transform:uppercase}
+.fcol.az b{color:var(--azul)}
+.fcol .tel{font-weight:800;font-size:11pt;letter-spacing:0;text-transform:none}
+.fcol span{display:block;font-weight:600;font-size:8.5pt;letter-spacing:.08em}
+</style></head><body><main id="root"></main>
+<script>
+const CHECK='<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="12" fill="#5BA6FF"/><path d="M6.6 12.6l3.6 3.6 7.2-7.6" fill="none" stroke="#fff" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+const hl=(t,max,x='')=>`<div class="hl" data-max="${max}" style="${x}">${t}</div>`;
+const ben=a=>a.map(t=>`<div class="ben2">${CHECK}<span>${t}</span></div>`).join('');
+document.getElementById('root').innerHTML=`<section class="lamina">
+<div class="abs head2"><img class="logo" src="img/simbolo.png" alt=""><div class="brand"><b>Matheus Machado</b><span>Corretor de Imóveis</span></div><img class="mcmv" src="img/mcmv.png" alt=""></div>
+<div class="abs blk" style="top:31mm">${hl('SÓ PAGA ALUGUEL',80)}${hl('EM 2026 <span class="a">QUEM QUER</span>',80,'margin-top:1mm')}</div>
+<div class="foto"><img src="img/foto_casal.png" alt=""></div>
+<div class="abs" style="left:11mm;top:79mm;width:70mm"><div class="hl" style="font-size:19pt;display:block;white-space:nowrap">DESCONTOS DE ATÉ</div>${hl('<span class="a">R$ 85.000,00</span>',60,'margin-top:1mm')}<div class="serif" style="font-size:12pt;margin-top:1.5mm;color:#fff">em alguns imóveis</div></div>
+<div class="abs" style="left:11mm;top:112mm;width:72mm">${ben(['Documentação grátis','Parcelas que cabem no seu bolso','Renda a partir de R$ 1.650','Não precisa ser registrado'])}</div>
+<div class="abs serif" style="left:11mm;top:143.5mm;font-size:11pt;white-space:nowrap">Nome sujo? Também te ajudamos com isso</div>
+<div class="abs qrbox" style="left:11mm;top:153mm"><img src="img/qr.png" alt=""></div>
+<div class="abs lab" style="left:61mm;top:156mm;width:82mm"><span class="k">APONTE A CÂMERA</span><span class="m">Descubra seu poder de compra</span><span class="s">em menos de 2 minutos</span></div>
+<div class="fcol" style="left:11mm"><b>Matheus Machado</b><b>Corretor de Imóveis</b></div>
+<div class="fcol az" style="left:56mm"><b>Especialista na compra</b><b>do primeiro imóvel</b></div>
+<div class="fcol" style="left:106mm"><span>CRECI 323106</span><b class="tel">(14) 99105-6706</b></div>
+</section>`;
+function fit(){document.querySelectorAll('.hl[data-max]').forEach(el=>{const W=el.parentElement.getBoundingClientRect().width;let s=10;el.style.fontSize=s+'px';el.style.display='inline-block';let w=el.getBoundingClientRect().width;s=Math.min(s*W/w,el.dataset.max*96/72);el.style.fontSize=s+'px';el.style.display='block';});}
+document.fonts.ready.then(()=>{fit();document.body.dataset.ok=1;});
+</script></body></html>
