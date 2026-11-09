@@ -10,7 +10,7 @@ body{background:#222}
   linear-gradient(180deg,#08112E 0%,#08112E 60%,#061836 100%)}
 .abs{position:absolute}
 .head{left:8mm;top:8mm;right:8mm;height:11mm}
-.logo{position:absolute;left:0;top:0;width:12mm;height:auto;filter:drop-shadow(0 0 1.6mm rgba(91,166,255,.55))}
+.logo{position:absolute;left:0;top:0;width:12mm;height:auto;}
 .brand{position:absolute;left:15mm;top:1.2mm;line-height:1.25}
 .brand b{display:block;font-weight:800;font-size:8.5pt;letter-spacing:.02em}
 .brand span{font-weight:500;font-size:8pt;color:#FFFFFF}
@@ -29,14 +29,15 @@ body{background:#222}
 .qrtxt .s{font-weight:500;color:#FFFFFF;font-size:8.2pt;display:block;margin-top:.8mm}
 .url{font-family:Inter,sans-serif;font-weight:600;font-size:8pt;color:#FFFFFF;white-space:nowrap}
 .foot{left:8mm;width:62mm;bottom:7mm;line-height:1.28}
-.foot .n{font-weight:800;font-size:8pt;letter-spacing:.02em;text-transform:uppercase;white-space:nowrap;margin-bottom:1.3mm}
-.foot .e{font-weight:800;font-size:8pt;letter-spacing:.05em;text-transform:uppercase}
-.foot .c{font-weight:700;font-size:8.5pt;margin-top:1mm;color:#fff}
-.foot .c i{font-style:normal;color:var(--azul)}
-.foot .f{font-family:Inter,sans-serif;font-weight:500;font-size:8pt;color:#FFFFFF;margin-top:1mm;white-space:nowrap}
+.foot .n{font-weight:800;font-size:9.5pt;letter-spacing:.03em;text-transform:uppercase;white-space:nowrap;line-height:1.2}
+.foot .n small{display:block;font-weight:600;font-size:8pt;letter-spacing:.16em;margin-top:.3mm}
+.foot .e{font-weight:800;font-size:8pt;letter-spacing:.08em;text-transform:uppercase;color:var(--azul);margin-top:2.2mm;line-height:1.3}
+.foot .c{margin-top:2.2mm;white-space:nowrap;line-height:1.2;display:flex;align-items:baseline;gap:3mm}
+.foot .c span{font-weight:600;font-size:8pt;letter-spacing:.08em}
+.foot .c b{font-weight:800;font-size:10.5pt;letter-spacing:.01em}
 .casal{position:absolute;pointer-events:none}
-.casal .halo{position:absolute;inset:-4mm -3mm 0 -4mm;background:radial-gradient(closest-side,rgba(77,155,255,.40),rgba(77,155,255,.10) 62%,transparent 100%)}
-.casal img{position:relative;display:block;width:100%;height:auto;filter:drop-shadow(0 3mm 5mm rgba(2,8,24,.75)) drop-shadow(0 0 3mm rgba(77,155,255,.30))}
+.casal .halo{position:absolute;inset:-4mm -3mm 0 -4mm;background:radial-gradient(closest-side,rgba(77,155,255,.20),rgba(77,155,255,.05) 62%,transparent 100%)}
+.casal img{position:relative;display:block;width:100%;height:auto;filter:drop-shadow(0 2mm 6mm rgba(2,6,20,.55))}
 </style></head><body><main id="root"></main>
 <script>
 const CHECK='<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="12" fill="#5BA6FF"/><path d="M6.6 12.6l3.6 3.6 7.2-7.6" fill="none" stroke="#fff" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"/></svg>';
@@ -44,7 +45,7 @@ const T={
  doc:"Documentação grátis",parc:"Parcelas que cabem no seu bolso",renda:"Renda a partir de R$ 1.650",reg:"Não precisa ser registrado"};
 const hl=(txt,max,cls='',extra='')=>`<div class="hl ${cls}" data-max="${max}" style="${extra}">${txt}</div>`;
 const header=`<div class="abs head"><img class="logo" src="img/simbolo.png" alt=""><div class="brand"><b>Matheus Machado</b><span>Corretor de Imóveis</span></div><img class="mcmv" src="img/mcmv.png" alt=""></div>`;
-const foot=`<div class="abs foot"><div class="n">Matheus Machado<br>Corretor de Imóveis</div><div class="e">Especialista na compra<br>do primeiro imóvel</div><div class="c">CRECI 323106 <i>·</i> (14) 99105-6706</div></div>`;
+const foot=`<div class="abs foot"><div class="n">Matheus Machado<small>Corretor de Imóveis</small></div><div class="e">Especialista na compra<br>do primeiro imóvel</div><div class="c"><span>CRECI 323106</span><b>(14) 99105-6706</b></div></div>`;
 const casal=(w,right,bottom)=>`<div class="casal" style="width:${w}mm;right:${right}mm;bottom:${bottom}mm"><div class="halo"></div><img src="img/casal_final.png" alt=""></div>`;
 const bens=a=>a.map(k=>`<div class="ben">${CHECK}<span>${T[k]}</span></div>`).join('');
 const qrBlock=(top,txtLeft=35,txtW=33)=>`<div class="abs qrbox" style="left:8mm;top:${top}mm"><img src="img/qr.png" alt=""></div>
@@ -54,13 +55,13 @@ const M=[
 `${header}
 <div class="abs blk" style="top:23mm">${hl('SÓ PAGA ALUGUEL',44)}${hl('EM 2026',56,'','margin-top:.5mm')}${hl('<span class="a">QUEM QUER</span>',56,'','margin-top:-1mm')}</div>
 <div class="abs blk" style="top:76.5mm;width:66mm">${bens(['doc','parc','renda'])}</div>
-${casal(46,-3,-3)}${qrBlock(97)}${foot}`,
+${casal(46,-3,-3)}${qrBlock(96.3)}${foot}`,
 // 2 DESCONTO
 `${header}
 <div class="abs blk" style="top:23mm"><div class="hl" data-max="19" style="color:#fff">DESCONTOS DE ATÉ</div>${hl('<span class="a">R$ 85.000,00</span>',200,'','margin-top:1mm')}<div style="font-family:'Playfair Display',serif;font-style:italic;font-weight:600;font-size:12pt;margin-top:1.5mm;color:#FFFFFF">em alguns imóveis</div>
 <div style="height:5mm"></div>${hl('SÓ PAGA ALUGUEL',30)}${hl('EM 2026 <span class="a">QUEM QUER</span>',30)}</div>
 <div class="abs blk" style="top:84mm;width:66mm">${bens(['doc','parc'])}</div>
-${casal(46,-3,-3)}${qrBlock(97)}${foot}`,
+${casal(46,-3,-3)}${qrBlock(96.3)}${foot}`,
 // 3 QR
 `${header}
 <div class="abs blk" style="top:23mm">${hl('SÓ PAGA ALUGUEL',44)}${hl('EM 2026 <span class="a">QUEM QUER</span>',44,'','margin-top:.5mm')}</div>
@@ -72,7 +73,7 @@ ${casal(46,-3,-3)}${foot}`,
 <div class="abs blk" style="top:24mm">${hl('NOME <span class="a">SUJO?</span>',200)}<div class="serif" style="font-size:15pt;margin-top:1.5mm;color:#fff">Também te ajudamos com isso</div>
 <div style="height:5mm"></div>${hl('SÓ PAGA ALUGUEL EM 2026',28)}${hl('<span class="a">QUEM QUER</span>',28)}</div>
 <div class="abs blk" style="top:77mm;width:66mm">${bens(['doc','renda','reg'])}</div>
-${casal(46,-3,-3)}${qrBlock(97)}${foot}`
+${casal(46,-3,-3)}${qrBlock(96.3)}${foot}`
 ];
 document.getElementById('root').innerHTML=M.map(h=>`<section class="lamina">${h}</section>`).join('');
 // autofit: cada .hl ocupa a largura do bloco (até o teto data-max em pt)
