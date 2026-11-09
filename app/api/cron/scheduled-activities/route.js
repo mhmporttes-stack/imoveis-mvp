@@ -156,6 +156,18 @@ export async function GET(request) {
       coldList = { error: coldListError?.message || "Falha na Lista fria." };
     }
 
+    // Cliente frio transferido e sem retorno há mais de 3 dias: arquivado sozinho, visível só ao dono (FUN-15q, dono,
+    // 2026-11-09, lib/cooled-transfer-archive-core.mjs). Nasce desligado (crm_settings `cooled_transfer_archive`);
+    // até 30 por rodada; com trava; nunca derruba o cron.
+    let cooledTransferArchive = null;
+    try {
+      const { runCooledTransferArchiveJob } = await import("@/lib/cooled-transfer-archive");
+      cooledTransferArchive = await runCooledTransferArchiveJob();
+    } catch (cooledArchiveError) {
+      console.error("Falha na rotina de arquivamento dos clientes frios transferidos.", cooledArchiveError);
+      cooledTransferArchive = { error: cooledArchiveError?.message || "Falha no arquivamento dos clientes frios." };
+    }
+
     // Fila de espera da roleta (regra do dono, 2026-09-30): distribui pro
     // primeiro corretor on-line quem ficou sem responsável porque, na hora
     // da criação, ninguém estava on-line. Roda ANTES da rede de segurança
@@ -256,6 +268,7 @@ export async function GET(request) {
       sponsoredLeads,
       prospectingAutoReturn,
       coldList,
+      cooledTransferArchive,
       pendingRouletteAssignment,
       cooledReactivation,
       marketplaceRedistribution,

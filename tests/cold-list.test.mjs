@@ -90,7 +90,7 @@ test("exclusão da visão padrão; pesquisa e filtro da etiqueta mostram", () =>
 test("lista de Clientes, abas e contadores aplicam a exclusão; cron roda a rotina com trava", () => {
   const listQuery = read("lib/simulation-list-query.js");
   assert.match(listQuery, /applyColdListExclusion\(query, \{ hiddenIds: coldList\?\.hiddenIds \|\| \[\], searching, filteringColdTag/);
-  assert.equal((listQuery.match(/attendanceExclusionIds, coldList \}\)/g) || []).length, 4);
+  assert.equal((listQuery.match(/attendanceExclusionIds, coldList(?:, cooledArchive: \w+)? \}\)/g) || []).length, 4);
   assert.match(listQuery, /applyColdListExclusion\(allTotalQuery/);
   const cron = read("app/api/cron/scheduled-activities/route.js");
   assert.match(cron, /runColdListJob\(\)/);

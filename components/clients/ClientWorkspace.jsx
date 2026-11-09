@@ -355,6 +355,8 @@ function PipelineStrip({ list }) {
         <StageTab label="Patrocinado" count={counters.byGroup?.sponsored || 0} active={filters.statusGroup === "sponsored"} onClick={() => select("sponsored")} />
         {funnel.filter((group) => group.key !== "prospecting").map(renderFunnelTab)}
         <StageTab label="Arquivados" count={counters.byGroup?.archived || 0} active={filters.statusGroup === "archived"} onClick={() => select("archived")} muted />
+        {/* Só o dono recebe este contador do servidor (FUN-15q, dono, 2026-11-09): para os demais a aba nem existe. */}
+        {counters.byGroup?.cooled_archive !== undefined ? <StageTab label="Frios arquivados" count={counters.byGroup.cooled_archive} active={filters.statusGroup === "cooled_archive"} onClick={() => select("cooled_archive")} muted /> : null}
         {funnel.filter((group) => group.key === "prospecting").map(renderFunnelTab)}
       </div>
 
