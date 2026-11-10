@@ -188,3 +188,14 @@ anúncio.
 - Falhas de envio ao corretor (janela fechada, template usado, custo do mês).
 - Qualidade do número oficial no gerenciador da Meta (semanal) e bloqueios/denúncias.
 - Conversão por anúncio até simulação, visita e venda (com o gestor-trafego).
+
+## Decisões do dono (2026-11-10)
+1. Modelo (template) da Meta para avisar o corretor: **NÃO**.
+2. Botão continua **"Falar com um associado"**.
+3. Prazo de **2 min** por corretor: sim.
+4. Quem aceitou e não falou com o cliente em **5 min** perde o cliente: sim.
+5. "Bom dia" automático: **desligado** (recomendação aceita). ⚠ Conflito com o item 1 — sem template e sem bom dia automático, a janela de 24 h depende de o corretor mandar mensagem à mão ao oficial todo dia; pendente de confirmação.
+6. Ofertas aos corretores só até **22h**: sim.
+7. Domingo e feriado com oferta de dia: sim.
+8. Não enquadra no MCMV: **distribuído automaticamente a um corretor, sem envio da simulação/apresentação**.
+9. À noite, participam **apenas os 3 ativos da roleta do anúncio** (sem abrir para outros corretores).
