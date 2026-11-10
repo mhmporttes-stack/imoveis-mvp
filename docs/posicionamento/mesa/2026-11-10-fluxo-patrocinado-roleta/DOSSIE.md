@@ -199,3 +199,4 @@ anúncio.
 7. Domingo e feriado com oferta de dia: sim.
 8. Não enquadra no MCMV: **distribuído automaticamente a um corretor, sem envio da simulação/apresentação**.
 9. À noite, participam **apenas os 3 ativos da roleta do anúncio** (sem abrir para outros corretores).
+10. **Janela de 24 h (resolve o conflito do item 5): opção A** — "bom dia" automático às 08:00 pelo WhatsApp pessoal de cada corretor conectado ao oficial. Se a janela não abrir por algum erro, aparece na tela do corretor (CRM) uma notificação com a mensagem pronta para ele enviar do número dele ao número oficial (link wa.me com texto preenchido).
