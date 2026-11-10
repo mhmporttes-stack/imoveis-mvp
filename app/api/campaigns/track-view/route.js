@@ -44,6 +44,9 @@ export async function POST(request) {
     } else if (payload?.ref) {
       await recordOfficialLinkViewByRef(payload.ref);
     }
+    // Link do fluxo do anúncio no Oficial (WA-40): `/s?...&sms_t=<token>` sem campanha — só devolve o contato mascarado do token
+    // (não conta clique de campanha). Token que não resolve: formulário de sempre.
+    if (!smsContact && payload?.smsToken && !payload?.campaignId) smsContact = smsContactView(await resolveSmsContact(payload.smsToken));
   } catch {
     // silencioso — ver comentário acima, nunca deve quebrar a experiência do visitante.
   }

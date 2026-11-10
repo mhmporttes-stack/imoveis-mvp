@@ -48,12 +48,12 @@ export default function LinkJourneyGate({ brokerRefOverride = "" }) {
   // para pular a tela de escolha e abrir direto um dos dois formulários —
   // sem ?c=, o comportamento é exatamente o de sempre (tela de escolha).
   useEffect(() => {
-    if (!campaignIdFromUrl && !refFromUrl) return;
-    if (campaignIdFromUrl) setResolvingLink(true);
+    if (!campaignIdFromUrl && !refFromUrl && !smsTokenFromUrl) return;
+    if (campaignIdFromUrl || smsTokenFromUrl) setResolvingLink(true);
     fetch("/api/campaigns/track-view", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(campaignIdFromUrl ? { campaignId: campaignIdFromUrl, ...(smsTokenFromUrl ? { smsToken: smsTokenFromUrl } : {}) } : { ref: refFromUrl }),
+      body: JSON.stringify(campaignIdFromUrl ? { campaignId: campaignIdFromUrl, ...(smsTokenFromUrl ? { smsToken: smsTokenFromUrl } : {}) } : { ...(refFromUrl ? { ref: refFromUrl } : {}), ...(smsTokenFromUrl ? { smsToken: smsTokenFromUrl } : {}) }),
       keepalive: true
     })
       .then((response) => response.json())

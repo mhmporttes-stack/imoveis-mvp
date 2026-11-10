@@ -14,6 +14,7 @@ import WhatsappProfileEditor from "@/components/WhatsappProfileEditor";
 import WhatsappNumberRegistration from "@/components/WhatsappNumberRegistration";
 import WhatsappTemplateManager from "@/components/WhatsappTemplateManager";
 import FlowsManager from "@/components/flows/FlowsManager";
+import OfficialAdFlowSettings from "@/components/OfficialAdFlowSettings";
 import { listWhatsappFlows } from "@/lib/whatsapp-flows";
 import { requireBrokerManagementPage } from "@/lib/admin-auth";
 import { isGeneralAdminAuth, listAdminProfiles } from "@/lib/admin-profiles";
@@ -30,7 +31,7 @@ import { tabClasses } from "@/components/ui/Tabs";
 
 export const dynamic = "force-dynamic";
 
-const TABS = ["rules", "roulette", "daily-message", "incentivo", "alertas", "audio-voz", "whatsapp-master", "flows", "disparos"];
+const TABS = ["rules", "roulette", "daily-message", "incentivo", "alertas", "audio-voz", "whatsapp-master", "flows", "fluxo-oficial", "disparos"];
 
 export default async function AutomationsPage({ searchParams }) {
   const auth = await requireBrokerManagementPage("/admin/simulacoes");
@@ -89,6 +90,9 @@ export default async function AutomationsPage({ searchParams }) {
       ) : tab === "audio-voz" ? (
         // Áudio com a voz do dono (VOZ-1, dono 2026-10-23): só o admin geral configura (a API também exige).
         isGeneralAdminAuth(auth) ? <ClientVoiceAudioSettings /> : <p className="container-page rounded-2xl bg-white px-4 py-3 text-sm font-semibold text-navy">O áudio com voz é configurado pelo administrador geral.</p>
+      ) : tab === "fluxo-oficial" ? (
+        // Fluxo do anúncio no número Oficial (WA-40, dono 2026-11-10): admin e gestor (a rota também exige requireBrokerManagementApi).
+        <OfficialAdFlowSettings />
       ) : tab === "disparos" ? (
         <WhatsappDisparoManager />
       ) : (
@@ -138,6 +142,7 @@ const SUBMENU_ITEMS = [
   { key: "audio-voz", label: "Áudio com voz", href: "/admin/automacoes?tab=audio-voz" },
   { key: "whatsapp-master", label: "WhatsApp Master", href: "/admin/automacoes?tab=whatsapp-master" },
   { key: "flows", label: "Fluxos", href: "/admin/automacoes?tab=flows" },
+  { key: "fluxo-oficial", label: "Fluxo do anúncio", href: "/admin/automacoes?tab=fluxo-oficial" },
   { key: "disparos", label: "Disparos", href: "/admin/automacoes?tab=disparos" }
 ];
 

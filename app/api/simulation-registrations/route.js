@@ -10,6 +10,7 @@ import { sendSimulationRegistrationNotification } from "@/lib/simulation-registr
 import { announceAlexaEvent } from "@/lib/alexa-service";
 import { saveSiteSimulationFromRegistration } from "@/lib/simulations";
 import { scheduleAutoSimulationSend } from "@/lib/simulation-auto-send";
+import { isOfficialAdFlowRegistration } from "@/lib/official-ad-flow";
 import { saveAutoSnapshot } from "@/lib/simulation-auto-reviews";
 import { buildAutoSnapshot } from "@/lib/simulation-auto-review-core.mjs";
 import { recordScenario } from "@/lib/simulation-scenarios";
@@ -57,7 +58,9 @@ export async function POST(request) {
         await saveAutoSnapshot({ registrationId: registration.id, simulationId: saved.simulation.id, snapshot });
         // Cenário para "Comparar simulações" (nunca derruba o cadastro).
         await recordScenario({ registrationId: registration.id, simulationId: saved.simulation.id, origin: "site", data: { ...scenarioDataFromSimulation(saved.simulation, { registration, estimate: saved.estimate }), autoSnapshot: snapshot } });
-        if (registration.isNewRegistration !== false) await scheduleAutoSimulationSend(registration.id);
+        // Cliente que veio pelo fluxo do anúncio no Oficial (WA-40) já existia "segurado" (isNewRegistration=false), mas o formulário
+        // é a primeira simulação dele: o envio automático também vale (um por cadastro — a reserva do envio impede repetir).
+        if (registration.isNewRegistration !== false || await isOfficialAdFlowRegistration(registration)) await scheduleAutoSimulationSend(registration.id);
       }
     } catch (simulationError) {
       console.warn("Site simulation creation failed:", simulationError?.message || simulationError);

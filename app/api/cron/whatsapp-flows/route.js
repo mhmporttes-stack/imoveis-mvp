@@ -3,6 +3,8 @@ import { createHash, timingSafeEqual } from "crypto";
 import { processDueFlowSessions } from "@/lib/whatsapp-flows";
 import { processFormReminders } from "@/lib/whatsapp-form-reminder";
 import { processAutoSimulationSends } from "@/lib/simulation-auto-send";
+import { processOfficialAdFlowTimers } from "@/lib/official-ad-flow";
+import { processRouletteOffers } from "@/lib/roulette-offer";
 import { processWelcomeVoiceAudios } from "@/lib/client-voice-audio";
 import { checkWhatsappServiceStalled } from "@/lib/whatsapp-service-stall";
 import { getWhatsappServiceHealth } from "@/lib/whatsapp-service-health";
@@ -58,6 +60,23 @@ export async function GET(request) {
     console.error("Falha ao processar o envio automático da simulação.", error);
     autoSimulationSends = { error: "Falha ao processar o envio automático da simulação." };
   }
+  // Fluxo do anúncio no número Oficial (WA-40, dono 2026-11-10; DESLIGADO por padrão): cutucada/transferência por silêncio e prazo
+  // da oferta ao próximo da roleta (1 min — por isso o cron desta rota precisa rodar a cada minuto, docs/WHATSAPP.md WA-40).
+  // Rodados à parte: erro aqui nunca impede o resto do cron e aparece na resposta/log.
+  let officialAdFlow = null;
+  let rouletteOffers = null;
+  try {
+    officialAdFlow = await processOfficialAdFlowTimers();
+  } catch (error) {
+    console.error("Falha ao processar os temporizadores do fluxo do anúncio.", error);
+    officialAdFlow = { error: "Falha ao processar os temporizadores do fluxo do anúncio." };
+  }
+  try {
+    rouletteOffers = await processRouletteOffers();
+  } catch (error) {
+    console.error("Falha ao processar as ofertas ao próximo da roleta.", error);
+    rouletteOffers = { error: "Falha ao processar as ofertas ao próximo da roleta." };
+  }
   // Boas-vindas em áudio com a voz do dono ao lead novo da roleta (VOZ-1, dono 2026-10-23). Nasce desligado; à parte: erro
   // aqui nunca impede o resto do cron.
   let welcomeVoiceAudios = null;
@@ -84,6 +103,8 @@ export async function GET(request) {
       ...(flows || {}),
       ...(formReminders ? { formReminders } : {}),
       autoSimulationSends,
+      officialAdFlow,
+      rouletteOffers,
       welcomeVoiceAudios,
       serviceStall,
       falseConnections,
@@ -91,5 +112,5 @@ export async function GET(request) {
       marketplaceExtension
     }, { status: 500 });
   }
-  return NextResponse.json({ ok: true, ...flows, formReminders, autoSimulationSends, welcomeVoiceAudios, serviceStall, serviceDown: serviceHealth.down, falseConnections, marketplaceRedistribution, marketplaceExtension });
+  return NextResponse.json({ ok: true, ...flows, formReminders, autoSimulationSends, officialAdFlow, rouletteOffers, welcomeVoiceAudios, serviceStall, serviceDown: serviceHealth.down, falseConnections, marketplaceRedistribution, marketplaceExtension });
 }

@@ -182,6 +182,40 @@ Caso: na Particular do dono apareceu uma conversa com o PRÓPRIO número, cheia 
 
 O serviço individual roda no computador do dono e pode parar por horas com as sessões ainda `connected` no banco. Detecção única em `lib/whatsapp-service-health-core.mjs` (puro) + `lib/whatsapp-service-health.js`: lease sem renovar > 3 min, ou `GET /health` (sem segredo, timeout 3 s; ok = `ok` e `serving`) falhando 2x seguidas, ou 2+ envios com falha de rede em 10 min depois do último `/health` ok; volta só com `/health` ok + lease fresco. Estado do episódio em `crm_settings` id `whatsapp_service_health` (`status`, `since`, `healthFails`, `lastFailAt`, `lastOkAt`), cache de 60 s (30 s fora do ar). Consumidores: `card-state` (`serviceDown`), Meta Diária (`registerDailyGoalAttempt`), faixa do Chat (`summary.serviceDown`), cron `whatsapp-flows` (avisa o dono "fora do ar desde HH:MM"/"voltou", informativo, uma vez por episódio, mesma chave do alerta WA-22 quando a queda é por lease). Teste sem envio real: `node --test tests/whatsapp-service-health.test.mjs`.
 
+## 1-N. Fluxo do anúncio no Oficial, oferta ao próximo da roleta e bom dia das 08:00 (2026-11-10) — **[REGRA OFICIAL DE NEGÓCIO — dono, 2026-11-10]** (BUSINESS_RULES WA-40)
+
+Tudo desligado por padrão; só código + migration NÃO aplicada. Mapa:
+
+| Peça | Arquivo |
+|---|---|
+| Regras puras do fluxo (config, saudação/gênero, horário, rodízio, temporizadores, textos, mensagens da Cloud API) | `lib/official-ad-flow-core.mjs` |
+| Integração (webhook, cron, transferência, formulário curto, imóveis sugeridos) | `lib/official-ad-flow.js` (+ ganchos em `lib/whatsapp-master.js`, `lib/whatsapp-sponsored-lead.js`, `lib/simulations.js`, `lib/simulation-registrations.js`, `lib/sms-batch-links.js`, `app/api/campaigns/track-view`, `LinkJourneyGate.jsx`, `app/api/simulation-registrations`) |
+| Oferta ao próximo da roleta (reutilizável) | `lib/roulette-offer-core.mjs`, `lib/roulette-offer.js` |
+| Alerta pelo Oficial (função única) | `lib/official-alert-core.mjs`, `lib/official-alert.js` (`sendOfficialAlert`) |
+| Bom dia das 08:00 | `lib/official-window-keepalive-core.mjs`, `lib/official-window-keepalive.js`, `app/api/cron/official-window-keepalive/route.js` |
+| Configuração (admin/gestor) | `app/api/admin/official-ad-flow/route.js`, `components/OfficialAdFlowSettings.jsx` (Automações › Fluxo do anúncio) |
+| Tabelas | `official_ad_flow_sessions`, `roulette_offers` (`supabase/migrations/20261110120000_official_ad_flow.sql`, NÃO aplicada); estado do bom dia em `crm_settings` (`official_keepalive:<dia>:<usuário>`), config em `official_ad_flow`, rodízio em `official_ad_flow_rotation` |
+
+**Ordem no webhook do Oficial** (`processWhatsappWebhook`): "pare" (WA-30) → mensagens de número da equipe (resposta à oferta; bom dia/"oi"/👋 saem de toda automação) → lista de documentos → lead patrocinado/orgânico (cria o cliente "segurado", WA-18) → **fluxo do anúncio** → Fluxos de grafo/palavra-chave → resposta fora do horário. O que o fluxo trata sai das três últimas.
+
+**Janelas e fallback:** o aviso/pergunta ao corretor por texto livre exige a janela de 24 h dele com o Oficial aberta (por isso o bom dia das 08:00). Sino + push do CRM saem sempre, em paralelo. Sem modelo da Meta.
+
+**Agendamento (pg_cron) — NÃO CRIADO; o dono cria.** O prazo da oferta (1 min) e a cutucada (2 min) pedem o cron `whatsapp-flows` a **cada minuto** (hoje a cada 2 min: `cron.alter_job(<id de whatsapp-flows-timers-every-minute>, schedule => '* * * * *')`). Rotina das 08:00 (08:00 de São Paulo = 11:00 UTC; roda a cada 2 min até 08:40 para enviar, conferir e reenviar):
+
+```sql
+-- mesmo molde dos demais jobs (token no vault); NÃO executado por este código
+select cron.schedule(
+  'official-window-keepalive-0800',
+  '0-40/2 11 * * *',
+  $$ select net.http_get(
+       url := 'https://imoveis-mvp.vercel.app/api/cron/official-window-keepalive',
+       headers := jsonb_build_object('Authorization', 'Bearer ' || (select decrypted_secret from vault.decrypted_secrets where name = 'crm_automation_cron_token' limit 1))
+     ) $$
+);
+```
+
+**Para ligar:** aplicar a migration, conferir as chaves do Oficial (`WHATSAPP_ACCESS_TOKEN`, `WHATSAPP_PHONE_NUMBER_ID`), cadastrar os participantes na tela, depois ligar o interruptor. **Teste sem enviar:** `node --test tests/official-ad-flow-core.test.mjs tests/roulette-offer-core.test.mjs tests/official-window-keepalive-core.test.mjs`.
+
 ## 1-B. Alerta "WhatsApp precisa de atenção" (2026-10-04) — **[COMPORTAMENTO ATUAL DA IMPLEMENTAÇÃO]**
 
 Definição `whatsapp_session_attention` em `crm_alert_definitions` (Importante, ligável em Automações › Alertas; migration `20261004120000`). Detecção em `applyIndividualSessionStatus` (webhook de status do microsserviço — nada no Railway), regras puras em `lib/whatsapp-session-attention-core.mjs`, testes `tests/whatsapp-session-attention.test.mjs`. Decide pelo `error` do evento recebido, não pelo `last_error` antigo.
