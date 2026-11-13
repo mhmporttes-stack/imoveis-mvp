@@ -33,3 +33,14 @@ export function markHelpLabelSeen(storage) {
     // sem armazenamento: a legenda só volta na próxima visita
   }
 }
+
+// Aviso ao DONO (dono, 2026-11-13): chamado sem resposta deixa o botão vermelho com selo de número (e o rótulo falado diz o
+// número: não depende só de cor). Só quem vê a fila (`isOwner` = conta real do dono, fora de "Alterar conta"); os demais perfis
+// nunca ficam vermelhos. Contagem inválida/ausente (ex.: sem a migration) = 0 = botão normal.
+export const HELP_SUMMARY_POLL_MS = 60_000;
+
+export function helpButtonTone({ isOwner = false, openCount = 0 } = {}) {
+  const count = isOwner && Number.isFinite(Number(openCount)) ? Math.max(0, Math.floor(Number(openCount))) : 0;
+  if (!count) return { alert: false, count: 0, badge: "", ariaLabel: "Ajuda" };
+  return { alert: true, count, badge: count > 99 ? "99+" : String(count), ariaLabel: `Ajuda: ${count} ${count === 1 ? "chamado sem resposta" : "chamados sem resposta"}` };
+}

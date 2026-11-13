@@ -11,7 +11,7 @@ import EmptyState from "@/components/ui/EmptyState";
 import Tabs from "@/components/ui/Tabs";
 import { prepareImageFile } from "@/components/ChatAttachmentTray";
 import { useHenryFullscreen } from "@/components/henry/useHenryFullscreen";
-import { helpBottomOffset, isHelpButtonHidden, markHelpLabelSeen, shouldShowHelpLabel } from "@/components/support/help-button-core.mjs";
+import { HELP_SUMMARY_POLL_MS, helpBottomOffset, helpButtonTone, isHelpButtonHidden, markHelpLabelSeen, shouldShowHelpLabel } from "@/components/support/help-button-core.mjs";
 import { createErrorBuffer, describeRejection, describeWindowError } from "@/components/support/support-error-buffer.mjs";
 import {
   TICKET_DESCRIPTION_MAX,
@@ -59,6 +59,7 @@ export default function SupportHelp({ stackAboveHenry = false, showQueueLink = f
   const [mine, setMine] = useState({ loading: false, error: "", tickets: null });
   const [label, setLabel] = useState(false);
   const [env, setEnv] = useState({ typing: false, chatAppMode: false, overlayOpen: false, viewportWidth: 1280 });
+  const [openCount, setOpenCount] = useState(0);
   const henryOpen = useHenryFullscreen();
   const imagesRef = useRef(images);
   imagesRef.current = images;
@@ -88,6 +89,31 @@ export default function SupportHelp({ stackAboveHenry = false, showQueueLink = f
       window.removeEventListener("resize", sync);
     };
   }, []);
+
+  // Só o dono: conta de chamados sem resposta (rota leve só-dono), atualizada a cada 60 s e ao voltar para a aba.
+  // Falha de rede/servidor mantém o número anterior; sem a migration a rota devolve 0.
+  useEffect(() => {
+    if (!showQueueLink) return undefined;
+    let cancelled = false;
+    const refresh = async () => {
+      if (document.visibilityState === "hidden") return;
+      try {
+        const response = await fetch("/api/admin/support/summary", { cache: "no-store" });
+        const data = await response.json().catch(() => ({}));
+        if (!cancelled && response.ok) setOpenCount(Number(data.open) || 0);
+      } catch {
+        // sem rede: mantém o último número
+      }
+    };
+    refresh();
+    const timer = window.setInterval(refresh, HELP_SUMMARY_POLL_MS);
+    document.addEventListener("visibilitychange", refresh);
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+      document.removeEventListener("visibilitychange", refresh);
+    };
+  }, [showQueueLink]);
 
   useEffect(() => () => imagesRef.current.forEach((item) => URL.revokeObjectURL(item.previewUrl)), []);
 
@@ -201,6 +227,7 @@ export default function SupportHelp({ stackAboveHenry = false, showQueueLink = f
     }
   }
 
+  const tone = helpButtonTone({ isOwner: showQueueLink, openCount });
   const hidden = isHelpButtonHidden({ ...env, overlayOpen: env.overlayOpen || henryOpen, helpOpen: open });
 
   return (
@@ -209,15 +236,15 @@ export default function SupportHelp({ stackAboveHenry = false, showQueueLink = f
         <button
           type="button"
           onClick={() => openHelp("new")}
-          aria-label="Ajuda"
-          className="fixed left-3 z-[34] flex items-center gap-2 rounded-full border border-line bg-white/95 text-navy shadow-float backdrop-blur transition-transform duration-150 ease-out-ui active:scale-[0.97] max-md:bottom-[var(--help-bottom)] md:bottom-4 md:left-[calc(var(--mm-shell-sidebar,76px)+1rem)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+          aria-label={tone.ariaLabel}
+          className={`fixed left-3 z-[34] flex items-center gap-2 rounded-full border shadow-float backdrop-blur ${tone.alert ? "border-danger bg-danger-strong text-white" : "border-line bg-white/95 text-navy"} transition-transform duration-150 ease-out-ui active:scale-[0.97] max-md:bottom-[var(--help-bottom)] md:bottom-4 md:left-[calc(var(--mm-shell-sidebar,76px)+1rem)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand`}
           style={{ "--help-bottom": helpBottomOffset(stackAboveHenry) }}
           data-no-pull
         >
           <span className="relative flex h-10 w-10 items-center justify-center before:absolute before:-inset-0.5 before:content-['']">
             <CircleHelp className="h-5 w-5" strokeWidth={2} aria-hidden="true" />
           </span>
-          {label ? <span className="pr-3 text-[13px] font-semibold">Ajuda</span> : null}
+          {tone.alert ? <span className="pr-3 text-[13px] font-extrabold tabular-nums" aria-hidden="true">{tone.badge}</span> : label ? <span className="pr-3 text-[13px] font-semibold">Ajuda</span> : null}
         </button>
       )}
       <Sheet
@@ -302,7 +329,9 @@ export default function SupportHelp({ stackAboveHenry = false, showQueueLink = f
             </ul>
           )}
           {showQueueLink ? (
-            <Link href="/admin/ajuda" className="block text-center text-sm font-bold text-brand hover:text-navy" onClick={() => setOpen(false)}>Ver chamados recebidos</Link>
+            <Link href="/admin/ajuda" className={tone.alert ? "block rounded-control bg-danger-strong px-3 py-3 text-center text-sm font-extrabold text-white" : "block text-center text-sm font-bold text-brand hover:text-navy"} onClick={() => setOpen(false)}>
+              {tone.alert ? `Ver ${tone.count} ${tone.count === 1 ? "chamado sem resposta" : "chamados sem resposta"}` : "Ver chamados recebidos"}
+            </Link>
           ) : null}
         </div>
       </Sheet>

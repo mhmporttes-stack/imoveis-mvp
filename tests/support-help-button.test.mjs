@@ -49,3 +49,23 @@ test("a gaveta usa Sheet (voltar fecha só ela) e a redução de imagem do Chat"
   assert.match(component, /addTicketImages/);
   assert.match(read("components/ui/Sheet.jsx"), /useBackToClose\(open, requestClose\)/);
 });
+
+test("botão vermelho com selo só para o dono quando há chamado sem resposta; demais perfis nunca", async () => {
+  const { helpButtonTone, HELP_SUMMARY_POLL_MS } = await import("../components/support/help-button-core.mjs");
+  assert.deepEqual(helpButtonTone({ isOwner: true, openCount: 0 }), { alert: false, count: 0, badge: "", ariaLabel: "Ajuda" });
+  const one = helpButtonTone({ isOwner: true, openCount: 1 });
+  assert.equal(one.alert, true);
+  assert.equal(one.badge, "1");
+  assert.match(one.ariaLabel, /1 chamado sem resposta/);
+  assert.equal(helpButtonTone({ isOwner: true, openCount: 250 }).badge, "99+");
+  assert.equal(helpButtonTone({ isOwner: false, openCount: 5 }).alert, false);
+  assert.equal(helpButtonTone({ isOwner: true, openCount: "x" }).alert, false);
+  assert.ok(HELP_SUMMARY_POLL_MS >= 30_000);
+  const route = read("app/api/admin/support/summary/route.js");
+  assert.ok(route.indexOf("requireAdminApi(request)") < route.indexOf("assertSupportQueueAccess(auth)"));
+  assert.ok(route.indexOf("assertSupportQueueAccess(auth)") < route.indexOf("countOpenSupportTickets(auth)"));
+  const lib = read("lib/support-tickets.js");
+  assert.match(lib.slice(lib.indexOf("export async function countOpenSupportTickets")), /assertSupportQueueAccess\(auth\)[\s\S]*missingTable\(error\)\) return 0/);
+  const component = read("components/support/SupportHelp.jsx");
+  assert.match(component, /if \(!showQueueLink\) return undefined/); // só o dono consulta
+});
