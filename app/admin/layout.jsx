@@ -8,6 +8,8 @@ import AdminScrollReveal from "@/components/motion/AdminScrollReveal";
 import AdminWarmup from "@/components/AdminWarmup";
 import { ViewerKeyProvider } from "@/components/DeviceCacheRefreshing";
 import HenryVoiceAssistant from "@/components/henry/HenryVoiceAssistant";
+import SupportHelp from "@/components/support/SupportHelp";
+import { isHenryVisible } from "@/lib/henry-visibility.mjs";
 import { chatViewerKey } from "@/lib/chat-viewer-key.mjs";
 import AdminLogoutButton from "@/components/AdminLogoutButton";
 import AdminPresenceHeartbeat from "@/components/AdminPresenceHeartbeat";
@@ -128,9 +130,17 @@ export default async function AdminLayout({ children }) {
       {auth.ok ? <AdminScrollReveal /> : null}
       {/* Assistente de voz "Henry" (HENRY-1, dono 2026-10-22): só o dono, conta real, fora de "Alterar conta"; a rota
           /api/admin/henry confere de novo. Computador: escuta contínua; celular (app): tocar no anel para falar. */}
-      {auth.ok && !auth.accountSwitchMode && isOwnerAdminEmail(auth.user?.email) ? (
+      {/* OCULTO por decisão do dono (2026-11-13): interruptor único em lib/henry-visibility.mjs (religar = false). */}
+      {isHenryVisible() && auth.ok && !auth.accountSwitchMode && isOwnerAdminEmail(auth.user?.email) ? (
         <HideInFinanceiroApp>
           <HenryVoiceAssistant />
+        </HideInFinanceiroApp>
+      ) : null}
+      {/* Ajuda (dono, 2026-11-13): botão "?" no canto inferior esquerdo, todos os perfis; ocupa o lugar do Henry (se ele voltar,
+          empilha acima — `stackAboveHenry`). Chamados: lib/support-tickets.js; fila só do dono. */}
+      {auth.ok ? (
+        <HideInFinanceiroApp>
+          <SupportHelp stackAboveHenry={isHenryVisible() && !auth.accountSwitchMode && isOwnerAdminEmail(auth.user?.email)} showQueueLink={!auth.accountSwitchMode && isOwnerAdminEmail(auth.user?.email)} />
         </HideInFinanceiroApp>
       ) : null}
       {/* Conta que está olhando (cache das telas no aparelho, 2026-10-26): o carregamento do Início mostra o que esta conta guardou. */}
@@ -154,6 +164,12 @@ export default async function AdminLayout({ children }) {
         <div className="admin-page-footer container-page flex flex-col items-center gap-3 py-10">
           <AdminLogoutButton />
           {/* Verificação em duas etapas: só a conta REAL do dono ou de um gestor (regra do dono, 2026-10-08/09). */}
+          {/* Fila de chamados da Ajuda: SÓ o dono, conta real, fora de "Alterar conta" (dono, 2026-11-13). */}
+          {!auth.accountSwitchMode && isOwnerAdminEmail(auth.user?.email) ? (
+            <Link className="mm-app-hide text-sm font-extrabold text-brand transition hover:text-navy" href="/admin/ajuda">
+              Chamados de ajuda
+            </Link>
+          ) : null}
           {isOwnerAdminEmail((auth.realUser || auth.user)?.email) || isManagerProfile(auth.realProfile || auth.profile) ? (
             <Link className="mm-app-hide text-sm font-extrabold text-brand transition hover:text-navy" href="/admin/seguranca">
               Segurança da conta (verificação em duas etapas)

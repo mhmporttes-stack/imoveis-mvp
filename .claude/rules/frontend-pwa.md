@@ -51,7 +51,11 @@ Pré-carregamento do painel (dono, 2026-10-22: "Carregue primeiro a aba Clientes
 
 Pílula de estado (dono, 2026-11-02): uma só, `components/FloatingStatusPill.jsx` (spinner girando; "reduzir movimento" = bolinha pulsando), acima da barra inferior. "Atualizando…" = `DeviceCacheRefreshing`; "Carregando…" = `components/NavigationPill.jsx` (montada em `app/admin/layout.jsx`), disparada no toque por `navPillProps(href)` nos links da barra, da folha "Mais" e do menu lateral (atraso 120 ms, some ao mudar caminho/filtro, teto 15 s, ignora a tela atual; regra pura `components/navigation-pill-core.mjs`, `tests/navigation-pill-core.test.mjs`). Item de menu novo: ponha `{...navPillProps(href)}` no link.
 
-Henry no app (dono, 2026-10-22, só o dono): botão do anel no canto inferior ESQUERDO, logo acima da barra inferior (`bottom: max(safe-area, --admin-bottom-nav-space)`, `z-[35]`) — não o mova para cima da barra nem para a direita (botões flutuantes das telas). Cena cheia com safe-area, sem rolagem por trás, "voltar" e arrastar para baixo minimizam. Detalhe: `docs/BUSINESS_RULES.md` HENRY-1.
+**[REGRA OFICIAL DE NEGÓCIO — dono, 2026-11-13] Ajuda "?" e chamados (AJUDA-1).** Botão flutuante pequeno no canto inferior ESQUERDO, todos os perfis, mesma posição/variáveis do Henry (`helpBottomOffset`, `components/support/help-button-core.mjs`); esconde com teclado, conversa aberta do Chat/Marketplace no celular, gavetas e telas cheias; legenda só na 1ª vez. Gaveta = `Sheet` (use-back-to-close); prints reduzidos pelo `prepareImageFile` do Chat; contexto, fila só do dono (`/admin/ajuda`), resposta por sino+push e privacidade em `docs/BUSINESS_RULES.md` AJUDA-1 — não crie outro canal de aviso nem outra tela de chamados. Montagem em `app/admin/layout.jsx` (`SupportHelp`).
+
+**Henry OCULTO (dono, 2026-11-13).** O botão do Henry abaixo NÃO é montado: interruptor único `lib/henry-visibility.mjs`; o "?" da Ajuda ocupa o lugar dele. Religar: `.claude/rules/henry-assistente-voz.md`.
+
+Henry no app (dono, 2026-10-22, só o dono; hoje oculto): botão do anel no canto inferior ESQUERDO, logo acima da barra inferior (`bottom: max(safe-area, --admin-bottom-nav-space)`, `z-[35]`) — não o mova para cima da barra nem para a direita (botões flutuantes das telas). Cena cheia com safe-area, sem rolagem por trás, "voltar" e arrastar para baixo minimizam. Detalhe: `docs/BUSINESS_RULES.md` HENRY-1.
 
 ## Não confundir
 

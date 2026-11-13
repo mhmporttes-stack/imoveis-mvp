@@ -10,6 +10,13 @@
 
 
 
+## 2026-11-13 — Ajuda "?" e chamados (AJUDA-1) + Henry oculto no CRM (HENRY-OCULTO) (crm-architect) — NÃO publicado, migration NÃO aplicada
+- Dono (2026-11-13), duas partes. **[REGRA OFICIAL]** `docs/BUSINESS_RULES.md` AJUDA-1 e HENRY-OCULTO; rules `frontend-pwa.md` e `henry-assistente-voz.md`; `docs/PERMISSIONS.md` §6; `docs/DATABASE.md`.
+- Novos: `components/support/{SupportHelp,SupportQueue}.jsx`, `help-button-core.mjs`, `support-error-buffer.mjs`, `copy-image.js`; `lib/support-tickets-core.mjs|.js`; rotas `app/api/admin/support/**`; página `app/admin/ajuda`; `lib/henry-visibility.mjs`; migration `20261113120000_support_tickets.sql`; testes `tests/support-tickets|support-help-button|henry-visibility.test.mjs`.
+- Alterados: `app/admin/layout.jsx` (monta `SupportHelp`; Henry atrás do interruptor; link "Chamados de ajuda" só do dono no rodapé), `app/admin/alexa/page.jsx` (cartões do Henry atrás do interruptor), `lib/notification-policy-core.mjs` (+`support_reply`, exceção nomeada) e seu teste.
+- Sem a migration: o botão abre, mas enviar/listar devolve "A Ajuda ainda não está disponível" (nada se perde); o aviso da resposta ao autor também depende dela (gatilho do sino).
+- Risco/observação: o cron `henry-treino` e as rotas do Henry continuam ativos (gastam IA com teto) — decidir se desliga; a tela de bloqueio do Henry some junto (era opt-in); o "?" some no Chat/Marketplace em modo aplicativo no celular (lista incluída, não só a conversa aberta); `tests/admin-presence-real-user.test.mjs` já falhava antes (fora do escopo).
+
 ## 2026-11-10 — Fluxo do anúncio no número OFICIAL, oferta ao próximo da roleta e bom dia das 08:00 (WA-40) (crm-architect) — NÃO publicado, migration NÃO aplicada, tudo DESLIGADO
 - Dono (2026-11-10): fluxo do anúncio no Oficial (saudação com gênero seguro + botões Localização/Valores/Associado, link direto às perguntas, cutucada 2 min/transferência +3 min, atalhos), transferência por OFERTA por WhatsApp ao próximo da roleta (sim/ok em 1 min, aceite tardio, à noite aviso "a partir das 8h"), avisos do CRM mantidos + WhatsApp adicional, bom dia das 08:00 com conferência e reenvio. **[REGRA OFICIAL]** `docs/BUSINESS_RULES.md` WA-40, rule `integracoes-externas.md`, `docs/WHATSAPP.md` §1-N.
 - Novos: `lib/official-ad-flow-core.mjs|.js`, `lib/roulette-offer-core.mjs|.js`, `lib/official-alert-core.mjs|.js`, `lib/official-window-keepalive-core.mjs|.js`, rota `app/api/cron/official-window-keepalive`, rota `app/api/admin/official-ad-flow`, `components/OfficialAdFlowSettings.jsx` (aba Automações › Fluxo do anúncio), migration `20261110120000_official_ad_flow.sql`, testes `tests/official-ad-flow-core|roulette-offer-core|official-window-keepalive-core.test.mjs`.

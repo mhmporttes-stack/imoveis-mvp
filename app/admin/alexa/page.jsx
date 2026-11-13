@@ -4,6 +4,7 @@ import WifiPresenceSection from "@/components/alexa/WifiPresenceSection";
 import HenrySettingsCard from "@/components/henry/HenrySettingsCard";
 import HenryTrainingCard from "@/components/henry/HenryTrainingCard";
 import { requireGeneralAdminPage } from "@/lib/admin-auth";
+import { isHenryVisible } from "@/lib/henry-visibility.mjs";
 import { getAlexaEnvStatus, loadAlexaSettings } from "@/lib/alexa-service";
 import { getArrivalStatus } from "@/lib/alexa-arrival";
 import { getLastFirstAccess } from "@/lib/primeiro-acesso";
@@ -22,9 +23,10 @@ export default async function AdminAlexaPage() {
       {/* Chegada pelo Wi-Fi (PRES-WIFI): só aparece para o dono. */}
       <WifiPresenceSection />
       {/* Liga/desliga do assistente de voz Henry (HENRY-1): o cartão só aparece para o dono. */}
-      <HenrySettingsCard />
+      {/* Henry OCULTO (dono, 2026-11-13): cartões de configuração e treino voltam com isHenryVisible() (lib/henry-visibility.mjs). */}
+      {isHenryVisible() ? <HenrySettingsCard /> : null}
       {/* Treino do Henry (HENRY-1 "Modo treino"): só o dono; conversa simulada em texto, somente leitura. */}
-      <HenryTrainingCard />
+      {isHenryVisible() ? <HenryTrainingCard /> : null}
     </main>
   );
 }
