@@ -6758,3 +6758,8 @@ Pedido do dono (prints do iPhone, PWA/Safari), só apresentação — nenhuma re
 ## 2026-11-08 — proxy.js atrás do túnel (servidor local)
 - `proxy.js`: com `MM_PRODUCTION_HOST=1`, redirects usam host/protocolo públicos (`x-forwarded-*`, `lib/public-origin-core.mjs`) e rewrites das telas de entrada ficam internos em `http:` (antes: 500 EPROTO / Location no endereço interno). Sem a variável nada muda (Vercel). Teste: `tests/proxy-public-origin.test.mjs`.
 - 2026-11-08 (2): com `MM_PRODUCTION_HOST=1` o rewrite de `/admin/login` e `/admin/reset-password` passa para `next.config.mjs` (o Next self-hosted trata rewrite do proxy como HTTP a si mesmo e entrava em ciclo 307); `proxy.js` só deixa passar. Na Vercel nada muda. Confirmado atrás do túnel (login 200).
+
+## 2026-11-14 — P0: troca de conta ao renovar o login (P-23) (crm-architect) — NÃO publicado
+- Causa e correção: `docs/INCIDENTES.md` (2026-11-14) e `docs/SYSTEM_ARCHITECTURE.md` §13 P-23. `refreshAdminSession` usava o cliente público único do processo; o auth-js reaproveita a renovação em andamento de outro usuário. Agora `createIsolatedSupabaseAuthClient()` (`lib/supabase.js`, cliente novo por chamada) em `refreshAdminSession` e `verifyAdminAccessTokenUncached`; renovação incoerente com o `sub` do access token do aparelho => 401 sem cookie (`verifyAdminSessionTokens` repassa o access token).
+- Regra: nunca usar cliente Supabase compartilhado para fluxo de sessão/credencial de usuário. Sem mudança de banco, rota, permissão ou contrato de retorno.
+- Teste: `tests/admin-session-isolation.test.mjs` (novo); `tests/server-cache.test.mjs` só troca o nome do stub. Risco/observação: o P-22 do §13 já era outro item; este ficou como P-23.

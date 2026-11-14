@@ -40,6 +40,17 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-11-14 — Celular de uma corretora passou a operar como outro corretor (troca de conta ao renovar o login)
+- **Data:** 2026-11-14 (14:42, auditoria P0)
+- **Sintoma:** o celular Android de uma corretora passou a ver e operar como outro corretor (dados, WhatsApp, alterar cliente) no momento em que os dois renovaram o login quase juntos.
+- **Área:** Permissões / Login (`lib/admin-auth.js`, `lib/supabase.js`)
+- **Impacto:** grave (P0): qualquer par de usuários renovando a sessão ao mesmo tempo podia trocar de conta; ação operacional ficava atribuída à pessoa errada.
+- **Causa raiz:** `refreshAdminSession` chamava `refreshSession({ refresh_token })` no cliente público ÚNICO do processo (`getSupabasePublicClient`). No `@supabase/auth-js` 2.110.1 `_callRefreshToken` devolve o resultado de uma renovação já em andamento (`refreshingDeferred`) mesmo com refresh token diferente, e não há lock: quem chegava durante a renovação do outro recebia usuário/sessão dele, e `app/api/admin/session/route.js` gravava os cookies alheios no aparelho.
+- **Correção:** `createIsolatedSupabaseAuthClient()` (`lib/supabase.js`, cliente novo por chamada, sem storage/timer) em `refreshAdminSession` e `verifyAdminAccessTokenUncached`; `refreshAdminSession(refreshToken, previousAccessToken)` recusa (401, sem cookie) se o usuário renovado não é o dono (`sub`) do access token do aparelho ou do novo access token. Regra: nunca usar cliente Supabase compartilhado para fluxo de sessão/credencial de usuário. `.auth.` no servidor só existia nessas duas chamadas (o resto é `auth.admin.*` do service role, sem estado de sessão).
+- **Arquivos/commit:** `lib/supabase.js`, `lib/admin-auth.js`, `tests/admin-session-isolation.test.mjs`, `tests/server-cache.test.mjs` (stub) — sem commit ainda. Produção roda `a3210a6a` (com o bug) até nova publicação.
+- **Prevenção/teste:** `tests/admin-session-isolation.test.mjs` (auth-js real + fetch falso com resposta lenta; duas e 20 renovações simultâneas; falha no código antigo — usuário B recebia A — e passa no novo). Limite: sessões que já foram trocadas em aparelhos não são desfeitas pela correção (pedir novo login aos afetados).
+- **Status:** Corrigido no código, aguardando publicação.
+
 ### 2026-11-02 — Chat do Marketplace: "Não enviada" com "Tentar de novo" 7 dias depois, bolha "por" sem nome com data errada e bolhas cortadas
 - **Data:** 2026-11-02 (relato 2026-10-29)
 - **Sintoma:** print da conversa "Rafaela" (respostas de Bruna Santos): mensagens de 22/10 em "Não enviada — Etapa 'página do Facebook (mp-inbox-send)' passou de 120 s…" e "Não confirmei a mensagem…" COM "Tentar de novo" dias depois; bolha "Facebook (enviada fora do CRM) — Mensagem enviada 22 de outubro de 2026 13:04 por" (sem nome, rodapé 29/10, no fim da conversa); bolhas cortadas/vazando.

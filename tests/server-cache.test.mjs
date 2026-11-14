@@ -127,7 +127,7 @@ function makeToken(user) {
 globalThis.__stubs = {
   supabase: {
     hasSupabasePublicConfig: () => true,
-    getSupabasePublicClient: () => ({
+    createIsolatedSupabaseAuthClient: () => ({
       auth: {
         getUser: async (token) => {
           calls.getUser += 1;
