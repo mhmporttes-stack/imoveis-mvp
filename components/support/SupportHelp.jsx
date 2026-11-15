@@ -253,7 +253,7 @@ export default function SupportHelp({ stackAboveHenry = false, showQueueLink = f
           <span className="relative flex h-10 w-10 items-center justify-center before:absolute before:-inset-0.5 before:content-['']">
             <CircleHelp className="h-5 w-5" strokeWidth={2} aria-hidden="true" />
           </span>
-          {tone.alert ? <span className="pr-3 text-[13px] font-extrabold tabular-nums" aria-hidden="true">{tone.badge}</span> : label ? <span className="pr-3 text-[13px] font-semibold">Ajuda</span> : null}
+          {tone.alert ? <span className="pr-3 text-[13px] font-extrabold tabular-nums" aria-hidden="true">{tone.badge}</span> : null}{/* Só o "?": sem a legenda "Ajuda" (dono, 2026-11-15). O selo vermelho com número, para o dono, continua. */}
         </button>
       )}
       <Sheet
