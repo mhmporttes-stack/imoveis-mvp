@@ -75,7 +75,13 @@ export default function SupportHelp({ stackAboveHenry = false, showQueueLink = f
 
   // Estado do ambiente (teclado, Chat em modo aplicativo, gavetas): reavaliado ao focar/desfocar, redimensionar e quando a classe do <html> muda.
   useEffect(() => {
-    const sync = () => setEnv(readEnvironment());
+    // Só atualiza quando algo mudou de verdade: um objeto novo a cada chamada redesenhava o botão sempre, e a gaveta (Sheet) mexe na
+    // classe do <html> a cada redesenho -> o observador abaixo disparava de novo -> laço infinito (tela travada, 2026-11-15).
+    const sync = () => setEnv((current) => {
+      const next = readEnvironment();
+      return current.typing === next.typing && current.chatAppMode === next.chatAppMode
+        && current.overlayOpen === next.overlayOpen && current.viewportWidth === next.viewportWidth ? current : next;
+    });
     sync();
     const observer = new MutationObserver(sync);
     observer.observe(document.documentElement, { attributes: true, attributeFilter: ["class"] });
@@ -128,6 +134,9 @@ export default function SupportHelp({ stackAboveHenry = false, showQueueLink = f
       setMine({ loading: false, error: loadError.message || "Não consegui carregar seus chamados.", tickets: null });
     }
   }, []);
+
+  // Função estável: o Sheet refaz o efeito (e mexe na classe do <html>) a cada onClose novo.
+  const closeHelp = useCallback(() => setOpen(false), []);
 
   const openHelp = useCallback((nextTab = "new") => {
     setTab(nextTab);
@@ -249,7 +258,7 @@ export default function SupportHelp({ stackAboveHenry = false, showQueueLink = f
       )}
       <Sheet
         open={open}
-        onClose={() => setOpen(false)}
+        onClose={closeHelp}
         title="Ajuda"
         description="Conte o que está acontecendo. O CRM junta sozinho a tela, o aparelho e o horário."
         side="auto"
