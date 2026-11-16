@@ -40,6 +40,13 @@ Copie o modelo abaixo (uma entrada por bloco):
 
 ## Registro
 
+### 2026-11-16 — Cliente do link pessoal do corretor caiu em outro corretor pela roleta
+- **Data:** 2026-11-16
+- **Sintoma:** cliente chegou por `?ref=<corretor>` e foi para outro corretor (roleta); `client_origins` = campanha "DISPARO PAGO", destino roleta, `source_metadata.broker_ref` = ref do corretor. O teste do próprio corretor no mesmo link caiu certo.
+- **Causa raiz:** `lib/campaign-link-client.js` guarda o `?c=` de qualquer campanha em `localStorage` (`mm_campaign_ref`, 30 dias) e os formulários usavam `?c= || guardada`; o servidor (`resolveExternalLinkAssignment`) dá prioridade à campanha ativa sobre o ref pessoal. Quem já tinha aberto um link de campanha e depois recebia o link pessoal enviava a campanha antiga.
+- **Correção:** `lib/campaign-link-core.mjs` `resolveCampaignIdForForm` (ref pessoal sem `?c=` => sem campanha e apaga o guardado; `?c=` na URL, link geral e `?ref=equipe` como antes), usada em `SimulationForm.jsx` e `QuickAttendanceForm.jsx`. Teste: `tests/campaign-link-core.test.mjs`. Servidor inalterado (payload com brokerRef + campaignId continua priorizando a campanha, por regra de campanha).
+- **Não corrigido (histórico):** clientes já cadastrados assim continuam na roleta; reatribuição manual se o dono quiser.
+
 ### 2026-11-14 — Celular de uma corretora passou a operar como outro corretor (troca de conta ao renovar o login)
 - **Data:** 2026-11-14 (14:42, auditoria P0)
 - **Sintoma:** o celular Android de uma corretora passou a ver e operar como outro corretor (dados, WhatsApp, alterar cliente) no momento em que os dois renovaram o login quase juntos.

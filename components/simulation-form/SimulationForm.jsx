@@ -12,7 +12,7 @@ import PropertyPreferencesInvite from "@/components/simulation-form/PropertyPref
 import SimulationSuccess from "@/components/simulation-form/SimulationSuccess";
 import styles from "@/components/simulation-form/SimulationForm.module.css";
 import { PROPERTY_PREFERENCE_STATUS } from "@/lib/property-preference-display";
-import { persistCampaignId, readStoredCampaignId } from "@/lib/campaign-link-client";
+import { persistCampaignId, resolveCampaignIdFromBrowser } from "@/lib/campaign-link-client";
 import { incomeBracketLabel } from "@/lib/meta-pixel-shared";
 import { trackMetaLead } from "@/lib/meta-pixel-client";
 import { trackGoogleAdsLead } from "@/lib/google-ads-client.mjs";
@@ -49,7 +49,7 @@ export default function SimulationForm({ brokerRefOverride = "", journeySelected
       : "";
   const brokerRef = brokerRefOverride || searchParams.get("ref") || "";
   const campaignIdFromUrl = searchParams.get("c") || "";
-  const campaignId = campaignIdFromUrl || readStoredCampaignId();
+  const campaignId = resolveCampaignIdFromBrowser({ urlCampaign: campaignIdFromUrl, brokerRef });
 
   useEffect(() => {
     if (campaignIdFromUrl) persistCampaignId(campaignIdFromUrl);

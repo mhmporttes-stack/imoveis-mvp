@@ -7,7 +7,7 @@ import PhoneInputStep from "@/components/simulation-form/PhoneInputStep";
 import TextInputStep from "@/components/simulation-form/TextInputStep";
 import { isValidBrazilianMobile, toBrazilianE164 } from "@/lib/phone-utils";
 import { normalizePersonName } from "@/lib/name-utils";
-import { readStoredCampaignId } from "@/lib/campaign-link-client";
+import { resolveCampaignIdFromBrowser } from "@/lib/campaign-link-client";
 import { trackMetaLead } from "@/lib/meta-pixel-client";
 import { trackGoogleAdsLead } from "@/lib/google-ads-client.mjs";
 import { currentAdAttribution } from "@/lib/ad-click-attribution.mjs";
@@ -24,7 +24,7 @@ const PREFERENCE_OPTIONS = [
 export default function QuickAttendanceForm({ brokerRefOverride = "", onBack, journeySelected = "" }) {
   const searchParams = useSearchParams();
   const brokerRef = brokerRefOverride || searchParams.get("ref") || "";
-  const campaignId = searchParams.get("c") || readStoredCampaignId();
+  const campaignId = resolveCampaignIdFromBrowser({ urlCampaign: searchParams.get("c") || "", brokerRef });
 
   const [fullName, setFullName] = useState("");
   const [phone, setPhone] = useState("");
