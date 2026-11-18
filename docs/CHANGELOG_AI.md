@@ -6767,3 +6767,6 @@ Pedido do dono (prints do iPhone, PWA/Safari), só apresentação — nenhuma re
 
 ## 2026-11-16 — Link pessoal vence campanha só guardada no navegador (crm-architect) — NÃO publicado
 - Causa e correção: `docs/INCIDENTES.md` (2026-11-16). `lib/campaign-link-core.mjs` (novo, `resolveCampaignIdForForm`) + `resolveCampaignIdFromBrowser`/`clearStoredCampaignId` em `lib/campaign-link-client.js`; usado em `SimulationForm.jsx` e `QuickAttendanceForm.jsx`. Sem mudança de banco, rota, permissão ou servidor. Teste: `tests/campaign-link-core.test.mjs`.
+
+## 2026-11-18 — Cadastro recém-preenchido continua em "Novos atendimentos" (CLI-7d) (crm-architect) — NÃO publicado
+- Regra e motivo: `docs/BUSINESS_RULES.md` CLI-7d. `lib/new-clients-core.mjs` (novo), `getUnattendedClientEntries` em `lib/simulation-list-query.js` (+ ordem mais recente no topo na visão `needsFirstContact`), `lib/crm-pending-counts.js` (sem contar duas vezes com "Aguardando simulação"). Teste: `tests/new-clients-card.test.mjs`; `tests/transferred-awaiting-card.test.mjs` só mudou o nome da função buscada.

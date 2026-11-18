@@ -72,7 +72,7 @@ test("negativos, pago, particular e aguardando simulação ficam fora (aguardand
 
 test("o card do servidor usa a mesma regra (candidato + atendido desde o recebimento, no escopo do perfil)", () => {
   const source = readFileSync(new URL("../lib/simulation-list-query.js", import.meta.url), "utf8");
-  const body = source.slice(source.indexOf("export const getUnattendedClientIds"), source.indexOf("function sanitizeFilterTerm"));
+  const body = source.slice(source.indexOf("export const getUnattendedClientEntries"), source.indexOf("function sanitizeFilterTerm"));
   assert.match(body, /\.filter\(isTransferredCandidate\)/);
   assert.match(body, /TRANSFERRED_AWAITING_EXCLUDED_STATUSES/);
   assert.match(body, /listClientIdsWithHumanAttendance\(chunk\)/);
