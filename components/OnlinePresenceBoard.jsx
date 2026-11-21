@@ -748,6 +748,25 @@ function OfficeNetworkPanel() {
         ) : null}
       </div>
       <p className="mt-2 text-xs text-muted">Toque em “Esta é a rede da imobiliária” só quando estiver conectado ao Wi-Fi de lá. Se a operadora trocar a internet, marque de novo.</p>
+      {panel.unmatchedNetworks?.length ? (
+        <div className="mt-3 rounded-control border border-line bg-surface-2 px-4 py-3 text-sm">
+          <p className="font-semibold text-ink">Redes novas detectadas</p>
+          <p className="mt-1 text-xs text-muted">Corretores abriram o CRM por estas redes, que não estão cadastradas. Se é o Wi-Fi da imobiliária, cadastre (pode ser feito de qualquer aparelho, não precisa estar no Wi-Fi de lá).</p>
+          <ul className="mt-2 space-y-2">
+            {panel.unmatchedNetworks.map((network) => (
+              <li key={network.key} className="flex flex-wrap items-center justify-between gap-2">
+                <span className="min-w-0 text-xs text-ink-2">
+                  <span className="block truncate font-semibold text-ink">{network.key}</span>
+                  {network.users} {network.users === 1 ? "pessoa diferente" : "pessoas diferentes"} · última vez {new Date(network.lastAt).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}
+                </span>
+                <button type="button" disabled={busy} onClick={() => act({ action: "mark-detected-network", key: network.key })} className="inline-flex min-h-touch items-center rounded-full bg-accent-strong px-4 text-xs font-bold text-on-accent hover:brightness-110 disabled:opacity-60">
+                  Cadastrar como rede da imobiliária
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
       {panel.canToggle && panel.networks.length ? (
         <ul className="mt-2 space-y-1 text-xs text-muted">
           {panel.networks.map((network) => (

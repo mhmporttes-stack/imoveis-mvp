@@ -6770,3 +6770,7 @@ Pedido do dono (prints do iPhone, PWA/Safari), só apresentação — nenhuma re
 
 ## 2026-11-18 — Cadastro recém-preenchido continua em "Novos atendimentos" (CLI-7d) (crm-architect) — NÃO publicado
 - Regra e motivo: `docs/BUSINESS_RULES.md` CLI-7d. `lib/new-clients-core.mjs` (novo), `getUnattendedClientEntries` em `lib/simulation-list-query.js` (+ ordem mais recente no topo na visão `needsFirstContact`), `lib/crm-pending-counts.js` (sem contar duas vezes com "Aguardando simulação"). Teste: `tests/new-clients-card.test.mjs`; `tests/transferred-awaiting-card.test.mjs` só mudou o nome da função buscada.
+
+## 2026-11-21 — ROL-2f: redes novas detectadas e aviso ao dono (crm-architect) — NÃO publicado
+- Causa: IP/prefixo do escritório muda e o IP fora da lista era descartado em silêncio; o dono só soube pelos corretores.
+- Regra: `docs/BUSINESS_RULES.md` ROL-2f (2026-11-21). `lib/office-unmatched-core.mjs` (novo), `registerOfficeCheckinFromHeartbeat`/`getOfficeNetworkPanel`/`markDetectedOfficeNetwork` em `lib/office-presence.js`, ação `mark-detected-network` em `app/api/admin/office-presence/route.js`, bloco no `OfficeNetworkPanel` de `components/OnlinePresenceBoard.jsx`. Teste: `tests/office-unmatched.test.mjs`. Sem migration (`crm_settings` `office_presence_unmatched`).

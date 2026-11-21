@@ -6,6 +6,7 @@ import {
   getOfficeNetworkPanel,
   markOfficeAbsent,
   markCurrentOfficeNetwork,
+  markDetectedOfficeNetwork,
   releaseOfficeToday,
   removeOfficeNetwork,
   setOfficeRuleEnabled
@@ -34,6 +35,7 @@ export async function POST(request) {
     const body = await request.json().catch(() => ({}));
     const ip = clientIpFromHeaders(request.headers);
     if (body.action === "mark-network") await markCurrentOfficeNetwork(auth, ip);
+    else if (body.action === "mark-detected-network") await markDetectedOfficeNetwork(auth, String(body.key || ""));
     else if (body.action === "remove-network") await removeOfficeNetwork(auth, String(body.key || ""));
     else if (body.action === "set-enabled") await setOfficeRuleEnabled(auth, body.enabled === true);
     else if (body.action === "mark-absent") return NextResponse.json(await markOfficeAbsent(auth, String(body.userId || ""), String(body.untilDate || "")));
