@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="pt-BR"><head><meta charset="utf-8">
+<style>
+@font-face{font-family:"Montserrat";src:url("fonts/montserrat-latin.woff2") format("woff2");font-weight:100 900;}
+:root{--navy:#0B1A3A;--blue:#3B8BFF;--blue2:#1F5FD6;--red:#E5384A}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{width:1080px;height:1920px;overflow:hidden;background:#EAF0FA;font-family:"Montserrat",Inter,Arial,sans-serif}
+#stage{position:relative;width:1080px;height:1920px;overflow:hidden;
+  background:radial-gradient(900px 760px at 50% 34%,#FFFFFF 0%,#F7F9FD 35%,#EAF0FA 70%,#DCE5F4 100%)}
+.abs{position:absolute;will-change:transform,opacity}
+#rays{left:-660px;top:-440px;width:2400px;height:2400px;
+  background:repeating-conic-gradient(from 0deg,rgba(59,139,255,.13) 0 8deg,rgba(59,139,255,0) 8deg 16deg);
+  -webkit-mask-image:radial-gradient(circle at center,#000 0%,rgba(0,0,0,0) 46%);mask-image:radial-gradient(circle at center,#000 0%,rgba(0,0,0,0) 46%)}
+.house{opacity:.16}
+#dots{left:0;top:78px;width:1080px;height:90px;display:flex;justify-content:center;align-items:center;gap:20px}
+.dot{width:54px;height:54px;border-radius:50%;background:#CBD9F1;color:#6F83A8;font-weight:800;font-size:28px;display:flex;align-items:center;justify-content:center;border:3px solid #fff;box-shadow:0 4px 0 rgba(11,26,58,.10)}
+.dot.on{width:84px;height:84px;font-size:46px;color:#fff;background:linear-gradient(135deg,#4C8DF6,#1F4CB3);border:5px solid var(--navy);box-shadow:0 6px 0 rgba(11,26,58,.25)}
+#labelWrap{left:0;top:186px;width:1080px;display:flex;justify-content:center}
+#label{background:var(--navy);color:#fff;font-weight:900;font-size:74px;letter-spacing:1px;text-transform:uppercase;line-height:1;padding:20px 46px 22px;border-radius:20px;box-shadow:0 10px 0 var(--blue);white-space:nowrap}
+#sub{left:0;top:322px;width:1080px;text-align:center;font-weight:800;font-size:44px;letter-spacing:2px;text-transform:uppercase;color:var(--navy)}
+#sub .pos{color:var(--blue2)}
+/* boneco articulado: coordenadas em "pixels da imagem" (1080x1350), escalado por #rigWrap */
+#rigWrap{left:190px;top:342px;width:1080px;height:1350px;transform-origin:0 0;transform:scale(.706)}
+#rigBody{position:absolute;left:0;top:0;width:1080px;height:1350px;transform-origin:700px 1350px;filter:drop-shadow(0 28px 34px rgba(11,26,58,.28))}
+.layer{position:absolute;left:0;top:0;width:1080px;height:1350px}
+#headG{transform-origin:640px 452px}
+#uG{transform-origin:485px 565px}
+#fG{transform-origin:458px 920px}
+#docG{position:absolute;left:0;top:0;width:290px;height:368px;transform-origin:50% 50%;filter:drop-shadow(0 16px 20px rgba(11,26,58,.30))}
+#docG svg{width:290px;height:368px}
+#badgeB{position:absolute;left:214px;top:-62px;width:104px;height:104px;transform-origin:50% 50%}
+#panel{left:0;top:1235px;width:1080px;height:760px;background:linear-gradient(180deg,#112552 0%,#0B1A3A 60%);border-radius:70px 70px 0 0;border-top:10px solid var(--blue);box-shadow:0 -14px 40px rgba(11,26,58,.18)}
+#cap{left:60px;top:1290px;width:960px;height:170px;color:#fff;font-weight:900;font-size:84px;line-height:1.08;text-align:center;display:flex;align-items:center;justify-content:center;transform-origin:50% 50%}
+#cap .pos{color:#74AEFF}
+#wm{height:48px;opacity:.30}
+.pt{position:absolute;left:0;top:0;width:26px;height:26px;border-radius:50%}
+</style></head>
+<body><div id="stage">
+  <div id="rays" class="abs"></div>
+  <div id="houses"></div>
+
+  <div id="rigWrap" class="abs"><div id="rigBody">
+    <img class="layer" src="camadas/tronco.png">
+    <div id="headG" class="layer"><img class="layer" src="camadas/cabeca.png"></div>
+    <div id="uG" class="layer"><img class="layer" src="camadas/braco.png">
+      <div id="fG" class="layer"><img class="layer" src="camadas/antebraco.png">
+      </div>
+    </div>
+    <div id="burst"></div>
+    <div id="docG">
+          <svg viewBox="0 0 300 380">
+            <rect x="6" y="6" width="288" height="368" rx="26" fill="#fff" stroke="#0B1A3A" stroke-width="7"/>
+            <rect x="6" y="6" width="288" height="70" rx="26" fill="#0B1A3A"/><rect x="6" y="46" width="288" height="30" fill="#0B1A3A"/>
+            <text x="30" y="54" font-family="Montserrat" font-weight="900" font-size="27" fill="#fff" letter-spacing="2">CONTRATO</text>
+            <g fill="#C5D0E4"><rect x="34" y="110" width="232" height="14" rx="7"/><rect x="34" y="140" width="190" height="14" rx="7"/><rect x="34" y="170" width="232" height="14" rx="7"/><rect x="34" y="200" width="150" height="14" rx="7"/><rect x="34" y="230" width="232" height="14" rx="7"/><rect x="34" y="260" width="200" height="14" rx="7"/></g>
+            <path d="M40 340 q30 -34 52 -6 t50 -2" fill="none" stroke="#0B1A3A" stroke-width="6" stroke-linecap="round"/>
+            <rect x="150" y="338" width="110" height="5" rx="2.5" fill="#9AA9C6"/>
+          </svg>
+          <div id="badgeB"><svg viewBox="0 0 96 96" width="104" height="104"><circle cx="48" cy="48" r="44" fill="#1F5FD6" stroke="#0B1A3A" stroke-width="6"/><path d="M26 50 l16 16 l30 -34" fill="none" stroke="#fff" stroke-width="12" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+        </div>
+  </div></div>
+
+  <div id="panel" class="abs"></div>
+  <div id="cap" class="abs"></div>
+  <div id="dots" class="abs"></div>
+  <div id="labelWrap" class="abs"><div id="label">O certo</div></div>
+  <div id="sub" class="abs">Ler <span class="pos">cada cláusula</span></div>
+  <img id="wm" class="abs" src="symbol.png" style="left:52px;top:40px;width:61px">
+</div>
+
+<script>
+const $=s=>document.querySelector(s);
+const clamp=(x,a=0,b=1)=>Math.min(b,Math.max(a,x));
+const seg=(t,a,b)=>clamp((t-a)/(b-a));
+const eOutCubic=x=>1-Math.pow(1-x,3);
+const eOutBack=(x,c1=1.70158)=>{const c3=c1+1;return 1+c3*Math.pow(x-1,3)+c1*Math.pow(x-1,2)};
+const eInOut=x=>x<.5?4*x*x*x:1-Math.pow(-2*x+2,3)/2;
+const set=(el,{x=0,y=0,s=1,sx=null,sy=null,r=0,o=1})=>{el.style.transform=`translate(${x}px,${y}px) rotate(${r}deg) scale(${sx??s},${sy??s})`;el.style.opacity=o};
+// keyframes [t, valor, easing]  easing: 'i' = suave, 'b' = com "overshoot" (movimento de impulso)
+function kf(t,arr){ if(t<=arr[0][0])return arr[0][1];
+  for(let i=1;i<arr.length;i++){ if(t<=arr[i][0]){ const a=arr[i-1],b=arr[i]; const k=seg(t,a[0],b[0]);
+      const e=b[2]==='b'?eOutBack(k,1.1):eInOut(k); return a[1]+(b[1]-a[1])*e; } }
+  return arr[arr.length-1][1]; }
+
+/* ---- gesto do braço (graus, horário = positivo) ---- */
+const U_KF=[[0,0],[0.75,0,'i'],[1.35,17,'b'],[2.35,17,'i'],[3.0,4,'i'],[3.1,4,'i'],[3.65,25,'b'],[4.5,25,'i'],[5.0,0,'i']];
+const F_KF=[[0,0],[0.75,0,'i'],[1.35,32,'b'],[2.35,32,'i'],[3.0,-8,'i'],[3.1,-8,'i'],[3.65,50,'b'],[4.5,50,'i'],[5.0,0,'i']];
+const win=(t,a,b)=>Math.sin(Math.PI*seg(t,a,b));       // janela 0→1→0
+const wave=t=>8*Math.sin(2*Math.PI*(t-1.5)*1.3)*win(t,1.5,2.4)+9*Math.sin(2*Math.PI*(t-3.9)*1.5)*win(t,3.9,4.6);
+
+// fundo
+const dots=$("#dots"); for(let i=1;i<=5;i++){const d=document.createElement("div");d.className="dot"+(i===1?" on":"");d.textContent=i;dots.appendChild(d);} const dotEls=[...dots.children];
+const HOUSE=[[90,520,54,.0],[960,470,64,.3],[130,1010,44,.6],[980,1000,58,.15],[60,760,40,.45],[1010,720,46,.8],[500,1180,36,.5],[220,420,38,.9]];
+const houses=$("#houses"); HOUSE.forEach(h=>{const e=document.createElement("div");e.className="abs house";e.style.left=h[0]+"px";e.style.top=h[1]+"px";
+  e.innerHTML=`<svg viewBox="0 0 64 64" width="${h[2]}" height="${h[2]}"><path d="M8 30 L32 8 L56 30 V56 H8 Z M26 56 V38 H38 V56" fill="none" stroke="#3B8BFF" stroke-width="5" stroke-linejoin="round" stroke-linecap="round"/></svg>`;houses.appendChild(e);e._p=h;});
+const CHUNKS=[[0.8,1.9,'Leia <span class="pos">antes</span>'],[1.9,3.2,"de assinar."],[3.3,5.0,"Sem pressa."]];
+const cap=$("#cap");
+
+window.render=function(t){
+  set($("#rays"),{r:t*5});
+  houses.childNodes.forEach(e=>{const p=e._p;set(e,{y:-((t*14+p[3]*120)%140),x:Math.sin(t*0.8+p[3]*6)*6,o:clamp(seg(t,0.1,0.7))*.9});});
+  dotEls.forEach((d,i)=>{const k=eOutBack(seg(t,0.05+i*0.07,0.45+i*0.07));set(d,{s:Math.max(0.001,k),o:clamp(k*2)});});
+  set($("#labelWrap"),{y:(1-seg(t,0.2,0.65))*-160,o:clamp(seg(t,0.2,0.4))});
+  set($("#sub"),{y:(1-eOutCubic(seg(t,0.55,0.95)))*24,o:seg(t,0.55,0.95)});
+  const pk=eOutCubic(seg(t,0.05,0.6)); set($("#panel"),{y:(1-pk)*760});
+  { let ci=-1; CHUNKS.forEach((c,i)=>{if(t>=c[0]&&t<c[1])ci=i;});
+    if(ci<0){set(cap,{o:0});} else {const c=CHUNKS[ci]; if(cap._i!==ci){cap.innerHTML='<div>'+c[2]+'</div>';cap._i=ci;}
+      const k=eOutBack(seg(t,c[0],c[0]+0.26)), last=(ci===CHUNKS.length-1), f=last?1:1-seg(t,c[1]-0.08,c[1]);
+      set(cap,{y:(1-k)*34,s:Math.max(0.01,0.82+0.18*k),o:clamp(seg(t,c[0],c[0]+0.1))*f}); } }
+
+  /* --- boneco --- */
+  const u=kf(t,U_KF), f=kf(t,F_KF)+wave(t);
+  const enter=eOutBack(seg(t,0.1,0.75),1.2), breath=1+0.008*Math.sin(t*2*Math.PI/2.8), sway=0.55*Math.sin(t*2*Math.PI/3.6);
+  set($("#rigBody"),{x:(1-eOutCubic(seg(t,0.1,0.7)))*-60+u*0.6, y:(1-enter)*150, sx:(0.95+0.05*enter), sy:(0.95+0.05*enter)*breath, r:sway+u*0.04, o:clamp(seg(t,0.1,0.35))});
+  // cabeça: inclina junto do gesto e "assente" no ritmo da fala
+  const nod=3.5*Math.sin(t*2*Math.PI/1.7), tilt=-1.6*Math.sin(t*2*Math.PI/3.3)-0.12*u-0.5*Math.sin(2*Math.PI*(t-1.5)*1.3)*win(t,1.5,2.4);
+  set($("#headG"),{y:nod,r:tilt,sy:1+0.004*nod});
+  set($("#uG"),{r:u}); set($("#fG"),{r:f});
+  // posição da palma no quadro (aplica antebraço, depois braço) -> o contrato fica ao lado/acima da mão, sem girar
+  const rotp=(p,c,deg)=>{const r=deg*Math.PI/180,dx=p[0]-c[0],dy=p[1]-c[1];return [c[0]+dx*Math.cos(r)-dy*Math.sin(r), c[1]+dx*Math.sin(r)+dy*Math.cos(r)];};
+  let hp=rotp([130,830],[458,920],f); hp=rotp(hp,[485,565],u);
+  const dk=eOutBack(seg(t,1.25,1.8)), dout=seg(t,4.75,4.95), bob=Math.sin(t*2.2)*10;
+  const dx=hp[0]-70-5.5*u, dy=hp[1]-190+bob;                      // centro do contrato (coordenadas da imagem)
+  const dd=$("#docG"); dd.style.left=(dx-145)+"px"; dd.style.top=(dy-184)+"px";
+  set(dd,{r:-6+Math.sin(t*1.9)*1.6,s:Math.max(0.001,dk*(1-dout)),o:1});
+  set($("#badgeB"),{s:Math.max(0.001,eOutBack(seg(t,2.3,2.75))*(1-dout)),o:1});
+  // confete do visto
+  const bst=$("#burst"); if(!bst._ok){bst._ok=1;for(let i=0;i<12;i++){const q=document.createElement("div");q.className="pt";q.style.background=i%3==0?"#0B1A3A":(i%3==1?"#3B8BFF":"#9CC4FF");bst.appendChild(q);}}
+  const bt=seg(t,2.3,3.2), bx=dx-145+214+52, by=dy-184-62+52;
+  [...bst.children].forEach((q,i)=>{const ang=i/12*Math.PI*2+0.3, d=eOutCubic(bt)*(150+(i%3)*45);
+    set(q,{x:bx+Math.cos(ang)*d-13,y:by+Math.sin(ang)*d-13,s:(1-bt)*(0.8+(i%3)*0.35),o:bt>0&&bt<1?1:0});});
+  set($("#wm"),{o:.30*seg(t,0.8,1.2)});
+};
+Promise.all([document.fonts.ready,...[...document.images].map(i=>i.decode().catch(()=>{}))]).then(()=>{window.__ready=true;});
+</script></body></html>
