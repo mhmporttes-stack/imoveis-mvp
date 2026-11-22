@@ -1,0 +1,43 @@
+<!doctype html><html><head><meta charset="utf-8">
+<style>
+@font-face{font-family:"Montserrat";src:url("fonts/montserrat-latin.woff2") format("woff2");font-weight:100 900;}
+*{box-sizing:border-box;margin:0;padding:0}
+body{width:2000px;height:1400px;font-family:Montserrat,Arial,sans-serif;color:#0B1A3A;padding:44px 56px;
+ background:radial-gradient(1200px 900px at 50% 30%,#FFFFFF 0%,#F7F9FD 35%,#EAF0FA 70%,#DCE5F4 100%)}
+h1{font-size:44px;font-weight:900;letter-spacing:-.5px} .sub{font-size:20px;color:#3A4A66;margin-top:6px;font-weight:500}
+h2{font-size:17px;letter-spacing:2px;text-transform:uppercase;color:#1F5FD6;margin:0 0 10px;font-weight:800}
+.row{display:flex;gap:16px} .card{background:#ffffffcc;border:2px solid #0B1A3A14;border-radius:18px;text-align:center;padding:8px}
+.card b{display:block;font-size:15px;color:#3A4A66;font-weight:700;margin-top:4px}
+svg{display:block;margin:0 auto}
+</style></head><body>
+<h1>Elenco 2D — ficha dos personagens</h1><p class="sub">Peças articuladas (cabeça, tronco, braços em 2 segmentos, pernas, olhos, sobrancelhas, boca) · paleta da marca · estilo fantoche</p>
+<div style="display:flex;gap:36px;margin-top:20px">
+  <div><h2>Elenco</h2><div class="row" id="cast"></div></div>
+  <div style="flex:1"><h2>Expressões do corretor</h2><div class="row" id="faces" style="flex-wrap:wrap"></div>
+  </div>
+</div>
+<h2 style="margin-top:22px">Poses</h2><div class="row" id="poses"></div>
+<script src="personagens.js"></script>
+<script>
+const NS="http://www.w3.org/2000/svg";
+function svg(w,h,vb){const s=document.createElementNS(NS,"svg");s.setAttribute("width",w);s.setAttribute("height",h);s.setAttribute("viewBox",vb);return s;}
+function card(parent,label,w,h,vb,fn){const c=document.createElement("div");c.className="card";const s=svg(w,h,vb);fn(s);c.appendChild(s);const b=document.createElement("b");b.textContent=label;c.appendChild(b);parent.appendChild(c);}
+// elenco
+[["corretor","Corretor"],["cliente","Cliente"],["cliente2","Cliente"]].forEach(([k,l])=>card($("#cast")||document.getElementById("cast"),l,230,500,"-150 -672 300 692",s=>{const c=Rig.make(k);c.set(Object.assign({aE:[8,14],aD:[8,14]},Rig.EXPR.feliz));s.appendChild(c.el);}));
+// expressões (rosto)
+Object.keys(Rig.EXPR).forEach(n=>card(document.getElementById("faces"),n,150,170,"-140 -630 280 280",s=>{const c=Rig.make("corretor");c.set(Object.assign({},Rig.EXPR[n]));s.appendChild(c.el);}));
+// poses
+const POSES=[
+ ["em pé",{aE:[8,10],aD:[8,10]},"feliz"],
+ ["acenando",{aE:[8,10],aD:[86,86],hD:"aberta"},"animado"],
+ ["apontando",{aE:[8,10],aD:[128,4],hD:"aponta"},"feliz"],
+ ["explicando",{aE:[48,70],aD:[48,70]},"feliz"],
+ ["comemorando",{aE:[158,12],aD:[158,12],hE:"punho",hD:"punho"},"animado"],
+ ["joinha",{aE:[8,10],aD:[38,120],hD:"joinha"},"feliz"],
+ ["surpreso",{aE:[40,20],aD:[40,20],sy:1.04},"surpreso"],
+ ["preocupado",{aE:[10,100],aD:[10,100],hE:"punho",hD:"punho",lean:-3},"preocupado"],
+];
+POSES.forEach(([l,p,e])=>card(document.getElementById("poses"),l,196,300,"-280 -640 560 660",s=>{const c=Rig.make("corretor");c.set(Object.assign({},Rig.EXPR[e],p));s.appendChild(c.el);}));
+function $(){return null}
+document.fonts.ready.then(()=>window.__ready=true);
+</script></body></html>

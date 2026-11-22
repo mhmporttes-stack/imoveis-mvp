@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="pt-BR"><head><meta charset="utf-8">
+<style>
+@font-face{font-family:"Montserrat";src:url("fonts/montserrat-latin.woff2") format("woff2");font-weight:100 900;}
+:root{--navy:#0B1A3A;--blue:#3B8BFF;--blue2:#1F5FD6}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{width:1080px;height:1920px;overflow:hidden;background:#EAF0FA;font-family:"Montserrat",Arial,sans-serif}
+#stage{position:relative;width:1080px;height:1920px;overflow:hidden;
+  background:radial-gradient(900px 760px at 50% 34%,#FFFFFF 0%,#F7F9FD 35%,#EAF0FA 70%,#DCE5F4 100%)}
+.abs{position:absolute;will-change:transform,opacity}
+#rays{left:-660px;top:-560px;width:2400px;height:2400px;
+  background:repeating-conic-gradient(from 0deg,rgba(59,139,255,.14) 0 8deg,rgba(59,139,255,0) 8deg 16deg);
+  -webkit-mask-image:radial-gradient(circle at center,#000 0%,rgba(0,0,0,0) 46%);mask-image:radial-gradient(circle at center,#000 0%,rgba(0,0,0,0) 46%)}
+#dots{left:0;top:78px;width:1080px;height:90px;display:flex;justify-content:center;align-items:center;gap:20px}
+.dot{width:54px;height:54px;border-radius:50%;background:#CBD9F1;color:#6F83A8;font-weight:800;font-size:28px;display:flex;align-items:center;justify-content:center;border:3px solid #fff;box-shadow:0 4px 0 rgba(11,26,58,.10)}
+.dot.on{width:84px;height:84px;font-size:46px;color:#fff;background:linear-gradient(135deg,#4C8DF6,#1F4CB3);border:5px solid var(--navy);box-shadow:0 6px 0 rgba(11,26,58,.25)}
+#labelWrap{left:0;top:186px;width:1080px;display:flex;justify-content:center}
+#label{background:var(--navy);color:#fff;font-weight:900;font-size:78px;letter-spacing:1px;text-transform:uppercase;line-height:1;padding:20px 48px 22px;border-radius:20px;box-shadow:0 10px 0 var(--blue);white-space:nowrap}
+#sub{left:0;top:326px;width:1080px;text-align:center;font-weight:800;font-size:42px;letter-spacing:2px;text-transform:uppercase;color:var(--navy)}
+#sub .neg{color:#E5384A}
+#capWrap{left:0;top:1150px;width:1080px;display:flex;justify-content:center}
+#cap{background:var(--navy);color:#fff;font-weight:800;font-size:54px;line-height:1.15;padding:16px 36px 18px;border-radius:26px;text-align:center;max-width:940px;box-shadow:0 8px 0 rgba(11,26,58,.18)}
+#cap .pos{color:#74AEFF}
+#wm{height:48px;opacity:.30}
+
+</style></head>
+<body><div id="stage">
+  <div id="rays" class="abs"></div>
+  <svg id="world" class="abs" width="1080" height="1920" viewBox="0 0 1080 1920" style="left:0;top:0">
+    <defs><filter id="blur6"><feGaussianBlur stdDeviation="6"/></filter></defs>
+    <g id="houses"></g>
+    <rect x="-20" y="1060" width="1120" height="860" fill="#DCE5F4" opacity=".55"/>
+    <line x1="-20" y1="1062" x2="1100" y2="1062" stroke="#0B1A3A" stroke-width="7"/>
+    <ellipse id="shBro" cx="300" cy="1066" rx="120" ry="16" fill="#0B1A3A" opacity=".18" filter="url(#blur6)"/>
+    <ellipse id="shCli" cx="800" cy="1066" rx="110" ry="15" fill="#0B1A3A" opacity=".18" filter="url(#blur6)"/>
+    <g id="dust"></g>
+    <g id="cli"></g>
+    <g id="bro"></g>
+    <g id="bubble">
+      <path d="M-90,-120 Q-90,-130 -80,-130 L90,-130 Q100,-130 100,-120 L100,-24 Q100,-14 90,-14 L-20,-14 L-84,26 L-60,-14 L-80,-14 Q-90,-14 -90,-24 Z" fill="#fff" stroke="#0B1A3A" stroke-width="7" stroke-linejoin="round"/>
+      <text x="5" y="-48" text-anchor="middle" font-family="Montserrat" font-weight="900" font-size="64" fill="#0B1A3A">R$ ?</text>
+    </g>
+    </g>
+  </svg>
+  <div id="dots" class="abs"></div>
+  <div id="labelWrap" class="abs"><div id="label">Erro 1</div></div>
+  <div id="sub" class="abs">Simular <span class="neg">sem planejar</span></div>
+  <div id="capWrap" class="abs"><div id="cap"></div></div>
+  <img id="wm" class="abs" src="symbol.png" style="left:962px;top:40px;width:61px">
+</div>
+<script src="personagens.js"></script>
+<script>
+const $=s=>document.querySelector(s), NS="http://www.w3.org/2000/svg";
+const clamp=(x,a=0,b=1)=>Math.min(b,Math.max(a,x));
+const seg=(t,a,b)=>clamp((t-a)/(b-a));
+const eOutCubic=x=>1-Math.pow(1-x,3), eInOut=x=>x<.5?4*x*x*x:1-Math.pow(-2*x+2,3)/2;
+const eOutBack=(x,c1=1.70158)=>{const c3=c1+1;return 1+c3*Math.pow(x-1,3)+c1*Math.pow(x-1,2)};
+const set=(el,{x=0,y=0,s=1,sx=null,sy=null,r=0,o=1})=>{el.style.transform=`translate(${x}px,${y}px) rotate(${r}deg) scale(${sx??s},${sy??s})`;el.style.opacity=o};
+function kf(t,arr){ if(t<=arr[0][0])return arr[0][1];
+  for(let i=1;i<arr.length;i++){ if(t<=arr[i][0]){ const a=arr[i-1],b=arr[i]; const k=seg(t,a[0],b[0]); const e=b[2]==='b'?eOutBack(k,1.2):(b[2]==='l'?k:eInOut(k)); return a[1]+(b[1]-a[1])*e; } }
+  return arr[arr.length-1][1]; }
+const win=(t,a,b)=>Math.sin(Math.PI*seg(t,a,b)), pulse=(t,t0,d)=>Math.sin(Math.PI*seg(t,t0,t0+d));
+const blinkAt=(t,t0)=>{const k=(t-t0)/0.17;return k<0||k>1?0:Math.sin(Math.PI*k)};
+const lerpA=(a,b,k)=>a.map((v,i)=>v+(b[i]-v)*k);
+
+/* ===== duração e eventos de som (consumidos pelo renderizador) ===== */
+window.DURATION=4.8;
+window.EVENTS=[
+ {t:0.08,s:"tick"},{t:0.15,s:"tick"},{t:0.22,s:"tick"},{t:0.29,s:"tick"},{t:0.36,s:"tick"},
+ {t:0.10,s:"boing"},{t:0.70,s:"thud"},{t:0.90,s:"pop"},{t:1.00,s:"whoosh"},{t:1.92,s:"swipe"},
+ {t:2.30,s:"click"},{t:2.45,s:"thud_s"},{t:2.70,s:"pop"},{t:2.74,s:"buzz"},{t:3.20,s:"tick"},{t:3.38,s:"tick"},{t:3.56,s:"tick"},{t:3.9,s:"ding"}];
+
+/* ===== montagem ===== */
+const bro=Rig.make("corretor"), cli=Rig.make("cliente2");
+$("#bro").appendChild(bro.el); $("#cli").appendChild(cli.el);
+const dots=$("#dots"); for(let i=1;i<=5;i++){const d=document.createElement("div");d.className="dot"+(i===1?" on":"");d.textContent=i;dots.appendChild(d);} const dotEls=[...dots.children];
+// casinhas decorativas
+const houses=$("#houses"); [[90,520,54,.0],[960,470,64,.3],[130,860,44,.6],[980,900,58,.15],[60,700,40,.45],[1010,640,46,.8],[500,300,36,.5]].forEach(h=>{const g=document.createElementNS(NS,"g");g.innerHTML=`<path transform="scale(${h[2]/64})" d="M8 30 L32 8 L56 30 V56 H8 Z M26 56 V38 H38 V56" fill="none" stroke="#3B8BFF" stroke-width="5" stroke-linejoin="round" stroke-linecap="round" opacity=".18"/>`;g._p=h;houses.appendChild(g);});
+// poeira de pouso
+const dust=$("#dust"); const puffs=[]; for(let i=0;i<12;i++){const c=document.createElementNS(NS,"circle");c.setAttribute("r",14);c.setAttribute("fill","#fff");c.setAttribute("stroke","#0B1A3A");c.setAttribute("stroke-width",4);c.setAttribute("opacity",0);dust.appendChild(c);puffs.push(c);}
+function dustAt(t,t0,cx,cy,n,off){ const k=seg(t,t0,t0+0.5); for(let i=0;i<n;i++){const c=puffs[off+i];const dir=(i/(n-1)-.5)*2;c.setAttribute("cx",cx+dir*(40+110*eOutCubic(k)));c.setAttribute("cy",cy-10-Math.abs(dir)*10*k-30*k*(1-Math.abs(dir)));c.setAttribute("r",(10+8*(1-Math.abs(dir)))*(1-k*.6));c.setAttribute("opacity",k>0&&k<1?(1-k):0);} }
+const CAP=[[0.9,2.0,'Você simula…'],[2.0,4.8,'sem saber quanto <span class="pos">cabe no bolso.</span>']];
+const BX=300, CX=800, GY=1060, S=1.1;
+
+window.render=function(t){
+  set($("#rays"),{r:t*5});
+  [...houses.childNodes].forEach(g=>{const p=g._p;g.setAttribute("transform",`translate(${p[0]},${p[1]-((t*14+p[3]*120)%120)})`);});
+  dotEls.forEach((d,i)=>{const k=eOutBack(seg(t,0.05+i*0.07,0.45+i*0.07));set(d,{s:Math.max(0.001,k),o:clamp(k*2)});});
+  set($("#labelWrap"),{y:(1-seg(t,0.55,0.95))*-170,o:clamp(seg(t,0.55,0.7))});
+  set($("#sub"),{y:(1-eOutCubic(seg(t,0.85,1.2)))*24,o:seg(t,0.85,1.2)});
+  { let ci=-1; CAP.forEach((c,i)=>{if(t>=c[0]&&t<c[1])ci=i;}); const cw=$("#capWrap"),cap=$("#cap");
+    if(ci<0){set(cw,{o:0});} else {const c=CAP[ci]; if(cap._i!==ci){cap.innerHTML=c[2];cap._i=ci;} const k=eOutBack(seg(t,c[0],c[0]+0.26));
+      set(cw,{y:(1-k)*30,s:Math.max(0.01,0.85+0.15*k),o:clamp(seg(t,c[0],c[0]+0.1))*(ci===0?1-seg(t,1.92,2.0):1)}); } }
+  set($("#wm"),{o:.30*seg(t,0.8,1.2)});
+
+  /* ---------- CORRETOR ---------- */
+  { const idle=Math.sin(t*2*Math.PI/2.6), sway=Math.sin(t*2*Math.PI/3.4);
+    const k=seg(t,0.10,0.70), fl=Math.sin(Math.PI*k), land=pulse(t,0.70,0.20);       // voo e pouso
+    let x=(1-eOutCubic(k))*-520, y=-fl*170*(t<0.7?1:0);
+    let sx=1-0.05*fl, sy=1+0.09*fl; if(t>=0.70){sx=1+0.13*land; sy=1-0.17*land;}
+    const air=t<0.72?fl:0;
+    const rest=[8,10], up=[58,40];
+    let aE=lerpA(rest,up,air), aD=lerpA(rest,up,air);
+    // aceno (braço D = lado direito da imagem), depois aponta para o cliente
+    const wv=kf(t,[[0,0],[0.92,0],[1.16,1,'b'],[2.0,1,'i'],[2.22,0.15,'i']]);
+    const wave=wv*22*Math.sin(2*Math.PI*2.6*(t-1.16))*(t>1.16&&t<2.05?1:0);
+    aD=lerpA(aD,[86,86+wave],wv);
+    const pt=kf(t,[[2.1,0],[2.28,0.6],[2.4,1,'b'],[3.7,1,'i'],[4.15,0,'i']]);
+    aD=lerpA(aD,[128,4],pt*(t>2.0?1:0));
+    const hD=(t>2.3&&t<4.0)?"aponta":"aberta";
+    const exp=t<0.9?Rig.EXPR.animado:(t<3.6?Rig.EXPR.feliz:Rig.EXPR.animado);
+    const hr=3*Math.sin(t*2*Math.PI/3.1)+4*pt+2*wv*Math.sin(2*Math.PI*2.5*(t-1.16))*(t<2?1:0);
+    const nod=5*pulse(t,1.10,0.2)+5*pulse(t,1.55,0.2)+6*pulse(t,2.3,0.22)+5*pulse(t,2.9,0.2);
+    bro.set(Object.assign({},exp,{x:x,y:y,sx:sx,sy:sy*(1+0.007*idle),r:0,lean:sway*1.0+(t>=2.3&&t<4?3*pt:0)-(t<0.7?10*fl:0),
+      hr:hr,hy:nod,aE:aE,aD:aD,hD:hD,lE:air*14,lD:-air*14,
+      look:t>2.2?[0.9,0.1]:[0,0],blink:Math.max(blinkAt(t,1.7),blinkAt(t,3.4))}));
+    $("#bro").setAttribute("transform",`translate(${BX},${GY}) scale(${S})`);
+    $("#shBro").setAttribute("rx",120*(1-0.35*(t<0.7?fl:0))); $("#shBro").setAttribute("opacity",.18*(t>0.1?1:0)*(t<0.7?(1-0.6*fl):1));
+    dustAt(t,0.70,BX,GY,6,0);
+  }
+
+  /* ---------- CLIENTE ---------- */
+  { const k=seg(t,1.95,2.45), hop=Math.abs(Math.sin(Math.PI*1.5*k))*(1-k)*0+Math.abs(Math.sin(Math.PI*k*2))*70*(1-k*0.4);
+    const x=(1-eOutCubic(k))*480, y=t<2.45?-hop:0, land2=pulse(t,2.45,0.2);
+    const sx=1+0.11*land2, sy=1-0.14*land2;
+    const sur=seg(t,2.45,2.5)*(1-seg(t,2.95,3.0));
+    const exp=t<2.95?Rig.EXPR.surpreso:Rig.EXPR.preocupado;
+    const armsUp=kf(t,[[2.4,0],[2.55,1,'b'],[2.95,1,'i'],[3.15,0,'i']]);
+    let aE=lerpA([8,10],[26,16],armsUp), aD=lerpA([8,10],[26,16],armsUp);
+    const wr=kf(t,[[2.95,0],[3.2,1,'b'],[4.8,1,'i']]); aE=lerpA(aE,[12,104],wr); aD=lerpA(aD,[12,104],wr);
+    const shake=9*Math.sin(2*Math.PI*2.7*(t-3.2))*win(t,3.2,3.95);
+    cli.set(Object.assign({},exp,{x:x,y:y,sx:sx,sy:sy*(1+0.007*Math.sin(t*2.2)),lean:-1+(t>2.95?-3*wr:0),hr:shake+1.5*Math.sin(t*1.9),
+      aE:aE,aD:aD,hE:wr>0.5?"punho":"aberta",hD:wr>0.5?"punho":"aberta",look:[-0.9,0.1],blink:blinkAt(t,3.9),
+      brow:exp.brow}));
+    $("#cli").setAttribute("transform",`translate(${CX},${GY}) scale(${S})`);
+    $("#shCli").setAttribute("opacity",.18*(t>1.95?1:0)*(t<2.45?(1-0.6*Math.sin(Math.PI*k)):1));
+    dustAt(t,2.45,CX,GY,6,6);
+    // balão "R$ ?"
+    const bk=eOutBack(seg(t,2.7,3.05),1.5), fl=Math.sin(t*3)*8;
+    const b=$("#bubble"); b.setAttribute("transform",`translate(${CX+100},${GY-640+fl}) scale(${Math.max(0.001,bk)*0.88}) rotate(${-3+Math.sin(t*2.4)*2})`);
+    b.setAttribute("opacity",bk>0.01?1:0);
+  }
+};
+Promise.all([document.fonts.ready,...[...document.images].map(i=>i.decode().catch(()=>{}))]).then(()=>{window.__ready=true;});
+</script></body></html>
