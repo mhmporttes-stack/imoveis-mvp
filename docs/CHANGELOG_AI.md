@@ -10,6 +10,10 @@
 
 
 
+## 2026-11-23 — Novo agente `animador-informativo` + skill `/video-informativo` (vídeos informativos animados) — só docs/.claude, NÃO publicado
+- Dono (2026-11-23): "quero um chat para criar esse tipo de vídeo informativo". Agente (`.claude/agents/animador-informativo.md`, effort medium) e skill (`.claude/skills/video-informativo/SKILL.md`) registrados em `.claude/despachante/MAPA-AGENTES.md`; script `docs/posicionamento/videos/novo-video-informativo.sh` cria a pasta de um novo vídeo a partir do modelo vivo `docs/posicionamento/videos/2026-11-22-primeiro-imovel-sem-entrada/` (personagens articulados em código, efeitos sonoros sintetizados, checagem automática de sobreposição, `montar.sh`).
+- Regra do agente: todo número é validado no motor (`lib/financiamento-estimativa-core.mjs`, `simularEntrada`) e no cadastro `empreendimentos.regras` antes do roteiro; "sem entrada" só com `entradaTotal` = 0. Preferências do dono em `docs/posicionamento/videos/PREFERENCIAS.md`. Nenhum código do app alterado; commit de docs/.claude não gera deploy.
+
 ## 2026-11-13 — Ajuda "?" e chamados (AJUDA-1) + Henry oculto no CRM (HENRY-OCULTO) (crm-architect) — NÃO publicado, migration NÃO aplicada
 - Dono (2026-11-13), duas partes. **[REGRA OFICIAL]** `docs/BUSINESS_RULES.md` AJUDA-1 e HENRY-OCULTO; rules `frontend-pwa.md` e `henry-assistente-voz.md`; `docs/PERMISSIONS.md` §6; `docs/DATABASE.md`.
 - Novos: `components/support/{SupportHelp,SupportQueue}.jsx`, `help-button-core.mjs`, `support-error-buffer.mjs`, `copy-image.js`; `lib/support-tickets-core.mjs|.js`; rotas `app/api/admin/support/**`; página `app/admin/ajuda`; `lib/henry-visibility.mjs`; migration `20261113120000_support_tickets.sql`; testes `tests/support-tickets|support-help-button|henry-visibility.test.mjs`.
