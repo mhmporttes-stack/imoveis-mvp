@@ -102,7 +102,7 @@ Lucide (traço fino, na cor da marca). Nomes úteis: `house`, `car`, `hand-coins
 Quando o dono mandar fotos de um imóvel, usar sempre este modelo. Exemplo: `carrosseis/2026-10-15-terra-nova-casa/`.
 - **Fotos:** remover marca d'água de terceiros com LaMa (ONNX) e aumentar a resolução 2x com ESRGAN (`2xNomosUni`), com ajuste de cor leve e natural (sem HDR nem cantos escuros). Nunca usar borrão ou inpaint simples, porque deixa rastro.
 - **Capa:**
-  - O dono aparece à esquerda, apontando (`apontando.png` espelhado).
+  - O dono aparece à esquerda, apontando (`apontando.png` espelhado). **Usar SEMPRE a versão com o dedo menor** (`assets/boneco-3d/realista/apontando-dedo-menor.png`, copiada como `img/apontando.png`) — a foto antiga do dedo indicador enorme está proibida (dono, 2026-11-23).
   - Ao fundo, **duas fotos mescladas sem borda**: em cima, o ambiente de destaque; embaixo, o segundo destaque, com degradê entre elas.
   - Sombra só na faixa do título.
   - Texto em cima: "Olha o que eu encontrei pra você…" em Playfair itálico; título em Anton **numa linha só**, com o destaque em azul; e 📍 localização com o **pino vermelho** (#FF3B30).

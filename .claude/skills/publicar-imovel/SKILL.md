@@ -9,6 +9,7 @@ description: "Quando o dono manda fotos + dados de um imóvel: monta o carrossel
 
 ## 1. Carrossel (modelo em `docs/posicionamento/ESTILO-CARROSSEL.md`)
 - Pasta `docs/posicionamento/carrosseis/AAAA-MM-DD-<bairro>/`. Copiar `laminas.html` e `img/` do último imóvel e trocar textos (código só no selo de cima).
+- **Foto do dono na capa:** sempre `docs/posicionamento/assets/boneco-3d/realista/apontando-dedo-menor.png` copiada para `img/apontando.png` (a versão antiga do dedo enorme é proibida — dono, 2026-11-23). Conferir antes de renderizar.
 - Fotos: LaMa se houver marca de terceiros; ESRGAN 2x (`2xNomosUni`, ONNX do HuggingFace `nesaorg/2xNomosUni_esrgan_multijpg_fp32_opset17`, em blocos de 256 px, dimensões pares). Máx. 10 lâminas (capa + 8 + final).
 - Render: `node .claude/design/tools/renderizar-laminas-html.mjs <laminas.html>` (com `NODE_EXTRA_CA_CERTS=/root/.ccr/ca-bundle.crt NODE_USE_ENV_PROXY=1`).
 - **Capa do Marketplace** = capa sem `<img src="img/apontando.png">` → `capa-marketplace.jpg`.
