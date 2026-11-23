@@ -16,6 +16,8 @@ Mesmo com a Selic alta, os juros do Minha Casa Minha Vida continuam fixos por fa
 
 O que isso significa na prática? Crédito sobrando e juros menores colocando muitas famílias atrás da mesma coisa: o imóvel novo.
 
+Aqui em Marília eu já vejo isso todo dia: muita gente com renda para financiar, mas que deixa para olhar a documentação só quando encontra a casa. Aí o imóvel é vendido para quem já estava com tudo pronto.
+
 E quem se prepara antes sai na frente:
 1. Faça a simulação e veja quanto pode financiar
 2. Confira se o seu nome está sem restrições
@@ -24,6 +26,8 @@ E quem se prepara antes sai na frente:
 Assim, quando aparecer o imóvel certo, você já está pronto para fechar, sem correria.
 
 Quer comprar o seu imóvel em 2027? Comenta "2027" que eu te mando a simulação no Direct. 📲
+
+Lembrando: cada caso precisa ser analisado, porque o valor do subsídio e a taxa dependem da renda da família e das regras do programa.
 
 Fonte: Conselho Curador do FGTS, aprovação de 29/10/2026.
 
