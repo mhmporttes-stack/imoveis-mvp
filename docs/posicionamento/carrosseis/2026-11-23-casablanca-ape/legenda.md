@@ -4,6 +4,14 @@ Código **COD4367** (só no selo de cima). Carrossel com 8 lâminas (capa + 6 fo
 
 Dados do dono: Residenciais Casablanca, Av. Dr. Hércules Galletti, 98-A, Marília/SP — Bloco 30, ap 202, 1º andar; reformado (piso novo em todo o apê, banheiro social reformado); 2 quartos; sala integrada à cozinha; área privativa 44,01 m²; 1 vaga descoberta; lazer: piscina, churrasqueira, salão de festas, minimarket, playground, portaria presencial 24h; R$ 168.000,00; aceita financiamento; estuda permuta. Contato: corretora parceira Victoria Brito, +55 14 99716-5852.
 
+## Site / CRM
+
+**No site desde 2026-11-23:** `properties` id `5937cff4-60b8-4ef4-92e4-f6a1e01b7dfa`, publicado, R$ 168.000 guardado (escondido do público), contato Victoria Brito (corretora) salvo. Fotos no GitHub (commit a3dfe0b). Página: https://www.matheusmachadoimoveis.com.br/empreendimentos/5937cff4-60b8-4ef4-92e4-f6a1e01b7dfa
+
+**Marketplace:** na fila, aprovado (id f240a60e).
+
+**Instagram:** enviado 1x em 2026-11-23 (tempo esgotado), saiu certo — dono confirmou.
+
 ## Legenda
 
 Apartamento reformado à venda no Residencial Casablanca, em Marília 🏡
