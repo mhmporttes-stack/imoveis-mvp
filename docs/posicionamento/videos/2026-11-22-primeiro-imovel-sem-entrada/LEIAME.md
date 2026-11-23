@@ -1,16 +1,14 @@
-# Vídeo 1 — "Primeiro imóvel em Marília" (animação 2D, estilo fantoche) — RASCUNHO v1
+# Vídeo 1 — "Primeiro imóvel em Marília" (animação 2D, estilo fantoche, COM VOZ) — RASCUNHO v2
 
-**Status:** rascunho aguardando decisão do dono sobre os números (ver `roteiro.md` §1 e §3). Nada publicado. Narração: o dono grava depois (voz ainda indefinida).
+**Status:** rascunho (versão recomendada, números conferidos no CRM) aguardando o dono: ouvir a voz e confirmar Casa Paulista, desconto, IPTU. Nada publicado.
 
 ## Arquivos
-- `rascunho-v1.mp4` (37,6 s, com efeitos sonoros) e `capa.png`. Nome "rascunho" de propósito: não publicar com os números atuais.
-- `roteiro.md` — números conferidos, cena a cena, locução, versão recomendada, legenda do post.
-- `video.html` — o vídeo (linha do tempo em `render(t)`): `SC` (cenas), `CAP` (legenda), `EVENTS` (sons), `NUMS` (cenários de números: `1800` pedido; `2000` renda R$ 2.000).
-- `personagens.js` (elenco articulado), `sfx.py` (efeitos sintetizados), `render_frames.cjs`, `montar.sh`, `fonts/`.
+- `rascunho-v2.mp4` (38,5 s, voz + efeitos) e `capa.png`; `roteiro.md` (números, locução, legenda do post).
+- `locucao.json` — **fonte única do texto**: frases (fala + legenda + janela no roteiro), voz, velocidade, pausas. `voz.py` gera a locução (Kokoro, gratuito/local) e `timeline.js` (a animação acompanha a duração real de cada frase).
+- `video.html` — o vídeo (`SC` cenas, `EV_SCRIPT` sons, `NUM` números, cartões); `personagens.js`, `sfx.py`, `mix.py` (voz + efeitos com ducking), `render_frames.cjs`, `montar.sh`.
 
 ## Como refazer
-`./montar.sh` (padrão) · `CENARIO=2000 ./montar.sh`. Requer python3 (numpy), node + playwright, ffmpeg (`export NODE_PATH=$(npm root -g)`). O `montar.sh` roda antes uma **checagem automática de sobreposição** (texto × texto × rostos × corpos × margens, a cada 0,05 s) e imprime `CHECK: nenhuma sobreposição`.
+`VOZ_PY=.venv/bin/python ./montar.sh` (venv com `kokoro-onnx soundfile`; modelos baixam sozinhos em `~/.cache/kokoro` ou `KOKORO_DIR`). Faz, em ordem: voz → **checagem de sobreposição** → quadros → mixagem → MP4. Outra voz: `VOZ=pm_santa|pf_dora` (testadas: pronunciam "Marília" pior que `pm_alex`). Voz do dono: `voz-dono/<id>.wav` por frase.
 
 ## Regras aplicadas (`../PREFERENCIAS.md`)
-Legenda abaixo da linha do chão e acima da área do adesivo de link (x 80–560, y 1470–1590, livre); marca d'água "M" ~30% em posição diferente a cada cena; sem logo/nome da incorporadora no vídeo; vermelho só em palavra negativa; rodapé legal (análise de crédito, condições da construtora, imagens ilustrativas, CRECI); metadados de autoria no MP4.
-Efeitos conferidos por espectrograma e níveis (pico −1,8 dB); ninguém ouviu — o dono julga.
+Legenda abaixo do chão; adesivo de link (x 80–560, y 1470–1590) livre; marca d'água "M" em posição diferente por cena; sem logo/nome da incorporadora; vermelho só em palavra negativa; rodapé legal; metadados de autoria. Conferido por transcrição automática do áudio final (voz inteligível; fala × legenda com desvio médio de 0,13 s) — ninguém ouviu: o dono julga a voz e os efeitos.

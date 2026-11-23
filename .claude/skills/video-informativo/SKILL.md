@@ -12,6 +12,6 @@ Ordem fixa, sem pedir autorização a cada passo:
 2. **Estudo + validação dos números** (motor do CRM + cadastro + fonte oficial) → tabela pedido × CRM. Divergência (ex.: "sem entrada" com entrada > 0, benefício que o empreendimento não aceita) = avisar e propor a versão honesta **antes** de gravar qualquer coisa.
 3. Roteiro (gancho, gatilhos, cena a cena, locução, legenda do post) — o dono aprova **uma vez**.
 4. `bash docs/posicionamento/videos/novo-video-informativo.sh <slug>` → editar `video.html` → `./montar.sh` (checagem automática de sobreposição) → MP4 `rascunho-vN` + capa.
-5. Narração: o dono envia o áudio quando decidir a voz; re-sincronizar `SC`/`CAP`; efeitos já inclusos; música o dono põe no Instagram.
+5. Narração: voz sintética gratuita (`voz.py`, Kokoro `pm_alex`) já inclusa e verificada por transcrição; o dono pode trocar pela própria voz (`voz-dono/<id>.wav` por frase). Efeitos inclusos; música o dono põe no Instagram.
 
 Regras que não mudam: nada publicado; sem promessa de crédito; sem logo/nome da incorporadora; adesivo de link livre (x 80–560, y 1470–1590); rodapé legal; vermelho só em palavra negativa; resposta curta (≤ 15 linhas) com SendUserFile do MP4. Ideias de tema em alta: `/viralizacao`.

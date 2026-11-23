@@ -1,40 +1,47 @@
-# Roteiro — "Primeiro imóvel em Marília" (RASCUNHO v1 — não gravar a narração antes de fechar os números)
+# Roteiro — "Primeiro imóvel em Marília" (RASCUNHO v2, versão recomendada, COM VOZ)
 
-Reels 1080×1920 · 37,6 s · animação 2D (corretor + cliente + filho) · efeitos sonoros incluídos · sem narração (o dono grava depois).
-Gancho: pergunta + número ("sem dar entrada?") · gatilhos: sem entrada, subsídio, desconto, grátis, 3 anos sem IPTU, "R$ 100 mil", aluguel (dor) · fecho irônico (pedido do dono).
+Reels 1080×1920 · 38,5 s · animação 2D (corretor + cliente + filho) · voz sintética gratuita (Kokoro `pm_alex`, pt-BR) + efeitos sonoros · rodapé legal.
+Gancho: número + pergunta ("com R$ 86 mil de ajuda?") + "Presta atenção na conta" · gatilhos: ajuda de R$ 86 mil, subsídio, desconto, grátis, 3 anos sem IPTU, aluguel (dor) · fecho irônico (pedido do dono).
+**Não publicar** antes de o dono confirmar os itens "A CONFIRMAR".
 
-## 1. Números conferidos (motor `lib/financiamento-estimativa-core.mjs` + `simularEntrada` + cadastro do CRM, 2026-11-22/23)
-| Item | Pedido | Motor / CRM | Situação |
+## 1. Números (motor `lib/financiamento-estimativa-core.mjs` + `simularEntrada` + cadastro `empreendimentos.regras`, 2026-11-22/23)
+| Item | Pedido do dono | Motor / CRM | Usado no v2 |
 |---|---|---|---|
-| Renda / dependente | R$ 1.800 + 1 | Faixa 1 (até R$ 3.200); financiado R$ 108.446 (FGTS 3 anos) ou R$ 101.726; 4,25–4,75% a.a., 420 meses | ok |
-| Subsídio MCMV | R$ 55 mil | R$ 53.583 (FGTS 3 anos) / R$ 54.366; teto R$ 55 mil | **dizer "até R$ 55 mil"** |
-| Parcela | 30% da renda = R$ 600 | 30% de R$ 1.800 = R$ 540; **1ª parcela estimada R$ 525** (30% − R$ 15,03). R$ 600 só com renda ≈ R$ 2.000 (parcela R$ 585, subsídio ≈ R$ 42–43 mil) | **R$ 600 não bate com R$ 1.800** |
-| "Cheque Paulista" R$ 10 mil | R$ 10 mil | nome oficial no sistema: **Casa Paulista** (R$ 10 mil fixos), mas o cadastro do Terras de SP está **"aceita = não"** (09/10/2026) | **confirmar** |
-| Desconto da construtora | R$ 35 mil | cadastro: **R$ 32.100** (09/10/2026) | **confirmar** |
-| Entrada ("sem entrada") | zero | imóvel R$ 235 mil → sobra entrada: **R$ 40.871** com os números do CRM (60x de R$ 909,15 c/ juros 1% a.m.) ou **R$ 27.971** com os do pedido (60x de R$ 622,20). Mensal = Caixa R$ 525 + entrada parcelada | **"sem entrada" não se sustenta** |
-| Documentação grátis | sim | confirmado pelo dono (13/10); CRM: valor R$ 11.750 | ok |
-| 3 anos sem IPTU | sim | sem registro no CRM | **informado — confirmar fonte** |
-| Casa / terreno | casa nova, terreno inteiro | casa térrea de 44,50 m² em terreno de 160 m² (8×20), 2 quartos, Fase 5 em obras, entrega 2027 | ok |
+| Renda / dependente | R$ 1.800 + 1 | Faixa 1; financiado R$ 108.446 (FGTS 3 anos) / R$ 101.726; 4,25–4,75% a.a., 420 meses | R$ 1.800 + 1 dependente |
+| Subsídio MCMV | R$ 55 mil | R$ 53.583 / R$ 54.366 (teto R$ 55 mil) | **R$ 54 mil** (estimado) |
+| Parcela | 30% = R$ 600 | 30% de R$ 1.800 = R$ 540; **1ª parcela R$ 525** (30% − R$ 15,03); R$ 600 só com renda ≈ R$ 2.000 | **R$ 525** |
+| Casa Paulista | R$ 10 mil ("cheque paulista") | Casa Paulista = R$ 10 mil fixos, mas o cadastro do Terras de SP está **"aceita = não"** (09/10/2026) | **fora do vídeo — A CONFIRMAR** |
+| Desconto da construtora | R$ 35 mil | cadastro: **R$ 32.100** (09/10/2026) | **R$ 32 mil — A CONFIRMAR** |
+| Total de ajuda | R$ 100 mil | 54 + 32 | **R$ 86 mil** |
+| "Sem entrada" | zero | imóvel R$ 235 mil → sobra entrada **R$ 40.871** (60x de R$ 909,15 c/ juros 1% a.m.); com os números do pedido R$ 27.971 (60x de R$ 622,20) | **não afirmado**: "entrada parcelada direto com a construtora" |
+| Documentação grátis | sim | confirmado (13/10); CRM: R$ 11.750 | sim |
+| 3 anos sem IPTU | sim | sem registro no CRM | **A CONFIRMAR (fonte)** |
+| Casa / terreno | casa nova, terreno inteiro | casa térrea 44,50 m² em terreno de 160 m² (8×20), 2 quartos, Fase 5 em obras, entrega 2027 | ok |
 
-## 2. Cena a cena (v1 = como pedido)
-| Tempo | Visual | Locução | Sons |
+## 2. Locução e legenda (tempos reais do vídeo)
+| Cena | Tempo (s) | Locução (para gravar, se preferir a sua voz) | Legenda |
 |---|---|---|---|
-| 0–4,2 | etiqueta "Sem entrada?"; corretor pula e acena; cliente entra; cartão "Entrada R$ 0 ?" | "Primeiro imóvel em Marília, sem dar entrada? Presta atenção na conta." | boing, pouso, pop, whoosh |
-| 4,2–8,2 | "A conta": cartões Renda R$ 1.800 e 1 dependente; o filho entra | "Renda de mil e oitocentos reais e um dependente." | swipe, pops, boing |
-| 8,2–17,2 | "Os descontos": 3 cartões em sequência + total; corretor aponta cada um; todos comemoram | "Subsídio do Minha Casa Minha Vida: até cinquenta e cinco mil. Casa Paulista: mais dez mil. Desconto da construtora: trinta e cinco mil. Até cem mil reais!" | moeda + ding por cartão, sparkle |
-| 17,2–22,6 | "A parcela": medidor até 30% e cartão R$ 525 | "E a parcela? Trinta por cento da renda: uns quinhentos e vinte e cinco reais por mês." | whoosh, click, ding |
-| 22,6–28,2 | "Terras de São Paulo": casa + 3 selos (casa nova, terreno 160 m², 3 anos sem IPTU) | "No Terras de São Paulo, em Marília: casa nova, terreno inteiro e três anos sem IPTU." | boing, pops |
-| 28,2–33 | "Sobrou entrada?": entrada parcelada direto na construtora + documentação grátis | "Sobrou entrada? Parcela direto com a construtora. E a documentação é grátis!" | pops, ding, sparkle |
-| 33–37,6 | "E aí?": recibo de aluguel rasga; corretor com sobrancelha de ironia; cliente sem graça; "Simule grátis ↓" | "E aí? Por que você ainda paga aluguel mesmo?" | tear, **womp** |
+| 1 Gancho | 0.4–2.0 | Primeiro imóvel em Marília, | Primeiro imóvel em Marília, |
+| 1 Gancho | 2.1–4.3 | com oitenta e seis mil reais de ajuda? | com R$ 86 mil de ajuda? |
+| 1 Gancho | 4.4–6.0 | Presta atenção na conta. | Presta atenção na conta. |
+| 2 A conta | 6.3–8.3 | Renda de mil e oitocentos reais | Renda de R$ 1.800 |
+| 2 A conta | 8.4–9.5 | e um dependente. | e 1 dependente. |
+| 3 Os descontos | 9.8–13.3 | Subsídio do Minha Casa Minha Vida: cerca de cinquenta e quatro mil. | Subsídio do MCMV: R$ 54 mil |
+| 3 Os descontos | 13.4–15.7 | Desconto da construtora: trinta e dois mil. | Desconto da construtora: R$ 32 mil |
+| 3 Os descontos | 15.8–18.1 | Juntos, cerca de oitenta e seis mil reais! | Juntos: R$ 86 mil ! |
+| 4 A parcela | 18.4–19.3 | E a parcela? | E a parcela? |
+| 4 A parcela | 19.4–21.0 | Trinta por cento da renda: | 30% da renda : |
+| 4 A parcela | 21.1–23.6 | uns quinhentos e vinte e cinco reais por mês. | uns R$ 525 por mês |
+| 5 O lugar | 23.9–25.3 | No Terras de São Paulo: | No Terras de São Paulo, |
+| 5 O lugar | 25.4–27.0 | casa nova, terreno inteiro | casa nova e terreno inteiro, |
+| 5 O lugar | 27.1–28.8 | e três anos sem i pê tê u. | 3 anos sem IPTU |
+| 6 A entrada | 29.1–30.2 | Sobrou entrada? | Sobrou entrada? |
+| 6 A entrada | 30.3–32.2 | Parcela direto com a construtora. | Parcela direto com a construtora |
+| 6 A entrada | 32.3–34.1 | E a documentação é grátis! | Documentação grátis ! |
+| 7 Fecho | 34.4–35.4 | E aí? | E aí? |
+| 7 Fecho | 35.5–37.5 | Por que você ainda paga o aluguel mesmo? | Por que você ainda paga o aluguel mesmo? |
 
-Narração corrida (96 palavras ≈ 33 s no ritmo normal, +pausas): leia a coluna "Locução" na ordem. Ideal: uma frase por arquivo de áudio (ou um áudio só com pausa de 1 s entre cenas) — a linha do tempo se re-sincroniza pelos tempos de `SC` e `CAP` em `video.html`.
+Voz: sintética (Kokoro `pm_alex`, velocidade 1,18), verificada por transcrição automática (Whisper): inteligível; "Marília" correto; "paga **o** aluguel" (sem o "o" a voz embola). Para usar a SUA voz: grave cada frase (ids em `locucao.json`) em `voz-dono/<id>.wav` e rode `./montar.sh` — a animação se ajusta à duração de cada gravação.
 
-## 3. Versão recomendada (honesta) — o que muda
-- **Gancho:** "Primeiro imóvel em Marília com até R$ 85 mil de ajuda e entrada parcelada direto com a construtora. Presta atenção na conta." (etiqueta "Entrada parcelada").
-- **Descontos:** só o que o cadastro confirma: subsídio "até R$ 55 mil" + desconto da construtora R$ 32 mil (sem Casa Paulista, salvo confirmação). Total "cerca de R$ 85 mil".
-- **Parcela:** "Financiamento na Caixa: uns R$ 525 por mês (30% da renda)" — sem dizer "parcela de R$ 600".
-- **Entrada:** "O que sobrar de entrada parcela direto com a construtora, em até 60 vezes" (juros 1% a.m. no cadastro — decidir se entra no vídeo/legenda).
-- **Fecho:** igual (irônico). Rodapé legal já está no vídeo: "Valores estimados, sujeitos à análise de crédito · Condições da construtora · Imagens ilustrativas · CRECI 323106-F".
-
-## 4. Legenda do post (para a versão recomendada)
-"Primeiro imóvel em Marília com cerca de R$ 85 mil de ajuda (subsídio do Minha Casa Minha Vida + desconto da construtora), documentação grátis e entrada parcelada direto com a construtora. Faça sua simulação grátis pelo link. *Valores estimados, sujeitos à análise de crédito. Condições da construtora. Imagens ilustrativas. CRECI 323106-F."
+## 3. Legenda do post
+"Primeiro imóvel em Marília com cerca de R$ 86 mil de ajuda (subsídio do Minha Casa Minha Vida + desconto da construtora), documentação grátis e entrada parcelada direto com a construtora. Faça sua simulação grátis pelo link. *Valores estimados, sujeitos à análise de crédito. Condições da construtora. Imagens ilustrativas. CRECI 323106-F."

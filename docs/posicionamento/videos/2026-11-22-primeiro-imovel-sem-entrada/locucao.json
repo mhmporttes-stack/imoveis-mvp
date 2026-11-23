@@ -1,0 +1,169 @@
+{
+ "voz": "pm_alex",
+ "velocidade": 1.18,
+ "inicio": 0.4,
+ "cauda": 1.0,
+ "fim_script": 38.4,
+ "gap_cena": 0.3,
+ "gap_frase": 0.1,
+ "chunks": [
+  {
+   "id": "01",
+   "cena": 0,
+   "a": 0.5,
+   "b": 1.9,
+   "cap": "Primeiro imóvel em Marília,",
+   "fala": "Primeiro imóvel em Marília,"
+  },
+  {
+   "id": "02",
+   "cena": 0,
+   "a": 1.9,
+   "b": 3.2,
+   "cap": "com <span class='pos'>R$ 86 mil</span> de ajuda?",
+   "fala": "com oitenta e seis mil reais de ajuda?"
+  },
+  {
+   "id": "03",
+   "cena": 0,
+   "a": 3.2,
+   "b": 4.2,
+   "cap": "Presta atenção na conta.",
+   "fala": "Presta atenção na conta."
+  },
+  {
+   "id": "04",
+   "cena": 1,
+   "a": 4.4,
+   "b": 6.2,
+   "cap": "Renda de <span class='pos'>R$ 1.800</span>",
+   "fala": "Renda de mil e oitocentos reais"
+  },
+  {
+   "id": "05",
+   "cena": 1,
+   "a": 6.2,
+   "b": 8.0,
+   "cap": "e 1 dependente.",
+   "fala": "e um dependente."
+  },
+  {
+   "id": "06",
+   "cena": 2,
+   "a": 8.4,
+   "b": 11.2,
+   "cap": "Subsídio do MCMV:<br><span class='pos'>R$ 54 mil</span>",
+   "fala": "Subsídio do Minha Casa Minha Vida: cerca de cinquenta e quatro mil."
+  },
+  {
+   "id": "07",
+   "cena": 2,
+   "a": 11.2,
+   "b": 13.4,
+   "cap": "Desconto da construtora:<br><span class='pos'>R$ 32 mil</span>",
+   "fala": "Desconto da construtora: trinta e dois mil."
+  },
+  {
+   "id": "08",
+   "cena": 2,
+   "a": 13.4,
+   "b": 17.0,
+   "cap": "Juntos: <span class='pos'>R$ 86 mil</span>!",
+   "fala": "Juntos, cerca de oitenta e seis mil reais!"
+  },
+  {
+   "id": "09",
+   "cena": 3,
+   "a": 17.4,
+   "b": 18.7,
+   "cap": "E a parcela?",
+   "fala": "E a parcela?"
+  },
+  {
+   "id": "10",
+   "cena": 3,
+   "a": 18.7,
+   "b": 20.3,
+   "cap": "<span class='pos'>30% da renda</span>:",
+   "fala": "Trinta por cento da renda:"
+  },
+  {
+   "id": "11",
+   "cena": 3,
+   "a": 20.3,
+   "b": 22.4,
+   "cap": "uns <span class='pos'>R$ 525</span> por mês",
+   "fala": "uns quinhentos e vinte e cinco reais por mês."
+  },
+  {
+   "id": "12",
+   "cena": 4,
+   "a": 22.8,
+   "b": 24.7,
+   "cap": "No Terras de São Paulo,",
+   "fala": "No Terras de São Paulo:"
+  },
+  {
+   "id": "13",
+   "cena": 4,
+   "a": 24.7,
+   "b": 26.6,
+   "cap": "casa nova e terreno inteiro,",
+   "fala": "casa nova, terreno inteiro"
+  },
+  {
+   "id": "14",
+   "cena": 4,
+   "a": 26.6,
+   "b": 28.0,
+   "cap": "<span class='pos'>3 anos sem IPTU</span>",
+   "fala": "e três anos sem i pê tê u."
+  },
+  {
+   "id": "15",
+   "cena": 5,
+   "a": 28.4,
+   "b": 29.8,
+   "cap": "Sobrou entrada?",
+   "fala": "Sobrou entrada?"
+  },
+  {
+   "id": "16",
+   "cena": 5,
+   "a": 29.8,
+   "b": 31.7,
+   "cap": "Parcela <span class='pos'>direto com a construtora</span>",
+   "fala": "Parcela direto com a construtora."
+  },
+  {
+   "id": "17",
+   "cena": 5,
+   "a": 31.7,
+   "b": 33.0,
+   "cap": "Documentação <span class='pos'>grátis</span>!",
+   "fala": "E a documentação é grátis!"
+  },
+  {
+   "id": "18",
+   "cena": 6,
+   "a": 33.2,
+   "b": 34.3,
+   "cap": "E aí?",
+   "fala": "E aí?",
+   "junto_com": "19",
+   "fala_junta": "E aí... por que você ainda paga o aluguel mesmo?",
+   "vel": 1.1,
+   "reter": 0.55
+  },
+  {
+   "id": "19",
+   "cena": 6,
+   "a": 34.5,
+   "b": 37.6,
+   "cap": "Por que você ainda paga o <span class='neg'>aluguel</span> mesmo?",
+   "fala": "Por que você ainda paga o aluguel mesmo?",
+   "pausa_antes": 0.12,
+   "vel": 1.1
+  }
+ ]
+}

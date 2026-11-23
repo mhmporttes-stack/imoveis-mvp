@@ -1,4 +1,10 @@
 frames/
 symbol.png
 video_mudo.mp4
+audio.wav
 sfx.wav
+narracao.wav
+timeline.js
+locucao-tempos.json
+__pycache__/
+prev/

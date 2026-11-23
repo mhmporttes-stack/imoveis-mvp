@@ -28,3 +28,6 @@ Cabeçalho: etiqueta y 176–300, subtítulo y 326–376 · palco y 430–1150 (
 
 ## Limites
 Foto/vídeo real de imóvel → `editor-video`. Código do CRM → `crm-editor`. Verba/campanha → `gestor-trafego`. Estratégia/temas em alta → skill `/viralizacao`. Boca dos personagens não sincroniza (só expressões — decisão do dono).
+
+## Voz (atualização 2026-11-23)
+Locução **sintética gratuita e local**: `voz.py` (Kokoro, pt-BR, voz `pm_alex`) gera uma fala por frase de `locucao.json` e `timeline.js` faz a animação acompanhar a duração real; `mix.py` mistura voz + efeitos (efeitos abaixam sob a voz). Se o dono gravar/gerar a própria voz: `voz-dono/<id>.wav` por frase substitui a sintética. **Sempre verifique a voz com transcrição automática** (faster-whisper `small`; você não ouve áudio): inteligibilidade, números e nomes (lição: "paga **o** aluguel", senão vira "paga lugar"; sigla por extenso "i pê tê u"; frase curta solta como "E aí?" sai ambígua — gere junto da frase seguinte com `junto_com`/`fala_junta` e corte na pausa). Duração-alvo 33–38 s ≈ 100 palavras a velocidade 1,18. Música: o dono põe no Instagram. Detalhes: `docs/posicionamento/videos/2026-11-22-primeiro-imovel-sem-entrada/LEIAME.md`.

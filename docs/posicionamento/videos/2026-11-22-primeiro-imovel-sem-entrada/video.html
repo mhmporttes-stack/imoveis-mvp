@@ -45,15 +45,14 @@ html,body{width:1080px;height:1920px;overflow:hidden;background:#EAF0FA;font-fam
   </svg>
 
   <!-- S1: gancho -->
-  <div id="p1" class="chip" style="top:600px"><div class="k">Entrada</div><div class="v" style="font-size:112px">R$ 0<span class="q">?</span></div></div>
+  <div id="p1" class="chip" style="top:600px"><div class="k">Ajuda para comprar</div><div class="v" style="font-size:88px"><span data-n="total">R$ 86 mil</span><span class="q">?</span></div></div>
   <!-- S2: a conta -->
   <div id="p2a" class="chip blue" style="top:540px"><div class="k">Renda da família</div><div class="v" data-n="renda" style="font-size:88px">R$ 1.800</div></div>
   <div id="p2b" class="chip" style="top:790px"><div class="k">Dependentes</div><div class="v" style="font-size:96px">1</div></div>
   <!-- S3: descontos -->
-  <div id="p3a" class="chip blue" style="top:446px"><div class="k">Subsídio MCMV</div><div class="v" data-n="subsidio" style="font-size:58px">até R$ 55 mil</div></div>
-  <div id="p3b" class="chip blue" style="top:598px"><div class="k">Casa Paulista</div><div class="v" data-n="casa" style="font-size:58px">R$ 10 mil</div></div>
-  <div id="p3c" class="chip blue" style="top:750px"><div class="k">Desconto construtora</div><div class="v" data-n="obra" style="font-size:58px">R$ 35 mil</div></div>
-  <div id="p3t" class="chip navy" style="top:914px"><div class="k">Total de ajuda</div><div class="v" data-n="total" style="font-size:58px">até R$ 100 mil</div></div>
+  <div id="p3a" class="chip blue" style="top:470px"><div class="k">Subsídio MCMV (estimado)</div><div class="v" data-n="subsidio" style="font-size:62px">R$ 54 mil</div></div>
+  <div id="p3c" class="chip blue" style="top:650px"><div class="k">Desconto construtora</div><div class="v" data-n="obra" style="font-size:62px">R$ 32 mil</div></div>
+  <div id="p3t" class="chip navy" style="top:850px"><div class="k">Total de ajuda</div><div class="v" data-n="total" style="font-size:70px">R$ 86 mil</div></div>
   <!-- S4: parcela -->
   <svg id="p4g" class="svgp" style="top:450px;height:333px" width="330" height="250" viewBox="0 0 330 250">
     <path d="M30,200 A135,135 0 0 1 300,200" fill="none" stroke="#CBD9F1" stroke-width="34" stroke-linecap="round"/>
@@ -61,7 +60,7 @@ html,body{width:1080px;height:1920px;overflow:hidden;background:#EAF0FA;font-fam
     <g id="gNeedle" style="transform-origin:165px 200px"><path d="M165,200 L165,92" stroke="#0B1A3A" stroke-width="12" stroke-linecap="round"/><circle cx="165" cy="200" r="16" fill="#0B1A3A"/></g>
     <text x="165" y="246" font-family="Montserrat" font-weight="900" font-size="34" fill="#0B1A3A" text-anchor="middle">30% da renda</text>
   </svg>
-  <div id="p4v" class="chip navy" style="top:812px"><div class="k">Parcela estimada</div><div class="v" data-n="parcela" style="font-size:100px">R$ 525</div><div class="k" style="padding:0 0 14px;color:#9CC4FF">por mês</div></div>
+  <div id="p4v" class="chip navy" style="top:812px"><div class="k">Parcela do financiamento</div><div class="v" data-n="parcela" style="font-size:100px">R$ 525</div><div class="k" style="padding:0 0 14px;color:#9CC4FF">por mês</div></div>
   <!-- S5: o lugar -->
   <svg id="p5h" class="svgp" style="left:320px;top:430px;width:400px;height:376px" width="330" height="310" viewBox="0 0 330 310">
     <rect x="30" y="140" width="270" height="150" rx="14" fill="#fff" stroke="#0B1A3A" stroke-width="8" stroke-linejoin="round"/>
@@ -95,6 +94,7 @@ html,body{width:1080px;height:1920px;overflow:hidden;background:#EAF0FA;font-fam
   <img id="wm" class="abs" src="symbol.png" style="width:61px">
 </div>
 <script src="personagens.js"></script>
+<script src="timeline.js"></script>
 <script>
 const $=s=>document.querySelector(s), NS="http://www.w3.org/2000/svg";
 const clamp=(x,a=0,b=1)=>Math.min(b,Math.max(a,x));
@@ -110,48 +110,50 @@ function kv(t,arr){ if(t<=arr[0][0])return [arr[0][1],arr[0][2]];
   const l=arr[arr.length-1]; return [l[1],l[2]]; }
 const handAt=(t,arr)=>{let h=arr[0][1];arr.forEach(([t0,n])=>{if(t>=t0)h=n;});return h;};
 
-/* ===================== NÚMEROS (calculados com lib/financiamento-estimativa-core.mjs, 2026-11-22) =====================
-   Cenário "1800" = pedido do dono (renda R$ 1.800 + 1 dependente, Marília, imóvel novo): subsídio estimado R$ 53,6–54,4 mil (teto R$ 55 mil),
-   1ª parcela Price ≈ R$ 525 (= 30% da renda − R$ 15,03). Cenário "2000": parcela ≈ R$ 585, subsídio ≈ R$ 42–43 mil.
-   Troca de cenário: ?c=2000 na URL do video.html (ou CENARIO=2000 em montar.sh). Casa Paulista = R$ 10 mil (regra oficial do dono, 2026-10-02). */
-const NUMS={
- "1800":{renda:"R$ 1.800",subsidio:"até R$ 55 mil",casa:"R$ 10 mil",obra:"R$ 35 mil",total:"até R$ 100 mil",parcela:"R$ 525",totalCap:"R$ 100 mil"},
- "2000":{renda:"R$ 2.000",subsidio:"cerca de R$ 43 mil",casa:"R$ 10 mil",obra:"R$ 35 mil",total:"cerca de R$ 88 mil",parcela:"R$ 585",totalCap:"R$ 88 mil"}};
-const CEN=new URLSearchParams(location.search).get("c")||"1800", NUM=NUMS[CEN];
+/* ===================== NÚMEROS (versão RECOMENDADA — validada em 2026-11-23) =====================
+   Motor lib/financiamento-estimativa-core.mjs (renda R$ 1.800 + 1 dependente, Marília, novo): subsídio R$ 53,6–54,4 mil → "R$ 54 mil";
+   1ª parcela Price ≈ R$ 525 (30% da renda − R$ 15,03). Cadastro Terras de São Paulo (empreendimentos.regras, 09/10/2026): desconto da
+   incorporadora R$ 32.100; aceitaCasaPaulista = não (por isso NÃO há cartão da Casa Paulista); entrada parcelada direto com a construtora.
+   Total = 54 + 32 ≈ R$ 86 mil. "Sem entrada" NÃO é afirmado: com imóvel de R$ 235 mil sobram ≈ R$ 40,9 mil de entrada (parcelável). */
+const NUM={renda:"R$ 1.800",subsidio:"R$ 54 mil",obra:"R$ 32 mil",total:"R$ 86 mil",parcela:"R$ 525"};
 document.querySelectorAll("[data-n]").forEach(el=>{el.textContent=NUM[el.getAttribute("data-n")];});
 
-/* ===================== ROTEIRO / LINHA DO TEMPO ===================== */
-// Cada cena: [início, fim, rótulo, tamanho, subtítulo (html), tamanho do sub]. Para re-sincronizar com a narração, ajuste só estes tempos.
+/* ===================== LINHA DO TEMPO (voz) =====================
+   O vídeo é escrito em "tempo do roteiro" (t). timeline.js (gerado por voz.py a partir de locucao.json) liga o tempo do roteiro ao tempo REAL
+   da locução: âncoras [roteiro, real]. A animação acelera/desacelera por trechos para casar com cada frase falada. Sem timeline.js = identidade. */
+const TL=window.TL||{anchors:[[0,0],[38.4,38.4]],chunks:[],duration:38.4};
+const ANCH=TL.anchors;
+function warp(x,i0,i1){ // interpolação linear por partes entre âncoras (i0 = coluna de entrada, i1 = de saída)
+  const A=ANCH; if(x<=A[0][i0]) return A[0][i1]+(x-A[0][i0]);
+  for(let i=1;i<A.length;i++){ if(x<=A[i][i0]){ const p=A[i-1],q=A[i],k=(x-p[i0])/(q[i0]-p[i0]); return p[i1]+(q[i1]-p[i1])*k; } }
+  const l=A[A.length-1]; return l[i1]+(x-l[i0]); }
+const toScript=r=>warp(r,1,0), toReal=sc=>warp(sc,0,1);
+window.DURATION=TL.duration;
+
+/* ===================== ROTEIRO / CENAS ===================== */
+// Cada cena: [início, fim, rótulo, tamanho, subtítulo (html), tamanho do sub] — tempos no "tempo do roteiro".
 const SC=[
- [0.0, 4.2, "Sem entrada?", 84, "Primeiro imóvel em <b>Marília</b>", 42],
+ [0.0, 4.2, "Ajuda de R$ 86 mil?", 68, "Primeiro imóvel em <b>Marília</b>", 42],
  [4.2, 8.2, "A conta", 84, "Renda + dependente", 42],
  [8.2,17.2, "Os descontos", 80, "Quanto <b>sai do seu bolso</b>?", 40],
  [17.2,22.6,"A parcela", 84, "Até <b>30% da renda</b>", 42],
  [22.6,28.2,"Terras de São Paulo", 62, "Marília · <b>casa nova</b>", 40],
  [28.2,33.0,"Sobrou entrada?", 76, "Parcela <b>direto com a construtora</b>", 36],
- [33.0,37.6,"E aí?", 92, "Ainda paga <span class='neg'>aluguel</span>?", 42],
+ [33.0,38.4,"E aí?", 92, "Ainda paga <span class='neg'>aluguel</span>?", 42],
 ];
-const DUR=37.6; window.DURATION=DUR;
-// Legenda (frases curtas, abaixo da linha do chão): [início, fim, html]
-const CAP=[
- [0.5,2.2,"Primeiro imóvel em Marília,"],[2.2,3.2,"<span class='pos'>sem dar entrada?</span>"],[3.2,4.2,"Presta atenção na conta."],
- [4.4,6.2,`Renda de <span class='pos'>${NUM.renda}</span>`],[6.2,8.2,"e 1 dependente."],
- [8.4,11.2,`Subsídio do MCMV:<br><span class='pos'>${NUM.subsidio}</span>`],[11.2,13.4,"Casa Paulista:<br><span class='pos'>mais R$ 10 mil</span>"],[13.4,15.6,"Desconto da construtora:<br><span class='pos'>R$ 35 mil</span>"],[15.6,17.2,`${CEN==="1800"?"Até":"Cerca de"} <span class='pos'>${NUM.totalCap}</span>!`],
- [17.4,18.7,"E a parcela?"],[18.7,20.3,"<span class='pos'>30% da renda</span>:"],[20.3,22.6,`uns <span class='pos'>${NUM.parcela}</span> por mês`],
- [22.8,24.7,"No Terras de São Paulo,"],[24.7,26.6,"casa nova e terreno inteiro,"],[26.6,28.2,"<span class='pos'>3 anos sem IPTU</span>"],
- [28.4,29.8,"Sobrou entrada?"],[29.8,31.7,"Parcela <span class='pos'>direto com a construtora</span>"],[31.7,33.0,"Documentação <span class='pos'>grátis</span>!"],
- [33.2,34.3,"E aí?"],[34.5,37.6,"Por que você ainda paga <span class='neg'>aluguel</span> mesmo?"],
-];
-// Efeitos sonoros: [tempo, nome, ganho opcional]
-window.EVENTS=[
+// Legenda: vem de locucao.json (via timeline.js): [início, fim, html] no tempo do roteiro
+const CAP=TL.chunks.map(c=>[c.a,c.b,c.cap]);
+// Efeitos sonoros: [tempo do roteiro, nome, ganho opcional]
+const EV_SCRIPT=[
  [0.10,"boing"],[0.70,"thud"],[0.92,"pop"],[1.00,"whoosh",.8],[1.55,"swipe",.7],[2.00,"thud_s"],[2.45,"pop"],[2.50,"click"],
  [4.20,"swipe"],[4.55,"pop"],[5.95,"boing",.6],[6.35,"pop"],[7.0,"tick"],
- [8.20,"swipe"],[8.60,"coin"],[8.62,"pop"],[11.30,"coin"],[11.32,"pop"],[13.50,"coin"],[13.52,"pop"],[15.62,"sparkle"],[15.65,"ding"],[15.9,"boing",.6],
+ [8.20,"swipe"],[8.60,"coin"],[8.62,"pop"],[11.30,"coin"],[11.32,"pop"],[13.62,"sparkle"],[13.65,"ding"],[15.9,"boing",.6],
  [17.20,"swipe"],[17.8,"whoosh",.6],[19.3,"click"],[20.35,"pop"],[20.40,"ding",.7],
  [22.60,"swipe"],[22.95,"boing",.7],[24.85,"pop"],[25.60,"pop"],[26.70,"pop"],[27.0,"click"],
  [28.20,"swipe"],[28.65,"pop"],[30.0,"click"],[31.7,"pop"],[31.75,"ding"],[32.0,"sparkle",.7],
  [33.00,"swipe"],[33.5,"pop"],[35.7,"tear"],[36.1,"womp"],
-].map(a=>({t:a[0],s:a[1],g:a[2]??1}));
+];
+window.EVENTS=EV_SCRIPT.map(a=>({t:+toReal(a[0]).toFixed(3),s:a[1],g:a[2]??1}));
 
 /* ===================== MONTAGEM ===================== */
 const B=Rig.make("corretor"), C=Rig.make("cliente2"), K=Rig.make("cliente");
@@ -162,13 +164,13 @@ const dust=$("#dust"); const puffs=[]; for(let i=0;i<18;i++){const c=document.cr
 function dustAt(t,t0,cx,cy,n,off,sc=1){ const k=seg(t,t0,t0+0.5); for(let i=0;i<n;i++){const c=puffs[off+i],d=(i/(n-1)-.5)*2;c.setAttribute("cx",cx+d*(40+110*eOutCubic(k))*sc);c.setAttribute("cy",cy-10-Math.abs(d)*10*k-30*k*(1-Math.abs(d)));c.setAttribute("r",(10+8*(1-Math.abs(d)))*(1-k*.6)*sc);c.setAttribute("opacity",k>0&&k<1?(1-k):0);} }
 const WM=[[962,40],[52,40],[510,40],[962,455],[52,455],[250,40],[760,40]];
 // adereços: id, cena, [entra, sai]
-const PROPS=[["p1",[2.3,4.0]],["p2a",[4.5,8.0]],["p2b",[6.2,8.0]],["p3a",[8.5,17.0]],["p3b",[11.2,17.0]],["p3c",[13.4,17.0]],["p3t",[15.6,17.0]],
+const PROPS=[["p1",[2.3,4.0]],["p2a",[4.5,8.0]],["p2b",[6.2,8.0]],["p3a",[8.5,17.0]],["p3c",[11.3,17.0]],["p3t",[13.6,17.0]],
   ["p4g",[17.5,22.4]],["p4v",[20.2,22.4]],["p5h",[22.9,28.0]],["p5a",[24.6,28.0]],["p5b",[25.4,28.0]],["p5c",[26.5,28.0]],["p6a",[28.5,32.8]],["p6b",[31.6,32.8]],["p7r",[33.4,37.5]]];
 const propEl=Object.fromEntries(PROPS.map(([id])=>[id,$("#"+id)]));
 const CHK_TEXT=["#label","#sub","#cap","#cta","#foot",...PROPS.map(([id])=>"#"+id)];
 
 /* ===================== QUADRO ===================== */
-window.render=function(t){
+window.render=function(tReal){ const t=toScript(tReal);
   set($("#rays"),{r:t*5});
   [...houses.childNodes].forEach(g=>{const p=g._p; const y=430+((((p[1]-430)-t*14-p[3]*120)%690)+690)%690; g.setAttribute("transform",`translate(${p[0]},${y})`);});  // só abaixo do subtítulo (y ≥ 430)
   // cena atual
