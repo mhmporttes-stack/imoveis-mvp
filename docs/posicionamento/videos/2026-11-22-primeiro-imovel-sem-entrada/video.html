@@ -1,0 +1,268 @@
+<!doctype html>
+<html lang="pt-BR"><head><meta charset="utf-8">
+<style>
+@font-face{font-family:"Montserrat";src:url("fonts/montserrat-latin.woff2") format("woff2");font-weight:100 900;}
+:root{--navy:#0B1A3A;--blue:#3B8BFF;--blue2:#1F5FD6;--ink2:#3A4A66;--red:#E5384A}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{width:1080px;height:1920px;overflow:hidden;background:#EAF0FA;font-family:"Montserrat",Arial,sans-serif;color:var(--navy)}
+#stage{position:relative;width:1080px;height:1920px;overflow:hidden;background:radial-gradient(900px 760px at 50% 34%,#FFFFFF 0%,#F7F9FD 35%,#EAF0FA 70%,#DCE5F4 100%)}
+.abs{position:absolute;will-change:transform,opacity}
+#rays{left:-660px;top:-560px;width:2400px;height:2400px;background:repeating-conic-gradient(from 0deg,rgba(59,139,255,.14) 0 8deg,rgba(59,139,255,0) 8deg 16deg);
+  -webkit-mask-image:radial-gradient(circle at center,#000 0%,rgba(0,0,0,0) 46%);mask-image:radial-gradient(circle at center,#000 0%,rgba(0,0,0,0) 46%)}
+#labelWrap{left:0;top:176px;width:1080px;display:flex;justify-content:center}
+#label{background:var(--navy);color:#fff;font-weight:900;letter-spacing:1px;text-transform:uppercase;line-height:1;padding:20px 46px 22px;border-radius:20px;box-shadow:0 10px 0 var(--blue);white-space:nowrap;transform-origin:50% 0}
+#sub{left:60px;top:326px;width:960px;text-align:center;font-weight:800;letter-spacing:1.5px;text-transform:uppercase;color:var(--navy);white-space:nowrap}
+#sub b{color:var(--blue2)} #sub .neg{color:var(--red)}
+#capWrap{left:0;top:1212px;width:1080px;display:flex;justify-content:center}
+#cap{background:var(--navy);color:#fff;font-weight:800;font-size:54px;line-height:1.14;padding:16px 36px 18px;border-radius:26px;text-align:center;max-width:940px;box-shadow:0 8px 0 rgba(11,26,58,.18)}
+#cap .pos{color:#74AEFF} #cap .neg{color:#FF6A63}
+#foot{left:70px;top:1632px;width:940px;text-align:center;font-size:22px;font-weight:600;color:#3A4A66;line-height:1.3}
+#cta{left:80px;top:1408px;width:500px;font-size:32px;font-weight:900;color:var(--blue2);text-transform:uppercase;letter-spacing:1px;white-space:nowrap}
+#wm{height:48px;opacity:.30}
+/* adereços do centro (zona x 350–680) */
+.chip{position:absolute;left:300px;width:440px;background:#fff;border:6px solid var(--navy);border-radius:26px;box-shadow:0 8px 0 rgba(11,26,58,.16);text-align:center;transform-origin:50% 50%}
+.chip .k{font-size:28px;font-weight:800;letter-spacing:1.4px;text-transform:uppercase;color:var(--ink2);padding-top:12px}
+.chip .v{font-size:64px;font-weight:900;line-height:1.06;padding:4px 8px 14px;white-space:nowrap}
+.chip.navy{background:var(--navy);color:#fff}.chip.navy .k{color:#9CC4FF}
+.chip.blue .v{color:var(--blue2)}
+.chip.row{display:flex;align-items:center;justify-content:center;gap:10px;padding:0 6px}.chip.row span{font-size:31px;font-weight:900;text-transform:uppercase;line-height:1.05;white-space:nowrap}
+.q{display:inline-flex;align-items:center;justify-content:center;width:96px;height:96px;border-radius:50%;background:var(--blue);color:#fff;font-size:70px;vertical-align:middle;margin-left:10px}
+.ck{width:42px;height:42px;flex:none}
+.svgp{position:absolute;left:300px;width:440px;transform-origin:50% 50%}
+</style></head>
+<body><div id="stage">
+  <div id="rays" class="abs"></div>
+  <svg id="world" class="abs" width="1080" height="1920" viewBox="0 0 1080 1920" style="left:0;top:0">
+    <defs><filter id="blur6"><feGaussianBlur stdDeviation="6"/></filter></defs>
+    <g id="houses"></g>
+    <rect x="-20" y="1150" width="1120" height="770" fill="#DCE5F4" opacity=".55"/>
+    <line x1="-20" y1="1152" x2="1100" y2="1152" stroke="#0B1A3A" stroke-width="7"/>
+    <ellipse id="shB" cx="165" cy="1156" rx="95" ry="15" fill="#0B1A3A" opacity=".18" filter="url(#blur6)"/>
+    <ellipse id="shC" cx="862" cy="1156" rx="88" ry="14" fill="#0B1A3A" opacity=".18" filter="url(#blur6)"/>
+    <ellipse id="shK" cx="1002" cy="1156" rx="46" ry="8" fill="#0B1A3A" opacity=".18" filter="url(#blur6)"/>
+    <g id="dust"></g>
+    <g id="gK"></g><g id="gC"></g><g id="gB"></g>
+  </svg>
+
+  <!-- S1: gancho -->
+  <div id="p1" class="chip" style="top:600px"><div class="k">Entrada</div><div class="v" style="font-size:112px">R$ 0<span class="q">?</span></div></div>
+  <!-- S2: a conta -->
+  <div id="p2a" class="chip blue" style="top:540px"><div class="k">Renda da família</div><div class="v" data-n="renda" style="font-size:88px">R$ 1.800</div></div>
+  <div id="p2b" class="chip" style="top:790px"><div class="k">Dependentes</div><div class="v" style="font-size:96px">1</div></div>
+  <!-- S3: descontos -->
+  <div id="p3a" class="chip blue" style="top:446px"><div class="k">Subsídio MCMV</div><div class="v" data-n="subsidio" style="font-size:58px">até R$ 55 mil</div></div>
+  <div id="p3b" class="chip blue" style="top:598px"><div class="k">Casa Paulista</div><div class="v" data-n="casa" style="font-size:58px">R$ 10 mil</div></div>
+  <div id="p3c" class="chip blue" style="top:750px"><div class="k">Desconto construtora</div><div class="v" data-n="obra" style="font-size:58px">R$ 35 mil</div></div>
+  <div id="p3t" class="chip navy" style="top:914px"><div class="k">Total de ajuda</div><div class="v" data-n="total" style="font-size:58px">até R$ 100 mil</div></div>
+  <!-- S4: parcela -->
+  <svg id="p4g" class="svgp" style="top:450px;height:333px" width="330" height="250" viewBox="0 0 330 250">
+    <path d="M30,200 A135,135 0 0 1 300,200" fill="none" stroke="#CBD9F1" stroke-width="34" stroke-linecap="round"/>
+    <path id="gArc" d="M30,200 A135,135 0 0 1 300,200" fill="none" stroke="#3B8BFF" stroke-width="34" stroke-linecap="round" stroke-dasharray="424" stroke-dashoffset="424"/>
+    <g id="gNeedle" style="transform-origin:165px 200px"><path d="M165,200 L165,92" stroke="#0B1A3A" stroke-width="12" stroke-linecap="round"/><circle cx="165" cy="200" r="16" fill="#0B1A3A"/></g>
+    <text x="165" y="246" font-family="Montserrat" font-weight="900" font-size="34" fill="#0B1A3A" text-anchor="middle">30% da renda</text>
+  </svg>
+  <div id="p4v" class="chip navy" style="top:812px"><div class="k">Parcela estimada</div><div class="v" data-n="parcela" style="font-size:100px">R$ 525</div><div class="k" style="padding:0 0 14px;color:#9CC4FF">por mês</div></div>
+  <!-- S5: o lugar -->
+  <svg id="p5h" class="svgp" style="left:320px;top:430px;width:400px;height:376px" width="330" height="310" viewBox="0 0 330 310">
+    <rect x="30" y="140" width="270" height="150" rx="14" fill="#fff" stroke="#0B1A3A" stroke-width="8" stroke-linejoin="round"/>
+    <path d="M12,150 L165,40 L318,150 Z" fill="#3B8BFF" stroke="#0B1A3A" stroke-width="8" stroke-linejoin="round"/>
+    <rect x="78" y="190" width="62" height="100" rx="10" fill="#0B1A3A"/><circle cx="126" cy="244" r="6" fill="#fff"/>
+    <rect x="178" y="188" width="86" height="64" rx="10" fill="#CFE0FF" stroke="#0B1A3A" stroke-width="7"/><path d="M221,188 V252 M178,220 H264" stroke="#0B1A3A" stroke-width="6"/>
+    <rect x="228" y="64" width="26" height="46" fill="#1F5FD6" stroke="#0B1A3A" stroke-width="7"/>
+    <path d="M10,292 H320" stroke="#0B1A3A" stroke-width="8" stroke-linecap="round"/>
+  </svg>
+  <div id="p5a" class="chip row" style="top:826px;height:82px"><svg class="ck" viewBox="0 0 46 46"><circle cx="23" cy="23" r="21" fill="#1F5FD6"/><path d="M12 24 l8 8 l15 -17" fill="none" stroke="#fff" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Casa nova</span></div>
+  <div id="p5b" class="chip row" style="top:918px;height:82px"><svg class="ck" viewBox="0 0 46 46"><circle cx="23" cy="23" r="21" fill="#1F5FD6"/><path d="M12 24 l8 8 l15 -17" fill="none" stroke="#fff" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Terreno 160 m²</span></div>
+  <div id="p5c" class="chip row" style="top:1010px;height:82px"><svg class="ck" viewBox="0 0 46 46"><circle cx="23" cy="23" r="21" fill="#1F5FD6"/><path d="M12 24 l8 8 l15 -17" fill="none" stroke="#fff" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/></svg><span>3 anos sem IPTU</span></div>
+  <!-- S6: entrada -->
+  <div id="p6a" class="chip blue" style="top:540px"><div class="k">Entrada</div><div class="v" style="font-size:50px">PARCELADA<br>DIRETO NA<br>CONSTRUTORA</div></div>
+  <div id="p6b" class="chip navy" style="top:850px"><div class="k">Documentação</div><div class="v" style="font-size:78px">GRÁTIS</div></div>
+  <!-- S7: aluguel -->
+  <svg id="p7r" class="svgp" style="left:320px;top:520px;width:400px;height:436px" width="330" height="360" viewBox="0 0 330 360">
+    <g id="rentL"><path d="M40,20 H290 V150 L262,134 L236,152 L210,134 L184,152 L158,134 L132,152 L106,134 L80,152 L54,134 L40,150 Z" fill="#fff" stroke="#0B1A3A" stroke-width="8" stroke-linejoin="round"/>
+      <rect x="40" y="20" width="250" height="56" fill="#0B1A3A"/><text x="165" y="60" font-family="Montserrat" font-weight="900" font-size="34" fill="#fff" text-anchor="middle" letter-spacing="3">ALUGUEL</text>
+      <rect x="70" y="96" width="150" height="14" rx="7" fill="#C5D0E4"/></g>
+    <g id="rentR"><path d="M40,150 L54,134 L80,152 L106,134 L132,152 L158,134 L184,152 L210,134 L236,152 L262,134 L290,150 V330 H40 Z" fill="#fff" stroke="#0B1A3A" stroke-width="8" stroke-linejoin="round"/>
+      <text x="165" y="226" font-family="Montserrat" font-weight="900" font-size="64" fill="#0B1A3A" text-anchor="middle">R$ ___</text>
+      <text x="165" y="282" font-family="Montserrat" font-weight="800" font-size="26" fill="#E5384A" text-anchor="middle" letter-spacing="2">TODO MÊS</text></g>
+  </svg>
+
+  <div id="labelWrap" class="abs"><div id="label"></div></div>
+  <div id="sub" class="abs"></div>
+  <div id="capWrap" class="abs"><div id="cap"></div></div>
+  <div id="cta" class="abs">Simule grátis ↓</div>
+  <div id="foot" class="abs">Valores estimados, sujeitos à análise de crédito · Condições da construtora · Imagens ilustrativas<br>Matheus Machado Corretor de Imóveis · CRECI 323106-F</div>
+  <img id="wm" class="abs" src="symbol.png" style="width:61px">
+</div>
+<script src="personagens.js"></script>
+<script>
+const $=s=>document.querySelector(s), NS="http://www.w3.org/2000/svg";
+const clamp=(x,a=0,b=1)=>Math.min(b,Math.max(a,x));
+const seg=(t,a,b)=>clamp((t-a)/(b-a));
+const eOutCubic=x=>1-Math.pow(1-x,3), eInOut=x=>x<.5?4*x*x*x:1-Math.pow(-2*x+2,3)/2;
+const eOutBack=(x,c1=1.70158)=>{const c3=c1+1;return 1+c3*Math.pow(x-1,3)+c1*Math.pow(x-1,2)};
+const set=(el,{x=0,y=0,s=1,sx=null,sy=null,r=0,o=1})=>{el.style.transform=`translate(${x}px,${y}px) rotate(${r}deg) scale(${sx??s},${sy??s})`;el.style.opacity=o;};
+const win=(t,a,b)=>Math.sin(Math.PI*seg(t,a,b)), pulse=(t,t0,d)=>Math.sin(Math.PI*seg(t,t0,t0+d));
+const blinkAt=(t,t0)=>{const k=(t-t0)/0.17;return k<0||k>1?0:Math.sin(Math.PI*k)};
+// keyframes de vetor: [t, a, b, easing]  ('b' = com overshoot)
+function kv(t,arr){ if(t<=arr[0][0])return [arr[0][1],arr[0][2]];
+  for(let i=1;i<arr.length;i++){ if(t<=arr[i][0]){ const p=arr[i-1],n=arr[i],k=seg(t,p[0],n[0]); const e=n[3]==='b'?eOutBack(k,1.15):eInOut(k); return [p[1]+(n[1]-p[1])*e,p[2]+(n[2]-p[2])*e]; } }
+  const l=arr[arr.length-1]; return [l[1],l[2]]; }
+const handAt=(t,arr)=>{let h=arr[0][1];arr.forEach(([t0,n])=>{if(t>=t0)h=n;});return h;};
+
+/* ===================== NÚMEROS (calculados com lib/financiamento-estimativa-core.mjs, 2026-11-22) =====================
+   Cenário "1800" = pedido do dono (renda R$ 1.800 + 1 dependente, Marília, imóvel novo): subsídio estimado R$ 53,6–54,4 mil (teto R$ 55 mil),
+   1ª parcela Price ≈ R$ 525 (= 30% da renda − R$ 15,03). Cenário "2000": parcela ≈ R$ 585, subsídio ≈ R$ 42–43 mil.
+   Troca de cenário: ?c=2000 na URL do video.html (ou CENARIO=2000 em montar.sh). Casa Paulista = R$ 10 mil (regra oficial do dono, 2026-10-02). */
+const NUMS={
+ "1800":{renda:"R$ 1.800",subsidio:"até R$ 55 mil",casa:"R$ 10 mil",obra:"R$ 35 mil",total:"até R$ 100 mil",parcela:"R$ 525",totalCap:"R$ 100 mil"},
+ "2000":{renda:"R$ 2.000",subsidio:"cerca de R$ 43 mil",casa:"R$ 10 mil",obra:"R$ 35 mil",total:"cerca de R$ 88 mil",parcela:"R$ 585",totalCap:"R$ 88 mil"}};
+const CEN=new URLSearchParams(location.search).get("c")||"1800", NUM=NUMS[CEN];
+document.querySelectorAll("[data-n]").forEach(el=>{el.textContent=NUM[el.getAttribute("data-n")];});
+
+/* ===================== ROTEIRO / LINHA DO TEMPO ===================== */
+// Cada cena: [início, fim, rótulo, tamanho, subtítulo (html), tamanho do sub]. Para re-sincronizar com a narração, ajuste só estes tempos.
+const SC=[
+ [0.0, 4.2, "Sem entrada?", 84, "Primeiro imóvel em <b>Marília</b>", 42],
+ [4.2, 8.2, "A conta", 84, "Renda + dependente", 42],
+ [8.2,17.2, "Os descontos", 80, "Quanto <b>sai do seu bolso</b>?", 40],
+ [17.2,22.6,"A parcela", 84, "Até <b>30% da renda</b>", 42],
+ [22.6,28.2,"Terras de São Paulo", 62, "Marília · <b>casa nova</b>", 40],
+ [28.2,33.0,"Sobrou entrada?", 76, "Parcela <b>direto com a construtora</b>", 36],
+ [33.0,37.6,"E aí?", 92, "Ainda paga <span class='neg'>aluguel</span>?", 42],
+];
+const DUR=37.6; window.DURATION=DUR;
+// Legenda (frases curtas, abaixo da linha do chão): [início, fim, html]
+const CAP=[
+ [0.5,2.2,"Primeiro imóvel em Marília,"],[2.2,3.2,"<span class='pos'>sem dar entrada?</span>"],[3.2,4.2,"Presta atenção na conta."],
+ [4.4,6.2,`Renda de <span class='pos'>${NUM.renda}</span>`],[6.2,8.2,"e 1 dependente."],
+ [8.4,11.2,`Subsídio do MCMV:<br><span class='pos'>${NUM.subsidio}</span>`],[11.2,13.4,"Casa Paulista:<br><span class='pos'>mais R$ 10 mil</span>"],[13.4,15.6,"Desconto da construtora:<br><span class='pos'>R$ 35 mil</span>"],[15.6,17.2,`${CEN==="1800"?"Até":"Cerca de"} <span class='pos'>${NUM.totalCap}</span>!`],
+ [17.4,18.7,"E a parcela?"],[18.7,20.3,"<span class='pos'>30% da renda</span>:"],[20.3,22.6,`uns <span class='pos'>${NUM.parcela}</span> por mês`],
+ [22.8,24.7,"No Terras de São Paulo,"],[24.7,26.6,"casa nova e terreno inteiro,"],[26.6,28.2,"<span class='pos'>3 anos sem IPTU</span>"],
+ [28.4,29.8,"Sobrou entrada?"],[29.8,31.7,"Parcela <span class='pos'>direto com a construtora</span>"],[31.7,33.0,"Documentação <span class='pos'>grátis</span>!"],
+ [33.2,34.3,"E aí?"],[34.5,37.6,"Por que você ainda paga <span class='neg'>aluguel</span> mesmo?"],
+];
+// Efeitos sonoros: [tempo, nome, ganho opcional]
+window.EVENTS=[
+ [0.10,"boing"],[0.70,"thud"],[0.92,"pop"],[1.00,"whoosh",.8],[1.55,"swipe",.7],[2.00,"thud_s"],[2.45,"pop"],[2.50,"click"],
+ [4.20,"swipe"],[4.55,"pop"],[5.95,"boing",.6],[6.35,"pop"],[7.0,"tick"],
+ [8.20,"swipe"],[8.60,"coin"],[8.62,"pop"],[11.30,"coin"],[11.32,"pop"],[13.50,"coin"],[13.52,"pop"],[15.62,"sparkle"],[15.65,"ding"],[15.9,"boing",.6],
+ [17.20,"swipe"],[17.8,"whoosh",.6],[19.3,"click"],[20.35,"pop"],[20.40,"ding",.7],
+ [22.60,"swipe"],[22.95,"boing",.7],[24.85,"pop"],[25.60,"pop"],[26.70,"pop"],[27.0,"click"],
+ [28.20,"swipe"],[28.65,"pop"],[30.0,"click"],[31.7,"pop"],[31.75,"ding"],[32.0,"sparkle",.7],
+ [33.00,"swipe"],[33.5,"pop"],[35.7,"tear"],[36.1,"womp"],
+].map(a=>({t:a[0],s:a[1],g:a[2]??1}));
+
+/* ===================== MONTAGEM ===================== */
+const B=Rig.make("corretor"), C=Rig.make("cliente2"), K=Rig.make("cliente");
+$("#gB").appendChild(B.el); $("#gC").appendChild(C.el); $("#gK").appendChild(K.el);
+const SB=.82, SK=.44, GY=1150, BX=165, CXX=862, KX=1002;
+const houses=$("#houses"); [[90,520,54,.0],[960,500,64,.3],[60,820,40,.6],[1010,740,46,.15],[140,420,36,.45],[560,430,34,.8]].forEach(h=>{const g=document.createElementNS(NS,"g");g.innerHTML=`<path transform="scale(${h[2]/64})" d="M8 30 L32 8 L56 30 V56 H8 Z M26 56 V38 H38 V56" fill="none" stroke="#3B8BFF" stroke-width="5" stroke-linejoin="round" stroke-linecap="round" opacity=".18"/>`;g._p=h;houses.appendChild(g);});
+const dust=$("#dust"); const puffs=[]; for(let i=0;i<18;i++){const c=document.createElementNS(NS,"circle");c.setAttribute("fill","#fff");c.setAttribute("stroke","#0B1A3A");c.setAttribute("stroke-width",4);c.setAttribute("opacity",0);dust.appendChild(c);puffs.push(c);}
+function dustAt(t,t0,cx,cy,n,off,sc=1){ const k=seg(t,t0,t0+0.5); for(let i=0;i<n;i++){const c=puffs[off+i],d=(i/(n-1)-.5)*2;c.setAttribute("cx",cx+d*(40+110*eOutCubic(k))*sc);c.setAttribute("cy",cy-10-Math.abs(d)*10*k-30*k*(1-Math.abs(d)));c.setAttribute("r",(10+8*(1-Math.abs(d)))*(1-k*.6)*sc);c.setAttribute("opacity",k>0&&k<1?(1-k):0);} }
+const WM=[[962,40],[52,40],[510,40],[962,455],[52,455],[250,40],[760,40]];
+// adereços: id, cena, [entra, sai]
+const PROPS=[["p1",[2.3,4.0]],["p2a",[4.5,8.0]],["p2b",[6.2,8.0]],["p3a",[8.5,17.0]],["p3b",[11.2,17.0]],["p3c",[13.4,17.0]],["p3t",[15.6,17.0]],
+  ["p4g",[17.5,22.4]],["p4v",[20.2,22.4]],["p5h",[22.9,28.0]],["p5a",[24.6,28.0]],["p5b",[25.4,28.0]],["p5c",[26.5,28.0]],["p6a",[28.5,32.8]],["p6b",[31.6,32.8]],["p7r",[33.4,37.5]]];
+const propEl=Object.fromEntries(PROPS.map(([id])=>[id,$("#"+id)]));
+const CHK_TEXT=["#label","#sub","#cap","#cta","#foot",...PROPS.map(([id])=>"#"+id)];
+
+/* ===================== QUADRO ===================== */
+window.render=function(t){
+  set($("#rays"),{r:t*5});
+  [...houses.childNodes].forEach(g=>{const p=g._p; const y=430+((((p[1]-430)-t*14-p[3]*120)%690)+690)%690; g.setAttribute("transform",`translate(${p[0]},${y})`);});  // só abaixo do subtítulo (y ≥ 430)
+  // cena atual
+  let si=0; SC.forEach((s,i)=>{if(t>=s[0])si=i;}); const s=SC[si], loc=t-s[0], left=s[1]-t;
+  const lab=$("#label"), sub=$("#sub");
+  if(lab._i!==si){lab.textContent=s[2];lab.style.fontSize=s[3]+"px";sub.innerHTML=s[4];sub.style.fontSize=s[5]+"px";lab._i=si;}
+  const inK=si===0?eOutBack(seg(t,0.45,0.95)):eOutBack(seg(loc,0.06,0.5)), outK=left<0.12?seg(0.12-left,0,0.12):0;
+  set($("#labelWrap"),{y:si===0?(1-seg(t,0.45,0.9))*-170:0,sy:Math.max(0.001,inK*(1-outK)),sx:1,o:si===0?clamp(seg(t,0.45,0.65)):1});
+  const sk=si===0?seg(t,0.85,1.2):seg(loc,0.25,0.6); set(sub,{y:(1-eOutCubic(sk))*22,o:sk*(1-outK)});
+  // legenda
+  { let ci=-1; CAP.forEach((c,i)=>{if(t>=c[0]&&t<c[1])ci=i;}); const cw=$("#capWrap"),cap=$("#cap");
+    if(ci<0){set(cw,{o:0});} else {const c=CAP[ci]; if(cap._i!==ci){cap.innerHTML=c[2];cap._i=ci;} const k=eOutBack(seg(t,c[0],c[0]+0.24)), f=1-seg(t,c[1]-0.07,c[1]);
+      set(cw,{y:(1-k)*28,s:Math.max(0.01,0.86+0.14*k),o:clamp(seg(t,c[0],c[0]+0.08))*f}); } }
+  set($("#cta"),{y:(1-eOutCubic(seg(t,35.4,35.8)))*20,o:seg(t,35.4,35.8)});
+  set($("#foot"),{o:seg(t,1.0,1.6)*0.9});
+  // marca d'água: posição diferente em cada cena
+  const wm=$("#wm"); wm.style.left=WM[si][0]+"px"; wm.style.top=WM[si][1]+"px"; set(wm,{o:.30*seg(t,0.8,1.2)*(1-outK)*(si===0||loc>0.2?1:0)});
+  // adereços (pop in/out)
+  PROPS.forEach(([id,[a,b]])=>{ const el=propEl[id]; const k=eOutBack(seg(t,a,a+0.3),1.0), o=1-seg(t,b-0.2,b);
+    const bob=Math.sin(t*2.1+a)*5; set(el,{y:bob*(t>a+0.4?1:0),s:Math.max(0.001,k*o),o:t>a?1:0}); });
+  // gauge
+  { const k=eInOut(seg(t,17.9,19.3)); $("#gArc").setAttribute("stroke-dashoffset",424-424*0.6*k); $("#gNeedle").style.transform=`rotate(${-90+108*k+(k>=1?2.5*Math.sin((t-19.3)*14)*Math.exp(-(t-19.3)*4):0)}deg)`; }
+  // aluguel rasgando
+  { const k=eInOut(seg(t,35.7,36.5)); $("#rentL").style.transform=`translate(${-70*k}px,${-26*k}px) rotate(${-14*k}deg)`; $("#rentR").style.transform=`translate(${70*k}px,${40*k}px) rotate(${12*k}deg)`;
+    $("#rentL").style.transformOrigin="165px 80px"; $("#rentR").style.transformOrigin="165px 240px"; }
+
+  /* ---------- CORRETOR ---------- */
+  { const idle=Math.sin(t*2*Math.PI/2.6), sway=Math.sin(t*2*Math.PI/3.4);
+    const k=seg(t,0.10,0.70), fl=Math.sin(Math.PI*k), land=pulse(t,0.70,0.20), air=t<0.72?fl:0;
+    let x=(1-eOutCubic(k))*-520, y=t<0.7?-fl*170:0, sx=1-0.05*fl, sy=1+0.09*fl; if(t>=0.70){sx=1+0.13*land;sy=1-0.17*land;}
+    const wave=22*Math.sin(2*Math.PI*2.6*(t-0.95))*win(t,0.95,2.2)*0+ (t>0.95&&t<2.25?22*Math.sin(2*Math.PI*2.6*(t-1.15)):0);
+    const D=[[0,8,10],[0.7,8,10],[0.95,86,86+0,'b'],[2.2,86,86,'i'],[2.4,96,4,'b'],[4.0,96,4,'i'],[4.4,72,34,'b'],[8.0,72,34,'i'],
+      [8.5,122,4,'b'],[11.0,122,4,'i'],[11.3,102,4,'b'],[13.2,102,4,'i'],[13.5,84,4,'b'],[15.3,84,4,'i'],[15.7,150,12,'b'],[17.0,150,12,'i'],
+      [17.5,96,18,'b'],[20.0,96,18,'i'],[20.35,38,118,'b'],[22.2,38,118,'i'],[22.9,92,24,'b'],[26.3,92,24,'i'],[26.7,84,4,'b'],[28.0,84,4,'i'],
+      [28.6,38,118,'b'],[30.0,38,118,'i'],[30.4,48,70,'b'],[32.9,48,70,'i'],[33.3,48,72,'b'],[37.6,48,72,'i']];
+    const E=[[0,8,10],[15.7,8,10],[15.8,150,12,'b'],[17.0,150,12,'i'],[17.4,8,10,'i'],[30.4,8,10],[30.5,48,70,'b'],[32.9,48,70,'i'],[33.3,48,72,'b'],[37.6,48,72,'i']];
+    let aD=kv(t,D), aE=kv(t,E);
+    if(t<0.72){ aD=[aD[0]+air*50,aD[1]+air*30]; aE=[aE[0]+air*50,aE[1]+air*30]; }
+    aD=[aD[0],aD[1]+wave];
+    const hD=handAt(t,[[0,"aberta"],[2.4,"aponta"],[4.1,"aberta"],[8.5,"aponta"],[15.4,"punho"],[17.1,"aberta"],[20.35,"joinha"],[22.3,"aberta"],[26.7,"aponta"],[28.1,"aberta"],[28.6,"joinha"],[30.1,"aberta"]]);
+    const hE=handAt(t,[[0,"aberta"],[15.8,"punho"],[17.1,"aberta"]]);
+    const ex=t<0.9?Rig.EXPR.animado:(t<8.2?Rig.EXPR.feliz:(t<33.0?Rig.EXPR.animado:Rig.EXPR.pensativo));
+    const nod=5*pulse(t,1.1,0.2)+5*pulse(t,2.5,0.2)+5*pulse(t,5.0,0.2)+5*pulse(t,9.0,0.2)+5*pulse(t,11.5,0.2)+5*pulse(t,13.8,0.2)+5*pulse(t,18.0,0.2)+5*pulse(t,23.4,0.2)+5*pulse(t,29.0,0.2);
+    const irony=seg(t,33.2,33.7);
+    const look=(t>2.3&&t<8.0)||(t>33)?[0.9,0.1]:[0,0];
+    B.set(Object.assign({},ex,{x:x,y:y,sx:sx,sy:sy*(1+0.007*idle),lean:sway*1.0-(t<0.7?10*fl:0)+irony*(-3),hr:3*Math.sin(t*2*Math.PI/3.1)+irony*7,hy:nod,aE:aE,aD:aD,hE:hE,hD:hD,lE:air*14,lD:-air*14,
+      look:look,blink:Math.max(blinkAt(t,1.7),blinkAt(t,6.9),blinkAt(t,12.4),blinkAt(t,19.2),blinkAt(t,27.3),blinkAt(t,35.0))}));
+    $("#gB").setAttribute("transform",`translate(${BX},${GY}) scale(${SB})`);
+    $("#shB").setAttribute("opacity",.18*(t>0.1?1:0)*(t<0.7?(1-0.6*fl):1)); $("#shB").setAttribute("rx",95*(1-0.35*(t<0.7?fl:0)));
+    dustAt(t,0.70,BX,GY,6,0,0.85);
+  }
+  /* ---------- CLIENTE (mulher) ---------- */
+  { const k=seg(t,1.5,2.0), hop=Math.abs(Math.sin(Math.PI*k*2))*70*(1-k*0.4), x=(1-eOutCubic(k))*520, y=t<2.0?-hop:0, land2=pulse(t,2.0,0.2);
+    const ex=t<1.5?Rig.EXPR.feliz:(t<3.0?Rig.EXPR.surpreso:(t<8.2?(t<4.2?Rig.EXPR.animado:Rig.EXPR.feliz):(t<9.6?Rig.EXPR.surpreso:(t<33.0?Rig.EXPR.animado:{brow:[0,10,0,10],mouth:"flat",eyeS:1}))));
+    const A=[[0,8,10],[2.4,8,10],[2.6,30,20,'b'],[3.4,30,20,'i'],[3.8,8,10,'i'],[8.4,8,10],[8.6,26,22,'b'],[9.6,26,22,'i'],[10.0,8,10,'i'],
+      [15.7,8,10],[15.85,152,12,'b'],[17.0,152,12,'i'],[17.4,8,10,'i'],[20.2,8,10],[20.35,14,104,'b'],[22.0,14,104,'i'],[22.6,30,100,'b'],[24.4,30,100,'i'],[24.8,8,10,'i'],
+      [31.6,8,10],[31.75,152,12,'b'],[32.9,152,12,'i'],[33.4,10,10,'i'],[37.6,10,10]];
+    const a=kv(t,A);
+    const hh=handAt(t,[[0,"aberta"],[15.85,"punho"],[17.1,"aberta"],[20.35,"punho"],[22.2,"aberta"],[31.75,"punho"],[33.0,"aberta"]]);
+    const down=seg(t,33.3,33.8), sad=Math.sin(t*1.5);
+    C.set(Object.assign({},ex,{x:x,y:y,sx:1+0.11*land2,sy:(1-0.14*land2)*(1+0.007*Math.sin(t*2.2)),lean:-1,hr:-6*down+1.5*Math.sin(t*1.9),hy:6*down,aE:a,aD:a,hE:hh,hD:hh,
+      look:t>33.3?[0,1]:(t>2.3&&t<8?[-0.9,0.1]:[0,0]),blink:Math.max(blinkAt(t,3.9),blinkAt(t,13.1),blinkAt(t,24.8),blinkAt(t,35.6))}));
+    $("#gC").setAttribute("transform",`translate(${CXX},${GY}) scale(${SB})`);
+    $("#shC").setAttribute("opacity",.18*(t>1.5?1:0)*(t<2.0?(1-0.6*Math.sin(Math.PI*k)):1));
+    dustAt(t,2.0,CXX,GY,6,6,0.85);
+  }
+  /* ---------- FILHO ---------- */
+  { const k=seg(t,5.9,6.4), hop=Math.abs(Math.sin(Math.PI*k*2))*60*(1-k*0.3), x=(1-eOutCubic(k))*260, y=t<6.4?-hop:0;
+    const j=pulse(t,15.8,0.35)*40+pulse(t,16.3,0.35)*30+pulse(t,31.8,0.35)*40, up=(t>15.8&&t<17.2)||(t>31.8&&t<33)?1:0;
+    const ex=t<33?(t<8.2?Rig.EXPR.animado:Rig.EXPR.feliz):Rig.EXPR.neutro;
+    K.set(Object.assign({},ex,{x:x,y:y-j,sx:1+0.1*pulse(t,6.4,0.2),sy:(1-0.12*pulse(t,6.4,0.2))*(1+0.01*Math.sin(t*2.6)),aE:up?[150,14]:[10,10],aD:up?[150,14]:[10,10],hE:up?"punho":"aberta",hD:up?"punho":"aberta",
+      look:[-0.6,0],blink:Math.max(blinkAt(t,9.3),blinkAt(t,21.2),blinkAt(t,35.4)),lean:Math.sin(t*3)*1.2}));
+    $("#gK").setAttribute("transform",`translate(${KX},${GY}) scale(${SK})`); $("#gK").style.opacity=t>5.9?1:0;
+    $("#shK").setAttribute("opacity",.18*(t>5.9?1:0)); dustAt(t,6.4,KX,GY,6,12,0.5);
+  }
+};
+
+/* ===================== CHECAGEM DE SOBREPOSIÇÃO ===================== */
+window.CHECK=function(){
+  const vis=(el)=>{ if(!el)return null; const cs=getComputedStyle(el); if(+cs.opacity<0.3)return null; const r=el.getBoundingClientRect(); if(r.width<4||r.height<4)return null;
+    const nat=el.offsetWidth||parseFloat(el.getAttribute('width'))||r.width; if(r.width/nat<0.85)return null; return r; };
+  const ov=(a,b,m=2)=>a.left<b.right-m&&a.right>b.left+m&&a.top<b.bottom-m&&a.bottom>b.top+m;
+  const out=[]; const T=CHK_TEXT.map(s=>[s,vis($(s))]).filter(x=>x[1]);
+  const faces=[["rosto corretor",B.el],["rosto cliente",C.el],["rosto filho",K.el]].map(([n,g])=>[n,g.querySelector('[data-p="head"]').getBoundingClientRect(),g]);
+  for(let i=0;i<T.length;i++) for(let j=i+1;j<T.length;j++) if(ov(T[i][1],T[j][1])) out.push(`${T[i][0]} × ${T[j][0]}`);
+  T.forEach(([n,r])=>faces.forEach(([fn,fr,g])=>{ if(+getComputedStyle(g.parentNode).opacity>0.3 && ov(r,fr,4)) out.push(`${n} × ${fn}`); }));
+  // personagens (corpo inteiro) não podem cobrir rótulo, subtítulo, legenda
+  [["#label"],["#sub"],["#cap"],["#foot"],["#cta"]].forEach(([s])=>{ const r=vis($(s)); if(!r)return; [["corretor",B.el],["cliente",C.el]].forEach(([n,g])=>{ const br=g.getBoundingClientRect(); if(ov(r,br,6)) out.push(`${s} × corpo ${n}`); }); });
+  // tudo dentro da tela (margem 24 px)
+  [...T].forEach(([n,r])=>{ if(r.left<24||r.right>1056) out.push(`${n} fora da margem`); });
+  return out;
+};
+function fitAll(){ document.querySelectorAll(".chip .v,.chip .k,.chip.row span").forEach(el=>{ const box=el.closest(".chip"); const max=box.clientWidth-(el.matches("span")?58:20); el.style.whiteSpace="nowrap"; let fs=parseFloat(getComputedStyle(el).fontSize); let n=0;
+  const w=()=>{ const r=document.createRange(); r.selectNodeContents(el); return Math.max(...[...r.getClientRects()].map(x=>x.width),0); };
+  while(w()>max && fs>14 && n++<60){ fs-=1; el.style.fontSize=fs+"px"; } }); }
+Promise.all([document.fonts.ready,...[...document.images].map(i=>i.decode().catch(()=>{}))]).then(()=>{ fitAll(); window.__ready=true; });
+</script></body></html>
