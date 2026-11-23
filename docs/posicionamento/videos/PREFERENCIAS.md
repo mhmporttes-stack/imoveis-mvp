@@ -2,6 +2,8 @@
 
 Atualize a cada revisão aprovada. Mais recente em cima.
 
+- **2026-11-23** (voz reprovada): o dono achou a voz sintética local (Kokoro `pm_alex`) "horrível". Não oferecer mais vozes locais gratuitas. Caminho: o dono gera a locução inteira na ferramenta de voz que preferir (CapCut/ElevenLabs/outra; texto em `texto-para-voz.txt`) e envia UM áudio → `voz.py --audio` alinha, corta por frase e sincroniza. Alternativa: chave de API (ElevenLabs/Google/Azure) pedida pelo formulário seguro para gerar direto. Edge-TTS (Microsoft) não funciona neste ambiente (WebSocket) e não é oficial para uso comercial.
+
 - **2026-11-23** (vídeo 1 com voz): dono pediu "crie o vídeo com voz" sem decidir os números: foi entregue o **rascunho v2 na versão recomendada** (sem "sem entrada", sem Casa Paulista, desconto R$ 32 mil, parcela R$ 525, total R$ 86 mil — conforme o CRM) com voz sintética gratuita `pm_alex` (Kokoro). Pendente do dono: ouvir a voz/efeitos; confirmar Casa Paulista, desconto (35 × 32,1 mil) e fonte dos 3 anos sem IPTU; se preferir a própria voz, `voz-dono/<id>.wav` por frase.
 
 - **2026-11-23** (voz e chat): o dono gostou muito da **voz sintética** (não narrada por pessoa) do vídeo de referência — voz NÃO identificada (arquivo recomprimido, sem marca do editor; medido: masculina, tom médio ≈ 147 Hz, fala contínua e rápida, com trilha/efeitos). Caminho: o dono gera/envia o áudio (CapCut/ElevenLabs/outro) e o vídeo é re-sincronizado. Pediu um **chat dedicado** a vídeos informativos (agente `animador-informativo` + `/video-informativo`) e quer fazer vídeos **rápido, sem confirmar cada comando** (modo Auto no seletor da sessão ou regras em `permissions.allow` do `.claude/settings.json`).

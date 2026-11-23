@@ -8,7 +8,7 @@ set -euo pipefail
 cd "$(dirname "$0")"
 export NODE_PATH="${NODE_PATH:-$(npm root -g 2>/dev/null)}"
 cp ../../../../public/assets/matheus-machado-symbol.png symbol.png            # marca d'água "M" oficial
-${VOZ_PY:-python3} voz.py                                                     # locução por frase + timeline.js (anima no ritmo da fala)
+${VOZ_PY:-python3} voz.py ${AUDIO:+--audio "$AUDIO"}                                 # locução por frase (sintética ou AUDIO=arquivo único do dono) + timeline.js
 CHECK=1 node render_frames.cjs video.html frames 30                           # confere sobreposições (texto × texto × rostos × corpos × margens)
 node render_frames.cjs video.html frames 30                                   # quadros + frames/events.json (efeitos em tempo real)
 python3 mix.py frames/events.json narracao.wav audio.wav                      # voz + efeitos (efeitos abaixam sob a voz)

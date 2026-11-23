@@ -10,5 +10,8 @@
 ## Como refazer
 `VOZ_PY=.venv/bin/python ./montar.sh` (venv com `kokoro-onnx soundfile`; modelos baixam sozinhos em `~/.cache/kokoro` ou `KOKORO_DIR`). Faz, em ordem: voz → **checagem de sobreposição** → quadros → mixagem → MP4. Outra voz: `VOZ=pm_santa|pf_dora` (testadas: pronunciam "Marília" pior que `pm_alex`). Voz do dono: `voz-dono/<id>.wav` por frase.
 
+## Voz — como trocar (a voz local Kokoro foi reprovada pelo dono em 2026-11-23)
+Melhor caminho: gerar a locução INTEIRA numa ferramenta de voz de que o dono goste (CapCut "texto para fala", ElevenLabs…) colando `texto-para-voz.txt`, baixar UM áudio e rodar `VOZ_PY=... python3 voz.py --audio <arquivo>` (ou `montar.sh` com `AUDIO=<arquivo>`): `alinhar.py` transcreve com tempo por palavra (faster-whisper), alinha ao roteiro, corta uma fala por frase e a animação se ajusta. Testado: cortes do áudio de teste ficaram dentro de ≈0,1 s e a locução remontada foi transcrita corretamente.
+
 ## Regras aplicadas (`../PREFERENCIAS.md`)
 Legenda abaixo do chão; adesivo de link (x 80–560, y 1470–1590) livre; marca d'água "M" em posição diferente por cena; sem logo/nome da incorporadora; vermelho só em palavra negativa; rodapé legal; metadados de autoria. Conferido por transcrição automática do áudio final (voz inteligível; fala × legenda com desvio médio de 0,13 s) — ninguém ouviu: o dono julga a voz e os efeitos.

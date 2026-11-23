@@ -3,9 +3,10 @@
 Entrada: locucao.json. Saídas: narracao.wav (24 kHz mono), timeline.js (window.TL), locucao-tempos.json.
 Se existir voz-dono/<id>.wav (gravação do dono por frase), ela substitui a voz sintética daquela frase.
 Variáveis: KOKORO_DIR (modelos; baixa sozinho na 1ª vez), VOZ (pm_alex|pm_santa|pf_dora), VEL (velocidade).
-Uso: python3 voz.py [--sem-voz]   (--sem-voz: só a linha do tempo, usando as janelas do roteiro)"""
+Uso: python3 voz.py [--sem-voz | --audio locucao-inteira.mp3]   (--sem-voz: só a linha do tempo; --audio: corta UM áudio inteiro por frase e sincroniza — qualquer voz)"""
 import json, os, sys, subprocess, numpy as np, soundfile as sf
 SEM_VOZ = "--sem-voz" in sys.argv
+AUDIO = sys.argv[sys.argv.index("--audio") + 1] if "--audio" in sys.argv else None   # locução inteira num arquivo só (qualquer voz)
 D = json.load(open("locucao.json", encoding="utf-8"))
 VOZ = os.environ.get("VOZ", D.get("voz", "pm_alex")); VEL = float(os.environ.get("VEL", D.get("velocidade", 1.08)))
 SR = 24000
@@ -22,7 +23,10 @@ def trim(y, thr=0.01):
     idx = np.where(np.abs(y) > thr)[0]
     return y[max(0, idx[0] - int(.02*SR)): idx[-1] + int(.06*SR)] if len(idx) else y
 clips = {}
-if not SEM_VOZ:
+if AUDIO:
+    import alinhar
+    clips, _t = alinhar.cortar(AUDIO, D["chunks"])
+elif not SEM_VOZ:
     kd = os.environ.get("KOKORO_DIR", os.path.expanduser("~/.cache/kokoro"))
     base = "https://github.com/thewh1teagle/kokoro-onnx/releases/download/model-files-v1.0/"
     baixar(f"{kd}/kokoro-v1.0.onnx", base + "kokoro-v1.0.onnx"); baixar(f"{kd}/voices-v1.0.bin", base + "voices-v1.0.bin")
