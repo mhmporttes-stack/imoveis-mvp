@@ -708,3 +708,9 @@
 - **Retroatividade:** check-ins feitos antes de cadastrar a rede nova não são recuperados.
 - **Limite conhecido:** leitura-e-gravação do jsonb sem trava (heartbeats simultâneos podem perder uma aparição; o próximo heartbeat repõe).
 - Código: `lib/office-unmatched-core.mjs` (puro), `lib/office-presence.js`, `components/OnlinePresenceBoard.jsx`. Testes: `tests/office-unmatched.test.mjs`.
+
+## IMO-PRECO — Valor de venda obrigatório no cadastro interno (dono, 2026-11-25)
+
+- **[REGRA OFICIAL DE NEGÓCIO — dono, 2026-11-25]** "Todos os imóveis cadastrados no CRM internamente devem ter o valor de venda do imóvel. No site não, e no Marketplace também deve ter o valor." Valor obrigatório no cadastro interno; o site pode esconder (`hide_price`, "Publicar sem valores" — a camada pública continua zerando `price`/`installmentEntry`); o Marketplace sempre leva o valor.
+- **Implementação:** `assertPropertySalePrice` (`lib/property-price-core.mjs`) em `createProperty`/`updateProperty` (`lib/properties.js`): imóvel que não é empreendimento não grava com `price` vazio, 0 ou sem número ("Informe o valor de venda do imóvel…"). Em `updateProperty` valida o registro já mesclado (inclui "Aprovar/publicar"); só "reprovar" (patch único `isPublished:false`) não é bloqueado. Leitura/listagem/filtros de imóvel antigo sem valor não mudam. Marketplace: `buildDraftFromProperty` e `/api/admin/marketplace/draft` recusam sem valor (422, "Cadastre o valor de venda do imóvel antes de postar no Marketplace."); `normalizeListingInput` já exigia preço.
+- **[PENDENTE DE VALIDAÇÃO]** Empreendimento (`is_development`) NÃO exige valor (depende da unidade; "a partir de" opcional) — interpretação a confirmar com o dono. Limite: o texto do anúncio do Marketplace (`buildListingDescription`) continua omitindo a linha de preço quando `hide_price` está ligado; o valor vai no campo de preço do anúncio.

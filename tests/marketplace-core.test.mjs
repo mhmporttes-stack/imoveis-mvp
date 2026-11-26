@@ -184,12 +184,12 @@ test("cópia no armazenamento tem nome estável pelo conteúdo (não duplica)", 
 });
 
 test("rascunho usa as fotos importadas pelo servidor; imóvel sem foto é sinalizado", () => {
-  const property = { id: "p", name: "Casa", photos: [{ data: "data:image/png;base64,AAA" }, PHOTO] };
+  const property = { id: "p", name: "Casa", price: "R$ 100.000", photos: [{ data: "data:image/png;base64,AAA" }, PHOTO] };
   const draft = buildDraftFromProperty(property, { allowedHosts: HOSTS, importedPhotoUrls: ["https://abc.supabase.co/x/marketplace/1.png", PHOTO] });
   assert.equal(draft.photoUrls.length, 2);
   assert.equal(draft.totalPhotos, 2);
   assert.equal(draft.skippedPhotos, 0);
-  const empty = buildDraftFromProperty({ id: "q", name: "Sem foto", photos: [] }, { importedPhotoUrls: [] });
+  const empty = buildDraftFromProperty({ id: "q", name: "Sem foto", price: "R$ 100.000", photos: [] }, { importedPhotoUrls: [] });
   assert.equal(empty.totalPhotos, 0);
   assert.deepEqual(empty.photoUrls, []);
 });
@@ -200,15 +200,15 @@ test("bairro sem cidade/UF/separadores (caso real 'Terra Verde · Marília/SP')"
   assert.equal(sanitizeNeighborhood("Marília/SP"), "");
   assert.equal(sanitizeNeighborhood("Parque São Jorge"), "Parque São Jorge");
   assert.equal(normalizeListingInput({ ...valid, neighborhood: "Terra Verde · Marília/SP" }, { allowedHosts: HOSTS }).neighborhood, "Terra Verde");
-  assert.equal(buildDraftFromProperty({ name: "Casa", region: "Terra Verde · Marília/SP", photos: [] }, { importedPhotoUrls: [] }).neighborhood, "Terra Verde");
+  assert.equal(buildDraftFromProperty({ name: "Casa", price: "R$ 100.000", region: "Terra Verde · Marília/SP", photos: [] }, { importedPhotoUrls: [] }).neighborhood, "Terra Verde");
 });
 
 test("banheiros obrigatório (mínimo 1) e SEM padrão: sem dado seguro o rascunho vem vazio (dono, 2026-10-20)", () => {
   assert.throws(() => normalizeListingInput({ ...valid, bathrooms: "" }, { allowedHosts: HOSTS }), /banheiros/);
   assert.throws(() => normalizeListingInput({ ...valid, bathrooms: 0 }, { allowedHosts: HOSTS }), /banheiros/);
-  assert.equal(buildDraftFromProperty({ name: "Casa", photos: [] }, { importedPhotoUrls: [] }).bathrooms, "");
+  assert.equal(buildDraftFromProperty({ name: "Casa", price: "R$ 100.000", photos: [] }, { importedPhotoUrls: [] }).bathrooms, "");
   // Só suítes, sem saber dos banheiros sociais: não chuta.
-  assert.equal(buildDraftFromProperty({ name: "Casa", features: ["3 suítes"], photos: [] }, { importedPhotoUrls: [] }).bathrooms, "");
+  assert.equal(buildDraftFromProperty({ name: "Casa", price: "R$ 100.000", features: ["3 suítes"], photos: [] }, { importedPhotoUrls: [] }).bathrooms, "");
 });
 
 test("marcar como publicado manualmente: exige link do Marketplace e tira da fila", () => {
@@ -257,7 +257,7 @@ test("caso real: 3 suítes + apoio + lavabo → 4 banheiros no campo; lavabo só
 test("total explícito de banheiros vale; quartos pega o 1º número", () => {
   assert.equal(deriveRoomDetails({ features: ["4 banheiros", "1 suíte"] }).bathrooms, 4);
   assert.equal(deriveRoomDetails({ bedrooms: "2 quartos sendo 1 suíte", features: ["1 banheiro social"] }).bathrooms, 2);
-  assert.equal(buildDraftFromProperty({ name: "Casa", bedrooms: "3 quartos, 1 suíte", photos: [] }, { importedPhotoUrls: [] }).bedrooms, 3);
+  assert.equal(buildDraftFromProperty({ name: "Casa", price: "R$ 100.000", bedrooms: "3 quartos, 1 suíte", photos: [] }, { importedPhotoUrls: [] }).bedrooms, 3);
   assert.match(facebookSummary({ offer_type: "sale", property_type: "house", bedrooms: 2, price: 1 }), /banheiros: FALTA/);
 });
 

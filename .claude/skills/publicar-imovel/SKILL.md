@@ -5,7 +5,7 @@ description: "Quando o dono manda fotos + dados de um imóvel: monta o carrossel
 
 # Publicar imóvel (fotos do dono → Instagram + site/CRM + Marketplace)
 
-**Autorização permanente do dono (2026-10-22):** "sempre que eu mandar a foto, você já vai postar nesses lugares". Não perguntar "Vai postar agora?" para imóvel: publicar e avisar. Continua valendo: nada de inventar dado (quartos, área); valor nunca aparece no post (só no CRM, com `hide_price=true`); endereço completo só no CRM.
+**Autorização permanente do dono (2026-10-22):** "sempre que eu mandar a foto, você já vai postar nesses lugares". Não perguntar "Vai postar agora?" para imóvel: publicar e avisar. Continua valendo: nada de inventar dado (quartos, área); **valor de venda é obrigatório (dono, 2026-11-25): pedir ao dono antes de cadastrar/publicar, nunca inventar nem deixar vazio**; valor nunca aparece no post nem no site (só no CRM e no Marketplace; `hide_price=true` = "publicar sem valores", só do SITE); endereço completo só no CRM.
 
 ## 1. Carrossel (modelo em `docs/posicionamento/ESTILO-CARROSSEL.md`)
 - Pasta `docs/posicionamento/carrosseis/AAAA-MM-DD-<bairro>/`. Copiar `laminas.html` e `img/` do último imóvel e trocar textos (código só no selo de cima).

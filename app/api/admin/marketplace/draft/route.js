@@ -3,7 +3,7 @@ import { requireGeneralAdminApi } from "@/lib/admin-auth";
 import { getProperty } from "@/lib/properties";
 import { buildBrokerSimulationLink } from "@/lib/admin-profiles";
 import { getAllowedPhotoHosts, importPropertyPhotosForMarketplace } from "@/lib/marketplace-listings";
-import { buildDraftFromProperty } from "@/lib/marketplace-core.mjs";
+import { MarketplaceInputError, MARKETPLACE_PRICE_REQUIRED_MESSAGE, buildDraftFromProperty, hasSalePrice } from "@/lib/marketplace-core.mjs";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -19,10 +19,13 @@ export async function GET(request) {
   try {
     const property = await getProperty(propertyId);
     if (!property) return NextResponse.json({ error: "Imóvel não encontrado." }, { status: 404 });
+    // Valor obrigatório (dono, 2026-11-25): recusa antes de copiar fotos.
+    if (!hasSalePrice(property.price)) return NextResponse.json({ error: MARKETPLACE_PRICE_REQUIRED_MESSAGE }, { status: 422 });
     const { photoUrls, problems } = await importPropertyPhotosForMarketplace(property);
     const draft = buildDraftFromProperty(property, { simulationLink: buildBrokerSimulationLink(auth.profile), allowedHosts: getAllowedPhotoHosts(), importedPhotoUrls: photoUrls });
     return NextResponse.json({ draft, photoProblems: problems });
   } catch (error) {
+    if (error instanceof MarketplaceInputError) return NextResponse.json({ error: error.message }, { status: 422 });
     return NextResponse.json({ error: error?.message || "Não foi possível montar o rascunho." }, { status: 500 });
   }
 }

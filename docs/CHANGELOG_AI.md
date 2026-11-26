@@ -6776,3 +6776,7 @@ Regra oficial do dono (BUSINESS_RULES "AUT/ROL — Usuário do dono"). `lib/offi
 ## 2026-11-21 — ROL-2f: redes novas detectadas e aviso ao dono (crm-architect) — NÃO publicado
 - Causa: IP/prefixo do escritório muda e o IP fora da lista era descartado em silêncio; o dono só soube pelos corretores.
 - Regra: `docs/BUSINESS_RULES.md` ROL-2f (2026-11-21). `lib/office-unmatched-core.mjs` (novo), `registerOfficeCheckinFromHeartbeat`/`getOfficeNetworkPanel`/`markDetectedOfficeNetwork` em `lib/office-presence.js`, ação `mark-detected-network` em `app/api/admin/office-presence/route.js`, bloco no `OfficeNetworkPanel` de `components/OnlinePresenceBoard.jsx`. Teste: `tests/office-unmatched.test.mjs`. Sem migration (`crm_settings` `office_presence_unmatched`).
+
+## 2026-11-26 — IMO-PRECO: valor de venda obrigatório no cadastro interno e no Marketplace (crm-architect) — NÃO publicado
+- Regra: `docs/BUSINESS_RULES.md` IMO-PRECO. `lib/property-price-core.mjs` (novo), `lib/properties.js` (create/update), `lib/marketplace-core.mjs` (`hasSalePrice`, recusa em `buildDraftFromProperty`), `app/api/admin/marketplace/draft/route.js` (422), `components/PropertyForm.jsx` (campo obrigatório + ajuda), skill `publicar-imovel`. Testes: `tests/property-sale-price.test.mjs`; fixtures de `tests/marketplace-core.test.mjs` ganharam preço.
+- Risco/observação: empreendimento não exige (a confirmar); imóveis antigos sem valor só falham ao serem editados/aprovados; 20 testes em `tests/` já falhavam antes (iguais com e sem a mudança).
