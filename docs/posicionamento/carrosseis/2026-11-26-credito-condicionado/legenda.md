@@ -7,6 +7,8 @@ Calma. Condicionado não é a mesma coisa que reprovado.
 
 Quando a análise de crédito volta condicionada, o banco está dizendo que encontrou algum ponto que precisa ser ajustado, comprovado ou revisto antes da aprovação final. Ou seja: a porta não fechou.
 
+Já a reprovação é quando o banco nega o crédito naquele momento. São situações bem diferentes.
+
 Por que isso acontece? Os motivos mais comuns são:
 • Renda muito comprometida com outras parcelas
 • Empréstimos ou financiamentos em aberto
