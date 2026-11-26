@@ -685,6 +685,11 @@
 8. Volume real de clientes (> 1000 linhas afeta P-01).
 9. Academia: sem pendências de negócio abertas; decisões de implementação (ACA-1, 2, 7, 8, 9, F4–F7) registradas como reversíveis nos itens ACA.
 
+## AUT/ROL — Usuário do dono não exige WhatsApp conectado (2026-11-14)
+
+- **[REGRA OFICIAL DE NEGÓCIO — dono, 2026-11-14]** "O usuário do dono não exige WhatsApp conectado." A conta real do dono (`isOwnerAdminEmail`, fora de "Alterar conta") nunca é tratada como "fora da roleta" (ROL-2d/2e/2f): `getMyOfficeStatus` (`lib/office-presence.js`) devolve `inRoulette: false` para ela, então o aviso de `components/OfficePresenceNotice.jsx` não aparece. Conversa guardada continua visível ao dono sem sessão conectada (listagem do Chat não depende de sessão); envio continua exigindo conexão.
+- **[COMPORTAMENTO ATUAL DA IMPLEMENTAÇÃO]** A roleta no banco (`pick_round_robin_broker`, `roulette_user_extra_eligible`, `whatsapp_user_has_active_number`) exige `lead_distribution_enabled = true` + WhatsApp conectado; o dono tem `false`, portanto já está fora da roleta por escolha. Nenhum SQL foi alterado. Em "Alterar conta" o Chat segue o perfil EFETIVO (corretor): a aba Particular aparece (sessão real) mas lista vazio, como para o corretor (WA-19).
+
 ## CLI-7d — Cadastro recém-preenchido fica em "Novos atendimentos" mesmo após a automação (2026-11-18)
 
 - **[REGRA OFICIAL DE NEGÓCIO — dono, 2026-11-18]** "Mesmo que seja feito por automação, é um novo cliente, ele acabou de preencher o cadastro, então tem que ficar em aba de novos clientes, no topo." Caso real: cliente que preencheu o formulário pelo link de SMS da corretora; em segundos a simulação automática passou o status para "Simulação automática" e ela sumiu de "Novos atendimentos".
