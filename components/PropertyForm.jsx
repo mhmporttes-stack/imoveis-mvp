@@ -415,7 +415,10 @@ export default function PropertyForm({ property, canPublish = false, isDevelopme
             {STATUS_OPTIONS.map((option) => <option key={option} value={option}>{option}</option>)}
           </select>
         </label>
-        <Field label="Preço inicial" value={form.price} onChange={(value) => update("price", value)} placeholder="R$ 389.000" />
+        <div className="grid gap-1">
+          <Field label={(isDevelopment || property?.isDevelopment) ? "Preço inicial" : "Valor de venda (obrigatório)"} value={form.price} onChange={(value) => update("price", value)} placeholder="R$ 389.000" required={!(isDevelopment || property?.isDevelopment)} />
+          {!(isDevelopment || property?.isDevelopment) ? <p className="text-sm text-muted">Todo imóvel precisa do valor de venda. O site pode escondê-lo em &quot;Publicar sem valores&quot;; a equipe e o Marketplace sempre usam o valor.</p> : null}
+        </div>
         <Field label="Prazo de entrega" value={form.delivery} onChange={(value) => update("delivery", value)} />
         <Field label="Metragem" value={form.area} onChange={(value) => update("area", value)} />
         <Field label="Quartos" value={form.bedrooms} onChange={(value) => update("bedrooms", value)} />

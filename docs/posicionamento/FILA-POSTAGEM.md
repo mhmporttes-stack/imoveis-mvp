@@ -36,6 +36,7 @@ Regra do dono (2026-10-15):
 - Apê San Francisco (COD4365, imóvel) — Instagram, site e Marketplace em 2026-11-07
 - Studio Edifício Concept (COD4366, imóvel) — Instagram, site e Marketplace em 2026-11-11
 - Apê Residencial Casablanca (COD4367, imóvel) — Instagram, site e Marketplace em 2026-11-23
+- Casa Condomínio Verana (COD4368, imóvel) — Instagram e site em 2026-11-26; Marketplace aguarda o valor
 - Apê Torres de Marília · Zona Norte (COD4360, imóvel) — Instagram, site e Marketplace em 2026-10-24
 - Casa reformada Nova Marília (COD4359, imóvel) — Instagram + site em 2026-10-23
 - Erros que fazem muita gente continuar no aluguel (2026-10-19, azul) — dono postou na hora
