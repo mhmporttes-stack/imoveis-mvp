@@ -9,6 +9,8 @@ Brincadeiras à parte, tem muito casal que paga aluguel há anos achando que com
 
 Com o Minha Casa Minha Vida, dá para somar a renda do casal no financiamento. Isso pode aumentar o valor que o banco aprova e deixar a parcela mais leve para os dois.
 
+E não precisa ser casado no papel: quem vive em união estável também pode juntar a renda.
+
 E dependendo da renda da família, ainda dá para contar com:
 • Subsídio do programa, um desconto que ajuda a pagar menos no imóvel
 • Juros menores do que os de fora do programa
